@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/psp.yaml'
+      - 'premake5.lua'
+      - 'Settings.lua'
       - 'Ports/PSP/**'
       - 'Toshi/**'
   workflow_dispatch:
@@ -23,13 +25,18 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Setup Premake
+        uses: abel0b/setup-premake@v2.3
+
+      - name: Generate PSP project
+        run: premake5 gmake2 --target=psp
+
       - name: Build PSP bootstrap
-        working-directory: Ports/PSP
-        run: make -j$(nproc)
+        run: make -C Build/PSP config=release_psp -j$(nproc)
 
       - name: Publish PSP bootstrap
         uses: actions/upload-artifact@v4
         with:
           name: OpenBarnyard-PSP-bootstrap
-          path: Ports/PSP/EBOOT.PBP
+          path: bin/PSP/Release/EBOOT.PBP
           if-no-files-found: error
