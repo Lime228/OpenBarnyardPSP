@@ -1,0 +1,35 @@
+name: PSP
+
+on:
+  push:
+    branches:
+      - psp-port
+  pull_request:
+    paths:
+      - '.github/workflows/psp.yaml'
+      - 'Ports/PSP/**'
+      - 'Toshi/**'
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/pspdev/pspdev:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build PSP bootstrap
+        working-directory: Ports/PSP
+        run: make -j$(nproc)
+
+      - name: Publish PSP bootstrap
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenBarnyard-PSP-bootstrap
+          path: Ports/PSP/EBOOT.PBP
+          if-no-files-found: error
