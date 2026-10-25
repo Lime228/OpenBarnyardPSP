@@ -11,6 +11,21 @@ console backend.
 `Ports/PSP` is milestone 0: a small EBOOT that proves the toolchain, input, and
 PSP GU rendering path independently from the Windows executable.
 
+## Port conventions
+
+- Reuse the engine typedefs (`TBOOL`, `TINT`, `TUINT32`, `TSIZE`, `TUINTPTR`,
+  and related types) instead of introducing equivalent standard-library or
+  platform integer types into port code.
+- Follow the name of the original platform implementation when adding a PSP
+  equivalent and use the `_PSP` suffix for PSP-specific classes and files.
+- Keep file-local state and helper functions `static`; do not introduce
+  anonymous namespaces into the PSP implementation files.
+- Keep engine, frontend, build, and documentation changes in separate logical
+  Conventional Commits with an explicit scope.
+- Use Premake as the project-level build description. The PSPSDK Makefile in
+  `Ports/PSP` remains a bootstrap probe until its PSP packaging steps are fully
+  represented by the Premake target.
+
 ## Required platform work
 
 1. **Compiler and ABI portability**
