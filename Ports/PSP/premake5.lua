@@ -4,11 +4,13 @@ if pspdev == nil then
 	error( "PSPDEV is not set; install PSPDEV and export PSPDEV before generating the PSP project" )
 end
 
+premake.api.addAllowed( "architecture", "PSP" )
+
 workspace "OpenBarnyardPSP"
 	location "../../Build/PSP"
 	configurations { "Debug", "Release", "Final" }
 	platforms "PSP"
-	architecture "Native"
+	architecture "PSP"
 	startproject "OpenBarnyardPSP"
 
 project "OpenBarnyardPSP"
