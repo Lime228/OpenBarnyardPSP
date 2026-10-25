@@ -42,6 +42,8 @@ mono_crash.*
 bld/
 [Bb]in/
 [Bb]in-int/
+/Build/
+/.premake/
 [Oo]bj/
 [Oo]ut/
 [Ll]og/
