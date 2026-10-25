@@ -7,12 +7,9 @@
 #include <Toshi/THPTimer.h>
 #include <Toshi/Verify.h>
 
-#include <bit>
-#include <cstdint>
-
-bool RunToshiPortabilitySmokeTest()
+TBOOL RunToshiPortabilitySmokeTest()
 {
-	alignas( std::uint32_t ) constexpr std::uint8_t bytes[] = { 0x78, 0x56, 0x34, 0x12 };
+	alignas( TUINT32 ) constexpr TUINT8 bytes[] = { 0x78, 0x56, 0x34, 0x12 };
 	Toshi::THPTimer timer;
 	Toshi::ThreadSleep( 0 );
 	timer.Update();
@@ -20,7 +17,6 @@ bool RunToshiPortabilitySmokeTest()
 
 	return sizeof( TUINT32 ) == 4 &&
 	       sizeof( TUINTPTR ) == 4 &&
-	       std::endian::native == std::endian::little &&
 	       CURRENT_ENDIANESS == Endianess_Little &&
 	       PARSEDWORD( bytes ) == 0x12345678U &&
 	       timer.GetRaw64() > 0 &&

@@ -3,7 +3,7 @@
 #include <pspgu.h>
 #include <pspkernel.h>
 
-#include <cstdint>
+#include <Toshi/Typedefs.h>
 
 #include "ToshiSmoke.h"
 
@@ -11,57 +11,55 @@ PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
 PSP_MAIN_THREAD_ATTR( PSP_THREAD_ATTR_USER );
 PSP_HEAP_SIZE_KB( -1024 );
 
-namespace
-{
-constexpr int kScreenWidth  = 480;
-constexpr int kScreenHeight = 272;
-constexpr int kBufferWidth  = 512;
-constexpr int kFrameBytes   = kBufferWidth * kScreenHeight * 4;
+static constexpr TINT kScreenWidth  = 480;
+static constexpr TINT kScreenHeight = 272;
+static constexpr TINT kBufferWidth  = 512;
+static constexpr TINT kFrameBytes   = kBufferWidth * kScreenHeight * 4;
 
-alignas( 16 ) std::uint32_t g_DisplayList[ 262144 ];
-volatile bool               g_Running = true;
+alignas( 16 ) static TUINT32 g_DisplayList[ 262144 ];
+static volatile TBOOL        g_Running = TTRUE;
 
-struct Vertex
+struct Vertex_PSP
 {
-	std::uint32_t color;
-	float         x;
-	float         y;
-	float         z;
+	TUINT32 uiColour;
+	TFLOAT  fX;
+	TFLOAT  fY;
+	TFLOAT  fZ;
 };
 
 static_assert( sizeof( void* ) == 4, "The PSP port requires a 32-bit ABI" );
-static_assert( sizeof( Vertex ) == 16, "Unexpected PSP vertex layout" );
+static_assert( sizeof( Vertex_PSP ) == 16, "Unexpected PSP vertex layout" );
 
-int ExitCallback( int, int, void* )
+static TINT ExitCallback( TINT, TINT, void* )
 {
-	g_Running = false;
+	g_Running = TFALSE;
 	return 0;
 }
 
-int CallbackThread( SceSize, void* )
+static TINT CallbackThread( SceSize, void* )
 {
-	const int callback = sceKernelCreateCallback( "OpenBarnyardExit", ExitCallback, nullptr );
-	sceKernelRegisterExitCallback( callback );
+	const TINT iCallback = sceKernelCreateCallback( "OpenBarnyardExit", ExitCallback, TNULL );
+	sceKernelRegisterExitCallback( iCallback );
 	sceKernelSleepThreadCB();
 	return 0;
 }
 
-void SetupCallbacks()
+static void SetupCallbacks()
 {
-	const int thread = sceKernelCreateThread(
+	const TINT iThread = sceKernelCreateThread(
 	    "OpenBarnyardCallbacks",
 	    CallbackThread,
 	    0x11,
 	    0x1000,
 	    PSP_THREAD_ATTR_USER,
-	    nullptr
+	    TNULL
 	);
 
-	if ( thread >= 0 )
-		sceKernelStartThread( thread, 0, nullptr );
+	if ( iThread >= 0 )
+		sceKernelStartThread( iThread, 0, TNULL );
 }
 
-void InitialiseGraphics()
+static void InitialiseGraphics()
 {
 	sceGuInit();
 	sceGuStart( GU_DIRECT, g_DisplayList );
@@ -82,30 +80,29 @@ void InitialiseGraphics()
 	sceGuDisplay( GU_TRUE );
 }
 
-void DrawFrame( float xOffset, std::uint32_t clearColor )
+static void DrawFrame( TFLOAT a_fXOffset, TUINT32 a_uiClearColour )
 {
 	sceGuStart( GU_DIRECT, g_DisplayList );
-	sceGuClearColor( clearColor );
+	sceGuClearColor( a_uiClearColour );
 	sceGuClear( GU_COLOR_BUFFER_BIT );
 
-	auto* vertices = static_cast<Vertex*>( sceGuGetMemory( 3 * sizeof( Vertex ) ) );
-	vertices[ 0 ]  = { 0xff5ac8fa, 240.0f + xOffset, 46.0f, 0.0f };
-	vertices[ 1 ]  = { 0xff65d26e, 116.0f + xOffset, 226.0f, 0.0f };
-	vertices[ 2 ]  = { 0xfff0cf65, 364.0f + xOffset, 226.0f, 0.0f };
+	auto* pVertices = static_cast<Vertex_PSP*>( sceGuGetMemory( 3 * sizeof( Vertex_PSP ) ) );
+	pVertices[ 0 ]  = { 0xff5ac8fa, 240.0f + a_fXOffset, 46.0f, 0.0f };
+	pVertices[ 1 ]  = { 0xff65d26e, 116.0f + a_fXOffset, 226.0f, 0.0f };
+	pVertices[ 2 ]  = { 0xfff0cf65, 364.0f + a_fXOffset, 226.0f, 0.0f };
 
 	sceGuDrawArray(
 	    GU_TRIANGLES,
 	    GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
 	    3,
-	    nullptr,
-	    vertices
+	    TNULL,
+	    pVertices
 	);
 	sceGuFinish();
 	sceGuSync( GU_SYNC_FINISH, GU_SYNC_WHAT_DONE );
 	sceDisplayWaitVblankStart();
 	sceGuSwapBuffers();
 }
-} // namespace
 
 int main()
 {
@@ -114,23 +111,23 @@ int main()
 	sceCtrlSetSamplingCycle( 0 );
 	sceCtrlSetSamplingMode( PSP_CTRL_MODE_ANALOG );
 
-	float         xOffset    = 0.0f;
-	const bool    toshiReady = RunToshiPortabilitySmokeTest();
-	std::uint32_t clearColor = toshiReady ? 0xff201810 : 0xff202080;
+	TFLOAT        fXOffset     = 0.0f;
+	const TBOOL   bToshiReady  = RunToshiPortabilitySmokeTest();
+	TUINT32       uiClearColor = bToshiReady ? 0xff201810 : 0xff202080;
 
 	while ( g_Running )
 	{
 		SceCtrlData pad{};
 		sceCtrlPeekBufferPositive( &pad, 1 );
 
-		const float analogX = ( static_cast<int>( pad.Lx ) - 128 ) / 128.0f;
-		xOffset += analogX * 2.0f;
-		if ( xOffset < -100.0f ) xOffset = -100.0f;
-		if ( xOffset > 100.0f ) xOffset = 100.0f;
+		const TFLOAT fAnalogX = ( static_cast<TINT>( pad.Lx ) - 128 ) / 128.0f;
+		fXOffset += fAnalogX * 2.0f;
+		if ( fXOffset < -100.0f ) fXOffset = -100.0f;
+		if ( fXOffset > 100.0f ) fXOffset = 100.0f;
 
-		if ( toshiReady )
-			clearColor = ( pad.Buttons & PSP_CTRL_CROSS ) ? 0xff402010 : 0xff201810;
-		DrawFrame( xOffset, clearColor );
+		if ( bToshiReady )
+			uiClearColor = ( pad.Buttons & PSP_CTRL_CROSS ) ? 0xff402010 : 0xff201810;
+		DrawFrame( fXOffset, uiClearColor );
 	}
 
 	sceGuTerm();
