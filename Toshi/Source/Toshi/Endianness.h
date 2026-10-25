@@ -10,8 +10,10 @@ enum Endianess_ : Endianess
 };
 
 inline constexpr Endianess CURRENT_ENDIANESS =
-#ifdef TOSHI_SKU_WINDOWS
+#if defined( TOSHI_SKU_WINDOWS ) || defined( TOSHI_SKU_PSP )
     Endianess_Little;
+#else
+#  error Unsupported platform endianness
 #endif
 
 TFORCEINLINE constexpr TUINT32 SWAP32( const TUINT8 bytes[ 4 ] )

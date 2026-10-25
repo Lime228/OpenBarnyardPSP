@@ -10,7 +10,8 @@ enum class Platform
 	Wii,
 	Unk2,
 	PC,
-	Unk3
+	Unk3,
+	PSP
 };
 
 void ThreadSleep( TUINT dwMilliseconds );

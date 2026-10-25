@@ -75,9 +75,22 @@
 #define TARRAYSIZE( ARRAY )               ( sizeof( ARRAY ) / sizeof( *ARRAY ) )
 #define TOFFSETOF( CLASS, MEMBER )        offsetof( CLASS, MEMBER )
 #define TALIGNAS( VALUE )                 alignas( VALUE )
-#define TINLINE                           inline
-#define TFORCEINLINE                      __forceinline
-#define TNOINLINE                         __declspec( noinline )
+#define TINLINE inline
+
+#if defined( _MSC_VER )
+#  define TFORCEINLINE __forceinline
+#  define TNOINLINE    __declspec( noinline )
+#  define TUNREACHABLE_INTRINSIC() __assume( 0 )
+#elif defined( __GNUC__ ) || defined( __clang__ )
+#  define TFORCEINLINE inline __attribute__( ( always_inline ) )
+#  define TNOINLINE    __attribute__( ( noinline ) )
+#  define TUNREACHABLE_INTRINSIC() __builtin_unreachable()
+#else
+#  define TFORCEINLINE inline
+#  define TNOINLINE
+#  define TUNREACHABLE_INTRINSIC() do {} while ( TFALSE )
+#endif
+
 #define TNODISCARD                        [[nodiscard]]
 
 #define TANONYMOUSVAR_1( Y )                CONCATTOKEN( _anonymous, Y )
@@ -168,7 +181,7 @@
 #define TUNREACHABLE()                                     \
 	{                                                      \
 		TASSERT( TFALSE, "Unreachable code is reached!" ); \
-		__assume( 0 );                                     \
+		TUNREACHABLE_INTRINSIC();                           \
 	}
 
 #ifndef TOSHI_NO_LOGS

@@ -15,9 +15,9 @@
 //   MODAPI_MOD  - mod DLLs (imports symbols from the exe)
 #  if defined( MODAPI_HOST ) && defined( MODAPI_MOD )
 #	error "MODAPI_HOST and MODAPI_MOD are mutually exclusive"
-#  elif defined( MODAPI_HOST )
+#  elif defined( MODAPI_HOST ) && defined( TOSHI_SKU_WINDOWS )
 #	define MODAPI __declspec( dllexport )
-#  elif defined( MODAPI_MOD )
+#  elif defined( MODAPI_MOD ) && defined( TOSHI_SKU_WINDOWS )
 #	define MODAPI __declspec( dllimport )
 #  else
 #	define MODAPI

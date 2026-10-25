@@ -39,7 +39,14 @@ constexpr TFLOAT HALF_PI          = PI / 2;
 constexpr TFLOAT ONEOVER_SQRT_TWO = 0.70710677f;
 constexpr TFLOAT ONEOVERTWO_PI    = 1 / TWO_PI;
 
-TFORCEINLINE TBOOL  IsFinite( TFLOAT fVal ) { return _finite( fVal ) != 0; }
+TFORCEINLINE TBOOL IsFinite( TFLOAT fVal )
+{
+#if defined( _MSC_VER )
+	return _finite( fVal ) != 0;
+#else
+	return std::isfinite( fVal );
+#endif
+}
 TFORCEINLINE TFLOAT Sin( TFLOAT fVal ) { return sinf( fVal ); }
 TFORCEINLINE TFLOAT Cos( TFLOAT fVal ) { return cosf( fVal ); }
 TFORCEINLINE TFLOAT Tan( TFLOAT fVal ) { return tanf( fVal ); }
@@ -117,7 +124,7 @@ TFORCEINLINE TINT CeilToInt( TFLOAT a_fVal ) { return TINT( ceilf( a_fVal ) ); }
 // NOTE: the original rounds with fist and then subtracts one if the difference is negative (compares the float's bits)
 TFORCEINLINE TINT FloorToInt( TFLOAT a_fVal ) { return TINT( floorf( a_fVal ) ); }
 
-TFORCEINLINE TBOOL IsNaN( TFLOAT fVal ) { return isnan( fVal ); }
+TFORCEINLINE TBOOL IsNaN( TFLOAT fVal ) { return std::isnan( fVal ); }
 
 TFORCEINLINE TINT FastMod( TINT a_iNum, TINT a_iModulus )
 {

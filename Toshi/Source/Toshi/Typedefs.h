@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 
 using TFLOAT   = float;
@@ -6,7 +7,7 @@ using TDOUBLE  = double;
 using TBOOL    = bool;
 using TINT     = int;
 using TUINT    = unsigned int;
-using TSIZE    = size_t;
+using TSIZE    = std::size_t;
 using TINT64   = int64_t;
 using TUINT64  = uint64_t;
 using TINT32   = int32_t;
