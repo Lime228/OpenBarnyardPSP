@@ -31,7 +31,9 @@ jobs:
       - name: Generate PSP project
         env:
           PSPDEV: /usr/local/pspdev
-        run: premake5 gmake2 --target=psp
+        run: |
+          chmod +x .premake/premake5
+          premake5 gmake2 --target=psp
 
       - name: Build PSP bootstrap
         run: >-
