@@ -13,6 +13,7 @@ shell, make sure these commands succeed:
 ```sh
 psp-config --pspdev-path
 psp-g++ --version
+premake5 --version
 ```
 
 Then build from the repository, either from PowerShell:
@@ -27,7 +28,9 @@ or directly in the Ubuntu shell:
 ./Ports/PSP/build.sh
 ```
 
-The result is `Ports/PSP/EBOOT.PBP`. Copy it to a folder such as
+The build script generates the PSP project with
+`premake5 gmake --target=psp` and builds its `release_psp` configuration. The
+result is `bin/PSP/Release/EBOOT.PBP`. Copy it to a folder such as
 `PSP/GAME/OpenBarnyardProbe/EBOOT.PBP` on a homebrew-capable PSP, or open it in
 PPSSPP. The analog stick moves the triangle; Cross changes the background. A
 red background means that the embedded Toshi ABI/endianness smoke test failed.

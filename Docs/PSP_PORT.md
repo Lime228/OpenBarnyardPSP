@@ -22,9 +22,8 @@ PSP GU rendering path independently from the Windows executable.
   anonymous namespaces into the PSP implementation files.
 - Keep engine, frontend, build, and documentation changes in separate logical
   Conventional Commits with an explicit scope.
-- Use Premake as the project-level build description. The PSPSDK Makefile in
-  `Ports/PSP` remains a bootstrap probe until its PSP packaging steps are fully
-  represented by the Premake target.
+- Use Premake as the project-level build description. The `--target=psp`
+  workspace owns compilation, linking, and EBOOT packaging for the bootstrap.
 
 ## Required platform work
 
