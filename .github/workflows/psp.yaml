@@ -27,6 +27,8 @@ jobs:
 
       - name: Setup Premake
         uses: abel0b/setup-premake@v2.3
+        with:
+          version: "5.0.0"
 
       - name: Generate PSP project
         run: premake5 gmake2 --target=psp
