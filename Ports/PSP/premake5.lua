@@ -8,6 +8,7 @@ workspace "OpenBarnyardPSP"
 	location "../../Build/PSP"
 	configurations { "Debug", "Release", "Final" }
 	platforms "PSP"
+	architecture "Native"
 	startproject "OpenBarnyardPSP"
 
 project "OpenBarnyardPSP"
