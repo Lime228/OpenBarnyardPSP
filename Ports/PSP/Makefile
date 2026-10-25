@@ -1,5 +1,6 @@
 TARGET = openbarnyard_psp_probe
-OBJS = Source/main.o Source/ToshiSmoke.o
+OBJS = Source/main.o Source/ToshiSmoke.o THPTimer_PSP.o
+VPATH = ../../Toshi/Source/Platform/PSP
 
 INCDIR = ../../Toshi/Source
 CFLAGS = -O2 -G0 -Wall -Wextra -DTOSHI_SKU_PSP
