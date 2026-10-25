@@ -2,16 +2,11 @@
 
 #include <pspthreadman.h>
 
-#include <cstdint>
 #include <cstdio>
 
-namespace
-{
-constexpr std::size_t kScratchBufferSize = 4096;
-
-TCHAR  g_ScratchBuffer[ kScratchBufferSize ];
-SceUID g_DebugSemaphore = -1;
-} // namespace
+static constexpr TSIZE kScratchBufferSize = 4096;
+static TCHAR           g_ScratchBuffer[ kScratchBufferSize ];
+static SceUID          g_DebugSemaphore = -1;
 
 void TDebug_AcquireMutex()
 {
@@ -36,7 +31,7 @@ void TDebug_ReleaseMutex()
 
 TBOOL TDebug_IsValidAddress( const void* a_pPtr )
 {
-	const auto uiAddress = reinterpret_cast<std::uintptr_t>( a_pPtr );
+	const TUINTPTR uiAddress = reinterpret_cast<TUINTPTR>( a_pPtr );
 
 	return a_pPtr != nullptr &&
 	       uiAddress != 0xcdcdcdcdU &&
