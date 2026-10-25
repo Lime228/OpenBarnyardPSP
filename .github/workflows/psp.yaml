@@ -33,7 +33,7 @@ jobs:
           PSPDEV: /usr/local/pspdev
         run: |
           chmod +x .premake/premake5
-          premake5 gmake2 --target=psp
+          premake5 gmake --target=psp
 
       - name: Build PSP bootstrap
         run: >-
