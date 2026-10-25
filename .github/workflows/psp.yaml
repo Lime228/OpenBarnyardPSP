@@ -33,7 +33,7 @@ jobs:
       - name: Generate PSP project
         run: |
           chmod +x .premake/premake5
-          premake5 gmake2 --target=psp
+          ./.premake/premake5 gmake2 --target=psp
 
       - name: Build PSP bootstrap
         run: make -C Build/PSP config=release_psp -j$(nproc)
