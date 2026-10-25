@@ -1,6 +1,7 @@
 #include "ToshiSmoke.h"
 
 #include <Toshi/Defines.h>
+#include <Toshi/TDebug.h>
 #include <Toshi/Endianness.h>
 #include <Toshi/Platform.h>
 #include <Toshi/THPTimer.h>
@@ -15,6 +16,7 @@ bool RunToshiPortabilitySmokeTest()
 	Toshi::THPTimer timer;
 	Toshi::ThreadSleep( 0 );
 	timer.Update();
+	TDebug_FinalPrintf( "Toshi PSP smoke test started\n" );
 
 	return sizeof( TUINT32 ) == 4 &&
 	       sizeof( TUINTPTR ) == 4 &&

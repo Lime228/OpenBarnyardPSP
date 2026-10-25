@@ -1,4 +1,6 @@
 #pragma once
+#include <cstdarg>
+
 #include "Toshi/Typedefs.h"
 #include "Mod/ModAPI.h"
 
