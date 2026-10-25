@@ -31,7 +31,9 @@ jobs:
           version: "5.0.0"
 
       - name: Generate PSP project
-        run: premake5 gmake2 --target=psp
+        run: |
+          chmod +x .premake/premake5
+          premake5 gmake2 --target=psp
 
       - name: Build PSP bootstrap
         run: make -C Build/PSP config=release_psp -j$(nproc)
