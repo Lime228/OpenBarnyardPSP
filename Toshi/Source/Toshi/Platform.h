@@ -11,7 +11,7 @@ enum class Platform
 	Unk2,
 	PC,
 	Unk3,
-	PSP
+	PlayStationPortable
 };
 
 void ThreadSleep( TUINT dwMilliseconds );
