@@ -2,6 +2,7 @@
 
 #include <Toshi/Defines.h>
 #include <Toshi/Endianness.h>
+#include <Toshi/Platform.h>
 #include <Toshi/THPTimer.h>
 #include <Toshi/Verify.h>
 
@@ -12,6 +13,7 @@ bool RunToshiPortabilitySmokeTest()
 {
 	alignas( std::uint32_t ) constexpr std::uint8_t bytes[] = { 0x78, 0x56, 0x34, 0x12 };
 	Toshi::THPTimer timer;
+	Toshi::ThreadSleep( 0 );
 	timer.Update();
 
 	return sizeof( TUINT32 ) == 4 &&

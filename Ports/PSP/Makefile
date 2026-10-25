@@ -1,5 +1,5 @@
 TARGET = openbarnyard_psp_probe
-OBJS = Source/main.o Source/ToshiSmoke.o THPTimer_PSP.o
+OBJS = Source/main.o Source/ToshiSmoke.o Platform_PSP.o THPTimer_PSP.o
 VPATH = ../../Toshi/Source/Platform/PSP
 
 INCDIR = ../../Toshi/Source
