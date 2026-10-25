@@ -86,7 +86,7 @@ project "OpenBarnyardPSP"
 		'psp-fixup-imports "%{cfg.buildtarget.abspath}"',
 		'psp-strip "%{cfg.buildtarget.abspath}" -o "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"',
 		'mksfoex -d MEMSIZE=2 "OpenBarnyard PSP Probe" "%{cfg.targetdir}/PARAM.SFO"',
-		'pack-pbp "%{cfg.targetdir}/EBOOT.PBP" "%{cfg.targetdir}/PARAM.SFO" NULL NULL NULL NULL NULL NULL "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf" NULL',
+		'pack-pbp "%{cfg.targetdir}/EBOOT.PBP" "%{cfg.targetdir}/PARAM.SFO" NULL NULL NULL NULL NULL "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf" NULL',
 		'{DELETE} "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"'
 	}
 
