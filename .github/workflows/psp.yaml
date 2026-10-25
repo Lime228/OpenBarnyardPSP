@@ -16,8 +16,6 @@ on:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/pspdev/pspdev:latest
 
     steps:
       - name: Checkout
@@ -31,12 +29,17 @@ jobs:
           version: "5.0.0"
 
       - name: Generate PSP project
-        run: |
-          chmod +x .premake/premake5
-          ./.premake/premake5 gmake2 --target=psp
+        env:
+          PSPDEV: /usr/local/pspdev
+        run: premake5 gmake2 --target=psp
 
       - name: Build PSP bootstrap
-        run: make -C Build/PSP config=release_psp -j$(nproc)
+        run: >-
+          docker run --rm
+          --volume "${GITHUB_WORKSPACE}:/workspace"
+          --workdir /workspace
+          ghcr.io/pspdev/pspdev:latest
+          make -C Build/PSP config=release_psp -j"$(nproc)"
 
       - name: Publish PSP bootstrap
         uses: actions/upload-artifact@v4
