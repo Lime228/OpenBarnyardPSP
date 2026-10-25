@@ -1,5 +1,16 @@
 newoption
 {
+	trigger = "target",
+	description = "Choose the target platform",
+	allowed = {
+		{ "windows", "Microsoft Windows" },
+		{ "psp", "Sony PlayStation Portable" },
+	},
+	default = "windows"
+}
+
+newoption
+{
 	trigger = "arch",
 	description = "Choose architecture you want to build for",
 	allowed = {

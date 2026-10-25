@@ -1,43 +1,48 @@
 include "Settings.lua"
-include "Dependencies.lua"
-include "Mods/ModProject.lua"
-include "Workspace.lua"
 
-workspace "OpenBarnyard"
-	OpenBarnyardWorkspaceSettings()
+if _OPTIONS["target"] == "psp" then
+	include "Ports/PSP"
+else
+	include "Dependencies.lua"
+	include "Mods/ModProject.lua"
+	include "Workspace.lua"
 
--- Include the projects
-group "Engine"
-	include "Toshi"
-	include "OpenBarnyard"
+	workspace "OpenBarnyard"
+		OpenBarnyardWorkspaceSettings()
 
-group "Tools"
-	include "Tools/AssetPack"
-	include "Tools/TMDL"
-	include "Tools/XML2PProperties"
-	include "Tools/TLocaleCompiler"
-	include "Tools/PPropertyCompiler"
-	include "Tools/QuestCompiler"
-	include "Tools/FSMCompiler"
-	include "Tools/Sounds2Enum"
+	-- Include the projects
+	group "Engine"
+		include "Toshi"
+		include "OpenBarnyard"
 
-group "Third-Party"
-	include "Toshi/Vendor/Opcode"
-	include "Toshi/Vendor/minhook"
+	group "Tools"
+		include "Tools/AssetPack"
+		include "Tools/TMDL"
+		include "Tools/XML2PProperties"
+		include "Tools/TLocaleCompiler"
+		include "Tools/PPropertyCompiler"
+		include "Tools/QuestCompiler"
+		include "Tools/FSMCompiler"
+		include "Tools/Sounds2Enum"
 
-if _OPTIONS["renderer"] ~= 'DX11' then
-	group "SDK"
-		include "SDK/BYardSDK"
-		include "SDK/BYModCore"
-		include "SDK/BYSpeedrunHelper"
-		include "SDK/BYTexturePacks"
-		include "SDK/BYWinterMod"
-end
+	group "Third-Party"
+		include "Toshi/Vendor/Opcode"
+		include "Toshi/Vendor/minhook"
 
-group "Mods"
-	include "Mods/BYSpeedrunHelper"
+	if _OPTIONS["renderer"] ~= 'DX11' then
+		group "SDK"
+			include "SDK/BYardSDK"
+			include "SDK/BYModCore"
+			include "SDK/BYSpeedrunHelper"
+			include "SDK/BYTexturePacks"
+			include "SDK/BYWinterMod"
+	end
 
-if _OPTIONS["profiler"] == 'perf' or _OPTIONS["profiler"] == 'perfmem' then
-	group "Utils"
-		include "Utils/TracyProfiler"
+	group "Mods"
+		include "Mods/BYSpeedrunHelper"
+
+	if _OPTIONS["profiler"] == 'perf' or _OPTIONS["profiler"] == 'perfmem' then
+		group "Utils"
+			include "Utils/TracyProfiler"
+	end
 end
