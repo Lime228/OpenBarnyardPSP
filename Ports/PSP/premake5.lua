@@ -57,6 +57,7 @@ project "OpenBarnyardPSP"
 	defines
 	{
 		"TOSHI_SKU_PSP",
+		"TRENDERINTERFACE_PSP",
 		"_PSP_FW_VERSION=660"
 	}
 
