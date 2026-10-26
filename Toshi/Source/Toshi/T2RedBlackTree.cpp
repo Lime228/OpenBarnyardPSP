@@ -1,4 +1,9 @@
-#include "Toshi/TDebug.h"
+#ifdef TOSHI_SKU_WINDOWS
+#  include "ToshiPCH.h"
+#else
+#  include "Toshi/TDebug.h"
+#endif
+
 #include "T2RedBlackTree.h"
 
 //-----------------------------------------------------------------------------
