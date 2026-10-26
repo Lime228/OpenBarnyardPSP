@@ -90,6 +90,13 @@ PSP GU rendering path independently from the Windows executable.
   the core streaming paths are profiled on hardware.
 - The PSP smoke path creates a temporary file, verifies write/size/seek/read,
   finds it through directory enumeration, and removes it before shutdown.
+- `TSemaphore` maps directly to a PSPSDK kernel semaphore. `TThread_PSP`
+  preserves the existing Toshi priority and manager API while using PSP thread
+  creation, start, priority, termination, and self-exit calls. Manager list
+  access is protected by the PSP `TMutex` implementation.
+- The worker-thread smoke path synchronises through `TSemaphore` and is compiled
+  into the EBOOT. CI validates the complete M1 binary, but runtime validation on
+  PPSSPP and real hardware is still required.
 
 ## Milestones
 
@@ -107,7 +114,8 @@ PSP GU rendering path independently from the Windows executable.
 
 ## Immediate next slice
 
-After M0 builds on PSPDEV, introduce compiler portability macros in Toshi and a
-`ToshiPSPSmoke` target containing only typedefs, math, containers, logging, timer,
-and file I/O. Do not add the full `OpenBarnyard/Source` glob to the PSP build: it
-hides dependency order and produces thousands of unrelated Windows errors.
+Run the M1 EBOOT in PPSSPP and on real hardware, capture debug output, and verify
+allocator alignment, mutex recursion, semaphore wake-up, managed thread exit,
+and native file I/O. Keep the dependency-ordered source list; do not add the full
+`OpenBarnyard/Source` glob. Once M1 runtime validation is green, begin M2 with a
+single converted texture rendered through a small PSP `TRenderInterface` slice.
