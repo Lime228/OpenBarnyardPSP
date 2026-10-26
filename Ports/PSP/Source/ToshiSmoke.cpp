@@ -36,6 +36,11 @@ private:
 	TBOOL&              m_rRan;
 };
 
+static void ReportSmokeResult_PSP( const TCHAR* a_pName, TBOOL a_bReady )
+{
+	TDebug_FinalPrintf( "[PSP smoke] %-12s %s\n", a_pName, a_bReady ? "OK" : "FAILED" );
+}
+
 static TBOOL RunThreadSmokeTest()
 {
 	Toshi::TSemaphore oCompletionSemaphore;
@@ -161,22 +166,37 @@ TBOOL RunToshiPortabilitySmokeTest()
 
 	Toshi::ThreadSleep( 0 );
 	timer.Update();
-	TDebug_FinalPrintf( "Toshi PSP smoke test started\n" );
 
-	return sizeof( TUINT32 ) == 4 &&
-	       sizeof( TUINTPTR ) == 4 &&
-	       CURRENT_ENDIANESS == Endianess_Little &&
-	       PARSEDWORD( bytes ) == 0x12345678U &&
-	       bAllocatorReady &&
-	       bContainerReady &&
-	       bMutexReady &&
-	       bSemaphoreReady &&
-	       bThreadReady &&
-	       bStringReady &&
-	       bIntegerStringReady &&
-	       bDynamicStringReady &&
-	       bFilePathReady &&
-	       bFileIOReady &&
-	       timer.GetRaw64() > 0 &&
-	       timer.GetDelta() >= 0.0f;
+	const TBOOL bABIReady = sizeof( TUINT32 ) == 4 && sizeof( TUINTPTR ) == 4;
+	const TBOOL bEndianReady = CURRENT_ENDIANESS == Endianess_Little &&
+	                           PARSEDWORD( bytes ) == 0x12345678U;
+	const TBOOL bTimerReady = timer.GetRaw64() > 0 && timer.GetDelta() >= 0.0f;
+
+	ReportSmokeResult_PSP( "ABI", bABIReady );
+	ReportSmokeResult_PSP( "endianness", bEndianReady );
+	ReportSmokeResult_PSP( "allocator", bAllocatorReady );
+	ReportSmokeResult_PSP( "containers", bContainerReady );
+	ReportSmokeResult_PSP( "mutex", bMutexReady );
+	ReportSmokeResult_PSP( "semaphore", bSemaphoreReady );
+	ReportSmokeResult_PSP( "thread", bThreadReady );
+	ReportSmokeResult_PSP( "string", bStringReady && bIntegerStringReady && bDynamicStringReady );
+	ReportSmokeResult_PSP( "file path", bFilePathReady );
+	ReportSmokeResult_PSP( "file IO", bFileIOReady );
+	ReportSmokeResult_PSP( "timer", bTimerReady );
+
+	const TBOOL bReady = bABIReady &&
+	                     bEndianReady &&
+	                     bAllocatorReady &&
+	                     bContainerReady &&
+	                     bMutexReady &&
+	                     bSemaphoreReady &&
+	                     bThreadReady &&
+	                     bStringReady &&
+	                     bIntegerStringReady &&
+	                     bDynamicStringReady &&
+	                     bFilePathReady &&
+	                     bFileIOReady &&
+	                     bTimerReady;
+	ReportSmokeResult_PSP( "overall", bReady );
+	return bReady;
 }
