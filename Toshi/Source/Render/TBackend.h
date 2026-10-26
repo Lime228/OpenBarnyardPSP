@@ -44,4 +44,6 @@
 #  include "Platform/DX11/TIndexBlockResource_DX11.h"
 #  include "Platform/DX11/TIndexPoolResource_DX11.h"
 #  include "Platform/DX11/TIndexFactoryResource_DX11.h"
+#elif defined( TRENDERINTERFACE_PSP )
+#  include "Platform/PSP/T2Texture_PSP.h"
 #endif
