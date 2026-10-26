@@ -4,6 +4,8 @@ on: [push]
 
 jobs:
   win:
+    if: github.repository == 'InfiniteC0re/OpenBarnyard'
+
     env:
       PREMAKE_VERSION: 5.0.0-beta8
 
