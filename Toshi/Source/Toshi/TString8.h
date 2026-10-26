@@ -12,7 +12,6 @@
 #pragma once
 #include "TString.h"
 #include "T2Allocator.h"
-#include "T2String8.h"
 
 #include <cstdarg>
 #include <cstring>
@@ -88,18 +87,10 @@ public:
 	// Returns a substring contained in a [a_iFrom; end of the string] range
 	TString8 Right( TINT a_iFrom ) const;
 
-	TString8& MakeUpper()
-	{
-		T2String8::ToUpperCase( m_pBuffer );
-		return *this;
-	}
+	TString8& MakeUpper();
 
 	// $Barnyard: FUNCTION 006bcfc0
-	TString8& MakeLower()
-	{
-		T2String8::ToLowerCase( m_pBuffer );
-		return *this;
-	}
+	TString8& MakeLower();
 
 	TINT    Length() const { return m_iStrLen; }
 	TUINT16 ExcessLength() const { return m_iExcessLen; }

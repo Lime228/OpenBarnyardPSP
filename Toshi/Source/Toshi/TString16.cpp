@@ -2,6 +2,7 @@
 #include "TString16.h"
 #include "TString8.h"
 
+#include "Toshi/T2String16.h"
 #include "Toshi/TSystem.h"
 
 //-----------------------------------------------------------------------------
@@ -11,6 +12,18 @@
 #include "Core/TMemoryDebugOn.h"
 
 TOSHI_NAMESPACE_START
+
+TString16& TString16::MakeUpper()
+{
+	if ( m_pBuffer ) T2String16::ToUpperCase( m_pBuffer );
+	return *this;
+}
+
+TString16& TString16::MakeLower()
+{
+	if ( m_pBuffer ) T2String16::ToLowerCase( m_pBuffer );
+	return *this;
+}
 
 // NOTE: inline in the original, an instance of it lives in the game code
 // $Barnyard: FUNCTION 0042b530

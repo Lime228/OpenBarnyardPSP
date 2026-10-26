@@ -2,6 +2,7 @@
 #include "TString8.h"
 #include "TString16.h"
 
+#include "Toshi/T2String8.h"
 #include "Toshi/TSystem.h"
 
 //-----------------------------------------------------------------------------
@@ -11,6 +12,18 @@
 #include "Core/TMemoryDebugOn.h"
 
 TOSHI_NAMESPACE_START
+
+TString8& TString8::MakeUpper()
+{
+	T2String8::ToUpperCase( m_pBuffer );
+	return *this;
+}
+
+TString8& TString8::MakeLower()
+{
+	T2String8::ToLowerCase( m_pBuffer );
+	return *this;
+}
 
 // NOTE: in the original, an out of line copy of it just calls TString8( TNULL ) (TString8::TString8( T2Allocator* ))
 // $Barnyard: FUNCTION 004024c0

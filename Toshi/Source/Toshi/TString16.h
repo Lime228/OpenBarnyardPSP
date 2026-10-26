@@ -1,7 +1,6 @@
 #pragma once
 #include "TString.h"
 #include "T2Allocator.h"
-#include "T2String16.h"
 
 #include <cstdarg>
 #include <utility>
@@ -73,18 +72,10 @@ public:
 	TString16 Right( TINT a_iFrom ) const;
 
 	// $Barnyard: FUNCTION 006cc700
-	TString16& MakeUpper()
-	{
-		if ( m_pBuffer ) T2String16::ToUpperCase( m_pBuffer );
-		return *this;
-	}
+	TString16& MakeUpper();
 
 	// $Barnyard: FUNCTION 006cc720
-	TString16& MakeLower()
-	{
-		if ( m_pBuffer ) T2String16::ToLowerCase( m_pBuffer );
-		return *this;
-	}
+	TString16& MakeLower();
 
 	TINT    Length() const { return m_iStrLen; }
 	TUINT16 ExcessLength() const { return m_iExcessLen; }
