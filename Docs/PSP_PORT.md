@@ -83,6 +83,13 @@ PSP GU rendering path independently from the Windows executable.
 - The generic `TFile`, `TFileSystem`, and `TFileManager` path layer is compiled
   with the existing `TDList` implementation. Path joining and `..`
   simplification are covered before the PSP-native `sceIo*` backend is added.
+- `TNativeFile_PSP` mounts `local:` and `abs:` through the original file-system
+  hierarchy and implements open, close, read, write, seek, size, removal, and
+  directory enumeration with PSPSDK `sceIo*` calls. The current implementation
+  is deliberately unbuffered; engine read/write buffering can be restored after
+  the core streaming paths are profiled on hardware.
+- The PSP smoke path creates a temporary file, verifies write/size/seek/read,
+  finds it through directory enumeration, and removes it before shutdown.
 
 ## Milestones
 
