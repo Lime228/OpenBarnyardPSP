@@ -12,6 +12,7 @@ TOSHI_NAMESPACE_START
 
 TNativeFileSystem::TNativeFileSystem( const TCHAR* a_pName )
     : TFileSystem( a_pName )
+    , m_iDirectoryHandle( -1 )
 {
 	m_NextFileHandle = TNULL;
 	TFileManager::GetSingletonSafe()->MountFileSystem( this );
@@ -19,6 +20,9 @@ TNativeFileSystem::TNativeFileSystem( const TCHAR* a_pName )
 
 TNativeFileSystem::~TNativeFileSystem()
 {
+	if ( m_iDirectoryHandle >= 0 )
+		sceIoDclose( m_iDirectoryHandle );
+
 	UnmountFileSystem();
 }
 
@@ -66,6 +70,44 @@ TBOOL TNativeFileSystem::MakeDirectory( const TString8& a_rDirectory )
 {
 	const TString8 oInternalPath = MakeInternalPath( a_rDirectory );
 	return sceIoMkdir( oInternalPath.GetString(), 0777 ) >= 0;
+}
+
+TBOOL TNativeFileSystem::GetFirstFile( const TString8& a_rPath, TString8& a_rOutFileName, TFINDFILE a_ui8Flags )
+{
+	if ( m_iDirectoryHandle >= 0 )
+		sceIoDclose( m_iDirectoryHandle );
+
+	const TString8 oInternalPath = MakeInternalPath( a_rPath );
+	m_iDirectoryHandle = sceIoDopen( oInternalPath.GetString() );
+	return m_iDirectoryHandle >= 0 && GetNextFile( a_rOutFileName, a_ui8Flags );
+}
+
+TBOOL TNativeFileSystem::GetNextFile( TString8& a_rOutFileName, TFINDFILE a_ui8Flags )
+{
+	if ( m_iDirectoryHandle < 0 )
+		return TFALSE;
+
+	SceIoDirent oEntry = {};
+	while ( sceIoDread( m_iDirectoryHandle, &oEntry ) > 0 )
+	{
+		if ( T2String8::Compare( oEntry.d_name, "." ) == 0 ||
+		     T2String8::Compare( oEntry.d_name, ".." ) == 0 )
+		{
+			continue;
+		}
+
+		const TBOOL bDirectory = FIO_S_ISDIR( oEntry.d_stat.st_mode );
+		if ( ( bDirectory && ( a_ui8Flags & TFINDFILE_DIRECTORY ) ) ||
+		     ( !bDirectory && ( a_ui8Flags & TFINDFILE_FILE ) ) )
+		{
+			a_rOutFileName = oEntry.d_name;
+			return TTRUE;
+		}
+	}
+
+	sceIoDclose( m_iDirectoryHandle );
+	m_iDirectoryHandle = -1;
+	return TFALSE;
 }
 
 TNativeFile::TNativeFile( TNativeFileSystem* a_pFileSystem )
