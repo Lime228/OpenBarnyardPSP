@@ -47,5 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: OpenBarnyard-PSP-bootstrap
-          path: bin/PSP/Release/EBOOT.PBP
+          path: |
+            bin/PSP/Release/EBOOT.PBP
+            bin/PSP/Release/probe.ptex
           if-no-files-found: error
