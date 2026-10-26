@@ -74,6 +74,9 @@ PSP GU rendering path independently from the Windows executable.
   allocator implementation.
 - The portability smoke test verifies a 64-byte-aligned allocation before the
   allocator is used by strings and containers.
+- `TMutex` uses a PSPSDK semaphore and retains the engine's recursive locking
+  behaviour by tracking the owning PSP thread and lock depth. The smoke test
+  covers recursive acquisition and the non-blocking `FLAG_NO_WAIT` path.
 
 ## Milestones
 
