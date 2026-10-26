@@ -527,7 +527,11 @@ TString8& TString8::Concat( const TString16& str, TINT size )
 		TStringManager::String8Copy( m_pBuffer, oldString, -1 );
 	}
 
-	TStringManager::StringUnicodeToChar( m_pBuffer + oldLength, str.GetString(), size );
+	TStringManager::StringUnicodeToChar(
+	    m_pBuffer + oldLength,
+	    static_cast<const TWCHAR*>( str ),
+	    size
+	);
 	m_pBuffer[ m_iStrLen ] = 0;
 
 	if ( allocated && m_iStrLen != 0 )
