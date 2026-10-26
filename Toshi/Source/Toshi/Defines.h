@@ -169,12 +169,15 @@
 			  TWARN( "%s is not implemented: %s\n", __FUNCTION__, DESC ); \
 		  }                                                               \
 	  }
-#  define TASSERT( X, ... )                                                       \
-	  {                                                                           \
-		  TCALL_ONCE_IF( !( X ) )                                                 \
-		  if ( 1 == TDebug_AssertHandler( #X, __FILE__, __LINE__ __VA_OPT__(, ) __VA_ARGS__ ) ) \
-			  TBREAK();                                                           \
+#  define TASSERT_IMPL( X, DESC )                                      \
+	  {                                                                 \
+		  TCALL_ONCE_IF( !( X ) )                                       \
+		  if ( 1 == TDebug_AssertHandler( #X, __FILE__, __LINE__, DESC ) ) \
+			  TBREAK();                                                 \
 	  }
+#  define TASSERT_1( X )       TASSERT_IMPL( X, "TASSERT" )
+#  define TASSERT_2( X, DESC ) TASSERT_IMPL( X, DESC )
+#  define TASSERT( ... )       CALL_OVERLOAD( TASSERT_, __VA_ARGS__ )
 #  define TVALIDPTR( PTR ) TASSERT( TDebug_IsValidAddress( PTR ) )
 #else // TOSHI_ENABLE_ASSERTS
 #  define TWIP() do {} while( TFALSE )
