@@ -9,6 +9,8 @@
 #include <Toshi/THPTimer.h>
 #include <Toshi/Verify.h>
 
+#include <Thread/TMutex.h>
+
 TBOOL RunToshiPortabilitySmokeTest()
 {
 	alignas( TUINT32 ) constexpr TUINT8 bytes[] = { 0x78, 0x56, 0x34, 0x12 };
@@ -25,6 +27,13 @@ TBOOL RunToshiPortabilitySmokeTest()
 	const TBOOL bContainerReady = oValues.Size() == 3 &&
 	                              itValue != oValues.End() &&
 	                              itValue->GetSecond() == 20;
+	Toshi::TMutex oMutex;
+	TBOOL bMutexReady = oMutex.Create() &&
+	                    oMutex.Lock() &&
+	                    oMutex.Lock( Toshi::TMutex::FLAG_NO_WAIT ) &&
+	                    oMutex.Unlock() &&
+	                    oMutex.Unlock();
+	bMutexReady = oMutex.Destroy() && bMutexReady;
 
 	if ( pBuffer != TNULL )
 	{
@@ -45,6 +54,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       PARSEDWORD( bytes ) == 0x12345678U &&
 	       bAllocatorReady &&
 	       bContainerReady &&
+	       bMutexReady &&
 	       timer.GetRaw64() > 0 &&
 	       timer.GetDelta() >= 0.0f;
 }
