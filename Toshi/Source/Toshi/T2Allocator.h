@@ -1,6 +1,9 @@
 #pragma once
 #include "Toshi/Typedefs.h"
 
+#include <new>
+#include <utility>
+
 TOSHI_NAMESPACE_START
 
 class TOSHI_API T2Allocator
@@ -8,14 +11,14 @@ class TOSHI_API T2Allocator
 public:
 	// NOTE: MSVC puts overloaded virtuals into the vtable in reverse declaration order. Retail has
 	// Malloc( size, alignment ) at +0x00, Malloc( size ) at +0x04 (same for TryMalloc at +0x10/+0x14).
-	virtual void*  Malloc( size_t size )                      = 0; // +0x04
-	virtual void*  Malloc( size_t size, size_t alignment )    = 0; // +0x00
+	virtual void*  Malloc( TSIZE size )                       = 0; // +0x04
+	virtual void*  Malloc( TSIZE size, TSIZE alignment )      = 0; // +0x00
 	virtual void   Free( void* ptr )                          = 0;
-	virtual TBOOL  CanAllocate( size_t size ) const           = 0;
-	virtual void*  TryMalloc( size_t size )                   = 0;
-	virtual void*  TryMalloc( size_t size, size_t alignment ) = 0;
-	virtual size_t GetUsedSize() const                        = 0;
-	virtual size_t GetCapacity() const                        = 0;
+	virtual TBOOL  CanAllocate( TSIZE size ) const            = 0;
+	virtual void*  TryMalloc( TSIZE size )                    = 0;
+	virtual void*  TryMalloc( TSIZE size, TSIZE alignment )   = 0;
+	virtual TSIZE  GetUsedSize() const                        = 0;
+	virtual TSIZE  GetCapacity() const                        = 0;
 
 	// NOTE: retail calls Malloc( sizeof( T ) ) without the alignment
 	// $Barnyard: FUNCTION 006bc0d0
@@ -40,14 +43,14 @@ public:
 class TOSHI_API T2GlobalAllocator : public T2Allocator
 {
 public:
-	virtual void*  Malloc( size_t size ) override;
-	virtual void*  Malloc( size_t size, size_t alignment ) override;
+	virtual void*  Malloc( TSIZE size ) override;
+	virtual void*  Malloc( TSIZE size, TSIZE alignment ) override;
 	virtual void   Free( void* ptr ) override;
-	virtual TBOOL  CanAllocate( size_t size ) const override;
-	virtual void*  TryMalloc( size_t size ) override;
-	virtual void*  TryMalloc( size_t size, size_t alignment ) override;
-	virtual size_t GetUsedSize() const override;
-	virtual size_t GetCapacity() const override;
+	virtual TBOOL  CanAllocate( TSIZE size ) const override;
+	virtual void*  TryMalloc( TSIZE size ) override;
+	virtual void*  TryMalloc( TSIZE size, TSIZE alignment ) override;
+	virtual TSIZE  GetUsedSize() const override;
+	virtual TSIZE  GetCapacity() const override;
 };
 
 extern MODAPI T2GlobalAllocator ms_oGlobalAllocator;

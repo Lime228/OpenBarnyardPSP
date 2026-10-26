@@ -1,6 +1,10 @@
 #pragma once
 #include "TString.h"
 #include "T2Allocator.h"
+#include "T2String16.h"
+
+#include <cstdarg>
+#include <utility>
 
 TOSHI_NAMESPACE_START
 
@@ -71,14 +75,14 @@ public:
 	// $Barnyard: FUNCTION 006cc700
 	TString16& MakeUpper()
 	{
-		if ( m_pBuffer ) _wcsupr( m_pBuffer );
+		if ( m_pBuffer ) T2String16::ToUpperCase( m_pBuffer );
 		return *this;
 	}
 
 	// $Barnyard: FUNCTION 006cc720
 	TString16& MakeLower()
 	{
-		if ( m_pBuffer ) _wcslwr( m_pBuffer );
+		if ( m_pBuffer ) T2String16::ToLowerCase( m_pBuffer );
 		return *this;
 	}
 

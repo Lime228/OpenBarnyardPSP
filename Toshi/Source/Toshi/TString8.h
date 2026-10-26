@@ -12,6 +12,10 @@
 #pragma once
 #include "TString.h"
 #include "T2Allocator.h"
+#include "T2String8.h"
+
+#include <cstdarg>
+#include <cstring>
 
 TOSHI_NAMESPACE_START
 
@@ -86,14 +90,14 @@ public:
 
 	TString8& MakeUpper()
 	{
-		_strupr( m_pBuffer );
+		T2String8::ToUpperCase( m_pBuffer );
 		return *this;
 	}
 
 	// $Barnyard: FUNCTION 006bcfc0
 	TString8& MakeLower()
 	{
-		_strlwr( m_pBuffer );
+		T2String8::ToLowerCase( m_pBuffer );
 		return *this;
 	}
 
@@ -136,9 +140,9 @@ public:
 
 	TBOOL operator!() { return m_iStrLen == 0; }
 	// $Barnyard: FUNCTION 006bd040
-	TBOOL operator==( const TCHAR* cstr ) const { return strcmp( m_pBuffer, cstr ) == 0; }
+	TBOOL operator==( const TCHAR* cstr ) const { return std::strcmp( m_pBuffer, cstr ) == 0; }
 	// $Barnyard: FUNCTION 006bcff0
-	TBOOL operator==( const TString8& str ) const { return strcmp( m_pBuffer, str.m_pBuffer ) == 0; }
+	TBOOL operator==( const TString8& str ) const { return std::strcmp( m_pBuffer, str.m_pBuffer ) == 0; }
 	TBOOL operator!=( const TCHAR* cstr ) const { return Compare( cstr, -1 ) != 0; }
 	TBOOL operator!=( const TString8& str ) const { return Compare( str.m_pBuffer, -1 ) != 0; }
 	TBOOL operator<( const TCHAR* cstr ) const { return Compare( cstr, -1 ) > -1; }
@@ -218,7 +222,7 @@ private:
 // $Barnyard: FUNCTION 006bd090
 inline TBOOL operator==( const TCHAR* a_pcString, const TString8& a_rcString )
 {
-	return strcmp( a_rcString, a_pcString ) == 0;
+	return std::strcmp( a_rcString, a_pcString ) == 0;
 }
 
 TString8 operator+( const TCHAR* a_pcString, const TString8& a_rcString );

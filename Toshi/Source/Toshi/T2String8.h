@@ -1,6 +1,8 @@
 #pragma once
 #include "Toshi/T2Allocator.h"
 
+#include <cstdarg>
+
 TOSHI_NAMESPACE_START
 
 //-----------------------------------------------------------------------------
