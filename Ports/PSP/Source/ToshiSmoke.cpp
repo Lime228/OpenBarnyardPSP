@@ -4,6 +4,7 @@
 #include <Toshi/TDebug.h>
 #include <Toshi/T2Allocator.h>
 #include <Toshi/T2Map.h>
+#include <Toshi/T2String8.h>
 #include <Toshi/Endianness.h>
 #include <Toshi/Platform.h>
 #include <Toshi/THPTimer.h>
@@ -34,6 +35,12 @@ TBOOL RunToshiPortabilitySmokeTest()
 	                    oMutex.Unlock() &&
 	                    oMutex.Unlock();
 	bMutexReady = oMutex.Destroy() && bMutexReady;
+	TCHAR aStringBuffer[ 32 ];
+	Toshi::T2String8::Format( aStringBuffer, TARRAYSIZE( aStringBuffer ), "psp-%d", 228 );
+	const TBOOL bStringReady = Toshi::T2String8::Compare( aStringBuffer, "psp-228" ) == 0 &&
+	                           Toshi::T2String8::CompareNoCase( "BARNYARD", "barnyard" ) == 0;
+	Toshi::T2String8::IntToString( -228, aStringBuffer, 10 );
+	const TBOOL bIntegerStringReady = Toshi::T2String8::Compare( aStringBuffer, "-228" ) == 0;
 
 	if ( pBuffer != TNULL )
 	{
@@ -55,6 +62,8 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       bAllocatorReady &&
 	       bContainerReady &&
 	       bMutexReady &&
+	       bStringReady &&
+	       bIntegerStringReady &&
 	       timer.GetRaw64() > 0 &&
 	       timer.GetDelta() >= 0.0f;
 }
