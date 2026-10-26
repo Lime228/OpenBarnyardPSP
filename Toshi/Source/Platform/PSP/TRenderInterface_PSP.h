@@ -1,8 +1,19 @@
 #pragma once
 
 #include "T2Texture_PSP.h"
+#include "TRenderBuffer_PSP.h"
 
 TOSHI_NAMESPACE_START
+
+struct TRenderColourVertex_PSP
+{
+	TUINT32 uiColour;
+	TFLOAT  fX;
+	TFLOAT  fY;
+	TFLOAT  fZ;
+};
+
+static_assert( sizeof( TRenderColourVertex_PSP ) == 16, "Unexpected PSP colour vertex layout" );
 
 class TRenderInterface_PSP
 {
@@ -21,6 +32,7 @@ public:
 
 	void BeginScene( TUINT32 a_uiClearColour );
 	void DrawColourTriangle( TFLOAT a_fXOffset );
+	void DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices );
 	void DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight );
 	void EndScene();
 

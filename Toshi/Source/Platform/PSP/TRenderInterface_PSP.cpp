@@ -6,14 +6,6 @@
 
 TOSHI_NAMESPACE_START
 
-struct TRenderColourVertex_PSP
-{
-	TUINT32 uiColour;
-	TFLOAT  fX;
-	TFLOAT  fY;
-	TFLOAT  fZ;
-};
-
 struct TRenderTextureVertex_PSP
 {
 	TFLOAT fU;
@@ -23,7 +15,6 @@ struct TRenderTextureVertex_PSP
 	TFLOAT fZ;
 };
 
-static_assert( sizeof( TRenderColourVertex_PSP ) == 16, "Unexpected PSP colour vertex layout" );
 static_assert( sizeof( TRenderTextureVertex_PSP ) == 20, "Unexpected PSP texture vertex layout" );
 
 TRenderInterface_PSP::TRenderInterface_PSP()
@@ -94,6 +85,28 @@ void TRenderInterface_PSP::DrawColourTriangle( TFLOAT a_fXOffset )
 	    3,
 	    TNULL,
 	    pVertices
+	);
+}
+
+void TRenderInterface_PSP::DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices )
+{
+	TASSERT( a_rVertices.GetVertexSize() == sizeof( TRenderColourVertex_PSP ) );
+	TASSERT( !a_rVertices.IsLocked() );
+	TASSERT( !a_rIndices.IsLocked() );
+	if ( a_rVertices.GetData() == TNULL ||
+	     a_rIndices.GetData() == TNULL ||
+	     a_rVertices.GetVertexSize() != sizeof( TRenderColourVertex_PSP ) ||
+	     a_rIndices.GetNumIndices() == 0 )
+	{
+		return;
+	}
+
+	sceGuDrawArray(
+	    GU_TRIANGLES,
+	    GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_2D,
+	    a_rIndices.GetNumIndices(),
+	    a_rIndices.GetData(),
+	    a_rVertices.GetData()
 	);
 }
 
