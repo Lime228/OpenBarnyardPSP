@@ -4,6 +4,7 @@
 #include <pspkernel.h>
 
 #include <Toshi/Typedefs.h>
+#include <Render/TBackend.h>
 
 #include "ToshiSmoke.h"
 
@@ -27,8 +28,52 @@ struct Vertex_PSP
 	TFLOAT  fZ;
 };
 
+struct TextureVertex_PSP
+{
+	TFLOAT fU;
+	TFLOAT fV;
+	TFLOAT fX;
+	TFLOAT fY;
+	TFLOAT fZ;
+};
+
+struct ProbeTextureData_PSP
+{
+	Toshi::T2TextureDataHeader_PSP oHeader;
+	TUINT32                        aPixels[ 16 * 16 ];
+};
+
+alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
+	{
+	    Toshi::T2TextureDataHeader_PSP::MAGIC,
+	    Toshi::T2TextureDataHeader_PSP::VERSION,
+	    16,
+	    16,
+	    16,
+	    Toshi::T2TEXTUREFORMAT_PSP_RGBA8888,
+	},
+	{}
+};
+static Toshi::T2Texture g_ProbeTexture;
+
 static_assert( sizeof( void* ) == 4, "The PSP port requires a 32-bit ABI" );
 static_assert( sizeof( Vertex_PSP ) == 16, "Unexpected PSP vertex layout" );
+static_assert( sizeof( TextureVertex_PSP ) == 20, "Unexpected PSP texture vertex layout" );
+
+static TBOOL InitialiseProbeTexture()
+{
+	for ( TUINT y = 0; y < 16; y++ )
+	{
+		for ( TUINT x = 0; x < 16; x++ )
+		{
+			const TBOOL bAlternate = ( ( x / 4 ) + ( y / 4 ) ) % 2 != 0;
+			g_ProbeTextureData.aPixels[ y * 16 + x ] = bAlternate ? 0xfff0cf65 : 0xff5ac8fa;
+		}
+	}
+
+	g_ProbeTexture.SetData( &g_ProbeTextureData, sizeof( g_ProbeTextureData ) );
+	return g_ProbeTexture.Load();
+}
 
 static TINT ExitCallback( TINT, TINT, void* )
 {
@@ -80,7 +125,7 @@ static void InitialiseGraphics()
 	sceGuDisplay( GU_TRUE );
 }
 
-static void DrawFrame( TFLOAT a_fXOffset, TUINT32 a_uiClearColour )
+static void DrawFrame( TFLOAT a_fXOffset, TUINT32 a_uiClearColour, TBOOL a_bTextureReady )
 {
 	sceGuStart( GU_DIRECT, g_DisplayList );
 	sceGuClearColor( a_uiClearColour );
@@ -98,6 +143,35 @@ static void DrawFrame( TFLOAT a_fXOffset, TUINT32 a_uiClearColour )
 	    TNULL,
 	    pVertices
 	);
+
+	if ( a_bTextureReady )
+	{
+		sceGuEnable( GU_TEXTURE_2D );
+		sceGuTexMode( GU_PSM_8888, 0, 0, GU_FALSE );
+		sceGuTexImage(
+		    0,
+		    g_ProbeTexture.GetWidth(),
+		    g_ProbeTexture.GetHeight(),
+		    g_ProbeTexture.GetBufferWidth(),
+		    g_ProbeTexture.GetImageData()
+		);
+		sceGuTexFunc( GU_TFX_REPLACE, GU_TCC_RGBA );
+		sceGuTexFilter( GU_NEAREST, GU_NEAREST );
+		sceGuTexWrap( GU_CLAMP, GU_CLAMP );
+
+		auto* pTextureVertices = static_cast<TextureVertex_PSP*>( sceGuGetMemory( 2 * sizeof( TextureVertex_PSP ) ) );
+		pTextureVertices[ 0 ] = { 0.0f, 0.0f, 176.0f + a_fXOffset, 72.0f, 0.0f };
+		pTextureVertices[ 1 ] = { 16.0f, 16.0f, 304.0f + a_fXOffset, 200.0f, 0.0f };
+
+		sceGuDrawArray(
+		    GU_SPRITES,
+		    GU_TEXTURE_32BITF | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
+		    2,
+		    TNULL,
+		    pTextureVertices
+		);
+		sceGuDisable( GU_TEXTURE_2D );
+	}
 	sceGuFinish();
 	sceGuSync( GU_SYNC_FINISH, GU_SYNC_WHAT_DONE );
 	sceDisplayWaitVblankStart();
@@ -113,6 +187,7 @@ int main()
 
 	TFLOAT        fXOffset     = 0.0f;
 	const TBOOL   bToshiReady  = RunToshiPortabilitySmokeTest();
+	const TBOOL   bTextureReady = InitialiseProbeTexture();
 	TUINT32       uiClearColor = bToshiReady ? 0xff201810 : 0xff202080;
 
 	while ( g_Running )
@@ -127,9 +202,10 @@ int main()
 
 		if ( bToshiReady )
 			uiClearColor = ( pad.Buttons & PSP_CTRL_CROSS ) ? 0xff402010 : 0xff201810;
-		DrawFrame( fXOffset, uiClearColor );
+		DrawFrame( fXOffset, uiClearColor, bTextureReady );
 	}
 
+	g_ProbeTexture.Unload();
 	sceGuTerm();
 	sceKernelExitGame();
 	return 0;
