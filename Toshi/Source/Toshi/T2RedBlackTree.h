@@ -68,7 +68,7 @@ protected:
 		return m_pAllocator;
 	}
 
-	size_t GetNumElements() const
+	TSIZE GetNumElements() const
 	{
 		return m_iNumElements;
 	}
@@ -96,7 +96,7 @@ protected:
 protected:
 	T2Allocator*                      m_pAllocator;
 	mutable T2GenericRedBlackTreeNode m_oRoot;
-	size_t                            m_iNumElements;
+	TSIZE                            m_iNumElements;
 };
 
 template <class T>

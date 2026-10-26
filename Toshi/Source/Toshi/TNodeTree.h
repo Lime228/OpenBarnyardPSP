@@ -259,7 +259,7 @@ public:
 		return m_Root.Child();
 	}
 
-	size_t Count() const
+	TSIZE Count() const
 	{
 		return m_Count;
 	}
@@ -271,7 +271,7 @@ public:
 
 protected:
 	TNode  m_Root;  // 0x0
-	size_t m_Count; // 0x14
+	TSIZE m_Count; // 0x14
 };
 
 TOSHI_NAMESPACE_END

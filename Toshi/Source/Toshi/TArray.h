@@ -204,7 +204,7 @@ public:
 		if ( a_iNewSize != 0 )
 		{
 			T*     pNewBuffer = TSTATICCAST( T, TMemalign( a_iNewSize * sizeof( T ), alignof( T ) ) );
-			size_t uiCopySize = TMath::Min( m_iNumElements, a_iNewSize );
+			TSIZE uiCopySize = TMath::Min( m_iNumElements, a_iNewSize );
 
 			TUtil::MemCopy( pNewBuffer, m_pData, sizeof( T ) * uiCopySize );
 

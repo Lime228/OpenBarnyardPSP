@@ -479,7 +479,7 @@ TFORCEINLINE void TDestruct( T* a_pPtr )
  * @param block Memory block to allocate from
  * @return Pointer to allocated memory
  */
-TFORCEINLINE void* __CRTDECL operator new( size_t size, Toshi::TMemory::MemBlock* block )
+TFORCEINLINE void* __CRTDECL operator new( TSIZE size, Toshi::TMemory::MemBlock* block )
 {
 #ifdef TOSHI_PROFILER_MEMORY
 	return TMalloc( size, block, TMemory__FILE__, TMemory__LINE__ );
@@ -494,7 +494,7 @@ TFORCEINLINE void* __CRTDECL operator new( size_t size, Toshi::TMemory::MemBlock
  * @param block Memory block to allocate from
  * @return Pointer to allocated memory
  */
-TFORCEINLINE void* __CRTDECL operator new[]( size_t size, Toshi::TMemory::MemBlock* block )
+TFORCEINLINE void* __CRTDECL operator new[]( TSIZE size, Toshi::TMemory::MemBlock* block )
 {
 #ifdef TOSHI_PROFILER_MEMORY
 	return TMalloc( size, block, TMemory__FILE__, TMemory__LINE__ );
