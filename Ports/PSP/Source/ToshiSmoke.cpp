@@ -41,7 +41,14 @@ static TBOOL RunFileIOSmokeTest()
 
 	Toshi::TFileSystem* pLocalFileSystem = Toshi::TFileManager::GetSingletonSafe()->FindFileSystem( "local" );
 	if ( pLocalFileSystem != TNULL )
-		bFileReady = pLocalFileSystem->RemoveFile( s_FileName ) && bFileReady;
+	{
+		Toshi::TString8 oFoundFile;
+		TBOOL bFoundFile = pLocalFileSystem->GetFirstFile( "", oFoundFile, Toshi::TFINDFILE_FILE );
+		while ( bFoundFile && oFoundFile != s_FileName )
+			bFoundFile = pLocalFileSystem->GetNextFile( oFoundFile, Toshi::TFINDFILE_FILE );
+
+		bFileReady = bFoundFile && pLocalFileSystem->RemoveFile( s_FileName ) && bFileReady;
+	}
 
 	Toshi::TFileManager::Destroy();
 	return bFileReady;
