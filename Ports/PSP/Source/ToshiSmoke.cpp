@@ -14,6 +14,39 @@
 #include <File/TFile.h>
 #include <Thread/TMutex.h>
 
+static TBOOL RunFileIOSmokeTest()
+{
+	if ( !Toshi::TFileManager::Create() )
+		return TFALSE;
+
+	static const TCHAR s_FileName[] = "toshi_psp_smoke.tmp";
+	static const TCHAR s_Contents[] = "OpenBarnyard PSP";
+	TCHAR              aReadBuffer[ TARRAYSIZE( s_Contents ) ] = {};
+	TBOOL              bFileReady = TFALSE;
+
+	Toshi::TFile* pFile = Toshi::TFile::Create(
+	    "local:toshi_psp_smoke.tmp",
+	    Toshi::TFILEMODE_READWRITE | Toshi::TFILEMODE_CREATENEW | Toshi::TFILEMODE_NOBUFFER
+	);
+
+	if ( pFile != TNULL )
+	{
+		bFileReady = pFile->Write( s_Contents, sizeof( s_Contents ) ) == sizeof( s_Contents ) &&
+		             pFile->GetSize() == sizeof( s_Contents ) &&
+		             pFile->Seek( 0, Toshi::TSEEK_SET ) &&
+		             pFile->Read( aReadBuffer, sizeof( aReadBuffer ) ) == sizeof( aReadBuffer ) &&
+		             Toshi::T2String8::Compare( aReadBuffer, s_Contents ) == 0;
+		pFile->Destroy();
+	}
+
+	Toshi::TFileSystem* pLocalFileSystem = Toshi::TFileManager::GetSingletonSafe()->FindFileSystem( "local" );
+	if ( pLocalFileSystem != TNULL )
+		bFileReady = pLocalFileSystem->RemoveFile( s_FileName ) && bFileReady;
+
+	Toshi::TFileManager::Destroy();
+	return bFileReady;
+}
+
 TBOOL RunToshiPortabilitySmokeTest()
 {
 	alignas( TUINT32 ) constexpr TUINT8 bytes[] = { 0x78, 0x56, 0x34, 0x12 };
@@ -48,6 +81,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	const TBOOL bDynamicStringReady = oDynamicString.CompareNoCase( "barnyard-228" ) == 0;
 	const Toshi::TString8 oJoinedPath = Toshi::TFile::ConcatPath( "local:/data/actors", "../textures/cow.tga" );
 	const TBOOL bFilePathReady = oJoinedPath == "local:/data/textures/cow.tga";
+	const TBOOL bFileIOReady = RunFileIOSmokeTest();
 
 	if ( pBuffer != TNULL )
 	{
@@ -73,6 +107,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       bIntegerStringReady &&
 	       bDynamicStringReady &&
 	       bFilePathReady &&
+	       bFileIOReady &&
 	       timer.GetRaw64() > 0 &&
 	       timer.GetDelta() >= 0.0f;
 }
