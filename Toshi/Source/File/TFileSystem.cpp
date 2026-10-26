@@ -1,5 +1,6 @@
 #include "ToshiPCH.h"
 #include "TFile.h"
+#include "Toshi/Platform.h"
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -30,14 +31,7 @@ TFileSystem::TFileSystem( const TCHAR* name )
 void TFileSystem::SetPrefix( const TString8& a_rcPrefix )
 {
 	m_Prefix = a_rcPrefix;
-
-	for ( TINT32 i = 0; i < m_Prefix.Length(); i++ )
-	{
-		if ( m_Prefix[ i ] == '/' )
-		{
-			m_Prefix[ i ] = '\\';
-		}
-	}
+	FixPathSlashesBack( m_Prefix );
 }
 
 // $Barnyard: FUNCTION 006bdd80
