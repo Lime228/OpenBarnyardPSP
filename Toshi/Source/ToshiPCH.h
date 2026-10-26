@@ -1,5 +1,11 @@
 #pragma once
 
+#ifdef TOSHI_SKU_PSP
+
+#  include "Toshi/TDebug.h"
+
+#else
+
 #include <map>
 #include <vector>
 #include <unordered_map>
@@ -18,3 +24,5 @@
 #  include <WinSock2.h>
 #  include <Windows.h>
 #endif
+
+#endif // TOSHI_SKU_PSP
