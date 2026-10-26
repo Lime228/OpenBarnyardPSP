@@ -4,6 +4,7 @@
 #include <pspkernel.h>
 
 #include <Toshi/Typedefs.h>
+#include <Toshi/TDebug.h>
 #include <Render/TBackend.h>
 
 #include "ToshiSmoke.h"
@@ -188,7 +189,9 @@ int main()
 	TFLOAT        fXOffset     = 0.0f;
 	const TBOOL   bToshiReady  = RunToshiPortabilitySmokeTest();
 	const TBOOL   bTextureReady = InitialiseProbeTexture();
-	TUINT32       uiClearColor = bToshiReady ? 0xff201810 : 0xff202080;
+	const TBOOL   bBootstrapReady = bToshiReady && bTextureReady;
+	TUINT32       uiClearColor = bBootstrapReady ? 0xff201810 : 0xff202080;
+	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 
 	while ( g_Running )
 	{
@@ -200,7 +203,7 @@ int main()
 		if ( fXOffset < -100.0f ) fXOffset = -100.0f;
 		if ( fXOffset > 100.0f ) fXOffset = 100.0f;
 
-		if ( bToshiReady )
+		if ( bBootstrapReady )
 			uiClearColor = ( pad.Buttons & PSP_CTRL_CROSS ) ? 0xff402010 : 0xff201810;
 		DrawFrame( fXOffset, uiClearColor, bTextureReady );
 	}
