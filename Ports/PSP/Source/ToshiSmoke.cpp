@@ -13,6 +13,7 @@
 
 #include <File/TFile.h>
 #include <Thread/TMutex.h>
+#include <Thread/TSemaphore.h>
 
 static TBOOL RunFileIOSmokeTest()
 {
@@ -77,6 +78,14 @@ TBOOL RunToshiPortabilitySmokeTest()
 	                    oMutex.Unlock() &&
 	                    oMutex.Unlock();
 	bMutexReady = oMutex.Destroy() && bMutexReady;
+	Toshi::TSemaphore oSemaphore;
+	TBOOL bSemaphoreReady = oSemaphore.Create( 0, 1 ) &&
+	                       !oSemaphore.Poll() &&
+	                       oSemaphore.Signal() &&
+	                       oSemaphore.Poll() &&
+	                       oSemaphore.Signal() &&
+	                       oSemaphore.Wait();
+	bSemaphoreReady = oSemaphore.Destroy() && bSemaphoreReady;
 	TCHAR aStringBuffer[ 32 ];
 	Toshi::T2String8::Format( aStringBuffer, TARRAYSIZE( aStringBuffer ), "psp-%d", 228 );
 	const TBOOL bStringReady = Toshi::T2String8::Compare( aStringBuffer, "psp-228" ) == 0 &&
@@ -110,6 +119,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       bAllocatorReady &&
 	       bContainerReady &&
 	       bMutexReady &&
+	       bSemaphoreReady &&
 	       bStringReady &&
 	       bIntegerStringReady &&
 	       bDynamicStringReady &&
