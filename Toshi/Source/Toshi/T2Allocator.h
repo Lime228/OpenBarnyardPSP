@@ -1,5 +1,5 @@
 #pragma once
-#include "Toshi/Typedefs.h"
+#include "Toshi/Defines.h"
 
 #include <new>
 #include <utility>
