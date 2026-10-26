@@ -352,7 +352,7 @@ T2GenericRedBlackTreeNode* T2GenericRedBlackTree::GetSuccessorOf( const T2Generi
 {
 	T2GenericRedBlackTreeNode* pTVar1;
 	T2GenericRedBlackTreeNode* pTVar2;
-	bool                       bVar3;
+	TBOOL                      bVar3;
 
 	pTVar1 = pNode->m_pRight;
 	if ( pTVar1 == &ms_oNil )

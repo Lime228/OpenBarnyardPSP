@@ -91,6 +91,10 @@
 #  define TUNREACHABLE_INTRINSIC() do {} while ( TFALSE )
 #endif
 
+#ifndef __CRTDECL
+#  define __CRTDECL
+#endif
+
 #define TNODISCARD                        [[nodiscard]]
 
 #define TANONYMOUSVAR_1( Y )                CONCATTOKEN( _anonymous, Y )
@@ -164,7 +168,7 @@
 #  define TASSERT( X, ... )                                                       \
 	  {                                                                           \
 		  TCALL_ONCE_IF( !( X ) )                                                 \
-		  if ( 1 == TDebug_AssertHandler( #X, __FILE__, __LINE__, __VA_ARGS__ ) ) \
+		  if ( 1 == TDebug_AssertHandler( #X, __FILE__, __LINE__ __VA_OPT__(, ) __VA_ARGS__ ) ) \
 			  TBREAK();                                                           \
 	  }
 #  define TVALIDPTR( PTR ) TASSERT( TDebug_IsValidAddress( PTR ) )

@@ -20,7 +20,7 @@ class MODAPI T2GenericRedBlackTreeNode
 public:
 	friend class T2GenericRedBlackTree;
 
-	template <class T, class C>
+	template <class U, class C>
 	friend class T2RedBlackTree;
 
 protected:
