@@ -3,6 +3,7 @@
 #ifdef TOSHI_SKU_PSP
 
 #  include "Toshi/Defines.h"
+#  include "Toshi/Profiler.h"
 #  include "Toshi/TDebug.h"
 
 #else
