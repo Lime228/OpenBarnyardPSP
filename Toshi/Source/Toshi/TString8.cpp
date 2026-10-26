@@ -3,7 +3,9 @@
 #include "TString16.h"
 
 #include "Toshi/T2String8.h"
-#include "Toshi/TSystem.h"
+#include "Toshi/TStringManager.h"
+
+#include <cstring>
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -12,6 +14,17 @@
 #include "Core/TMemoryDebugOn.h"
 
 TOSHI_NAMESPACE_START
+
+#if defined( TOSHI_SKU_PSP )
+static TSIZE TString8LengthUTF16_PSP( const TWCHAR* a_pString )
+{
+	TSIZE uiLength = 0;
+	while ( a_pString[ uiLength ] != L'\0' )
+		uiLength += 1;
+
+	return uiLength;
+}
+#endif
 
 TString8& TString8::MakeUpper()
 {
@@ -109,7 +122,7 @@ void TString8::Copy( const TString8& src, TINT size )
 			size = src.Length();
 
 		AllocBuffer( size, TTRUE );
-		TUtil::MemCopy( m_pBuffer, src.m_pBuffer, size );
+		std::memcpy( m_pBuffer, src.m_pBuffer, size );
 
 		m_pBuffer[ size ] = 0;
 	}
@@ -120,7 +133,7 @@ void TString8::Copy( const TCHAR* src, TINT size )
 {
 	if ( src != m_pBuffer )
 	{
-		TINT srcLen = src ? TINT( TStringManager::String8Length( src ) ) : 0;
+		TINT srcLen = src ? TINT( T2String8::Length( src ) ) : 0;
 		TASSERT( srcLen <= 0xFFFFFF, "Too big string" );
 
 		if ( srcLen < size || size == -1 )
@@ -129,7 +142,7 @@ void TString8::Copy( const TCHAR* src, TINT size )
 		}
 
 		AllocBuffer( size, TTRUE );
-		TUtil::MemCopy( m_pBuffer, src, size );
+		std::memcpy( m_pBuffer, src, size );
 
 		m_pBuffer[ size ] = 0;
 	}
@@ -138,7 +151,11 @@ void TString8::Copy( const TCHAR* src, TINT size )
 // $Barnyard: FUNCTION 006bd240
 void TString8::Copy( const TWCHAR* src, TINT size )
 {
+#if defined( TOSHI_SKU_PSP )
+	TINT srcLen = src ? TINT( TString8LengthUTF16_PSP( src ) ) : 0;
+#else
 	TINT srcLen = src ? TINT( TStringManager::String16Length( src ) ) : 0;
+#endif
 	TASSERT( srcLen <= 0xFFFFFF, "Too big string" );
 
 	if ( srcLen < size || size == -1 ) { size = srcLen; }
@@ -230,7 +247,7 @@ TString8& TString8::Format( const TCHAR* a_pcFormat, ... )
 	// TASSERT is only in T2String8
 
 	TCHAR buffer[ 1024 ];
-	TINT  iResult = _vsnprintf( buffer, sizeof( buffer ), a_pcFormat, args );
+	TINT  iResult = T2String8::FormatV( buffer, TINT( sizeof( buffer ) ), a_pcFormat, args );
 	TASSERT( iResult != -1, "PS2/GC/X360 do not correctly support _vsnprintf, this code will cause memory to be clobbered on those platforms! Increase the size of the destination string to avoid this problem" );
 	Copy( buffer, -1 );
 
@@ -242,7 +259,7 @@ TString8& TString8::VFormat( const TCHAR* a_pcFormat, va_list a_vargs )
 	TCHAR buffer[ 0x400 ];
 
 	// TASSERT is only in T2String8
-	TINT iResult = _vsnprintf( buffer, sizeof( buffer ), a_pcFormat, a_vargs );
+	TINT iResult = T2String8::FormatV( buffer, TINT( sizeof( buffer ) ), a_pcFormat, a_vargs );
 	TASSERT( iResult != -1, "PS2/GC/X360 do not correctly support _vsnprintf, this code will cause memory to be clobbered on those platforms! Increase the size of the destination string to avoid this problem" );
 	Copy( buffer, -1 );
 
@@ -258,7 +275,7 @@ TString8 TString8::VarArgs( const TCHAR* a_pcFormat, ... )
 	va_start( args, a_pcFormat );
 
 	// TASSERT is only in T2String8
-	TINT iResult = _vsnprintf( buffer, sizeof( buffer ), a_pcFormat, args );
+	TINT iResult = T2String8::FormatV( buffer, TINT( sizeof( buffer ) ), a_pcFormat, args );
 	TASSERT( iResult != -1, "PS2/GC/X360 do not correctly support _vsnprintf, this code will cause memory to be clobbered on those platforms! Increase the size of the destination string to avoid this problem" );
 	buffer2.Copy( buffer, -1 );
 
@@ -415,7 +432,7 @@ TString8& TString8::Reserve( TINT size )
 	{
 		TINT   iOldLength = m_iStrLen;
 		TCHAR* pOldString = m_pBuffer;
-		TINT   iCopySize  = TMath::Min( iOldLength, size );
+		TINT   iCopySize  = iOldLength < size ? iOldLength : size;
 
 		// Reallocate buffer if necessary
 		TBOOL bAllocated = AllocBuffer( size, TFALSE );
@@ -444,10 +461,7 @@ TINT TString8::Compare( const TCHAR* a_pcString, TINT a_iLength ) const
 	TASSERT( IsIndexValid( 0 ), "TCString::Compare - Index 0 is not valid" );
 	TASSERT( GetString() != TNULL, "TCString::Compare - String cannot be TNULL" );
 
-	if ( a_iLength != -1 )
-		return strncmp( GetString(), a_pcString, a_iLength );
-
-	return strcmp( GetString(), a_pcString );
+	return T2String8::Compare( GetString(), a_pcString, TSIZE( a_iLength ) );
 }
 
 // $Barnyard: FUNCTION 006bcec0
@@ -457,10 +471,7 @@ TINT TString8::CompareNoCase( const TCHAR* a_pcString, TINT a_iLength ) const
 	TASSERT( IsIndexValid( 0 ), "TCString::CompareNoCase - Index 0 is not valid" );
 	TASSERT( GetString() != TNULL, "TCString::CompareNoCase - String cannot be TNULL" );
 
-	if ( a_iLength == -1 )
-		return _stricmp( GetString(), a_pcString );
-
-	return _strnicmp( GetString(), a_pcString, a_iLength );
+	return T2String8::CompareNoCase( GetString(), a_pcString, TSIZE( a_iLength ) );
 }
 
 // $Barnyard: FUNCTION 006bd950
@@ -482,7 +493,7 @@ TString8 TString8::Mid( TINT a_iFirst, TINT a_iCount ) const
 	}
 
 	TString8 strResult( a_iCount, TNULL );
-	TUtil::MemCopy( strResult.GetStringUnsafe(), GetString( a_iFirst ), a_iCount );
+	std::memcpy( strResult.GetStringUnsafe(), GetString( a_iFirst ), a_iCount );
 	strResult[ a_iCount ] = '\0';
 
 	return strResult;
@@ -591,7 +602,7 @@ TBOOL TString8::EndsWithNoCase( const TCHAR* a_szString, TINT a_iLength /*= -1 *
 	if ( Length() < iStringLength )
 		return TFALSE;
 
-	return strnicmp( GetString( Length() - iStringLength ), a_szString, iStringLength ) == 0;
+	return T2String8::CompareNoCase( GetString( Length() - iStringLength ), a_szString, iStringLength ) == 0;
 }
 
 // $Barnyard: FUNCTION 006bdab0
