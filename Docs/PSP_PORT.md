@@ -64,6 +64,24 @@ PSP GU rendering path independently from the Windows executable.
    - Keep original game assets outside the repository. Build conversion tools
      that operate on a user's legally obtained data.
 
+## PSP technical constraints
+
+- Treat Allegrex as a 32-bit little-endian MIPS target. Pointer casts use the
+  existing `TUINTPTR` type and serialized formats use fixed-width Toshi types;
+  host-sized C++ types must not leak into file layouts.
+- Keep the runtime working set below the PSP user-memory ceiling and budget
+  main memory separately from the 2 MiB embedded DRAM used by the display and
+  depth buffers. Large PC-style permanent heaps are not acceptable.
+- GU-visible allocations require the alignment expected by their format and a
+  data-cache writeback before drawing. Textures currently use 16-byte-aligned
+  storage and power-of-two dimensions/stride up to the GU limit of 512.
+- Prefer offline conversion, compact immutable data, streaming, and bounded
+  scratch buffers over runtime decoding and repeated allocations. Avoid hidden
+  copies on asset load and keep ownership explicit until a resource is unloaded.
+- Do not assume desktop threads, dynamic libraries, filesystem paths, codecs,
+  or graphics APIs exist. Every platform service enters through a small PSP
+  implementation that can be exercised independently in the smoke EBOOT.
+
 ### M1 implementation notes
 
 - `T2GlobalAllocator` currently uses the PSP C heap through
@@ -124,11 +142,23 @@ PSP GU rendering path independently from the Windows executable.
 - The bootstrap renders an embedded 16x16 checker texture as a scaled GU sprite.
   Failure to validate or upload the texture is reported in debug output and in
   the same red screen state used by the M1 smoke tests.
+- `Ports/PSP/Tools/convert_texture.py` converts a deterministic ASCII P3 PPM
+  source to the versioned `PTEX` layout. The generated `probe.ptex` is copied
+  next to `EBOOT.PBP` by the Premake post-build step and both files are published
+  in the PSP workflow artifact.
+- The frontend loads `local:probe.ptex` through the existing `TFile` layer and
+  keeps its source allocation alive for the `T2Texture_PSP` resource lifetime.
+  Missing or invalid external data falls back to the embedded checker so the
+  rendering and filesystem paths remain independently diagnosable.
+- `TRenderInterface_PSP` currently owns only the GU display lifecycle, scene
+  boundaries, a colour-triangle probe, and a textured-sprite probe. It remains
+  a small standalone slice until the generic render base can be separated from
+  the complete PC resource, model, and context graph.
 
 ## Immediate next slice
 
-Run the M1 EBOOT in PPSSPP and on real hardware, capture debug output, and verify
-allocator alignment, mutex recursion, semaphore wake-up, managed thread exit,
-and native file I/O. Keep the dependency-ordered source list; do not add the full
-`OpenBarnyard/Source` glob. Once M1 runtime validation is green, begin M2 with a
-single converted texture rendered through a small PSP `TRenderInterface` slice.
+Run the current EBOOT in PPSSPP and on real hardware, capture debug output, and
+verify the M1 core probes plus external `probe.ptex` loading and GU sampling.
+Keep the dependency-ordered source list; do not add the full
+`OpenBarnyard/Source` glob. After runtime validation, extend M2 with the smallest
+vertex/index-buffer and render-state subset needed for one converted model.
