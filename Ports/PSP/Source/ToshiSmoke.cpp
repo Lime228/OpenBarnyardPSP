@@ -8,6 +8,7 @@
 #include <Toshi/Endianness.h>
 #include <Toshi/Platform.h>
 #include <Toshi/THPTimer.h>
+#include <Toshi/TString8.h>
 #include <Toshi/Verify.h>
 
 #include <Thread/TMutex.h>
@@ -41,6 +42,9 @@ TBOOL RunToshiPortabilitySmokeTest()
 	                           Toshi::T2String8::CompareNoCase( "BARNYARD", "barnyard" ) == 0;
 	Toshi::T2String8::IntToString( -228, aStringBuffer, 10 );
 	const TBOOL bIntegerStringReady = Toshi::T2String8::Compare( aStringBuffer, "-228" ) == 0;
+	Toshi::TString8 oDynamicString;
+	oDynamicString.Format( "Barnyard-%d", 228 );
+	const TBOOL bDynamicStringReady = oDynamicString.CompareNoCase( "barnyard-228" ) == 0;
 
 	if ( pBuffer != TNULL )
 	{
@@ -64,6 +68,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       bMutexReady &&
 	       bStringReady &&
 	       bIntegerStringReady &&
+	       bDynamicStringReady &&
 	       timer.GetRaw64() > 0 &&
 	       timer.GetDelta() >= 0.0f;
 }
