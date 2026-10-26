@@ -1,6 +1,7 @@
 #pragma once
-#include <cstdint>
 #include <bit>
+#include <cstring>
+#include <type_traits>
 
 typedef TUINT8 Endianess;
 enum Endianess_ : Endianess
@@ -28,8 +29,8 @@ TFORCEINLINE constexpr TUINT16 SWAP16( const TUINT8 bytes[ 2 ] )
 
 TFORCEINLINE TFLOAT SWAPFLOAT( const TUINT8 bytes[ 4 ] )
 {
-	TUINT32 result = SWAP32( bytes );
-	return *(TFLOAT*)( &result );
+	const TUINT32 uiResult = SWAP32( bytes );
+	return std::bit_cast<TFLOAT>( uiResult );
 }
 
 TFORCEINLINE TUINT32 PARSEDWORD( const TUINT32 value )
@@ -40,7 +41,12 @@ TFORCEINLINE TUINT32 PARSEDWORD( const TUINT32 value )
 
 TFORCEINLINE TUINT32 PARSEDWORD( const TUINT8* value )
 {
-	if constexpr ( std::endian::native == std::endian::little ) return *(TUINT32*)value;
+	if constexpr ( std::endian::native == std::endian::little )
+	{
+		TUINT32 uiResult;
+		std::memcpy( &uiResult, value, sizeof( uiResult ) );
+		return uiResult;
+	}
 	else return SWAP32( value );
 }
 
@@ -53,7 +59,12 @@ TFORCEINLINE TUINT32 PARSEDWORD_BIG( const TUINT32 value )
 TFORCEINLINE TUINT32 PARSEDWORD_BIG( const TUINT8* value )
 {
 	if constexpr ( std::endian::native == std::endian::little ) return SWAP32( value );
-	else return *(TUINT32*)value;
+	else
+	{
+		TUINT32 uiResult;
+		std::memcpy( &uiResult, value, sizeof( uiResult ) );
+		return uiResult;
+	}
 }
 
 TFORCEINLINE TUINT16 PARSEWORD( TUINT16 value )
@@ -64,7 +75,12 @@ TFORCEINLINE TUINT16 PARSEWORD( TUINT16 value )
 
 TFORCEINLINE TUINT16 PARSEWORD( const TUINT8* value )
 {
-	if constexpr ( std::endian::native == std::endian::little ) return *(TUINT16*)value;
+	if constexpr ( std::endian::native == std::endian::little )
+	{
+		TUINT16 uiResult;
+		std::memcpy( &uiResult, value, sizeof( uiResult ) );
+		return uiResult;
+	}
 	else return SWAP16( value );
 }
 
@@ -77,7 +93,12 @@ TFORCEINLINE TUINT32 PARSEWORD_BIG( TUINT32 value )
 TFORCEINLINE TUINT32 PARSEWORD_BIG( const TUINT8* value )
 {
 	if constexpr ( std::endian::native == std::endian::little ) return SWAP16( value );
-	else return *(TUINT16*)value;
+	else
+	{
+		TUINT16 uiResult;
+		std::memcpy( &uiResult, value, sizeof( uiResult ) );
+		return uiResult;
+	}
 }
 
 TFORCEINLINE TFLOAT PARSEFLOAT( TFLOAT value )
@@ -88,7 +109,12 @@ TFORCEINLINE TFLOAT PARSEFLOAT( TFLOAT value )
 
 TFORCEINLINE TFLOAT PARSEFLOAT( const TUINT8* value )
 {
-	if constexpr ( std::endian::native == std::endian::little ) return *(TFLOAT*)value;
+	if constexpr ( std::endian::native == std::endian::little )
+	{
+		TFLOAT fResult;
+		std::memcpy( &fResult, value, sizeof( fResult ) );
+		return fResult;
+	}
 	else return SWAPFLOAT( value );
 }
 
@@ -101,7 +127,12 @@ TFORCEINLINE TFLOAT PARSEFLOAT_BIG( TFLOAT value )
 TFORCEINLINE TFLOAT PARSEFLOAT_BIG( const TUINT8* value )
 {
 	if constexpr ( std::endian::native == std::endian::little ) return SWAPFLOAT( value );
-	else return *(TFLOAT*)value;
+	else
+	{
+		TFLOAT fResult;
+		std::memcpy( &fResult, value, sizeof( fResult ) );
+		return fResult;
+	}
 }
 
 template <typename T>
