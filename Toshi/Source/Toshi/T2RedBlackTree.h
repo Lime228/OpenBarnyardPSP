@@ -103,7 +103,7 @@ template <class T>
 class T2RedBlackTreeNode : public T2GenericRedBlackTreeNode
 {
 public:
-	template <class T, class C>
+	template <class U, class C>
 	friend class T2RedBlackTree;
 
 public:

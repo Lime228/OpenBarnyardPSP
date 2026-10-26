@@ -95,6 +95,10 @@
 #  define __CRTDECL
 #endif
 
+#ifndef __stdcall
+#  define __stdcall
+#endif
+
 #define TNODISCARD                        [[nodiscard]]
 
 #define TANONYMOUSVAR_1( Y )                CONCATTOKEN( _anonymous, Y )
