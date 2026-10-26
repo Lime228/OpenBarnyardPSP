@@ -154,11 +154,21 @@ PSP GU rendering path independently from the Windows executable.
   boundaries, a colour-triangle probe, and a textured-sprite probe. It remains
   a small standalone slice until the generic render base can be separated from
   the complete PC resource, model, and context graph.
+- `TVertexPoolResource_PSP` and `TIndexPoolResource_PSP` provide bounded,
+  16-byte-aligned persistent buffers without pulling in the PC `TResource`
+  factory graph. They retain the engine's `Lock`/`Unlock` vocabulary, use the
+  existing 16-bit `TIndexType`, and write back only the populated range before
+  GU consumption.
+- The frontend submits a four-vertex, six-index colour mesh through
+  `GU_INDEX_16BIT`. This probe verifies persistent buffer lifetime and indexed
+  drawing independently from the per-frame GU display-list allocations used by
+  the original triangle and sprite probes.
 
 ## Immediate next slice
 
 Run the current EBOOT in PPSSPP and on real hardware, capture debug output, and
 verify the M1 core probes plus external `probe.ptex` loading and GU sampling.
 Keep the dependency-ordered source list; do not add the full
-`OpenBarnyard/Source` glob. After runtime validation, extend M2 with the smallest
-vertex/index-buffer and render-state subset needed for one converted model.
+`OpenBarnyard/Source` glob. After runtime validation, define a compact versioned
+PSP mesh format and offline converter, then load one external static model using
+the verified vertex/index buffer path.
