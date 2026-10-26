@@ -34,6 +34,8 @@ alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
 };
 static Toshi::T2Texture g_ProbeTexture;
 static Toshi::TRenderInterface_PSP g_RenderInterface;
+static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
+static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
 static void* g_pProbeTextureFileData_PSP = TNULL;
 static TBOOL g_bExternalTexture_PSP      = TFALSE;
 
@@ -96,6 +98,42 @@ static TBOOL InitialiseProbeTexture()
 	return g_ProbeTexture.Load();
 }
 
+static TBOOL InitialiseProbeMesh_PSP()
+{
+	if ( !g_ProbeVertices_PSP.Create( TUINT16( sizeof( Toshi::TRenderColourVertex_PSP ) ), 4 ) ||
+	     !g_ProbeIndices_PSP.Create( 6 ) )
+	{
+		g_ProbeVertices_PSP.Destroy();
+		g_ProbeIndices_PSP.Destroy();
+		return TFALSE;
+	}
+
+	auto* pVertices = reinterpret_cast<Toshi::TRenderColourVertex_PSP*>( g_ProbeVertices_PSP.Lock() );
+	auto* pIndices  = g_ProbeIndices_PSP.Lock();
+	if ( pVertices == TNULL || pIndices == TNULL )
+	{
+		if ( pVertices != TNULL ) g_ProbeVertices_PSP.Unlock( 0 );
+		if ( pIndices != TNULL ) g_ProbeIndices_PSP.Unlock( 0 );
+		g_ProbeVertices_PSP.Destroy();
+		g_ProbeIndices_PSP.Destroy();
+		return TFALSE;
+	}
+
+	pVertices[ 0 ] = { 0xff303060, 152.0f, 48.0f, 0.0f };
+	pVertices[ 1 ] = { 0xff603030, 328.0f, 48.0f, 0.0f };
+	pVertices[ 2 ] = { 0xff306030, 328.0f, 224.0f, 0.0f };
+	pVertices[ 3 ] = { 0xff606030, 152.0f, 224.0f, 0.0f };
+	pIndices[ 0 ] = 0;
+	pIndices[ 1 ] = 1;
+	pIndices[ 2 ] = 2;
+	pIndices[ 3 ] = 0;
+	pIndices[ 4 ] = 2;
+	pIndices[ 5 ] = 3;
+	g_ProbeVertices_PSP.Unlock( 4 );
+	g_ProbeIndices_PSP.Unlock( 6 );
+	return TTRUE;
+}
+
 static TINT ExitCallback( TINT, TINT, void* )
 {
 	g_Running = TFALSE;
@@ -137,12 +175,14 @@ int main()
 	sceCtrlSetSamplingMode( PSP_CTRL_MODE_ANALOG );
 
 	TFLOAT      fXOffset       = 0.0f;
-	const TBOOL bToshiReady    = RunToshiPortabilitySmokeTest();
-	const TBOOL bTextureReady  = InitialiseProbeTexture();
-	const TBOOL bBootstrapReady = bToshiReady && bTextureReady;
+	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
+	const TBOOL bTextureReady   = InitialiseProbeTexture();
+	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
+	const TBOOL bBootstrapReady = bToshiReady && bTextureReady && bMeshReady;
 	TUINT32     uiClearColor   = bBootstrapReady ? 0xff201810 : 0xff202080;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
+	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 
 	while ( g_Running )
 	{
@@ -158,12 +198,16 @@ int main()
 			uiClearColor = ( pad.Buttons & PSP_CTRL_CROSS ) ? 0xff402010 : 0xff201810;
 		g_RenderInterface.BeginScene( uiClearColor );
 		g_RenderInterface.DrawColourTriangle( fXOffset );
+		if ( bMeshReady )
+			g_RenderInterface.DrawIndexedColourTriangles( g_ProbeVertices_PSP, g_ProbeIndices_PSP );
 		if ( bTextureReady )
 			g_RenderInterface.DrawTextureSprite( g_ProbeTexture, 176.0f + fXOffset, 72.0f, 128.0f, 128.0f );
 		g_RenderInterface.EndScene();
 	}
 
 	g_ProbeTexture.Unload();
+	g_ProbeIndices_PSP.Destroy();
+	g_ProbeVertices_PSP.Destroy();
 	if ( g_pProbeTextureFileData_PSP != TNULL )
 		Toshi::GetGlobalAllocator()->Free( g_pProbeTextureFileData_PSP );
 	g_RenderInterface.DestroyDisplay();
