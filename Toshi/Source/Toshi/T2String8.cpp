@@ -2,8 +2,11 @@
 #include "T2String8.h"
 #include "T2CharTraits.h"
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
 #if defined( TOSHI_SKU_PSP )
-#  include <cstdio>
 #  include <strings.h>
 #endif
 
@@ -95,7 +98,7 @@ TINT T2String8::Format( TCHAR* a_pcString, TINT size, const TCHAR* a_pcFormat, .
 
 TINT T2String8::Compare( const TCHAR* str1, const TCHAR* str2, TSIZE size )
 {
-	if ( size != -1 )
+	if ( size != TSIZE( -1 ) )
 		return strncmp( str1, str2, size );
 
 	return strcmp( str1, str2 );
@@ -105,12 +108,12 @@ TINT T2String8::Compare( const TCHAR* str1, const TCHAR* str2, TSIZE size )
 TINT T2String8::CompareNoCase( const TCHAR* str1, const TCHAR* str2, TSIZE size /*= -1*/ )
 {
 #if defined( TOSHI_SKU_PSP )
-	if ( size != -1 )
+	if ( size != TSIZE( -1 ) )
 		return strncasecmp( str1, str2, size );
 
 	return strcasecmp( str1, str2 );
 #else
-	if ( size != -1 )
+	if ( size != TSIZE( -1 ) )
 		return _strnicmp( str1, str2, size );
 
 	return _stricmp( str1, str2 );
@@ -120,7 +123,7 @@ TINT T2String8::CompareNoCase( const TCHAR* str1, const TCHAR* str2, TSIZE size 
 // $Barnyard: FUNCTION 006bb120
 TCHAR* T2String8::Copy( TCHAR* dst, const TCHAR* src, TSIZE size /*= -1*/ )
 {
-	if ( size != -1 )
+	if ( size != TSIZE( -1 ) )
 		return strncpy( dst, src, size );
 
 	return strcpy( dst, src );
@@ -128,7 +131,7 @@ TCHAR* T2String8::Copy( TCHAR* dst, const TCHAR* src, TSIZE size /*= -1*/ )
 
 TCHAR* T2String8::Concat( TCHAR* dst, const TCHAR* src, TSIZE size /*= -1*/ )
 {
-	if ( size != -1 )
+	if ( size != TSIZE( -1 ) )
 		return strncat( dst, src, size );
 
 	return strcat( dst, src );
@@ -137,7 +140,7 @@ TCHAR* T2String8::Concat( TCHAR* dst, const TCHAR* src, TSIZE size /*= -1*/ )
 TCHAR* T2String8::CopySafe( TCHAR* dst, const TCHAR* src, TSIZE size )
 {
 	TSIZE srcLen = Length( src );
-	size         = TMath::Min( size - 1, srcLen );
+	size         = size - 1 < srcLen ? size - 1 : srcLen;
 	strncpy( dst, src, size );
 	dst[ size ] = '\0';
 	return dst;
@@ -230,6 +233,7 @@ void T2String8::IntToString( TINT value, TCHAR* dst, TINT radix )
 
 void T2String8::IntToString( TINT value, TCHAR* dst, TINT unused, TINT radix )
 {
+	( void ) unused;
 #if defined( TOSHI_SKU_PSP )
 	T2String8IntToString_PSP( value, dst, radix );
 #else
@@ -266,10 +270,10 @@ const TCHAR* T2String8::SkipSpaces( const TCHAR* str )
 
 TCHAR* T2String8::CreateCopy( const TCHAR* a_pcString, TSIZE a_uiSize /*= -1 */ )
 {
-	TSIZE uiSize = ( a_uiSize == -1 ) ? T2String8::Length( a_pcString ) : a_uiSize;
+	TSIZE uiSize = ( a_uiSize == TSIZE( -1 ) ) ? T2String8::Length( a_pcString ) : a_uiSize;
 
 	TCHAR* pcBuffer = new TCHAR[ uiSize + 1 ];
-	TUtil::MemCopy( pcBuffer, a_pcString, uiSize * sizeof( TCHAR ) );
+	std::memcpy( pcBuffer, a_pcString, uiSize * sizeof( TCHAR ) );
 	pcBuffer[ uiSize ] = '\0';
 
 	return pcBuffer;

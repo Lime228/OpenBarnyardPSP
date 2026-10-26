@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cctype>
+#include <cwctype>
 #include <type_traits>
 
 TOSHI_NAMESPACE_START
