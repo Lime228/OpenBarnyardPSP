@@ -112,6 +112,19 @@ PSP GU rendering path independently from the Windows executable.
 - **M5 — content pass:** converters, performance fixes, audio, saves, UI scaling,
   and full-game compatibility.
 
+### M2 implementation notes
+
+- `T2Texture_PSP` keeps the existing `SetData`, `Load`, and `Unload` lifecycle.
+  Its input is a versioned `PTEX` blob containing a fixed-width Toshi header and
+  preconverted RGBA8888 pixels; runtime decoding of PC texture containers is
+  intentionally outside the PSP executable.
+- Texture dimensions and stride must be powers of two and no larger than 512.
+  Upload storage is allocated through `T2GlobalAllocator` with 16-byte alignment
+  and written back from the data cache before GU sampling.
+- The bootstrap renders an embedded 16x16 checker texture as a scaled GU sprite.
+  Failure to validate or upload the texture is reported in debug output and in
+  the same red screen state used by the M1 smoke tests.
+
 ## Immediate next slice
 
 Run the M1 EBOOT in PPSSPP and on real hardware, capture debug output, and verify
