@@ -2,6 +2,11 @@
 #include "T2String8.h"
 #include "T2CharTraits.h"
 
+#if defined( TOSHI_SKU_PSP )
+#  include <cstdio>
+#  include <strings.h>
+#endif
+
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
 // Note: Should be the last include!
@@ -9,6 +14,39 @@
 #include "Core/TMemoryDebugOn.h"
 
 TOSHI_NAMESPACE_START
+
+#if defined( TOSHI_SKU_PSP )
+static void T2String8IntToString_PSP( TINT a_iValue, TCHAR* a_pDst, TINT a_iRadix )
+{
+	static const TCHAR s_Characters[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+	if ( a_iRadix < 2 || a_iRadix > 36 )
+	{
+		*a_pDst = '\0';
+		return;
+	}
+
+	TCHAR              aBuffer[ sizeof( TUINT ) * 8 + 1 ];
+	TSIZE              uiLength  = 0;
+	const TBOOL        bNegative = a_iValue < 0 && a_iRadix == 10;
+	TUINT              uiValue   = bNegative ?
+	                                   0U - static_cast<TUINT>( a_iValue ) :
+	                                   static_cast<TUINT>( a_iValue );
+
+	do
+	{
+		aBuffer[ uiLength++ ] = s_Characters[ uiValue % static_cast<TUINT>( a_iRadix ) ];
+		uiValue /= static_cast<TUINT>( a_iRadix );
+	} while ( uiValue != 0 );
+
+	if ( bNegative )
+		*a_pDst++ = '-';
+
+	while ( uiLength != 0 )
+		*a_pDst++ = aBuffer[ --uiLength ];
+
+	*a_pDst = '\0';
+}
+#endif
 
 TCHAR T2String8::ms_aScratchMem[ T2String8::SCRATCH_MEM_SIZE ];
 
@@ -22,7 +60,11 @@ TINT T2String8::FormatV( TCHAR* a_pcString, const TCHAR* a_pcFormat, va_list arg
 // $Barnyard: FUNCTION 006bb1d0
 TINT T2String8::FormatV( TCHAR* a_pcString, TINT size, const TCHAR* a_pcFormat, va_list args )
 {
+#if defined( TOSHI_SKU_PSP )
+	TINT iResult = vsnprintf( a_pcString, static_cast<TSIZE>( size ), a_pcFormat, args );
+#else
 	TINT iResult = _vsnprintf( a_pcString, size, a_pcFormat, args );
+#endif
 	TASSERT( iResult != -1, "PS2/GC/X360 do not correctly support _vsnprintf, this code will cause memory to be clobbered on those platforms! Increase the size of the destination string to avoid this problem" );
 	a_pcString[ size - 1 ] = '\0';
 	return iResult;
@@ -62,10 +104,17 @@ TINT T2String8::Compare( const TCHAR* str1, const TCHAR* str2, TSIZE size )
 // $Barnyard: FUNCTION 006bb0e0
 TINT T2String8::CompareNoCase( const TCHAR* str1, const TCHAR* str2, TSIZE size /*= -1*/ )
 {
+#if defined( TOSHI_SKU_PSP )
+	if ( size != -1 )
+		return strncasecmp( str1, str2, size );
+
+	return strcasecmp( str1, str2 );
+#else
 	if ( size != -1 )
 		return _strnicmp( str1, str2, size );
 
 	return _stricmp( str1, str2 );
+#endif
 }
 
 // $Barnyard: FUNCTION 006bb120
@@ -172,12 +221,20 @@ void T2String8::ToUpperCase( TCHAR* str )
 // $Barnyard: FUNCTION 006bb220
 void T2String8::IntToString( TINT value, TCHAR* dst, TINT radix )
 {
+#if defined( TOSHI_SKU_PSP )
+	T2String8IntToString_PSP( value, dst, radix );
+#else
 	_itoa( value, dst, radix );
+#endif
 }
 
 void T2String8::IntToString( TINT value, TCHAR* dst, TINT unused, TINT radix )
 {
+#if defined( TOSHI_SKU_PSP )
+	T2String8IntToString_PSP( value, dst, radix );
+#else
 	_itoa( value, dst, radix );
+#endif
 }
 
 // $Barnyard: FUNCTION 006bb2a0
