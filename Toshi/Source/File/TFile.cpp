@@ -1,5 +1,8 @@
 #include "ToshiPCH.h"
 #include "TFile.h"
+#include "Toshi/Platform.h"
+
+#include <cstring>
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
