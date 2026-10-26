@@ -43,8 +43,8 @@ public:
 	static void  Exit( TThread* a_pThread );
 
 public:
-	void* m_hThreadHnd = TNULL;
-	TINT  m_iThreadID  = -1;
+	void*         m_hThreadHnd = TNULL;
+	volatile TINT m_iThreadID  = -1;
 };
 
 class TThreadManager : public TSingleton<TThreadManager>
