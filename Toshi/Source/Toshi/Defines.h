@@ -95,7 +95,7 @@
 #  define __CRTDECL
 #endif
 
-#ifndef __stdcall
+#if !defined( _MSC_VER ) && !defined( __stdcall )
 #  define __stdcall
 #endif
 
