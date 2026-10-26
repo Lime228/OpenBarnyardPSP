@@ -4,9 +4,9 @@
 #  define USE_WIN32_MUTEX
 #endif // TOSHI_SKU_WINDOWS && !USE_ATOMIC
 
-#ifndef USE_WIN32_MUTEX
+#if !defined( USE_WIN32_MUTEX ) && !defined( TOSHI_SKU_PSP )
 #  include "Thread/T2AtomicMutex.h"
-#endif // !USE_WIN32_MUTEX
+#endif // !USE_WIN32_MUTEX && !TOSHI_SKU_PSP
 
 TOSHI_NAMESPACE_START
 
@@ -40,7 +40,11 @@ public:
 	TMutex& operator=( void* handle );
 
 private:
-#ifdef USE_WIN32_MUTEX
+#if defined( TOSHI_SKU_PSP )
+	TINT  m_iSemaphore;
+	TINT  m_iOwnerThread;
+	TUINT m_uiLockDepth;
+#elif defined( USE_WIN32_MUTEX )
 	void* m_Handle;
 #else  // !USE_WIN32_MUTEX
 	T2AtomicMutex m_Atomic;
