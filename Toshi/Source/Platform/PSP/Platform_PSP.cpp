@@ -1,11 +1,21 @@
 #include <Toshi/Defines.h>
 #include <Toshi/Platform.h>
+#include <Toshi/TString8.h>
 
 #include <pspthreadman.h>
 
 #include <limits>
 
 TOSHI_NAMESPACE_START
+
+static void FixPathSlashes_PSP( TString8& a_rPath )
+{
+	for ( TINT i = 0; i < a_rPath.Length(); i++ )
+	{
+		if ( a_rPath[ i ] == '\\' )
+			a_rPath[ i ] = '/';
+	}
+}
 
 void ThreadSleep( TUINT a_uiMilliseconds )
 {
@@ -18,6 +28,16 @@ void ThreadSleep( TUINT a_uiMilliseconds )
 	}
 
 	sceKernelDelayThread( a_uiMilliseconds * 1000U );
+}
+
+void FixPathSlashes( TString8& a_rPath )
+{
+	FixPathSlashes_PSP( a_rPath );
+}
+
+void FixPathSlashesBack( TString8& a_rPath )
+{
+	FixPathSlashes_PSP( a_rPath );
 }
 
 TOSHI_NAMESPACE_END
