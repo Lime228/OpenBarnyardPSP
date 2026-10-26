@@ -14,6 +14,53 @@
 #include <File/TFile.h>
 #include <Thread/TMutex.h>
 #include <Thread/TSemaphore.h>
+#include <Thread/TThread.h>
+
+#include <pspthreadman.h>
+
+class TSmokeThread_PSP : public Toshi::TThread
+{
+public:
+	TSmokeThread_PSP( Toshi::TSemaphore& a_rSemaphore, TBOOL& a_rRan )
+	    : m_rSemaphore( a_rSemaphore )
+	    , m_rRan( a_rRan )
+	{
+	}
+
+	virtual void Main() OVERRIDE
+	{
+		m_rRan = TTRUE;
+		m_rSemaphore.Signal();
+	}
+
+private:
+	Toshi::TSemaphore& m_rSemaphore;
+	TBOOL&              m_rRan;
+};
+
+static TBOOL RunThreadSmokeTest()
+{
+	Toshi::TSemaphore oCompletionSemaphore;
+	if ( !oCompletionSemaphore.Create( 0, 1 ) )
+		return TFALSE;
+
+	TBOOL            bRan = TFALSE;
+	TSmokeThread_PSP oThread( oCompletionSemaphore, bRan );
+	TBOOL bThreadReady = oThread.Create(
+	    0x4000,
+	    Toshi::TThread::THREAD_PRIORITY_NORMAL,
+	    Toshi::TThread::FLAGS_NONE
+	);
+
+	const TINT iThreadID = oThread.m_iThreadID;
+	bThreadReady = bThreadReady &&
+	               oCompletionSemaphore.Wait() &&
+	               sceKernelWaitThreadEnd( iThreadID, TNULL ) >= 0 &&
+	               bRan;
+
+	oCompletionSemaphore.Destroy();
+	return bThreadReady;
+}
 
 static TBOOL RunFileIOSmokeTest()
 {
@@ -86,6 +133,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	                       oSemaphore.Signal() &&
 	                       oSemaphore.Wait();
 	bSemaphoreReady = oSemaphore.Destroy() && bSemaphoreReady;
+	const TBOOL bThreadReady = RunThreadSmokeTest();
 	TCHAR aStringBuffer[ 32 ];
 	Toshi::T2String8::Format( aStringBuffer, TARRAYSIZE( aStringBuffer ), "psp-%d", 228 );
 	const TBOOL bStringReady = Toshi::T2String8::Compare( aStringBuffer, "psp-228" ) == 0 &&
@@ -120,6 +168,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       bContainerReady &&
 	       bMutexReady &&
 	       bSemaphoreReady &&
+	       bThreadReady &&
 	       bStringReady &&
 	       bIntegerStringReady &&
 	       bDynamicStringReady &&
