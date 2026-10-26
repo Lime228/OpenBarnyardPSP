@@ -34,6 +34,7 @@ project "OpenBarnyardPSP"
 		"../../Toshi/Source/File/TFileSystem.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
 		"../../Toshi/Source/Toshi/T2String8.cpp",
+		"../../Toshi/Source/Toshi/TDList.cpp",
 		"../../Toshi/Source/Toshi/TString8.cpp",
 		"../../Toshi/Source/Platform/PSP/**.h",
 		"../../Toshi/Source/Platform/PSP/**.cpp"
