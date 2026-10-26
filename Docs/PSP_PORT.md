@@ -64,6 +64,17 @@ PSP GU rendering path independently from the Windows executable.
    - Keep original game assets outside the repository. Build conversion tools
      that operate on a user's legally obtained data.
 
+### M1 implementation notes
+
+- `T2GlobalAllocator` currently uses the PSP C heap through
+  `T2Allocator_PSP.cpp`. This deliberately keeps the existing allocator API and
+  avoids duplicating the global `TMalloc` entry points owned by `TMemory.cpp`.
+- `GetUsedSize` and `GetCapacity` remain unavailable until the bounded PSP
+  `TMemory` heap is brought up; both report zero, matching the existing global
+  allocator implementation.
+- The portability smoke test verifies a 64-byte-aligned allocation before the
+  allocator is used by strings and containers.
+
 ## Milestones
 
 - **M0 — toolchain probe:** `EBOOT.PBP` renders and reads controls (implemented).
