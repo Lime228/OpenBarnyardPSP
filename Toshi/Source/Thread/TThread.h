@@ -14,3 +14,7 @@
 #ifdef TOSHI_SKU_WINDOWS
 #  include "Platform/Windows/TThread_Win.h"
 #endif // TOSHI_SKU_WINDOWS
+
+#ifdef TOSHI_SKU_PSP
+#  include "Platform/PSP/TThread_PSP.h"
+#endif // TOSHI_SKU_PSP
