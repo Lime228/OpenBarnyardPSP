@@ -1,9 +1,9 @@
 #include "ToshiSmoke.h"
 
 #include <Toshi/Defines.h>
+#include <Toshi/TDebug.h>
 #include <Toshi/T2Allocator.h>
 #include <Toshi/T2Map.h>
-#include <Toshi/TDebug.h>
 #include <Toshi/Endianness.h>
 #include <Toshi/Platform.h>
 #include <Toshi/THPTimer.h>
