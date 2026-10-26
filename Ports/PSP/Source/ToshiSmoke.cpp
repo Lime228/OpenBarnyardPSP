@@ -2,6 +2,7 @@
 
 #include <Toshi/Defines.h>
 #include <Toshi/T2Allocator.h>
+#include <Toshi/T2Map.h>
 #include <Toshi/TDebug.h>
 #include <Toshi/Endianness.h>
 #include <Toshi/Platform.h>
@@ -16,6 +17,14 @@ TBOOL RunToshiPortabilitySmokeTest()
 	TUINT8* pBuffer = TSTATICCAST( TUINT8, pAllocator->Malloc( 48, 64 ) );
 	TBOOL bAllocatorReady = pBuffer != TNULL &&
 	                        ( reinterpret_cast<TUINTPTR>( pBuffer ) & 63U ) == 0;
+	Toshi::T2Map<TINT, TINT> oValues;
+	oValues.Insert( 2, 20 );
+	oValues.Insert( 1, 10 );
+	oValues.Insert( 3, 30 );
+	Toshi::T2Map<TINT, TINT>::Iterator itValue = oValues.Find( 2 );
+	const TBOOL bContainerReady = oValues.Size() == 3 &&
+	                              itValue != oValues.End() &&
+	                              itValue->GetSecond() == 20;
 
 	if ( pBuffer != TNULL )
 	{
@@ -35,6 +44,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       CURRENT_ENDIANESS == Endianess_Little &&
 	       PARSEDWORD( bytes ) == 0x12345678U &&
 	       bAllocatorReady &&
+	       bContainerReady &&
 	       timer.GetRaw64() > 0 &&
 	       timer.GetDelta() >= 0.0f;
 }
