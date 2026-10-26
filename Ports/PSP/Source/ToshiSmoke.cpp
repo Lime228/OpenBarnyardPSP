@@ -11,6 +11,7 @@
 #include <Toshi/TString8.h>
 #include <Toshi/Verify.h>
 
+#include <File/TFile.h>
 #include <Thread/TMutex.h>
 
 TBOOL RunToshiPortabilitySmokeTest()
@@ -45,6 +46,8 @@ TBOOL RunToshiPortabilitySmokeTest()
 	Toshi::TString8 oDynamicString;
 	oDynamicString.Format( "Barnyard-%d", 228 );
 	const TBOOL bDynamicStringReady = oDynamicString.CompareNoCase( "barnyard-228" ) == 0;
+	const Toshi::TString8 oJoinedPath = Toshi::TFile::ConcatPath( "local:/data/actors", "../textures/cow.tga" );
+	const TBOOL bFilePathReady = oJoinedPath == "local:/data/textures/cow.tga";
 
 	if ( pBuffer != TNULL )
 	{
@@ -69,6 +72,7 @@ TBOOL RunToshiPortabilitySmokeTest()
 	       bStringReady &&
 	       bIntegerStringReady &&
 	       bDynamicStringReady &&
+	       bFilePathReady &&
 	       timer.GetRaw64() > 0 &&
 	       timer.GetDelta() >= 0.0f;
 }
