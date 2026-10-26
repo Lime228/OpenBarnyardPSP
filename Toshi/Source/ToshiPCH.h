@@ -2,6 +2,7 @@
 
 #ifdef TOSHI_SKU_PSP
 
+#  include "Toshi/Defines.h"
 #  include "Toshi/TDebug.h"
 
 #else
