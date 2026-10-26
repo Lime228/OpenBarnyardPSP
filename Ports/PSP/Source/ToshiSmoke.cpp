@@ -16,8 +16,6 @@
 #include <Thread/TSemaphore.h>
 #include <Thread/TThread.h>
 
-#include <pspthreadman.h>
-
 class TSmokeThread_PSP : public Toshi::TThread
 {
 public:
@@ -52,11 +50,16 @@ static TBOOL RunThreadSmokeTest()
 	    Toshi::TThread::FLAGS_NONE
 	);
 
-	const TINT iThreadID = oThread.m_iThreadID;
 	bThreadReady = bThreadReady &&
 	               oCompletionSemaphore.Wait() &&
-	               sceKernelWaitThreadEnd( iThreadID, TNULL ) >= 0 &&
 	               bRan;
+
+	for ( TINT i = 0; i < 100 && oThread.m_iThreadID >= 0; i++ )
+		Toshi::ThreadSleep( 1 );
+
+	bThreadReady = oThread.m_iThreadID < 0 && bThreadReady;
+	if ( oThread.m_iThreadID >= 0 )
+		oThread.Destroy();
 
 	oCompletionSemaphore.Destroy();
 	return bThreadReady;
