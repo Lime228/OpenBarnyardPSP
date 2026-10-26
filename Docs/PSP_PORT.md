@@ -77,6 +77,12 @@ PSP GU rendering path independently from the Windows executable.
 - `TMutex` uses a PSPSDK semaphore and retains the engine's recursive locking
   behaviour by tracking the owning PSP thread and lock depth. The smoke test
   covers recursive acquisition and the non-blocking `FLAG_NO_WAIT` path.
+- `T2String8` and `TString8` now build without the Windows precompiled header;
+  the PSP smoke test covers bounded formatting, case-insensitive comparison,
+  integer conversion, and allocator-backed dynamic strings.
+- The generic `TFile`, `TFileSystem`, and `TFileManager` path layer is compiled
+  with the existing `TDList` implementation. Path joining and `..`
+  simplification are covered before the PSP-native `sceIo*` backend is added.
 
 ## Milestones
 
