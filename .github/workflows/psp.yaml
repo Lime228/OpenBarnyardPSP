@@ -28,6 +28,13 @@ jobs:
         with:
           version: "5.0.0"
 
+      - name: Verify converted PSP assets
+        run: |
+          python3 Ports/PSP/Tools/convert_texture.py Ports/PSP/Assets/probe.ppm /tmp/probe.ptex
+          python3 Ports/PSP/Tools/convert_mesh.py Ports/PSP/Assets/probe.obj /tmp/probe.pmes
+          cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
+          cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
+
       - name: Generate PSP project
         env:
           PSPDEV: /usr/local/pspdev
