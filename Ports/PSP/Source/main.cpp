@@ -241,7 +241,7 @@ int main()
 		if ( bTextureReady )
 			g_RenderInterface.DrawTextureSprite( g_ProbeTexture, 176.0f + fXOffset, 72.0f, 128.0f, 128.0f );
 		if ( bModelReady )
-			g_RenderInterface.DrawModel( g_ProbeModel_PSP, fModelRotation );
+			g_RenderInterface.DrawModel( g_ProbeModel_PSP, fModelRotation, &g_ProbeTexture );
 		g_RenderInterface.EndScene();
 	}
 
