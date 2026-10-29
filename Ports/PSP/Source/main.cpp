@@ -2,10 +2,13 @@
 
 #include <Toshi/Typedefs.h>
 #include <Toshi/TDebug.h>
+#include <Toshi/THPTimer.h>
+#include <Toshi/TScheduler.h>
 #include <File/TFile.h>
 #include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Render/TBackend.h>
 
+#include "Frontend/AFrontendBootstrapTask_PSP.h"
 #include "ToshiSmoke.h"
 
 PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
@@ -146,15 +149,19 @@ int main()
 {
 	SetupCallbacks();
 	Toshi::TInputInterface_PSP oInputInterface;
+	Toshi::TScheduler          oScheduler;
+	Toshi::THPTimer            oFrameTimer;
 	if ( !g_RenderInterface.CreateDisplay() )
 	{
 		sceKernelExitGame();
 		return 1;
 	}
 
-	TFLOAT      fXOffset        = 0.0f;
-	TFLOAT      fModelRotation  = 0.0f;
 	const TBOOL bInputReady     = oInputInterface.Initialise();
+	auto*       pFrontendTask   = oScheduler.CreateTask<AFrontendBootstrapTask_PSP>();
+	const TBOOL bSchedulerReady = pFrontendTask != TNULL && pFrontendTask->Create();
+	if ( !bSchedulerReady )
+		pFrontendTask = TNULL;
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -182,7 +189,8 @@ int main()
 	) );
 	const TBOOL bCacheReady = bTextureCached && bModelCached &&
 	                          pCachedTexture == &g_ProbeTexture && pCachedModel == &g_ProbeModel_PSP;
-	const TBOOL bBootstrapReady = bInputReady && bToshiReady && bTextureReady && bMeshReady && bModelReady && bCacheReady;
+	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
+	                              bTextureReady && bMeshReady && bModelReady && bCacheReady;
 	TUINT32     uiClearColor   = bBootstrapReady ? 0xff201810 : 0xff202080;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
@@ -190,6 +198,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
+	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
 	TDebug_FinalPrintf(
 	    "[PSP memory] main %u/%u peak %u, edram %u/%u\n",
@@ -202,16 +211,15 @@ int main()
 
 	while ( g_Running )
 	{
-		oInputInterface.ProcessEvents( 1.0f / 60.0f );
-		const Toshi::TInputDeviceController_PSP& rController = oInputInterface.GetController();
-		const TFLOAT fAnalogX = rController.GetAxisFloat( Toshi::TInputDeviceController::STICK_LEFT, 0 );
-		fXOffset += fAnalogX * 2.0f;
-		if ( fXOffset < -100.0f ) fXOffset = -100.0f;
-		if ( fXOffset > 100.0f ) fXOffset = 100.0f;
-		fModelRotation += 0.015f;
+		oFrameTimer.Update();
+		const TFLOAT fDeltaTime = oFrameTimer.GetDelta();
+		oInputInterface.ProcessEvents( fDeltaTime );
+		oScheduler.Update( fDeltaTime );
+		const TFLOAT fXOffset = pFrontendTask != TNULL ? pFrontendTask->GetXOffset() : 0.0f;
+		const TFLOAT fModelRotation = pFrontendTask != TNULL ? pFrontendTask->GetModelRotation() : 0.0f;
 
 		if ( bBootstrapReady )
-			uiClearColor = rController.IsDown( Toshi::TInputDeviceController::BUTTON_CONTEXT_3 ) ? 0xff402010 : 0xff201810;
+			uiClearColor = pFrontendTask->IsConfirmDown() ? 0xff402010 : 0xff201810;
 		g_RenderInterface.BeginScene( uiClearColor );
 		g_RenderInterface.DrawColourTriangle( fXOffset );
 		if ( bMeshReady )
@@ -223,6 +231,7 @@ int main()
 		g_RenderInterface.EndScene();
 	}
 
+	oScheduler.DestroyAllTasks();
 	oInputInterface.Deinitialise();
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
