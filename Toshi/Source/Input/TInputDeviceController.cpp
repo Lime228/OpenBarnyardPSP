@@ -1,5 +1,6 @@
 #include "ToshiPCH.h"
 #include "TInputDeviceController.h"
+#include "Toshi/TUtil.h"
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.

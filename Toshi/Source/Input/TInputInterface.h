@@ -10,7 +10,11 @@
  */
 
 #pragma once
+#include "Toshi/Defines.h"
+#include "Toshi/TEvent.h"
 #include "Toshi/TNodeList.h"
+#include "Toshi/TObject.h"
+#include "Toshi/TSingleton.h"
 #include "Toshi/TArray.h"
 
 TOSHI_NAMESPACE_START

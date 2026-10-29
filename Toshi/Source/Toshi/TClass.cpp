@@ -2,6 +2,7 @@
 #include "TClass.h"
 #include "TSystem.h"
 #include "Toshi/Typedefs.h"
+#include "Toshi/TStringManager.h"
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.

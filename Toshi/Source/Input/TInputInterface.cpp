@@ -2,6 +2,7 @@
 #include "TInputInterface.h"
 #include "TInputDeviceKeyboard.h"
 #include "TInputDeviceMouse.h"
+#include "Toshi/TStringManager.h"
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.

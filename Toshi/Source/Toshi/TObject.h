@@ -1,6 +1,8 @@
 #pragma once
 #include "TClass.h"
 
+#include <memory>
+#include <new>
 #include <type_traits>
 
 //-----------------------------------------------------------------------------
