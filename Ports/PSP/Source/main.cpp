@@ -34,6 +34,7 @@ alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
 static Toshi::T2Texture g_ProbeTexture;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
+static Toshi::TRenderResourceCache_PSP g_ResourceCache_PSP;
 static Toshi::TRenderInterface_PSP g_RenderInterface;
 static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
@@ -161,13 +162,34 @@ int main()
 	if ( bFileReady )
 		Toshi::TFileManager::Destroy();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
-	const TBOOL bBootstrapReady = bToshiReady && bTextureReady && bMeshReady && bModelReady;
+	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
+	    "probe.texture",
+	    Toshi::TRENDERRESOURCETYPE_PSP_TEXTURE,
+	    &g_ProbeTexture
+	);
+	const TBOOL bModelCached = bModelReady && g_ResourceCache_PSP.Register(
+	    "probe.model",
+	    Toshi::TRENDERRESOURCETYPE_PSP_MODEL,
+	    &g_ProbeModel_PSP
+	);
+	auto* pCachedTexture = static_cast<Toshi::T2Texture*>( g_ResourceCache_PSP.Find(
+	    "PROBE.TEXTURE",
+	    Toshi::TRENDERRESOURCETYPE_PSP_TEXTURE
+	) );
+	auto* pCachedModel = static_cast<Toshi::TModel_PSP*>( g_ResourceCache_PSP.Find(
+	    "PROBE.MODEL",
+	    Toshi::TRENDERRESOURCETYPE_PSP_MODEL
+	) );
+	const TBOOL bCacheReady = bTextureCached && bModelCached &&
+	                          pCachedTexture == &g_ProbeTexture && pCachedModel == &g_ProbeModel_PSP;
+	const TBOOL bBootstrapReady = bToshiReady && bTextureReady && bMeshReady && bModelReady && bCacheReady;
 	TUINT32     uiClearColor   = bBootstrapReady ? 0xff201810 : 0xff202080;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
 	TDebug_FinalPrintf( "[PSP render] layout      %s\n", g_ProbeTexture.IsSwizzled() ? "swizzled" : "linear" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
 	TDebug_FinalPrintf(
 	    "[PSP memory] main %u/%u peak %u, edram %u/%u\n",
@@ -195,13 +217,14 @@ int main()
 		g_RenderInterface.DrawColourTriangle( fXOffset );
 		if ( bMeshReady )
 			g_RenderInterface.DrawIndexedColourTriangles( g_ProbeVertices_PSP, g_ProbeIndices_PSP );
-		if ( bTextureReady )
-			g_RenderInterface.DrawTextureSprite( g_ProbeTexture, 176.0f + fXOffset, 72.0f, 128.0f, 128.0f );
-		if ( bModelReady )
-			g_RenderInterface.DrawModel( g_ProbeModel_PSP, fModelRotation, g_ProbeMaterial_PSP, &g_ProbeTexture );
+		if ( pCachedTexture != TNULL )
+			g_RenderInterface.DrawTextureSprite( *pCachedTexture, 176.0f + fXOffset, 72.0f, 128.0f, 128.0f );
+		if ( pCachedModel != TNULL && pCachedTexture != TNULL )
+			g_RenderInterface.DrawModel( *pCachedModel, fModelRotation, g_ProbeMaterial_PSP, pCachedTexture );
 		g_RenderInterface.EndScene();
 	}
 
+	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
 	g_ProbeTexture.Unload();
 	g_ProbeIndices_PSP.Destroy();
