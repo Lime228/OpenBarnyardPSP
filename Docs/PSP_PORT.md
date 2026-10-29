@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-29)
 
-The PSP platform/render bring-up is approximately **65%** complete, while the
-complete playable-game port is approximately **18%** complete. The second value
+The PSP platform/render bring-up is approximately **70%** complete, while the
+complete playable-game port is approximately **19%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the game
 scheduler, real Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
@@ -23,10 +23,10 @@ or gameplay validation on hardware.
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
-| Portable Toshi/platform core | 75% | allocator, strings, containers, file I/O, timer, sync and threads pass the PPSSPP bootstrap gate |
+| Portable Toshi/platform core | 80% | allocator, strings, containers, file I/O, timer, sync, threads and input events pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 50% | GU display, depth, indexed static models, textures, materials, budgets and small factories run in PPSSPP |
 | Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
-| Input integration | 15% | raw `sceCtrl` analog input is runtime-verified; `TInputInterface` mapping does not exist |
+| Input integration | 45% | `TInputInterface_PSP` maps the PSP controller, buttons and single analog stick and is runtime-verified |
 | Game bootstrap and frontend | 3% | no scheduler or Barnyard frontend has started on PSP |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
@@ -108,9 +108,10 @@ M3-M5 remain largely unstarted.
 
 ### M1 implementation notes
 
-- `T2GlobalAllocator` currently uses the PSP C heap through
-  `T2Allocator_PSP.cpp`. This deliberately keeps the existing allocator API and
-  avoids duplicating the global `TMalloc` entry points owned by `TMemory.cpp`.
+- `T2GlobalAllocator` uses the PSP C heap through `T2Allocator_PSP.cpp`.
+  `TMemory_PSP.cpp` bridges the legacy global `TMalloc`, `TMemalign`,
+  `TRealloc`, and `TFree` entry points to the same heap for generic containers
+  that still use the original memory API.
 - `GetUsedSize` and `GetCapacity` remain unavailable until the bounded PSP
   `TMemory` heap is brought up; both report zero, matching the existing global
   allocator implementation.
@@ -255,15 +256,22 @@ M3-M5 remain largely unstarted.
 - PPSSPP maps the analog stick left/right to `J`/`L`; repeated left input moved
   the triangle and texture sprite while the model continued rotating. The raw
   `sceCtrl` input probe is therefore runtime-confirmed.
-- Real PSP validation, sustained memory profiling, and the engine-level
-  `TInputInterface` remain outstanding.
+- The CI artifact from commit `0c3bc623` replaces the frontend's raw controller
+  polling with `TInputInterface_PSP` and `TInputDeviceController_PSP`. It starts
+  in PPSSPP 1.20.4, renders the complete probe, and repeated analog-left input
+  moves and rotates the probe geometry through the engine-level controller API.
+- The PSP device maps the D-pad, Start, Select, four face buttons, both shoulder
+  buttons, and the platform's single analog stick to existing Toshi doodads.
+  A zero-sample first poll preserves the neutral stick state.
+- Real PSP validation, sustained memory profiling, vibration policy, and final
+  game action bindings remain outstanding.
 
 ## Immediate next slice
 
 Run the validated bundle on real hardware and capture the debug output and
-memory high-water marks. In parallel with that hardware check, begin the PSP
-`TInputInterface` mapping and a minimal scheduler/bootstrap path with audio and
-movies disabled. Keep the dependency-ordered source list; do not add the full
-`OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
-seam until a real game caller requires a specific part of the full
-`TTextureFactory`/`TResource` graph.
+memory high-water marks. In parallel with that hardware check, begin a minimal
+scheduler/bootstrap path with audio and movies disabled, then route its first
+frontend action through `TInputInterface_PSP`. Keep the dependency-ordered
+source list; do not add the full `OpenBarnyard/Source` glob. Keep the bounded
+factories/cache as the resource seam until a real game caller requires a
+specific part of the full `TTextureFactory`/`TResource` graph.
