@@ -50,4 +50,5 @@ jobs:
           path: |
             bin/PSP/Release/EBOOT.PBP
             bin/PSP/Release/probe.ptex
+            bin/PSP/Release/probe.pmes
           if-no-files-found: error

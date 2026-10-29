@@ -96,6 +96,7 @@ project "OpenBarnyardPSP"
 		'mksfoex -d MEMSIZE=2 "OpenBarnyard PSP Probe" "%{cfg.targetdir}/PARAM.SFO"',
 		'pack-pbp "%{cfg.targetdir}/EBOOT.PBP" "%{cfg.targetdir}/PARAM.SFO" NULL NULL NULL NULL NULL "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf" NULL',
 		'cp -f "../../Ports/PSP/Assets/probe.ptex" "%{cfg.targetdir}/probe.ptex"',
+		'cp -f "../../Ports/PSP/Assets/probe.pmes" "%{cfg.targetdir}/probe.pmes"',
 		'rm -f "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"'
 	}
 
