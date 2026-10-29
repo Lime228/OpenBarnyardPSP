@@ -1,9 +1,9 @@
-#include <pspctrl.h>
 #include <pspkernel.h>
 
 #include <Toshi/Typedefs.h>
 #include <Toshi/TDebug.h>
 #include <File/TFile.h>
+#include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Render/TBackend.h>
 
 #include "ToshiSmoke.h"
@@ -145,16 +145,16 @@ static void SetupCallbacks()
 int main()
 {
 	SetupCallbacks();
+	Toshi::TInputInterface_PSP oInputInterface;
 	if ( !g_RenderInterface.CreateDisplay() )
 	{
 		sceKernelExitGame();
 		return 1;
 	}
-	sceCtrlSetSamplingCycle( 0 );
-	sceCtrlSetSamplingMode( PSP_CTRL_MODE_ANALOG );
 
 	TFLOAT      fXOffset        = 0.0f;
 	TFLOAT      fModelRotation  = 0.0f;
+	const TBOOL bInputReady     = oInputInterface.Initialise();
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -182,7 +182,7 @@ int main()
 	) );
 	const TBOOL bCacheReady = bTextureCached && bModelCached &&
 	                          pCachedTexture == &g_ProbeTexture && pCachedModel == &g_ProbeModel_PSP;
-	const TBOOL bBootstrapReady = bToshiReady && bTextureReady && bMeshReady && bModelReady && bCacheReady;
+	const TBOOL bBootstrapReady = bInputReady && bToshiReady && bTextureReady && bMeshReady && bModelReady && bCacheReady;
 	TUINT32     uiClearColor   = bBootstrapReady ? 0xff201810 : 0xff202080;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
@@ -202,17 +202,16 @@ int main()
 
 	while ( g_Running )
 	{
-		SceCtrlData pad{};
-		sceCtrlPeekBufferPositive( &pad, 1 );
-
-		const TFLOAT fAnalogX = ( static_cast<TINT>( pad.Lx ) - 128 ) / 128.0f;
+		oInputInterface.ProcessEvents( 1.0f / 60.0f );
+		const Toshi::TInputDeviceController_PSP& rController = oInputInterface.GetController();
+		const TFLOAT fAnalogX = rController.GetAxisFloat( Toshi::TInputDeviceController::STICK_LEFT, 0 );
 		fXOffset += fAnalogX * 2.0f;
 		if ( fXOffset < -100.0f ) fXOffset = -100.0f;
 		if ( fXOffset > 100.0f ) fXOffset = 100.0f;
 		fModelRotation += 0.015f;
 
 		if ( bBootstrapReady )
-			uiClearColor = ( pad.Buttons & PSP_CTRL_CROSS ) ? 0xff402010 : 0xff201810;
+			uiClearColor = rController.IsDown( Toshi::TInputDeviceController::BUTTON_CONTEXT_3 ) ? 0xff402010 : 0xff201810;
 		g_RenderInterface.BeginScene( uiClearColor );
 		g_RenderInterface.DrawColourTriangle( fXOffset );
 		if ( bMeshReady )
@@ -224,6 +223,7 @@ int main()
 		g_RenderInterface.EndScene();
 	}
 
+	oInputInterface.Deinitialise();
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
 	g_ProbeTexture.Unload();
