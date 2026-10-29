@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Toshi/Defines.h"
+#include "Toshi/Endianness.h"
 #include "Toshi/Helpers.h"
 #include "Core/TMemory.h"
 #include "Math/TMathInline.h"
