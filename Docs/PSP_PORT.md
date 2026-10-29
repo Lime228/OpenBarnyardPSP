@@ -166,8 +166,10 @@ PSP GU rendering path independently from the Windows executable.
   the original triangle and sprite probes.
 - `Ports/PSP/Tools/convert_mesh.py` triangulates static OBJ faces offline and
   writes the versioned `PMES` format. Version 1 stores a fixed 24-byte header,
-  16-byte colour/XYZ vertices, and the engine's 16-bit `TIndexType`; both vertex
-  and index counts are capped at 65,535.
+  the engine's 16-bit `TIndexType`, and either 16-byte colour/XYZ or 24-byte
+  UV/colour/XYZ vertices. Position/UV pairs are deduplicated offline and mixed
+  textured/untextured face references are rejected; both element counts are
+  capped at 65,535.
 - `TModel_PSP` validates the complete blob and every index before allocating its
   vertex/index pools. Once both aligned buffers have been populated and written
   back, the frontend releases the source file allocation instead of retaining a
@@ -175,6 +177,11 @@ PSP GU rendering path independently from the Windows executable.
 - `TRenderInterface_PSP::DrawModel` supplies the minimal GUM projection, view,
   and model transforms, clears and enables the 16-bit depth buffer for the 3D
   draw, then restores the depth-test state used by the independent 2D probes.
+- Textured models reuse `T2Texture_PSP` directly. Normalized OBJ UVs are scaled
+  to the PTEX dimensions before GU submission and `GU_TFX_MODULATE` combines
+  texture samples with the packed vertex colour. Texture scale and offset are
+  explicitly reset by the shared bind helper so 2D sprites cannot inherit 3D
+  material state.
 - Premake places `probe.pmes` beside `EBOOT.PBP` and `probe.ptex`. CI regenerates
   both binary assets from their text sources and compares them byte-for-byte
   before compiling and publishing the three-file PSP artifact.
@@ -183,7 +190,7 @@ PSP GU rendering path independently from the Windows executable.
 
 Run the current EBOOT in PPSSPP and on real hardware, capture debug output, and
 verify the M1 core probes, external `probe.ptex` sampling, and the rotating
-`probe.pmes` octahedron with correct depth. Keep the dependency-ordered source
-list; do not add the full `OpenBarnyard/Source` glob. After runtime validation,
-add the smallest textured-model vertex/material state needed to combine the
-verified PTEX and PMES paths without introducing the PC renderer graph.
+textured `probe.pmes` octahedron with correct depth and UV orientation. Keep the
+dependency-ordered source list; do not add the full `OpenBarnyard/Source` glob.
+After runtime validation, add explicit culling/material state and an offline
+swizzled PTEX layout before increasing model or texture residency.
