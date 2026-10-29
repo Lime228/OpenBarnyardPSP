@@ -82,7 +82,6 @@ project "OpenBarnyardPSP"
 	linkoptions
 	{
 		"-G0",
-		"-Wl,--gc-sections",
 		"-Wl,-zmax-page-size=128"
 	}
 
