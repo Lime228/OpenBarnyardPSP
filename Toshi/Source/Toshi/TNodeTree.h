@@ -1,5 +1,6 @@
 #pragma once
 #include "Toshi/Defines.h"
+#include "Toshi/TDebug.h"
 
 TOSHI_NAMESPACE_START
 
