@@ -1,6 +1,9 @@
 # Ignore game assets
 Game/
 
+# Ignore local PSP runtime bundles and emulator tools
+Runtime/
+
 # Ignore auto generated files
 APooledStrings.cpp
 
