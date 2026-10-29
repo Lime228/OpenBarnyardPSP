@@ -43,6 +43,8 @@ public:
 	static constexpr TINT SCREEN_HEIGHT = 272;
 	static constexpr TINT BUFFER_WIDTH  = 512;
 	static constexpr TINT FRAME_BYTES   = BUFFER_WIDTH * SCREEN_HEIGHT * sizeof( TUINT32 );
+	static constexpr TINT DEPTH_BYTES   = BUFFER_WIDTH * SCREEN_HEIGHT * sizeof( TUINT16 );
+	static constexpr TINT EDRAM_BYTES   = FRAME_BYTES * 2 + DEPTH_BYTES;
 
 public:
 	TRenderInterface_PSP();

@@ -53,6 +53,7 @@ private:
 	TUINT       m_uiHeight;
 	TUINT       m_uiBufferWidth;
 	TUINT       m_uiFormat;
+	TSIZE       m_uiImageDataSize;
 };
 
 TOSHI_NAMESPACE_END

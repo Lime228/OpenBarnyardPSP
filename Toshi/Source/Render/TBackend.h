@@ -46,6 +46,7 @@
 #  include "Platform/DX11/TIndexFactoryResource_DX11.h"
 #elif defined( TRENDERINTERFACE_PSP )
 #  include "Platform/PSP/T2Texture_PSP.h"
+#  include "Platform/PSP/TRenderMemory_PSP.h"
 #  include "Platform/PSP/TRenderBuffer_PSP.h"
 #  include "Platform/PSP/TModel_PSP.h"
 #  include "Platform/PSP/TRenderInterface_PSP.h"

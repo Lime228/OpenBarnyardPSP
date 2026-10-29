@@ -29,6 +29,7 @@ private:
 	TUINT16 m_uiMaxVertices;
 	TUINT16 m_uiNumVertices;
 	TBOOL   m_bLocked;
+	TSIZE   m_uiBufferSize;
 };
 
 class TIndexPoolResource_PSP
@@ -53,6 +54,7 @@ private:
 	TUINT16     m_uiMaxIndices;
 	TUINT16     m_uiNumIndices;
 	TBOOL       m_bLocked;
+	TSIZE       m_uiBufferSize;
 };
 
 TOSHI_NAMESPACE_END

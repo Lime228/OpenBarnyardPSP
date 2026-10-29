@@ -1,6 +1,7 @@
 #include "ToshiPCH.h"
 #include "T2Texture_PSP.h"
 
+#include "TRenderMemory_PSP.h"
 #include "Toshi/T2Allocator.h"
 
 #include <pspkernel.h>
@@ -22,6 +23,7 @@ T2Texture::T2Texture()
     , m_uiHeight( 0 )
     , m_uiBufferWidth( 0 )
     , m_uiFormat( T2TEXTUREFORMAT_PSP_RGBA8888 )
+    , m_uiImageDataSize( 0 )
 {
 }
 
@@ -72,10 +74,15 @@ TBOOL T2Texture::Load()
 	const TSIZE uiPixelDataSize = TSIZE( pHeader->uiBufferWidth ) * pHeader->uiHeight * sizeof( TUINT32 );
 	if ( m_uiDataSize != sizeof( T2TextureDataHeader_PSP ) + uiPixelDataSize )
 		return TFALSE;
+	if ( !TRenderMemory_PSP::ReserveMain( uiPixelDataSize ) )
+		return TFALSE;
 
 	m_pImageData = GetGlobalAllocator()->Malloc( uiPixelDataSize, 16 );
 	if ( m_pImageData == TNULL )
+	{
+		TRenderMemory_PSP::ReleaseMain( uiPixelDataSize );
 		return TFALSE;
+	}
 
 	const TUINT8* pPixelData = static_cast<const TUINT8*>( m_pData ) + sizeof( T2TextureDataHeader_PSP );
 	std::memcpy( m_pImageData, pPixelData, uiPixelDataSize );
@@ -85,6 +92,7 @@ TBOOL T2Texture::Load()
 	m_uiHeight      = pHeader->uiHeight;
 	m_uiBufferWidth = pHeader->uiBufferWidth;
 	m_uiFormat      = pHeader->uiFormat;
+	m_uiImageDataSize = uiPixelDataSize;
 	return TTRUE;
 }
 
@@ -94,12 +102,14 @@ void T2Texture::Unload()
 	{
 		GetGlobalAllocator()->Free( m_pImageData );
 		m_pImageData = TNULL;
+		TRenderMemory_PSP::ReleaseMain( m_uiImageDataSize );
 	}
 
 	m_uiWidth       = 0;
 	m_uiHeight      = 0;
 	m_uiBufferWidth = 0;
 	m_uiFormat      = T2TEXTUREFORMAT_PSP_RGBA8888;
+	m_uiImageDataSize = 0;
 }
 
 TOSHI_NAMESPACE_END

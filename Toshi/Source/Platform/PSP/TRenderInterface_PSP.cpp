@@ -1,6 +1,8 @@
 #include "ToshiPCH.h"
 #include "TRenderInterface_PSP.h"
 
+#include "TRenderMemory_PSP.h"
+
 #include <pspdisplay.h>
 #include <pspgu.h>
 #include <pspgum.h>
@@ -73,6 +75,8 @@ TBOOL TRenderInterface_PSP::CreateDisplay()
 {
 	if ( m_bDisplayCreated )
 		return TTRUE;
+	if ( !TRenderMemory_PSP::SetEDRAMUsage( EDRAM_BYTES ) )
+		return TFALSE;
 
 	sceGuInit();
 	sceGuStart( GU_DIRECT, m_aDisplayList );
@@ -104,6 +108,7 @@ void TRenderInterface_PSP::DestroyDisplay()
 
 	sceGuDisplay( GU_FALSE );
 	sceGuTerm();
+	TRenderMemory_PSP::SetEDRAMUsage( 0 );
 	m_bDisplayCreated = TFALSE;
 }
 

@@ -1,6 +1,7 @@
 #include "ToshiPCH.h"
 #include "TRenderBuffer_PSP.h"
 
+#include "TRenderMemory_PSP.h"
 #include "Toshi/T2Allocator.h"
 
 #include <pspkernel.h>
@@ -15,6 +16,7 @@ TVertexPoolResource_PSP::TVertexPoolResource_PSP()
     , m_uiMaxVertices( 0 )
     , m_uiNumVertices( 0 )
     , m_bLocked( TFALSE )
+    , m_uiBufferSize( 0 )
 {
 }
 
@@ -30,14 +32,20 @@ TBOOL TVertexPoolResource_PSP::Create( TUINT16 a_uiVertexSize, TUINT16 a_uiMaxVe
 		return TFALSE;
 
 	const TSIZE uiBufferSize = TSIZE( a_uiVertexSize ) * a_uiMaxVertices;
+	if ( !TRenderMemory_PSP::ReserveMain( uiBufferSize ) )
+		return TFALSE;
 	m_pData = static_cast<TBYTE*>( GetGlobalAllocator()->Malloc( uiBufferSize, TRenderBufferAlignment_PSP ) );
 	if ( m_pData == TNULL )
+	{
+		TRenderMemory_PSP::ReleaseMain( uiBufferSize );
 		return TFALSE;
+	}
 
 	m_uiVertexSize   = a_uiVertexSize;
 	m_uiMaxVertices  = a_uiMaxVertices;
 	m_uiNumVertices  = 0;
 	m_bLocked        = TFALSE;
+	m_uiBufferSize   = uiBufferSize;
 	return TTRUE;
 }
 
@@ -45,13 +53,17 @@ void TVertexPoolResource_PSP::Destroy()
 {
 	TASSERT( !m_bLocked );
 	if ( m_pData != TNULL )
+	{
 		GetGlobalAllocator()->Free( m_pData );
+		TRenderMemory_PSP::ReleaseMain( m_uiBufferSize );
+	}
 
 	m_pData          = TNULL;
 	m_uiVertexSize   = 0;
 	m_uiMaxVertices  = 0;
 	m_uiNumVertices  = 0;
 	m_bLocked        = TFALSE;
+	m_uiBufferSize   = 0;
 }
 
 TBYTE* TVertexPoolResource_PSP::Lock()
@@ -83,6 +95,7 @@ TIndexPoolResource_PSP::TIndexPoolResource_PSP()
     , m_uiMaxIndices( 0 )
     , m_uiNumIndices( 0 )
     , m_bLocked( TFALSE )
+    , m_uiBufferSize( 0 )
 {
 }
 
@@ -98,13 +111,19 @@ TBOOL TIndexPoolResource_PSP::Create( TUINT16 a_uiMaxIndices )
 		return TFALSE;
 
 	const TSIZE uiBufferSize = TSIZE( a_uiMaxIndices ) * sizeof( TIndexType );
+	if ( !TRenderMemory_PSP::ReserveMain( uiBufferSize ) )
+		return TFALSE;
 	m_pData = static_cast<TIndexType*>( GetGlobalAllocator()->Malloc( uiBufferSize, TRenderBufferAlignment_PSP ) );
 	if ( m_pData == TNULL )
+	{
+		TRenderMemory_PSP::ReleaseMain( uiBufferSize );
 		return TFALSE;
+	}
 
 	m_uiMaxIndices = a_uiMaxIndices;
 	m_uiNumIndices = 0;
 	m_bLocked      = TFALSE;
+	m_uiBufferSize = uiBufferSize;
 	return TTRUE;
 }
 
@@ -112,12 +131,16 @@ void TIndexPoolResource_PSP::Destroy()
 {
 	TASSERT( !m_bLocked );
 	if ( m_pData != TNULL )
+	{
 		GetGlobalAllocator()->Free( m_pData );
+		TRenderMemory_PSP::ReleaseMain( m_uiBufferSize );
+	}
 
 	m_pData        = TNULL;
 	m_uiMaxIndices = 0;
 	m_uiNumIndices = 0;
 	m_bLocked      = TFALSE;
+	m_uiBufferSize = 0;
 }
 
 TIndexType* TIndexPoolResource_PSP::Lock()
