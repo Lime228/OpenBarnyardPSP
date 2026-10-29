@@ -1,6 +1,6 @@
 #include "ToshiPCH.h"
 #include "TClass.h"
-#include "TSystem.h"
+#include "TObject.h"
 #include "Toshi/Typedefs.h"
 #include "Toshi/TStringManager.h"
 
