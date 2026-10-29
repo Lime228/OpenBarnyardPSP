@@ -190,6 +190,19 @@ PSP GU rendering path independently from the Windows executable.
   front, or back culling. The probe uses modulated texturing and outward CCW
   faces with backface culling; texture and cull state are disabled again after
   the model draw so subsequent UI rendering starts from a known state.
+- `TRenderMemory_PSP` enforces a 16 MiB persistent render-resource budget and
+  records current/peak main-memory use. Texture and vertex/index allocations
+  reserve their complete capacity before calling the allocator and release the
+  same amount on failure or destruction, so budget rejection is deterministic.
+- Display creation accounts for 1,392,640 bytes of the PSP's 2 MiB eDRAM: two
+  512x272 RGBA8888 frame buffers plus one 512x272 16-bit depth buffer. The
+  frontend prints both main-memory and eDRAM current/budget values with the main
+  render diagnostics.
+- `TTextureFactory_PSP` is the first game-facing factory bridge. It mirrors the
+  original `CreateTextureFromFile`/`CreateTextureFromMemory` vocabulary while
+  producing the existing caller-owned `T2Texture` slice, bounds transient file
+  input to 4 MiB, and releases the source blob immediately after upload. It does
+  not yet inherit the PC `TResource` registry or retain a 1024-list name cache.
 - Premake places `probe.pmes` beside `EBOOT.PBP` and `probe.ptex`. CI regenerates
   both binary assets from their text sources and compares them byte-for-byte
   before compiling and publishing the three-file PSP artifact.
@@ -201,5 +214,6 @@ verify the M1 core probes, external `probe.ptex` sampling, and the rotating
 textured `probe.pmes` octahedron with correct depth, UV orientation, outward
 culling, and a `swizzled` layout diagnostic. Keep the dependency-ordered source
 list; do not add the full `OpenBarnyard/Source` glob. After runtime validation,
-add bounded VRAM/main-memory accounting and the first game-facing resource
-factory bridge before increasing model or texture residency.
+add the equivalent bounded static-model factory, then introduce the smallest
+named resource cache needed by game callers before increasing residency or
+connecting the full `TTextureFactory`/`TResource` graph.
