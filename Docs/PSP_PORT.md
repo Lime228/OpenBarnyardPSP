@@ -8,30 +8,32 @@ DirectX 8 and DirectX 11. The `Revolution` directory currently contains only a
 texture implementation, so it is useful as a reference but is not a complete
 console backend.
 
-`Ports/PSP` is milestone 0: a small EBOOT that proves the toolchain, input, and
-PSP GU rendering path independently from the Windows executable.
+`Ports/PSP` began as milestone 0 and is now the M1/M2 bootstrap EBOOT that proves
+the toolchain, portable core, input, and PSP GU rendering path independently
+from the Windows executable.
 
 ## Progress snapshot (2026-10-29)
 
-The PSP platform/render bring-up is approximately **55%** complete, while the
-complete playable-game port is approximately **15%** complete. The second value
+The PSP platform/render bring-up is approximately **65%** complete, while the
+complete playable-game port is approximately **18%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the game
 scheduler, real Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
 
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
-| PSP toolchain and packaging | 90% | Premake, EBOOT, deterministic assets and CI artifacts work |
-| Portable Toshi/platform core | 60% | allocator, strings, containers, file I/O, timer, sync and threads compile into the probe |
-| PSP renderer foundation | 35% | GU display, depth, indexed static models, textures, materials, budgets and small factories |
+| PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
+| Portable Toshi/platform core | 75% | allocator, strings, containers, file I/O, timer, sync and threads pass the PPSSPP bootstrap gate |
+| PSP renderer foundation | 50% | GU display, depth, indexed static models, textures, materials, budgets and small factories run in PPSSPP |
 | Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
-| Input integration | 10% | raw `sceCtrl` probe exists; `TInputInterface` mapping does not |
+| Input integration | 15% | raw `sceCtrl` analog input is runtime-verified; `TInputInterface` mapping does not exist |
 | Game bootstrap and frontend | 3% | no scheduler or Barnyard frontend has started on PSP |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
-M0 is complete in CI, M1 and M2 are compile-complete slices but still require
-PPSSPP and real-hardware runtime validation. M3-M5 remain largely unstarted.
+M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
+runtime-validated in PPSSPP, but still require real-hardware validation.
+M3-M5 remain largely unstarted.
 
 ## Port conventions
 
@@ -135,8 +137,8 @@ PPSSPP and real-hardware runtime validation. M3-M5 remain largely unstarted.
   creation, start, priority, termination, and self-exit calls. Manager list
   access is protected by the PSP `TMutex` implementation.
 - The worker-thread smoke path synchronises through `TSemaphore` and is compiled
-  into the EBOOT. CI validates the complete M1 binary, but runtime validation on
-  PPSSPP and real hardware is still required.
+  into the EBOOT. CI validates the complete M1 binary and PPSSPP validates the
+  runtime gate; real-hardware validation is still required.
 
 ## Milestones
 
@@ -237,13 +239,31 @@ PPSSPP and real-hardware runtime validation. M3-M5 remain largely unstarted.
   both binary assets from their text sources and compares them byte-for-byte
   before compiling and publishing the three-file PSP artifact.
 
+## PPSSPP runtime validation (2026-10-29)
+
+- The CI artifact from commit `1cd1e20b` starts in PPSSPP 1.20.4 and remains in
+  the render loop without a bad-address exception.
+- The first runtime attempt exposed incorrect PSP thread argument handling:
+  `sceKernelStartThread` copies an argument buffer instead of passing `this`
+  directly. `TThread_PSP` now starts with a copied `TThread*`, validates the
+  entry buffer, and dereferences it before the virtual `Main` call.
+- The success clear colour is visible. That state is gated by the complete M1
+  portability result plus texture, indexed mesh, external PMES model, and named
+  resource-cache readiness, so all bootstrap gates passed in the emulator.
+- The swizzled checker texture is visible on the rotating octahedron with depth
+  and backface culling, and the independent indexed 2D geometry also renders.
+- PPSSPP maps the analog stick left/right to `J`/`L`; repeated left input moved
+  the triangle and texture sprite while the model continued rotating. The raw
+  `sceCtrl` input probe is therefore runtime-confirmed.
+- Real PSP validation, sustained memory profiling, and the engine-level
+  `TInputInterface` remain outstanding.
+
 ## Immediate next slice
 
-Run the current EBOOT in PPSSPP and on real hardware, capture debug output, and
-verify the M1 core probes, external `probe.ptex` sampling, and the rotating
-textured `probe.pmes` octahedron with correct depth, UV orientation, outward
-culling, and a `swizzled` layout diagnostic. Keep the dependency-ordered source
-list; do not add the full `OpenBarnyard/Source` glob. After runtime validation,
-begin the PSP `TInputInterface` mapping and a minimal scheduler/bootstrap path.
-Keep the bounded factories/cache as the resource seam until a real game caller
-requires a specific part of the full `TTextureFactory`/`TResource` graph.
+Run the validated bundle on real hardware and capture the debug output and
+memory high-water marks. In parallel with that hardware check, begin the PSP
+`TInputInterface` mapping and a minimal scheduler/bootstrap path with audio and
+movies disabled. Keep the dependency-ordered source list; do not add the full
+`OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
+seam until a real game caller requires a specific part of the full
+`TTextureFactory`/`TResource` graph.
