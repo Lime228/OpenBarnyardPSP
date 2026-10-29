@@ -18,9 +18,15 @@ static TThread::PRIORITY TThreadPriorityFromPSP( TINT a_iPriority )
 	return 0x20 - a_iPriority;
 }
 
-static TINT TThreadEntry_PSP( SceSize, void* a_pUserData )
+static TINT TThreadEntry_PSP( SceSize a_uiArgs, void* a_pArgs )
 {
-	TThread* pThread = static_cast<TThread*>( a_pUserData );
+	if ( a_uiArgs != sizeof( TThread* ) || a_pArgs == TNULL )
+		return -1;
+
+	TThread* pThread = *static_cast<TThread**>( a_pArgs );
+	if ( pThread == TNULL )
+		return -1;
+
 	pThread->Main();
 	TThread::Exit( pThread );
 	return 0;
@@ -51,7 +57,8 @@ TBOOL TThread::Create( TSIZE a_uiStackSize, PRIORITY a_ePriority, FLAGS a_eFlags
 
 	if ( ( a_eFlags & FLAGS_SUSPENDED ) == 0 )
 	{
-		const TINT iResult = sceKernelStartThread( m_iThreadID, 0, TNULL );
+		TThread*   pThread = this;
+		const TINT iResult = sceKernelStartThread( m_iThreadID, sizeof( pThread ), &pThread );
 		if ( iResult < 0 )
 		{
 			Destroy();
