@@ -32,6 +32,8 @@ static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureF
 	sceGuTexFunc( a_iTextureFunction, GU_TCC_RGBA );
 	sceGuTexFilter( GU_NEAREST, GU_NEAREST );
 	sceGuTexWrap( GU_CLAMP, GU_CLAMP );
+	sceGuTexScale( 1.0f, 1.0f );
+	sceGuTexOffset( 0.0f, 0.0f );
 }
 
 TRenderInterface_PSP::TRenderInterface_PSP()
@@ -144,7 +146,10 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 	}
 
 	if ( bTextured )
+	{
 		TRenderSetTexture_PSP( *a_pTexture, GU_TFX_MODULATE );
+		sceGuTexScale( TFLOAT( a_pTexture->GetWidth() ), TFLOAT( a_pTexture->GetHeight() ) );
+	}
 	else
 		sceGuDisable( GU_TEXTURE_2D );
 	sceGuEnable( GU_DEPTH_TEST );
