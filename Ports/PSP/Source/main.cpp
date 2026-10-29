@@ -2,7 +2,6 @@
 #include <pspkernel.h>
 
 #include <Toshi/Typedefs.h>
-#include <Toshi/T2Allocator.h>
 #include <Toshi/TDebug.h>
 #include <File/TFile.h>
 #include <Render/TBackend.h>
@@ -34,6 +33,7 @@ alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
 };
 static Toshi::T2Texture g_ProbeTexture;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
+static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
 static Toshi::TRenderInterface_PSP g_RenderInterface;
 static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
@@ -47,33 +47,6 @@ static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
 
 static_assert( sizeof( void* ) == 4, "The PSP port requires a 32-bit ABI" );
 
-static void* ReadProbeFile_PSP( const TCHAR* a_pFileName, TSIZE a_uiMinSize, TSIZE a_uiMaxSize, TSIZE& a_rFileSize )
-{
-	Toshi::TFile* pFile = Toshi::TFile::Create(
-	    a_pFileName,
-	    Toshi::TFILEMODE_READ | Toshi::TFILEMODE_NOBUFFER
-	);
-	if ( pFile == TNULL )
-		return TNULL;
-
-	void*       pData      = TNULL;
-	const TSIZE uiFileSize = pFile->GetSize();
-	if ( uiFileSize >= a_uiMinSize && uiFileSize <= a_uiMaxSize )
-	{
-		pData = Toshi::GetGlobalAllocator()->Malloc( uiFileSize, 16 );
-		if ( pData != TNULL && pFile->Read( pData, uiFileSize ) != uiFileSize )
-		{
-			Toshi::GetGlobalAllocator()->Free( pData );
-			pData = TNULL;
-		}
-	}
-
-	pFile->Destroy();
-	if ( pData != TNULL )
-		a_rFileSize = uiFileSize;
-	return pData;
-}
-
 static TBOOL LoadProbeTextureFile_PSP()
 {
 	return g_TextureFactory_PSP.CreateTextureFromFile( g_ProbeTexture, "local:probe.ptex" );
@@ -81,25 +54,7 @@ static TBOOL LoadProbeTextureFile_PSP()
 
 static TBOOL LoadProbeModelFile_PSP()
 {
-	TSIZE uiFileSize = 0;
-	void* pData = ReadProbeFile_PSP(
-	    "local:probe.pmes",
-	    sizeof( Toshi::TModelDataHeader_PSP ),
-	    2 * 1024 * 1024,
-	    uiFileSize
-	);
-	if ( pData == TNULL )
-		return TFALSE;
-
-	g_ProbeModel_PSP.SetData( pData, TUINT( uiFileSize ) );
-	const TBOOL bLoaded = g_ProbeModel_PSP.Load();
-	g_ProbeModel_PSP.SetData( TNULL, 0 );
-	Toshi::GetGlobalAllocator()->Free( pData );
-	if ( !bLoaded )
-	{
-		g_ProbeModel_PSP.Unload();
-	}
-	return bLoaded;
+	return g_ModelFactory_PSP.CreateModelFromFile( g_ProbeModel_PSP, "local:probe.pmes" );
 }
 
 static TBOOL InitialiseProbeTexture( TBOOL a_bLoadExternal )
