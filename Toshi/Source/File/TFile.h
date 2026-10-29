@@ -10,6 +10,7 @@
  */
 
 #pragma once
+#include "Toshi/Defines.h"
 #include "Toshi/TSingleton.h"
 #include "Toshi/TDList.h"
 #include "Toshi/TString8.h"
