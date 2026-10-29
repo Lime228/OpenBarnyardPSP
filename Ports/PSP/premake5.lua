@@ -32,9 +32,15 @@ project "OpenBarnyardPSP"
 		"../../Toshi/Source/File/TFile.cpp",
 		"../../Toshi/Source/File/TFileManager.cpp",
 		"../../Toshi/Source/File/TFileSystem.cpp",
+		"../../Toshi/Source/Input/TInputDevice.cpp",
+		"../../Toshi/Source/Input/TInputDeviceController.cpp",
+		"../../Toshi/Source/Input/TInputInterface.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
 		"../../Toshi/Source/Toshi/T2String8.cpp",
+		"../../Toshi/Source/Toshi/TClass.cpp",
 		"../../Toshi/Source/Toshi/TDList.cpp",
+		"../../Toshi/Source/Toshi/TEvent.cpp",
+		"../../Toshi/Source/Toshi/TObject.cpp",
 		"../../Toshi/Source/Toshi/TString8.cpp",
 		"../../Toshi/Source/Platform/PSP/**.h",
 		"../../Toshi/Source/Platform/PSP/**.cpp"
@@ -66,6 +72,8 @@ project "OpenBarnyardPSP"
 		"-G0",
 		"-Wall",
 		"-Wextra",
+		"-ffunction-sections",
+		"-fdata-sections",
 		"-fno-exceptions",
 		"-fno-rtti"
 	}
@@ -73,6 +81,7 @@ project "OpenBarnyardPSP"
 	linkoptions
 	{
 		"-G0",
+		"-Wl,--gc-sections",
 		"-Wl,-zmax-page-size=128"
 	}
 
