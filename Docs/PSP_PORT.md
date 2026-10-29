@@ -139,6 +139,10 @@ PSP GU rendering path independently from the Windows executable.
 - Texture dimensions and stride must be powers of two and no larger than 512.
   Upload storage is allocated through `T2GlobalAllocator` with 16-byte alignment
   and written back from the data cache before GU sampling.
+- PTEX format 1 stores RGBA8888 pixels in PSP-native 16-byte by 8-row swizzle
+  blocks. The converter performs this layout offline and rejects dimensions that
+  cannot form complete blocks; `--linear` retains format 0 for diagnostics and
+  small textures. The GU swizzle flag is selected from the validated PTEX format.
 - The bootstrap renders an embedded 16x16 checker texture as a scaled GU sprite.
   Failure to validate or upload the texture is reported in debug output and in
   the same red screen state used by the M1 smoke tests.
@@ -182,6 +186,10 @@ PSP GU rendering path independently from the Windows executable.
   texture samples with the packed vertex colour. Texture scale and offset are
   explicitly reset by the shared bind helper so 2D sprites cannot inherit 3D
   material state.
+- `TRenderMaterial_PSP` explicitly selects texture enable/function and none,
+  front, or back culling. The probe uses modulated texturing and outward CCW
+  faces with backface culling; texture and cull state are disabled again after
+  the model draw so subsequent UI rendering starts from a known state.
 - Premake places `probe.pmes` beside `EBOOT.PBP` and `probe.ptex`. CI regenerates
   both binary assets from their text sources and compares them byte-for-byte
   before compiling and publishing the three-file PSP artifact.
@@ -190,7 +198,8 @@ PSP GU rendering path independently from the Windows executable.
 
 Run the current EBOOT in PPSSPP and on real hardware, capture debug output, and
 verify the M1 core probes, external `probe.ptex` sampling, and the rotating
-textured `probe.pmes` octahedron with correct depth and UV orientation. Keep the
-dependency-ordered source list; do not add the full `OpenBarnyard/Source` glob.
-After runtime validation, add explicit culling/material state and an offline
-swizzled PTEX layout before increasing model or texture residency.
+textured `probe.pmes` octahedron with correct depth, UV orientation, outward
+culling, and a `swizzled` layout diagnostic. Keep the dependency-ordered source
+list; do not add the full `OpenBarnyard/Source` glob. After runtime validation,
+add bounded VRAM/main-memory accounting and the first game-facing resource
+factory bridge before increasing model or texture residency.
