@@ -50,5 +50,6 @@
 #  include "Platform/PSP/TRenderMemory_PSP.h"
 #  include "Platform/PSP/TRenderBuffer_PSP.h"
 #  include "Platform/PSP/TModel_PSP.h"
+#  include "Platform/PSP/TModelFactory_PSP.h"
 #  include "Platform/PSP/TRenderInterface_PSP.h"
 #endif
