@@ -92,6 +92,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
+!Ports/PSP/Assets/probe.obj
 *.iobj
 *.pch
 *.pdb
