@@ -38,6 +38,11 @@ static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
 static Toshi::TModel_PSP                g_ProbeModel_PSP;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
+static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
+	TTRUE,
+	Toshi::TRENDERTEXTUREFUNCTION_PSP_MODULATE,
+	Toshi::TRENDERCULLMODE_PSP_BACK,
+};
 
 static_assert( sizeof( void* ) == 4, "The PSP port requires a 32-bit ABI" );
 
@@ -241,7 +246,7 @@ int main()
 		if ( bTextureReady )
 			g_RenderInterface.DrawTextureSprite( g_ProbeTexture, 176.0f + fXOffset, 72.0f, 128.0f, 128.0f );
 		if ( bModelReady )
-			g_RenderInterface.DrawModel( g_ProbeModel_PSP, fModelRotation, &g_ProbeTexture );
+			g_RenderInterface.DrawModel( g_ProbeModel_PSP, fModelRotation, g_ProbeMaterial_PSP, &g_ProbeTexture );
 		g_RenderInterface.EndScene();
 	}
 
