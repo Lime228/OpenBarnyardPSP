@@ -36,6 +36,29 @@ static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureF
 	sceGuTexOffset( 0.0f, 0.0f );
 }
 
+static void TRenderSetCullMode_PSP( TRenderCullMode_PSP a_eCullMode )
+{
+	switch ( a_eCullMode )
+	{
+		case TRENDERCULLMODE_PSP_BACK:
+			sceGuFrontFace( GU_CCW );
+			sceGuEnable( GU_CULL_FACE );
+			break;
+		case TRENDERCULLMODE_PSP_FRONT:
+			sceGuFrontFace( GU_CW );
+			sceGuEnable( GU_CULL_FACE );
+			break;
+		default:
+			sceGuDisable( GU_CULL_FACE );
+			break;
+	}
+}
+
+static TINT TRenderGetTextureFunction_PSP( TRenderTextureFunction_PSP a_eTextureFunction )
+{
+	return a_eTextureFunction == TRENDERTEXTUREFUNCTION_PSP_REPLACE ? GU_TFX_REPLACE : GU_TFX_MODULATE;
+}
+
 TRenderInterface_PSP::TRenderInterface_PSP()
     : m_bDisplayCreated( TFALSE )
 {
@@ -133,25 +156,37 @@ void TRenderInterface_PSP::DrawIndexedColourTriangles( const TVertexPoolResource
 
 void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture )
 {
+	const TRenderMaterial_PSP oMaterial = {
+	    a_rModel.GetFormat() == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ && a_pTexture != TNULL,
+	    TRENDERTEXTUREFUNCTION_PSP_MODULATE,
+	    TRENDERCULLMODE_PSP_BACK,
+	};
+	DrawModel( a_rModel, a_fRotation, oMaterial, a_pTexture );
+}
+
+void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const TRenderMaterial_PSP& a_rMaterial, const T2Texture* a_pTexture )
+{
 	const auto& rVertices = a_rModel.GetVertices();
 	const auto& rIndices  = a_rModel.GetIndices();
-	const TBOOL bTextured = a_rModel.GetFormat() == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ;
-	const TUINT16 uiExpectedVertexSize = TUINT16( bTextured ? sizeof( TModelTextureVertex_PSP ) : sizeof( TModelVertex_PSP ) );
+	const TBOOL bHasTextureCoordinates = a_rModel.GetFormat() == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ;
+	const TUINT16 uiExpectedVertexSize = TUINT16( bHasTextureCoordinates ? sizeof( TModelTextureVertex_PSP ) : sizeof( TModelVertex_PSP ) );
 	if ( !a_rModel.IsLoaded() ||
 	     rVertices.GetVertexSize() != uiExpectedVertexSize ||
-	     ( bTextured && ( a_pTexture == TNULL || a_pTexture->GetImageData() == TNULL ) ) ||
+	     ( a_rMaterial.bTextureEnabled &&
+	       ( !bHasTextureCoordinates || a_pTexture == TNULL || a_pTexture->GetImageData() == TNULL ) ) ||
 	     rIndices.GetNumIndices() == 0 )
 	{
 		return;
 	}
 
-	if ( bTextured )
+	if ( a_rMaterial.bTextureEnabled )
 	{
-		TRenderSetTexture_PSP( *a_pTexture, GU_TFX_MODULATE );
+		TRenderSetTexture_PSP( *a_pTexture, TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ) );
 		sceGuTexScale( TFLOAT( a_pTexture->GetWidth() ), TFLOAT( a_pTexture->GetHeight() ) );
 	}
 	else
 		sceGuDisable( GU_TEXTURE_2D );
+	TRenderSetCullMode_PSP( a_rMaterial.eCullMode );
 	sceGuEnable( GU_DEPTH_TEST );
 
 	sceGumMatrixMode( GU_PROJECTION );
@@ -167,7 +202,7 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 	sceGumTranslate( &oTranslation );
 	sceGumRotateXYZ( &oRotation );
 	const TINT iVertexFormat = GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D |
-	                           ( bTextured ? GU_TEXTURE_32BITF : 0 );
+	                           ( bHasTextureCoordinates ? GU_TEXTURE_32BITF : 0 );
 	sceGumDrawArray(
 	    GU_TRIANGLES,
 	    iVertexFormat,
@@ -177,7 +212,8 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 	);
 
 	sceGuDisable( GU_DEPTH_TEST );
-	if ( bTextured )
+	sceGuDisable( GU_CULL_FACE );
+	if ( a_rMaterial.bTextureEnabled )
 		sceGuDisable( GU_TEXTURE_2D );
 }
 

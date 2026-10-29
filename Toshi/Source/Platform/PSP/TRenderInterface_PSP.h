@@ -16,6 +16,26 @@ struct TRenderColourVertex_PSP
 
 static_assert( sizeof( TRenderColourVertex_PSP ) == 16, "Unexpected PSP colour vertex layout" );
 
+enum TRenderCullMode_PSP : TUINT32
+{
+	TRENDERCULLMODE_PSP_NONE,
+	TRENDERCULLMODE_PSP_BACK,
+	TRENDERCULLMODE_PSP_FRONT,
+};
+
+enum TRenderTextureFunction_PSP : TUINT32
+{
+	TRENDERTEXTUREFUNCTION_PSP_REPLACE,
+	TRENDERTEXTUREFUNCTION_PSP_MODULATE,
+};
+
+struct TRenderMaterial_PSP
+{
+	TBOOL                      bTextureEnabled;
+	TRenderTextureFunction_PSP eTextureFunction;
+	TRenderCullMode_PSP        eCullMode;
+};
+
 class TRenderInterface_PSP
 {
 public:
@@ -35,6 +55,7 @@ public:
 	void DrawColourTriangle( TFLOAT a_fXOffset );
 	void DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices );
 	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture = TNULL );
+	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const TRenderMaterial_PSP& a_rMaterial, const T2Texture* a_pTexture );
 	void DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight );
 	void EndScene();
 
