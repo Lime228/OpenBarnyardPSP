@@ -18,6 +18,22 @@ struct TRenderTextureVertex_PSP
 
 static_assert( sizeof( TRenderTextureVertex_PSP ) == 20, "Unexpected PSP texture vertex layout" );
 
+static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureFunction )
+{
+	sceGuEnable( GU_TEXTURE_2D );
+	sceGuTexMode( GU_PSM_8888, 0, 0, GU_FALSE );
+	sceGuTexImage(
+	    0,
+	    a_rTexture.GetWidth(),
+	    a_rTexture.GetHeight(),
+	    a_rTexture.GetBufferWidth(),
+	    a_rTexture.GetImageData()
+	);
+	sceGuTexFunc( a_iTextureFunction, GU_TCC_RGBA );
+	sceGuTexFilter( GU_NEAREST, GU_NEAREST );
+	sceGuTexWrap( GU_CLAMP, GU_CLAMP );
+}
+
 TRenderInterface_PSP::TRenderInterface_PSP()
     : m_bDisplayCreated( TFALSE )
 {
@@ -113,19 +129,24 @@ void TRenderInterface_PSP::DrawIndexedColourTriangles( const TVertexPoolResource
 	);
 }
 
-void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation )
+void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture )
 {
 	const auto& rVertices = a_rModel.GetVertices();
 	const auto& rIndices  = a_rModel.GetIndices();
-	TASSERT( rVertices.GetVertexSize() == sizeof( TModelVertex_PSP ) );
+	const TBOOL bTextured = a_rModel.GetFormat() == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ;
+	const TUINT16 uiExpectedVertexSize = TUINT16( bTextured ? sizeof( TModelTextureVertex_PSP ) : sizeof( TModelVertex_PSP ) );
 	if ( !a_rModel.IsLoaded() ||
-	     rVertices.GetVertexSize() != sizeof( TModelVertex_PSP ) ||
+	     rVertices.GetVertexSize() != uiExpectedVertexSize ||
+	     ( bTextured && ( a_pTexture == TNULL || a_pTexture->GetImageData() == TNULL ) ) ||
 	     rIndices.GetNumIndices() == 0 )
 	{
 		return;
 	}
 
-	sceGuDisable( GU_TEXTURE_2D );
+	if ( bTextured )
+		TRenderSetTexture_PSP( *a_pTexture, GU_TFX_MODULATE );
+	else
+		sceGuDisable( GU_TEXTURE_2D );
 	sceGuEnable( GU_DEPTH_TEST );
 
 	sceGumMatrixMode( GU_PROJECTION );
@@ -140,32 +161,25 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 	const ScePspFVector3 oRotation    = { a_fRotation * 0.5f, a_fRotation, 0.0f };
 	sceGumTranslate( &oTranslation );
 	sceGumRotateXYZ( &oRotation );
+	const TINT iVertexFormat = GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D |
+	                           ( bTextured ? GU_TEXTURE_32BITF : 0 );
 	sceGumDrawArray(
 	    GU_TRIANGLES,
-	    GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D,
+	    iVertexFormat,
 	    rIndices.GetNumIndices(),
 	    rIndices.GetData(),
 	    rVertices.GetData()
 	);
 
 	sceGuDisable( GU_DEPTH_TEST );
+	if ( bTextured )
+		sceGuDisable( GU_TEXTURE_2D );
 }
 
 void TRenderInterface_PSP::DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight )
 {
 	TASSERT( a_rTexture.GetImageData() != TNULL );
-	sceGuEnable( GU_TEXTURE_2D );
-	sceGuTexMode( GU_PSM_8888, 0, 0, GU_FALSE );
-	sceGuTexImage(
-	    0,
-	    a_rTexture.GetWidth(),
-	    a_rTexture.GetHeight(),
-	    a_rTexture.GetBufferWidth(),
-	    a_rTexture.GetImageData()
-	);
-	sceGuTexFunc( GU_TFX_REPLACE, GU_TCC_RGBA );
-	sceGuTexFilter( GU_NEAREST, GU_NEAREST );
-	sceGuTexWrap( GU_CLAMP, GU_CLAMP );
+	TRenderSetTexture_PSP( a_rTexture, GU_TFX_REPLACE );
 
 	auto* pVertices = static_cast<TRenderTextureVertex_PSP*>( sceGuGetMemory( 2 * sizeof( TRenderTextureVertex_PSP ) ) );
 	pVertices[ 0 ]  = { 0.0f, 0.0f, a_fX, a_fY, 0.0f };

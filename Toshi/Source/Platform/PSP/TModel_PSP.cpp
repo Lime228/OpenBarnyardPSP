@@ -5,9 +5,23 @@
 
 TOSHI_NAMESPACE_START
 
+static TUINT32 TModelGetVertexSize_PSP( TUINT32 a_uiFormat )
+{
+	switch ( a_uiFormat )
+	{
+		case TMODELFORMAT_PSP_COLOUR_XYZ:
+			return sizeof( TModelVertex_PSP );
+		case TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ:
+			return sizeof( TModelTextureVertex_PSP );
+		default:
+			return 0;
+	}
+}
+
 TModel_PSP::TModel_PSP()
     : m_pData( TNULL )
     , m_uiDataSize( 0 )
+    , m_uiFormat( TMODELFORMAT_PSP_COLOUR_XYZ )
 {
 }
 
@@ -35,10 +49,11 @@ TBOOL TModel_PSP::Load()
 		return TFALSE;
 
 	const auto* pHeader = static_cast<const TModelDataHeader_PSP*>( m_pData );
+	const TUINT32 uiExpectedVertexSize = TModelGetVertexSize_PSP( pHeader->uiFormat );
 	if ( pHeader->uiMagic != TModelDataHeader_PSP::MAGIC ||
 	     pHeader->uiVersion != TModelDataHeader_PSP::VERSION ||
-	     pHeader->uiFormat != TMODELFORMAT_PSP_COLOUR_XYZ ||
-	     pHeader->uiVertexSize != sizeof( TModelVertex_PSP ) ||
+	     uiExpectedVertexSize == 0 ||
+	     pHeader->uiVertexSize != uiExpectedVertexSize ||
 	     pHeader->uiVertexCount == 0 ||
 	     pHeader->uiVertexCount > 0xffff ||
 	     pHeader->uiIndexCount == 0 ||
@@ -48,7 +63,7 @@ TBOOL TModel_PSP::Load()
 		return TFALSE;
 	}
 
-	const TSIZE uiVertexDataSize = TSIZE( pHeader->uiVertexCount ) * sizeof( TModelVertex_PSP );
+	const TSIZE uiVertexDataSize = TSIZE( pHeader->uiVertexCount ) * pHeader->uiVertexSize;
 	const TSIZE uiIndexDataSize  = TSIZE( pHeader->uiIndexCount ) * sizeof( TIndexType );
 	const TSIZE uiExpectedSize   = sizeof( TModelDataHeader_PSP ) + uiVertexDataSize + uiIndexDataSize;
 	if ( TSIZE( m_uiDataSize ) != uiExpectedSize )
@@ -64,7 +79,7 @@ TBOOL TModel_PSP::Load()
 
 	const TUINT16 uiVertexCount = TUINT16( pHeader->uiVertexCount );
 	const TUINT16 uiIndexCount  = TUINT16( pHeader->uiIndexCount );
-	if ( !m_Vertices.Create( TUINT16( sizeof( TModelVertex_PSP ) ), uiVertexCount ) ||
+	if ( !m_Vertices.Create( TUINT16( pHeader->uiVertexSize ), uiVertexCount ) ||
 	     !m_Indices.Create( uiIndexCount ) )
 	{
 		Unload();
@@ -85,6 +100,7 @@ TBOOL TModel_PSP::Load()
 	std::memcpy( pIndices, pSourceIndices, uiIndexDataSize );
 	m_Vertices.Unlock( uiVertexCount );
 	m_Indices.Unlock( uiIndexCount );
+	m_uiFormat = pHeader->uiFormat;
 	return TTRUE;
 }
 
@@ -92,6 +108,7 @@ void TModel_PSP::Unload()
 {
 	m_Indices.Destroy();
 	m_Vertices.Destroy();
+	m_uiFormat = TMODELFORMAT_PSP_COLOUR_XYZ;
 }
 
 TOSHI_NAMESPACE_END
