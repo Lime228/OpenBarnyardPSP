@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-29)
 
-The PSP platform/render bring-up is approximately **70%** complete, while the
-complete playable-game port is approximately **19%** complete. The second value
+The PSP platform/render bring-up is approximately **72%** complete, while the
+complete playable-game port is approximately **20%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the game
 scheduler, real Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
@@ -23,17 +23,18 @@ or gameplay validation on hardware.
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
-| Portable Toshi/platform core | 80% | allocator, strings, containers, file I/O, timer, sync, threads and input events pass the PPSSPP bootstrap gate |
+| Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 50% | GU display, depth, indexed static models, textures, materials, budgets and small factories run in PPSSPP |
 | Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
 | Input integration | 45% | `TInputInterface_PSP` maps the PSP controller, buttons and single analog stick and is runtime-verified |
-| Game bootstrap and frontend | 3% | no scheduler or Barnyard frontend has started on PSP |
+| Game bootstrap and frontend | 10% | the first PSP frontend task runs through `TScheduler`; full `AApplication` and game states are not connected |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
-runtime-validated in PPSSPP, but still require real-hardware validation.
-M3-M5 remain largely unstarted.
+runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
+started with a minimal scheduler-driven frontend task. M4-M5 remain largely
+unstarted.
 
 ## Port conventions
 
@@ -266,12 +267,29 @@ M3-M5 remain largely unstarted.
 - Real PSP validation, sustained memory profiling, vibration policy, and final
   game action bindings remain outstanding.
 
+### M3 implementation notes
+
+- `TScheduler::Update(TFLOAT)` accepts an explicit platform delta while the
+  original parameterless desktop path remains available. PSP feeds it from the
+  existing `THPTimer_PSP` instead of introducing a second timing API.
+- `AFrontendBootstrapTask_PSP` is created through the original `TClass` and
+  `TTask::Create` path. It owns the probe movement, model rotation, confirm
+  state, and frame count; the PSP main loop now only pumps input, updates the
+  scheduler, and renders task state.
+- The PSP CI artifact from commit `a3ef92e8` starts in PPSSPP 1.20.4 with the
+  success bootstrap gate. The rotating model proves scheduler updates are
+  running, and repeated analog-left input changes the task-owned render offset.
+- Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
+  been added. Scheduler, task, and frontend sources remain dependency-ordered
+  in Premake.
+
 ## Immediate next slice
 
 Run the validated bundle on real hardware and capture the debug output and
-memory high-water marks. In parallel with that hardware check, begin a minimal
-scheduler/bootstrap path with audio and movies disabled, then route its first
-frontend action through `TInputInterface_PSP`. Keep the dependency-ordered
-source list; do not add the full `OpenBarnyard/Source` glob. Keep the bounded
+memory high-water marks. In parallel with that hardware check, add the minimal
+PSP system/application lifecycle needed to mirror `AApplication` creation and
+destruction, then split the probe into explicit input, update, and render task
+phases. Keep audio and movies disabled and retain the dependency-ordered source
+list; do not add the full `OpenBarnyard/Source` glob. Keep the bounded
 factories/cache as the resource seam until a real game caller requires a
 specific part of the full `TTextureFactory`/`TResource` graph.
