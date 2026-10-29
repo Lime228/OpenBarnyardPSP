@@ -23,7 +23,7 @@ TBOOL AFrontendBootstrapTask_PSP::OnCreate()
 
 TBOOL AFrontendBootstrapTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 {
-	auto* pInputInterface = Toshi::TInputInterface_PSP::GetSingleton();
+	auto* pInputInterface = static_cast<Toshi::TInputInterface_PSP*>( Toshi::TInputInterface::GetSingleton() );
 	if ( pInputInterface == TNULL )
 		return TTRUE;
 
