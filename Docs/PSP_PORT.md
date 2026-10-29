@@ -11,6 +11,28 @@ console backend.
 `Ports/PSP` is milestone 0: a small EBOOT that proves the toolchain, input, and
 PSP GU rendering path independently from the Windows executable.
 
+## Progress snapshot (2026-10-29)
+
+The PSP platform/render bring-up is approximately **55%** complete, while the
+complete playable-game port is approximately **15%** complete. The second value
+is intentionally much lower: a compiling probe does not yet include the game
+scheduler, real Barnyard asset conversion, animation, audio, UI, world streaming,
+or gameplay validation on hardware.
+
+| Area | Estimate | Current boundary |
+| --- | ---: | --- |
+| PSP toolchain and packaging | 90% | Premake, EBOOT, deterministic assets and CI artifacts work |
+| Portable Toshi/platform core | 60% | allocator, strings, containers, file I/O, timer, sync and threads compile into the probe |
+| PSP renderer foundation | 35% | GU display, depth, indexed static models, textures, materials, budgets and small factories |
+| Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
+| Input integration | 10% | raw `sceCtrl` probe exists; `TInputInterface` mapping does not |
+| Game bootstrap and frontend | 3% | no scheduler or Barnyard frontend has started on PSP |
+| Audio, movies and saves | 0% | platform implementations are not started |
+| World, animation and gameplay | 0% | no game room or player simulation is loaded |
+
+M0 is complete in CI, M1 and M2 are compile-complete slices but still require
+PPSSPP and real-hardware runtime validation. M3-M5 remain largely unstarted.
+
 ## Port conventions
 
 - Reuse the engine typedefs (`TBOOL`, `TINT`, `TUINT32`, `TSIZE`, `TUINTPTR`,
@@ -203,6 +225,14 @@ PSP GU rendering path independently from the Windows executable.
   producing the existing caller-owned `T2Texture` slice, bounds transient file
   input to 4 MiB, and releases the source blob immediately after upload. It does
   not yet inherit the PC `TResource` registry or retain a 1024-list name cache.
+- `TModelFactory_PSP` applies the same caller-owned and bounded-file policy to
+  PMES resources, removing the remaining file-blob loading code from the
+  frontend.
+- `TRenderResourceCache_PSP` provides 32 fixed caller-owned slots with
+  case-insensitive names up to 49 characters. It performs no heap allocation
+  and does not own resource lifetime; the frontend clears it before unloading
+  its texture/model objects. This is the bounded bridge toward named game
+  resources, not a replacement for the full PC runtime-class hierarchy.
 - Premake places `probe.pmes` beside `EBOOT.PBP` and `probe.ptex`. CI regenerates
   both binary assets from their text sources and compares them byte-for-byte
   before compiling and publishing the three-file PSP artifact.
@@ -214,6 +244,6 @@ verify the M1 core probes, external `probe.ptex` sampling, and the rotating
 textured `probe.pmes` octahedron with correct depth, UV orientation, outward
 culling, and a `swizzled` layout diagnostic. Keep the dependency-ordered source
 list; do not add the full `OpenBarnyard/Source` glob. After runtime validation,
-add the equivalent bounded static-model factory, then introduce the smallest
-named resource cache needed by game callers before increasing residency or
-connecting the full `TTextureFactory`/`TResource` graph.
+begin the PSP `TInputInterface` mapping and a minimal scheduler/bootstrap path.
+Keep the bounded factories/cache as the resource seam until a real game caller
+requires a specific part of the full `TTextureFactory`/`TResource` graph.
