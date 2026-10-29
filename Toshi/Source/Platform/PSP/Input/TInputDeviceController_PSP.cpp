@@ -37,11 +37,16 @@ TBOOL TInputDeviceController_PSP::Acquire()
 		return TFALSE;
 
 	SceCtrlData oState{};
-	if ( sceCtrlPeekBufferPositive( &oState, 1 ) < 0 )
+	const TINT  iSamples = sceCtrlPeekBufferPositive( &oState, 1 );
+	if ( iSamples < 0 )
 		return TFALSE;
 
-	m_oState    = oState;
-	m_oOldState = oState;
+	if ( iSamples > 0 )
+	{
+		m_oState = oState;
+	}
+
+	m_oOldState = m_oState;
 	m_bPolled   = TFALSE;
 	SetAcquired( TTRUE );
 	return TTRUE;
