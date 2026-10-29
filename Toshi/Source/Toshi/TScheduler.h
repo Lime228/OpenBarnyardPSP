@@ -1,7 +1,5 @@
 #pragma once
 #include "TNodeTree.h"
-#include "THPTimer.h"
-#include "TSystem.h"
 #include "TTask.h"
 
 TOSHI_NAMESPACE_START
@@ -26,6 +24,7 @@ public:
 	}
 
 	void Update();
+	void Update( TFLOAT a_fDeltaTime );
 
 	void SetDeltaTimeCalculator( t_DeltaTimeCalculator a_fnCalculator ) { m_fnDeltaTimeCalculator = a_fnCalculator; }
 

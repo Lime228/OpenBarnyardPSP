@@ -1,7 +1,12 @@
 #include "ToshiPCH.h"
 #include "TScheduler.h"
-#include "TSystem.h"
 #include "TTask.h"
+
+#include "Math/TMathInline.h"
+
+#ifndef TOSHI_SKU_PSP
+#  include "TSystem.h"
+#endif
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -56,14 +61,22 @@ TTask* TScheduler::CreateTask( TClass* pClass, TTask* pParent )
 
 void TScheduler::Update()
 {
+#ifdef TOSHI_SKU_PSP
+	Update( 1.0f / 60.0f );
+#else
 	if ( !g_oSystemManager.ms_bWasEverUpdated )
 	{
 		g_oSystemManager.ms_bWasEverUpdated = TTRUE;
 	}
 
-	TFLOAT fDeltaTime = g_oSystemManager.GetTimer().GetDelta();
-	m_DeltaTime       = fDeltaTime;
-	m_TotalTime += fDeltaTime;
+	Update( g_oSystemManager.GetTimer().GetDelta() );
+#endif
+}
+
+void TScheduler::Update( TFLOAT a_fDeltaTime )
+{
+	m_DeltaTime = a_fDeltaTime;
+	m_TotalTime += a_fDeltaTime;
 	m_uiNumFrames += 1;
 
 	// Control delta time
