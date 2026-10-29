@@ -3,6 +3,7 @@
 
 #include <pspdisplay.h>
 #include <pspgu.h>
+#include <pspgum.h>
 
 TOSHI_NAMESPACE_START
 
@@ -40,6 +41,7 @@ TBOOL TRenderInterface_PSP::CreateDisplay()
 	sceGuOffset( 2048 - SCREEN_WIDTH / 2, 2048 - SCREEN_HEIGHT / 2 );
 	sceGuViewport( 2048, 2048, SCREEN_WIDTH, SCREEN_HEIGHT );
 	sceGuDepthRange( 65535, 0 );
+	sceGuDepthFunc( GU_GEQUAL );
 	sceGuScissor( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT );
 	sceGuEnable( GU_SCISSOR_TEST );
 	sceGuDisable( GU_DEPTH_TEST );
@@ -69,7 +71,8 @@ void TRenderInterface_PSP::BeginScene( TUINT32 a_uiClearColour )
 	TASSERT( m_bDisplayCreated );
 	sceGuStart( GU_DIRECT, m_aDisplayList );
 	sceGuClearColor( a_uiClearColour );
-	sceGuClear( GU_COLOR_BUFFER_BIT );
+	sceGuClearDepth( 0 );
+	sceGuClear( GU_COLOR_BUFFER_BIT | GU_DEPTH_BUFFER_BIT );
 }
 
 void TRenderInterface_PSP::DrawColourTriangle( TFLOAT a_fXOffset )
@@ -108,6 +111,44 @@ void TRenderInterface_PSP::DrawIndexedColourTriangles( const TVertexPoolResource
 	    a_rIndices.GetData(),
 	    a_rVertices.GetData()
 	);
+}
+
+void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation )
+{
+	const auto& rVertices = a_rModel.GetVertices();
+	const auto& rIndices  = a_rModel.GetIndices();
+	TASSERT( rVertices.GetVertexSize() == sizeof( TModelVertex_PSP ) );
+	if ( !a_rModel.IsLoaded() ||
+	     rVertices.GetVertexSize() != sizeof( TModelVertex_PSP ) ||
+	     rIndices.GetNumIndices() == 0 )
+	{
+		return;
+	}
+
+	sceGuDisable( GU_TEXTURE_2D );
+	sceGuEnable( GU_DEPTH_TEST );
+
+	sceGumMatrixMode( GU_PROJECTION );
+	sceGumLoadIdentity();
+	sceGumPerspective( 45.0f, TFLOAT( SCREEN_WIDTH ) / TFLOAT( SCREEN_HEIGHT ), 0.1f, 100.0f );
+	sceGumMatrixMode( GU_VIEW );
+	sceGumLoadIdentity();
+	sceGumMatrixMode( GU_MODEL );
+	sceGumLoadIdentity();
+
+	const ScePspFVector3 oTranslation = { 0.0f, 0.0f, -3.25f };
+	const ScePspFVector3 oRotation    = { a_fRotation * 0.5f, a_fRotation, 0.0f };
+	sceGumTranslate( &oTranslation );
+	sceGumRotateXYZ( &oRotation );
+	sceGumDrawArray(
+	    GU_TRIANGLES,
+	    GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D,
+	    rIndices.GetNumIndices(),
+	    rIndices.GetData(),
+	    rVertices.GetData()
+	);
+
+	sceGuDisable( GU_DEPTH_TEST );
 }
 
 void TRenderInterface_PSP::DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight )
