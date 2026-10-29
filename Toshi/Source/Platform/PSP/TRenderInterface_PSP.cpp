@@ -21,7 +21,7 @@ static_assert( sizeof( TRenderTextureVertex_PSP ) == 20, "Unexpected PSP texture
 static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureFunction )
 {
 	sceGuEnable( GU_TEXTURE_2D );
-	sceGuTexMode( GU_PSM_8888, 0, 0, GU_FALSE );
+	sceGuTexMode( GU_PSM_8888, 0, 0, a_rTexture.IsSwizzled() ? GU_TRUE : GU_FALSE );
 	sceGuTexImage(
 	    0,
 	    a_rTexture.GetWidth(),

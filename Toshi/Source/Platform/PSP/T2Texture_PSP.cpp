@@ -50,9 +50,15 @@ TBOOL T2Texture::Load()
 		return TFALSE;
 
 	const T2TextureDataHeader_PSP* pHeader = static_cast<const T2TextureDataHeader_PSP*>( m_pData );
+	const TBOOL bKnownFormat = pHeader->uiFormat == T2TEXTUREFORMAT_PSP_RGBA8888 ||
+	                          pHeader->uiFormat == T2TEXTUREFORMAT_PSP_RGBA8888_SWIZZLED;
+	const TBOOL bValidSwizzle = pHeader->uiFormat != T2TEXTUREFORMAT_PSP_RGBA8888_SWIZZLED ||
+	                            ( ( pHeader->uiBufferWidth * sizeof( TUINT32 ) ) % 16 == 0 &&
+	                              pHeader->uiHeight % 8 == 0 );
 	if ( pHeader->uiMagic != T2TextureDataHeader_PSP::MAGIC ||
 	     pHeader->uiVersion != T2TextureDataHeader_PSP::VERSION ||
-	     pHeader->uiFormat != T2TEXTUREFORMAT_PSP_RGBA8888 ||
+	     !bKnownFormat ||
+	     !bValidSwizzle ||
 	     !T2TextureIsPowerOfTwo_PSP( pHeader->uiWidth ) ||
 	     !T2TextureIsPowerOfTwo_PSP( pHeader->uiHeight ) ||
 	     !T2TextureIsPowerOfTwo_PSP( pHeader->uiBufferWidth ) ||
@@ -93,6 +99,7 @@ void T2Texture::Unload()
 	m_uiWidth       = 0;
 	m_uiHeight      = 0;
 	m_uiBufferWidth = 0;
+	m_uiFormat      = T2TEXTUREFORMAT_PSP_RGBA8888;
 }
 
 TOSHI_NAMESPACE_END

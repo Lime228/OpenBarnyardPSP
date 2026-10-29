@@ -6,7 +6,8 @@ TOSHI_NAMESPACE_START
 
 enum T2TextureFormat_PSP : TUINT32
 {
-	T2TEXTUREFORMAT_PSP_RGBA8888 = 0,
+	T2TEXTUREFORMAT_PSP_RGBA8888          = 0,
+	T2TEXTUREFORMAT_PSP_RGBA8888_SWIZZLED = 1,
 };
 
 struct T2TextureDataHeader_PSP
@@ -41,6 +42,7 @@ public:
 	TUINT GetBufferWidth() const { return m_uiBufferWidth; }
 	TUINT GetMipLevels() const { return 1; }
 	TUINT GetFormat() const { return m_uiFormat; }
+	TBOOL IsSwizzled() const { return m_uiFormat == T2TEXTUREFORMAT_PSP_RGBA8888_SWIZZLED; }
 	void* GetImageData() const { return m_pImageData; }
 
 private:
