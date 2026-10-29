@@ -1,8 +1,9 @@
 #pragma once
 
 #include "Toshi/Defines.h"
+#include "Toshi/Helpers.h"
 #include "Core/TMemory.h"
-#include "Math/TMath.h"
+#include "Math/TMathInline.h"
 #include "Toshi/TUtil.h"
 
 #include <utility>
