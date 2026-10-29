@@ -41,6 +41,7 @@ project "OpenBarnyardPSP"
 		"../../Toshi/Source/Toshi/TDList.cpp",
 		"../../Toshi/Source/Toshi/TEvent.cpp",
 		"../../Toshi/Source/Toshi/TObject.cpp",
+		"../../Toshi/Source/Toshi/TPriList.cpp",
 		"../../Toshi/Source/Toshi/TString8.cpp",
 		"../../Toshi/Source/Platform/PSP/**.h",
 		"../../Toshi/Source/Platform/PSP/**.cpp"
