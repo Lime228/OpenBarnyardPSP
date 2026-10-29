@@ -226,6 +226,15 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] layout      %s\n", g_ProbeTexture.IsSwizzled() ? "swizzled" : "linear" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
+	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
+	TDebug_FinalPrintf(
+	    "[PSP memory] main %u/%u peak %u, edram %u/%u\n",
+	    TUINT( oMemoryStats.uiMainCurrent ),
+	    TUINT( oMemoryStats.uiMainBudget ),
+	    TUINT( oMemoryStats.uiMainPeak ),
+	    TUINT( oMemoryStats.uiEDRAMCurrent ),
+	    TUINT( oMemoryStats.uiEDRAMBudget )
+	);
 
 	while ( g_Running )
 	{
