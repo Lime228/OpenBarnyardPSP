@@ -92,12 +92,12 @@ public:                                                          \
 	const Toshi::TClass* CLASS::GetClass() const { return CLASS::GetClassStatic(); }                                   \
 	Toshi::TObject*      CLASS::CreateTObject()                                                                        \
 	{                                                                                                                  \
-		TASSERT( TFALSE, "This class cannot be created at runtime!" );                                                 \
+		TASSERT_2( TFALSE, "This class cannot be created at runtime!" );                                               \
 		return TNULL;                                                                                                  \
 	}                                                                                                                  \
 	Toshi::TObject* CLASS::CreateTObjectInPlace( void* a_pPtr )                                                        \
 	{                                                                                                                  \
-		TASSERT( TFALSE, "This class cannot be created at runtime!" );                                                 \
+		TASSERT_2( TFALSE, "This class cannot be created at runtime!" );                                               \
 		return TNULL;                                                                                                  \
 	}
 

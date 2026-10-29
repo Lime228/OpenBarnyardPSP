@@ -1,5 +1,12 @@
 #pragma once
 
+#include "Toshi/Defines.h"
+#include "Core/TMemory.h"
+#include "Math/TMath.h"
+#include "Toshi/TUtil.h"
+
+#include <utility>
+
 #define TARRAY_FOREACH( vecName, iteratorName ) \
 	for ( auto iteratorName = vecName.Begin(); !iteratorName.IsOver(); iteratorName++ )
 
