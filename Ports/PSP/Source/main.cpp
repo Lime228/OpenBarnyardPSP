@@ -36,52 +36,83 @@ static Toshi::T2Texture g_ProbeTexture;
 static Toshi::TRenderInterface_PSP g_RenderInterface;
 static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
-static void* g_pProbeTextureFileData_PSP = TNULL;
-static TBOOL g_bExternalTexture_PSP      = TFALSE;
+static Toshi::TModel_PSP                g_ProbeModel_PSP;
+static TBOOL                            g_bExternalTexture_PSP = TFALSE;
 
 static_assert( sizeof( void* ) == 4, "The PSP port requires a 32-bit ABI" );
 
-static TBOOL LoadProbeTextureFile_PSP()
+static void* ReadProbeFile_PSP( const TCHAR* a_pFileName, TSIZE a_uiMinSize, TSIZE a_uiMaxSize, TSIZE& a_rFileSize )
 {
-	if ( !Toshi::TFileManager::Create() )
-		return TFALSE;
-
-	TBOOL bLoaded = TFALSE;
 	Toshi::TFile* pFile = Toshi::TFile::Create(
-	    "local:probe.ptex",
+	    a_pFileName,
 	    Toshi::TFILEMODE_READ | Toshi::TFILEMODE_NOBUFFER
 	);
+	if ( pFile == TNULL )
+		return TNULL;
 
-	if ( pFile != TNULL )
+	void*       pData      = TNULL;
+	const TSIZE uiFileSize = pFile->GetSize();
+	if ( uiFileSize >= a_uiMinSize && uiFileSize <= a_uiMaxSize )
 	{
-		const TSIZE uiFileSize = pFile->GetSize();
-		if ( uiFileSize >= sizeof( Toshi::T2TextureDataHeader_PSP ) && uiFileSize <= 4 * 1024 * 1024 )
+		pData = Toshi::GetGlobalAllocator()->Malloc( uiFileSize, 16 );
+		if ( pData != TNULL && pFile->Read( pData, uiFileSize ) != uiFileSize )
 		{
-			g_pProbeTextureFileData_PSP = Toshi::GetGlobalAllocator()->Malloc( uiFileSize, 16 );
-			if ( g_pProbeTextureFileData_PSP != TNULL &&
-			     pFile->Read( g_pProbeTextureFileData_PSP, uiFileSize ) == uiFileSize )
-			{
-				g_ProbeTexture.SetData( g_pProbeTextureFileData_PSP, TUINT( uiFileSize ) );
-				bLoaded = g_ProbeTexture.Load();
-			}
+			Toshi::GetGlobalAllocator()->Free( pData );
+			pData = TNULL;
 		}
-
-		pFile->Destroy();
 	}
 
-	Toshi::TFileManager::Destroy();
-	if ( !bLoaded && g_pProbeTextureFileData_PSP != TNULL )
-	{
-		Toshi::GetGlobalAllocator()->Free( g_pProbeTextureFileData_PSP );
-		g_pProbeTextureFileData_PSP = TNULL;
-	}
+	pFile->Destroy();
+	if ( pData != TNULL )
+		a_rFileSize = uiFileSize;
+	return pData;
+}
 
+static TBOOL LoadProbeTextureFile_PSP()
+{
+	TSIZE uiFileSize = 0;
+	void* pData = ReadProbeFile_PSP(
+	    "local:probe.ptex",
+	    sizeof( Toshi::T2TextureDataHeader_PSP ),
+	    4 * 1024 * 1024,
+	    uiFileSize
+	);
+	if ( pData == TNULL )
+		return TFALSE;
+
+	g_ProbeTexture.SetData( pData, TUINT( uiFileSize ) );
+	const TBOOL bLoaded = g_ProbeTexture.Load();
+	g_ProbeTexture.SetData( TNULL, 0 );
+	Toshi::GetGlobalAllocator()->Free( pData );
 	return bLoaded;
 }
 
-static TBOOL InitialiseProbeTexture()
+static TBOOL LoadProbeModelFile_PSP()
 {
-	g_bExternalTexture_PSP = LoadProbeTextureFile_PSP();
+	TSIZE uiFileSize = 0;
+	void* pData = ReadProbeFile_PSP(
+	    "local:probe.pmes",
+	    sizeof( Toshi::TModelDataHeader_PSP ),
+	    2 * 1024 * 1024,
+	    uiFileSize
+	);
+	if ( pData == TNULL )
+		return TFALSE;
+
+	g_ProbeModel_PSP.SetData( pData, TUINT( uiFileSize ) );
+	const TBOOL bLoaded = g_ProbeModel_PSP.Load();
+	g_ProbeModel_PSP.SetData( TNULL, 0 );
+	Toshi::GetGlobalAllocator()->Free( pData );
+	if ( !bLoaded )
+	{
+		g_ProbeModel_PSP.Unload();
+	}
+	return bLoaded;
+}
+
+static TBOOL InitialiseProbeTexture( TBOOL a_bLoadExternal )
+{
+	g_bExternalTexture_PSP = a_bLoadExternal && LoadProbeTextureFile_PSP();
 	if ( g_bExternalTexture_PSP )
 		return TTRUE;
 
@@ -174,15 +205,21 @@ int main()
 	sceCtrlSetSamplingCycle( 0 );
 	sceCtrlSetSamplingMode( PSP_CTRL_MODE_ANALOG );
 
-	TFLOAT      fXOffset       = 0.0f;
+	TFLOAT      fXOffset        = 0.0f;
+	TFLOAT      fModelRotation  = 0.0f;
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
-	const TBOOL bTextureReady   = InitialiseProbeTexture();
+	const TBOOL bFileReady      = Toshi::TFileManager::Create();
+	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
+	const TBOOL bModelReady     = bFileReady && LoadProbeModelFile_PSP();
+	if ( bFileReady )
+		Toshi::TFileManager::Destroy();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
-	const TBOOL bBootstrapReady = bToshiReady && bTextureReady && bMeshReady;
+	const TBOOL bBootstrapReady = bToshiReady && bTextureReady && bMeshReady && bModelReady;
 	TUINT32     uiClearColor   = bBootstrapReady ? 0xff201810 : 0xff202080;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 
 	while ( g_Running )
 	{
@@ -193,6 +230,7 @@ int main()
 		fXOffset += fAnalogX * 2.0f;
 		if ( fXOffset < -100.0f ) fXOffset = -100.0f;
 		if ( fXOffset > 100.0f ) fXOffset = 100.0f;
+		fModelRotation += 0.015f;
 
 		if ( bBootstrapReady )
 			uiClearColor = ( pad.Buttons & PSP_CTRL_CROSS ) ? 0xff402010 : 0xff201810;
@@ -202,14 +240,15 @@ int main()
 			g_RenderInterface.DrawIndexedColourTriangles( g_ProbeVertices_PSP, g_ProbeIndices_PSP );
 		if ( bTextureReady )
 			g_RenderInterface.DrawTextureSprite( g_ProbeTexture, 176.0f + fXOffset, 72.0f, 128.0f, 128.0f );
+		if ( bModelReady )
+			g_RenderInterface.DrawModel( g_ProbeModel_PSP, fModelRotation );
 		g_RenderInterface.EndScene();
 	}
 
+	g_ProbeModel_PSP.Unload();
 	g_ProbeTexture.Unload();
 	g_ProbeIndices_PSP.Destroy();
 	g_ProbeVertices_PSP.Destroy();
-	if ( g_pProbeTextureFileData_PSP != TNULL )
-		Toshi::GetGlobalAllocator()->Free( g_pProbeTextureFileData_PSP );
 	g_RenderInterface.DestroyDisplay();
 	sceKernelExitGame();
 	return 0;
