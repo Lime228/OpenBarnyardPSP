@@ -147,9 +147,10 @@ PSP GU rendering path independently from the Windows executable.
   next to `EBOOT.PBP` by the Premake post-build step and both files are published
   in the PSP workflow artifact.
 - The frontend loads `local:probe.ptex` through the existing `TFile` layer and
-  keeps its source allocation alive for the `T2Texture_PSP` resource lifetime.
-  Missing or invalid external data falls back to the embedded checker so the
-  rendering and filesystem paths remain independently diagnosable.
+  releases the source file allocation immediately after `T2Texture_PSP` copies
+  pixels into its aligned GU-visible storage. Missing or invalid external data
+  falls back to the embedded checker so the rendering and filesystem paths
+  remain independently diagnosable.
 - `TRenderInterface_PSP` currently owns only the GU display lifecycle, scene
   boundaries, a colour-triangle probe, and a textured-sprite probe. It remains
   a small standalone slice until the generic render base can be separated from
@@ -163,12 +164,26 @@ PSP GU rendering path independently from the Windows executable.
   `GU_INDEX_16BIT`. This probe verifies persistent buffer lifetime and indexed
   drawing independently from the per-frame GU display-list allocations used by
   the original triangle and sprite probes.
+- `Ports/PSP/Tools/convert_mesh.py` triangulates static OBJ faces offline and
+  writes the versioned `PMES` format. Version 1 stores a fixed 24-byte header,
+  16-byte colour/XYZ vertices, and the engine's 16-bit `TIndexType`; both vertex
+  and index counts are capped at 65,535.
+- `TModel_PSP` validates the complete blob and every index before allocating its
+  vertex/index pools. Once both aligned buffers have been populated and written
+  back, the frontend releases the source file allocation instead of retaining a
+  duplicate model in the PSP heap.
+- `TRenderInterface_PSP::DrawModel` supplies the minimal GUM projection, view,
+  and model transforms, clears and enables the 16-bit depth buffer for the 3D
+  draw, then restores the depth-test state used by the independent 2D probes.
+- Premake places `probe.pmes` beside `EBOOT.PBP` and `probe.ptex`. CI regenerates
+  both binary assets from their text sources and compares them byte-for-byte
+  before compiling and publishing the three-file PSP artifact.
 
 ## Immediate next slice
 
 Run the current EBOOT in PPSSPP and on real hardware, capture debug output, and
-verify the M1 core probes plus external `probe.ptex` loading and GU sampling.
-Keep the dependency-ordered source list; do not add the full
-`OpenBarnyard/Source` glob. After runtime validation, define a compact versioned
-PSP mesh format and offline converter, then load one external static model using
-the verified vertex/index buffer path.
+verify the M1 core probes, external `probe.ptex` sampling, and the rotating
+`probe.pmes` octahedron with correct depth. Keep the dependency-ordered source
+list; do not add the full `OpenBarnyard/Source` glob. After runtime validation,
+add the smallest textured-model vertex/material state needed to combine the
+verified PTEX and PMES paths without introducing the PC renderer graph.
