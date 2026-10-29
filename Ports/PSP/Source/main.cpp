@@ -33,6 +33,7 @@ alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
 	{}
 };
 static Toshi::T2Texture g_ProbeTexture;
+static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::TRenderInterface_PSP g_RenderInterface;
 static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
@@ -75,21 +76,7 @@ static void* ReadProbeFile_PSP( const TCHAR* a_pFileName, TSIZE a_uiMinSize, TSI
 
 static TBOOL LoadProbeTextureFile_PSP()
 {
-	TSIZE uiFileSize = 0;
-	void* pData = ReadProbeFile_PSP(
-	    "local:probe.ptex",
-	    sizeof( Toshi::T2TextureDataHeader_PSP ),
-	    4 * 1024 * 1024,
-	    uiFileSize
-	);
-	if ( pData == TNULL )
-		return TFALSE;
-
-	g_ProbeTexture.SetData( pData, TUINT( uiFileSize ) );
-	const TBOOL bLoaded = g_ProbeTexture.Load();
-	g_ProbeTexture.SetData( TNULL, 0 );
-	Toshi::GetGlobalAllocator()->Free( pData );
-	return bLoaded;
+	return g_TextureFactory_PSP.CreateTextureFromFile( g_ProbeTexture, "local:probe.ptex" );
 }
 
 static TBOOL LoadProbeModelFile_PSP()
