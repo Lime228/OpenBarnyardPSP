@@ -36,7 +36,6 @@ project "OpenBarnyardPSP"
 		"../../Toshi/Source/Input/TInputDeviceController.cpp",
 		"../../Toshi/Source/Input/TInputInterface.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
-		"../../Toshi/Source/Toshi/T2String16.cpp",
 		"../../Toshi/Source/Toshi/T2String8.cpp",
 		"../../Toshi/Source/Toshi/TClass.cpp",
 		"../../Toshi/Source/Toshi/TDList.cpp",
