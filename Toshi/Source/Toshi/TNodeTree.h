@@ -1,5 +1,5 @@
 #pragma once
-#include "Toshi/Typedefs.h"
+#include "Toshi/Defines.h"
 
 TOSHI_NAMESPACE_START
 

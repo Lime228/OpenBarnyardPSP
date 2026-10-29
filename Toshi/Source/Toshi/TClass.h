@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Toshi/Defines.h"
+
 TOSHI_NAMESPACE_START
 
 class TObject;
