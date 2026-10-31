@@ -29,7 +29,7 @@ void AFrontendInfoState_PSP::OnRender(
 {
 	(void)a_rState;
 	auto* pRenderInterface = a_rContext.pRenderInterface;
-	Toshi::T2GUIFont_PSP oFont( pRenderInterface, a_rContext.pFontTexture );
+	const auto& oFont = *a_rContext.pFont;
 
 	static const TWCHAR s_wszTitle[] = L"PSP PORT STATUS";
 	static const TWCHAR s_wszCore[] = L"CORE READY";

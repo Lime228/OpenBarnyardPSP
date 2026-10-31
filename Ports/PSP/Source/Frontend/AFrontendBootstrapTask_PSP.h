@@ -33,7 +33,7 @@ struct AFrontendRenderContext_PSP
 	Toshi::TVertexPoolResource_PSP*   pVertices;
 	Toshi::TIndexPoolResource_PSP*    pIndices;
 	Toshi::T2Texture*                 pTexture;
-	Toshi::T2Texture*                 pFontTexture;
+	Toshi::T2GUIFont_PSP*             pFont;
 	Toshi::TModel_PSP*                pModel;
 	const Toshi::TRenderMaterial_PSP* pMaterial;
 	TBOOL                             bBootstrapReady;
