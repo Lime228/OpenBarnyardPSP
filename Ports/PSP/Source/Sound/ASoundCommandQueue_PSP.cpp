@@ -56,6 +56,35 @@ ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlayNamed(
 	return QueuePlay( a_rWaveBank.FindWave( a_pWaveName ), a_uiVolume, a_iPan, a_bLoop );
 }
 
+TBOOL ASoundCommandQueue_PSP::QueueEvent(
+    const AWaveBank_PSP& a_rWaveBank,
+    const ASoundEvent_PSP& a_rEvent,
+    ASoundCommandRequest_PSP& a_rRequest
+)
+{
+	a_rRequest = INVALID_REQUEST;
+	switch ( a_rEvent.eEventType )
+	{
+		case ASoundEventType_PSP_PlayAudio:
+			a_rRequest = QueuePlayNamed(
+			    a_rWaveBank,
+			    a_rEvent.pWaveName,
+			    a_rEvent.uiVolume,
+			    a_rEvent.iPan,
+			    a_rEvent.bLoop
+			);
+			return a_rRequest != INVALID_REQUEST;
+		case ASoundEventType_PSP_StopAudio:
+			return QueueStop( a_rEvent.hVoice );
+		case ASoundEventType_PSP_UpdateChannelVolume:
+			return QueueSetVolume( a_rEvent.hVoice, a_rEvent.uiVolume );
+		case ASoundEventType_PSP_UpdateChannelPan:
+			return QueueSetPan( a_rEvent.hVoice, a_rEvent.iPan );
+		default:
+			return TFALSE;
+	}
+}
+
 TBOOL ASoundCommandQueue_PSP::QueueStop( ASoundVoiceHandle_PSP a_hVoice )
 {
 	return Push( { ASoundCommandType_PSP_Stop, TNULL, a_hVoice, INVALID_REQUEST, 0, 0, TFALSE } );
