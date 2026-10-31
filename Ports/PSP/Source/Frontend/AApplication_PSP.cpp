@@ -25,12 +25,14 @@ TBOOL AApplication_PSP::Create(
     const AFrontendRenderContext_PSP* a_pRenderContext,
     ASoundManager_PSP* a_pSoundManager,
     ASoundMixer_PSP* a_pSoundMixer,
-    ASoundCommandQueue_PSP* a_pSoundCommandQueue
+    ASoundCommandQueue_PSP* a_pSoundCommandQueue,
+    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue
 )
 {
 	if ( IsCreated() || m_pInputInterface == TNULL || m_pScheduler == TNULL ||
 	     m_pFrameTimer == TNULL || a_pRenderContext == TNULL ||
-	     a_pSoundManager == TNULL || a_pSoundMixer == TNULL || a_pSoundCommandQueue == TNULL )
+	     a_pSoundManager == TNULL || a_pSoundMixer == TNULL || a_pSoundCommandQueue == TNULL ||
+	     a_pDelayedEventQueue == TNULL )
 	{
 		return TFALSE;
 	}
@@ -56,6 +58,7 @@ TBOOL AApplication_PSP::Create(
 	pSoundTask->SetSoundManager( a_pSoundManager );
 	pSoundTask->SetSoundMixer( a_pSoundMixer );
 	pSoundTask->SetCommandQueue( a_pSoundCommandQueue );
+	pSoundTask->SetDelayedEventQueue( a_pDelayedEventQueue );
 	pUpdateTask->SetState( &m_FrontendState );
 	pStateControllerTask->SetState( &m_FrontendState );
 	pStateControllerTask->SetContext( a_pRenderContext );

@@ -3,6 +3,7 @@
 #include "ASoundManager_PSP.h"
 #include "ASoundMixer_PSP.h"
 #include "ASoundCommandQueue_PSP.h"
+#include "ASoundDelayedEventQueue_PSP.h"
 
 #include <Toshi/TTask.h>
 
@@ -20,9 +21,11 @@ public:
 	void SetSoundManager( ASoundManager_PSP* a_pSoundManager ) { m_pSoundManager = a_pSoundManager; }
 	void SetSoundMixer( ASoundMixer_PSP* a_pSoundMixer ) { m_pSoundMixer = a_pSoundMixer; }
 	void SetCommandQueue( ASoundCommandQueue_PSP* a_pCommandQueue ) { m_pCommandQueue = a_pCommandQueue; }
+	void SetDelayedEventQueue( ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue ) { m_pDelayedEventQueue = a_pDelayedEventQueue; }
 
 private:
 	ASoundManager_PSP* m_pSoundManager;
 	ASoundMixer_PSP* m_pSoundMixer;
 	ASoundCommandQueue_PSP* m_pCommandQueue;
+	ASoundDelayedEventQueue_PSP* m_pDelayedEventQueue;
 };
