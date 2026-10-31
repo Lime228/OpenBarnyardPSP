@@ -1,5 +1,6 @@
 #include "APortReport_PSP.h"
 
+#include <Toshi/TDebug.h>
 #include <File/TFile.h>
 
 static const TCHAR* GetReportStatus_PSP( TBOOL a_bReady )
