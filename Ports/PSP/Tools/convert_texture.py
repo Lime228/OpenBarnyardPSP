@@ -55,7 +55,12 @@ def swizzle_rgba8888(pixels: bytes, buffer_width: int, height: int) -> bytes:
     return bytes(output)
 
 
-def convert(source: pathlib.Path, destination: pathlib.Path, linear: bool = False) -> None:
+def convert(
+    source: pathlib.Path,
+    destination: pathlib.Path,
+    linear: bool = False,
+    alpha_mask: bool = False,
+) -> None:
     width, height, values = read_ppm(source)
     if not is_power_of_two(width) or not is_power_of_two(height):
         raise ValueError("PSP probe texture dimensions must be powers of two")
@@ -64,7 +69,11 @@ def convert(source: pathlib.Path, destination: pathlib.Path, linear: bool = Fals
 
     pixels = bytearray()
     for index in range(0, len(values), 3):
-        pixels.extend((values[index], values[index + 1], values[index + 2], 255))
+        if alpha_mask:
+            alpha = values[index]
+            pixels.extend((255, 255, 255, alpha))
+        else:
+            pixels.extend((values[index], values[index + 1], values[index + 2], 255))
 
     texture_format = PTEX_FORMAT_RGBA8888
     if not linear:
@@ -88,10 +97,15 @@ def convert(source: pathlib.Path, destination: pathlib.Path, linear: bool = Fals
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert an ASCII PPM texture to OpenBarnyard PSP PTEX")
     parser.add_argument("--linear", action="store_true", help="store linear pixels instead of PSP-swizzled blocks")
+    parser.add_argument(
+        "--alpha-mask",
+        action="store_true",
+        help="use the red channel as alpha and store white RGB pixels",
+    )
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
     args = parser.parse_args()
-    convert(args.source, args.destination, args.linear)
+    convert(args.source, args.destination, args.linear, args.alpha_mask)
 
 
 if __name__ == "__main__":

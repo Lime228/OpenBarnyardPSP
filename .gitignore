@@ -96,6 +96,8 @@ StyleCopReport.xml
 *.meta
 *.obj
 !Ports/PSP/Assets/probe.obj
+Ports/PSP/Assets/bootstrap_font.ppm
+Ports/PSP/Assets/bootstrap_font.ptex
 *.iobj
 *.pch
 *.pdb

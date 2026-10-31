@@ -108,6 +108,7 @@ project "OpenBarnyardPSP"
 		'pack-pbp "%{cfg.targetdir}/EBOOT.PBP" "%{cfg.targetdir}/PARAM.SFO" NULL NULL NULL NULL NULL "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf" NULL',
 		'cp -f "../../Ports/PSP/Assets/probe.ptex" "%{cfg.targetdir}/probe.ptex"',
 		'cp -f "../../Ports/PSP/Assets/probe.pmes" "%{cfg.targetdir}/probe.pmes"',
+		'cp -f "../../Ports/PSP/Assets/bootstrap_font.ptex" "%{cfg.targetdir}/bootstrap_font.ptex"',
 		'rm -f "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"'
 	}
 
