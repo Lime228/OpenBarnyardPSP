@@ -18,6 +18,7 @@
 #include "Sound/ASoundDelayedEventQueue_PSP.h"
 #include "Sound/AWaveBank_PSP.h"
 #include "Sound/AWaveBankLoader_PSP.h"
+#include "Sound/AStreamWave_PSP.h"
 #include "ToshiSmoke.h"
 
 PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
@@ -55,6 +56,7 @@ static AWaveBank_PSP g_WaveBank_PSP;
 static AWave_PSP g_BootstrapWaves_PSP[ 1 ];
 static AWaveBankLoader_PSP g_WaveBankLoader_PSP;
 static TUINT g_uiLoadedWaves_PSP = 0;
+static AStreamWave_PSP g_BootstrapStream_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::T2GUIFontFactory_PSP g_FontFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
@@ -195,6 +197,33 @@ static TBOOL TestBootstrapVoiceFrequency_PSP()
 
 	return !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
 	       !g_SoundMixer_PSP.SetFrequency( hVoice, ASoundMixer_PSP::DEFAULT_FREQUENCY );
+}
+
+static TBOOL TestBootstrapStream_PSP()
+{
+	const ASoundVoiceHandle_PSP hVoice = g_SoundMixer_PSP.PlayStream(
+	    &g_BootstrapStream_PSP,
+	    0,
+	    0
+	);
+	if ( hVoice == ASoundMixer_PSP::INVALID_VOICE ||
+	     g_SoundMixer_PSP.PlayStream( &g_BootstrapStream_PSP, 0, 0 ) !=
+	         ASoundMixer_PSP::INVALID_VOICE ||
+	     g_SoundMixer_PSP.SetFrequency(
+	         hVoice,
+	         ASoundMixer_PSP::DEFAULT_FREQUENCY / 2
+	     ) ||
+	     !SubmitBootstrapWave_PSP() ||
+	     !g_SoundMixer_PSP.IsVoiceActive( hVoice ) ||
+	     !SubmitBootstrapWave_PSP() ||
+	     !g_SoundMixer_PSP.IsVoiceActive( hVoice ) ||
+	     !SubmitBootstrapWave_PSP() )
+	{
+		return TFALSE;
+	}
+
+	return !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
+	       !g_SoundMixer_PSP.SetVolume( hVoice, ASoundMixer_PSP::MAX_VOLUME );
 }
 
 static TBOOL TestSoundCommandQueue_PSP()
@@ -479,10 +508,15 @@ int main()
 	                              ) &&
 	                              g_uiLoadedWaves_PSP == 1 &&
 	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP" ) == &g_BootstrapWaves_PSP[ 0 ];
-	const TBOOL bAudioReady = bAudioBankReady &&
+	const TBOOL bAudioStreamReady = bAudioBankReady &&
+	                                g_BootstrapStream_PSP.Create(
+	                                    "local:bootstrap_stream.ppcm"
+	                                );
+	const TBOOL bAudioReady = bAudioStreamReady &&
 	                          TestSoundCommandQueue_PSP() &&
 	                          TestDelayedSoundEvents_PSP() &&
 	                          TestBootstrapVoiceFrequency_PSP() &&
+	                          TestBootstrapStream_PSP() &&
 	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
@@ -606,10 +640,7 @@ int main()
 	oPortReport.uiFrameCount = oApplication.GetFrontendState().uiFrameCount;
 	oPortReport.oMemory = Toshi::TRenderMemory_PSP::GetStats();
 	if ( bFileReady )
-	{
 		APortReport_PSP::Write( oPortReport );
-		Toshi::TFileManager::Destroy();
-	}
 
 	oApplication.Destroy();
 	oInputInterface.Deinitialise();
@@ -617,6 +648,7 @@ int main()
 	g_SoundCommandQueue_PSP.Clear();
 	g_DelayedEventQueue_PSP.Clear();
 	g_SoundMixer_PSP.StopAll();
+	g_BootstrapStream_PSP.Destroy();
 	g_WaveBankLoader_PSP.Unload(
 	    g_WaveBank_PSP,
 	    g_BootstrapWaves_PSP,
@@ -630,6 +662,8 @@ int main()
 	g_ProbeTexture.Unload();
 	g_ProbeIndices_PSP.Destroy();
 	g_ProbeVertices_PSP.Destroy();
+	if ( bFileReady )
+		Toshi::TFileManager::Destroy();
 	g_RenderInterface.DestroyDisplay();
 	sceKernelExitGame();
 	return 0;
