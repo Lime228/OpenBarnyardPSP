@@ -110,6 +110,34 @@ static TBOOL SubmitBootstrapWave_PSP()
 	return bMixed && bSubmitted && g_SoundManager_PSP.WaitForSubmittedBuffer();
 }
 
+static TBOOL TestBootstrapVoiceControls_PSP()
+{
+	const ASoundVoiceHandle_PSP hStoppedVoice = g_SoundMixer_PSP.Play(
+	    &g_BootstrapWave_PSP,
+	    0,
+	    0,
+	    TTRUE
+	);
+	if ( hStoppedVoice == ASoundMixer_PSP::INVALID_VOICE ||
+	     !g_SoundMixer_PSP.Stop( hStoppedVoice ) ||
+	     g_SoundMixer_PSP.SetVolume( hStoppedVoice, ASoundMixer_PSP::MAX_VOLUME ) )
+	{
+		return TFALSE;
+	}
+
+	const ASoundVoiceHandle_PSP hBootstrapVoice = g_SoundMixer_PSP.Play( &g_BootstrapWave_PSP );
+	if ( hBootstrapVoice == ASoundMixer_PSP::INVALID_VOICE ||
+	     !g_SoundMixer_PSP.SetVolume( hBootstrapVoice, ASoundMixer_PSP::MAX_VOLUME / 2 ) ||
+	     !g_SoundMixer_PSP.SetPan( hBootstrapVoice, -ASoundMixer_PSP::MAX_PAN / 2 ) ||
+	     !SubmitBootstrapWave_PSP() )
+	{
+		return TFALSE;
+	}
+
+	return !g_SoundMixer_PSP.IsVoiceActive( hBootstrapVoice ) &&
+	       !g_SoundMixer_PSP.SetPan( hBootstrapVoice, 0 );
+}
+
 static TBOOL InitialiseProbeTexture( TBOOL a_bLoadExternal )
 {
 	g_bExternalTexture_PSP = a_bLoadExternal && LoadProbeTextureFile_PSP();
@@ -215,9 +243,7 @@ int main()
 	                                  g_BootstrapWave_PSP,
 	                                  "local:bootstrap_audio.ppcm"
 	                              );
-	const TINT iBootstrapVoice = bAudioWaveReady ? g_SoundMixer_PSP.Play( &g_BootstrapWave_PSP ) : ASoundMixer_PSP::INVALID_VOICE;
-	const TBOOL bAudioReady = iBootstrapVoice != ASoundMixer_PSP::INVALID_VOICE &&
-	                          SubmitBootstrapWave_PSP();
+	const TBOOL bAudioReady = bAudioWaveReady && TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
 	const TBOOL bFontReady      = bFontTextureReady && LoadFontFile_PSP();
