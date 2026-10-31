@@ -26,6 +26,7 @@ ASoundManager_PSP::ASoundManager_PSP()
     , m_iChannel( -1 )
     , m_bRunning( TFALSE )
     , m_bOutputHealthy( TFALSE )
+    , m_bOutputLocked( TFALSE )
     , m_uiWriteBuffer( 0 )
     , m_uiReadBuffer( 0 )
 {
@@ -59,6 +60,7 @@ TBOOL ASoundManager_PSP::Create()
 
 	m_bRunning = TTRUE;
 	m_bOutputHealthy = TTRUE;
+	m_bOutputLocked = TFALSE;
 	m_uiWriteBuffer = 0;
 	m_uiReadBuffer = 0;
 	if ( !m_OutputThread.Create( 0x2000, Toshi::TThread::THREAD_PRIORITY_TIME_CRITICAL, Toshi::TThread::FLAGS_NONE ) )
@@ -91,6 +93,7 @@ void ASoundManager_PSP::Destroy()
 	m_FreeBuffers.Destroy();
 	m_iChannel = -1;
 	m_bOutputHealthy = TFALSE;
+	m_bOutputLocked = TFALSE;
 	m_uiWriteBuffer = 0;
 	m_uiReadBuffer = 0;
 }
@@ -100,17 +103,16 @@ TBOOL ASoundManager_PSP::SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampl
 	if ( !IsCreated() || a_pSamples == TNULL || a_uiSampleFrames != BUFFER_SAMPLE_FRAMES )
 		return TFALSE;
 
-	if ( !m_FreeBuffers.Wait() || !m_bRunning )
+	TINT16* pOutput = LockOutputBuffer();
+	if ( pOutput == TNULL )
 		return TFALSE;
 
-	TINT16* pOutput = m_aOutputBuffers[ m_uiWriteBuffer ];
 	Toshi::TUtil::MemCopy(
 	    pOutput,
 	    a_pSamples,
 	    BUFFER_SAMPLE_FRAMES * OUTPUT_CHANNELS * sizeof( TINT16 )
 	);
-	m_uiWriteBuffer = ( m_uiWriteBuffer + 1 ) % OUTPUT_BUFFER_COUNT;
-	return m_ReadyBuffers.Signal();
+	return UnlockOutputBuffer();
 }
 
 TBOOL ASoundManager_PSP::SubmitSilence()
@@ -118,21 +120,48 @@ TBOOL ASoundManager_PSP::SubmitSilence()
 	if ( !IsCreated() )
 		return TFALSE;
 
-	if ( !m_FreeBuffers.Wait() || !m_bRunning )
+	TINT16* pOutput = LockOutputBuffer();
+	if ( pOutput == TNULL )
 		return TFALSE;
 
-	TINT16* pOutput = m_aOutputBuffers[ m_uiWriteBuffer ];
 	Toshi::TUtil::MemClear(
 	    pOutput,
 	    BUFFER_SAMPLE_FRAMES * OUTPUT_CHANNELS * sizeof( TINT16 )
 	);
-	m_uiWriteBuffer = ( m_uiWriteBuffer + 1 ) % OUTPUT_BUFFER_COUNT;
-	return m_ReadyBuffers.Signal();
+	return UnlockOutputBuffer();
 }
 
 TBOOL ASoundManager_PSP::WaitForSubmittedBuffer()
 {
 	return IsCreated() && m_CompletedBuffers.Wait() && m_bOutputHealthy;
+}
+
+TINT16* ASoundManager_PSP::LockOutputBuffer()
+{
+	if ( !IsCreated() || !m_bRunning || m_bOutputLocked || !m_FreeBuffers.Wait() )
+		return TNULL;
+
+	m_bOutputLocked = TTRUE;
+	return m_aOutputBuffers[ m_uiWriteBuffer ];
+}
+
+TINT16* ASoundManager_PSP::TryLockOutputBuffer()
+{
+	if ( !IsCreated() || !m_bRunning || m_bOutputLocked || !m_FreeBuffers.Poll() )
+		return TNULL;
+
+	m_bOutputLocked = TTRUE;
+	return m_aOutputBuffers[ m_uiWriteBuffer ];
+}
+
+TBOOL ASoundManager_PSP::UnlockOutputBuffer()
+{
+	if ( !m_bOutputLocked )
+		return TFALSE;
+
+	m_bOutputLocked = TFALSE;
+	m_uiWriteBuffer = ( m_uiWriteBuffer + 1 ) % OUTPUT_BUFFER_COUNT;
+	return m_ReadyBuffers.Signal();
 }
 
 void ASoundManager_PSP::RunOutputThread()

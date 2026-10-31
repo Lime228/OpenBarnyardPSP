@@ -35,6 +35,9 @@ public:
 	TBOOL SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames );
 	TBOOL SubmitSilence();
 	TBOOL WaitForSubmittedBuffer();
+	TINT16* LockOutputBuffer();
+	TINT16* TryLockOutputBuffer();
+	TBOOL UnlockOutputBuffer();
 
 	TBOOL IsCreated() const { return m_iChannel >= 0; }
 	TINT GetChannel() const { return m_iChannel; }
@@ -54,6 +57,7 @@ private:
 	TINT m_iChannel;
 	volatile TBOOL m_bRunning;
 	volatile TBOOL m_bOutputHealthy;
+	TBOOL m_bOutputLocked;
 	TUINT m_uiWriteBuffer;
 	TUINT m_uiReadBuffer;
 };
