@@ -8,7 +8,7 @@
 #include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Render/TBackend.h>
 
-#include "Frontend/AFrontendBootstrapTask_PSP.h"
+#include "Frontend/AApplication_PSP.h"
 #include "ToshiSmoke.h"
 
 PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
@@ -185,8 +185,7 @@ int main()
 	) );
 	const TBOOL bCacheReady = bTextureCached && bModelCached &&
 	                          pCachedTexture == &g_ProbeTexture && pCachedModel == &g_ProbeModel_PSP;
-	AFrontendBootstrapState_PSP oFrontendState = {};
-	AFrontendRenderContext_PSP  oRenderContext = {
+	AFrontendRenderContext_PSP oRenderContext = {
 		&g_RenderInterface,
 		&g_ProbeVertices_PSP,
 		&g_ProbeIndices_PSP,
@@ -197,20 +196,8 @@ int main()
 		bMeshReady,
 	};
 
-	// Tasks are inserted at the root head. Create them in reverse phase order so
-	// the scheduler updates input, update, then render.
-	auto* pRenderTask = oScheduler.CreateTask<AFrontendRenderTask_PSP>();
-	auto* pUpdateTask = oScheduler.CreateTask<AFrontendUpdateTask_PSP>();
-	auto* pInputTask  = oScheduler.CreateTask<AFrontendInputTask_PSP>();
-	if ( pRenderTask != TNULL )
-	{
-		pRenderTask->SetState( &oFrontendState );
-		pRenderTask->SetContext( &oRenderContext );
-	}
-	if ( pUpdateTask != TNULL ) pUpdateTask->SetState( &oFrontendState );
-	if ( pInputTask != TNULL ) pInputTask->SetState( &oFrontendState );
-	const TBOOL bSchedulerReady = pRenderTask != TNULL && pUpdateTask != TNULL && pInputTask != TNULL &&
-	                              pRenderTask->Create() && pUpdateTask->Create() && pInputTask->Create();
+	AApplication_PSP oApplication( &oInputInterface, &oScheduler, &oFrameTimer );
+	const TBOOL bSchedulerReady = oApplication.Create( &oRenderContext );
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bTextureReady && bMeshReady && bModelReady && bCacheReady;
 	oRenderContext.bBootstrapReady = bBootstrapReady;
@@ -231,15 +218,9 @@ int main()
 	    TUINT( oMemoryStats.uiEDRAMBudget )
 	);
 
-	while ( g_Running )
-	{
-		oFrameTimer.Update();
-		const TFLOAT fDeltaTime = oFrameTimer.GetDelta();
-		oInputInterface.ProcessEvents( fDeltaTime );
-		oScheduler.Update( fDeltaTime );
-	}
+	while ( g_Running && oApplication.Update() ) {}
 
-	oScheduler.DestroyAllTasks();
+	oApplication.Destroy();
 	oInputInterface.Deinitialise();
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
