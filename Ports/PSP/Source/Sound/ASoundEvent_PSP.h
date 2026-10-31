@@ -9,6 +9,7 @@ enum ASoundEventType_PSP : TUINT
 	ASoundEventType_PSP_UpdateChannelVolume,
 	ASoundEventType_PSP_UpdateChannelFrequency,
 	ASoundEventType_PSP_UpdateChannelPan,
+	ASoundEventType_PSP_UpdateChannelPosition,
 	ASoundEventType_PSP_Count,
 };
 
@@ -21,4 +22,5 @@ struct ASoundEvent_PSP
 	TINT iPan;
 	TBOOL bLoop;
 	TUINT uiFrequency;
+	ASoundPosition_PSP oPosition;
 };

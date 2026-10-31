@@ -13,6 +13,7 @@ enum ASoundCommandType_PSP
 	ASoundCommandType_PSP_SetVolume,
 	ASoundCommandType_PSP_SetFrequency,
 	ASoundCommandType_PSP_SetPan,
+	ASoundCommandType_PSP_SetPosition,
 };
 
 struct ASoundCommand_PSP
@@ -25,6 +26,7 @@ struct ASoundCommand_PSP
 	TINT iPan;
 	TBOOL bLoop;
 	TUINT uiFrequency;
+	ASoundPosition_PSP oPosition;
 };
 
 struct ASoundCommandResult_PSP
@@ -67,6 +69,7 @@ public:
 	TBOOL QueueSetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiVolume );
 	TBOOL QueueSetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency );
 	TBOOL QueueSetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
+	TBOOL QueueSetPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
 
 	TBOOL Process( ASoundMixer_PSP& a_rMixer );
 	TBOOL GetPlayResult( ASoundCommandRequest_PSP a_uiRequest, ASoundVoiceHandle_PSP& a_rVoice );

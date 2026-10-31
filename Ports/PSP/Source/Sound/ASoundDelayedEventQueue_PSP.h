@@ -50,6 +50,7 @@ private:
 		TINT iPan;
 		TBOOL bLoop;
 		TUINT uiFrequency;
+		ASoundPosition_PSP oPosition;
 		TUINT uiRemainingSampleFrames;
 	};
 
