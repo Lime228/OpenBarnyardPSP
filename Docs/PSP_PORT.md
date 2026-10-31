@@ -27,7 +27,7 @@ or gameplay validation on hardware.
 | PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
 | Real-game asset pipeline | 18% | deterministic converters produce PTEX, PMES, PFNT and PLOC runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 30% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow |
+| Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
@@ -364,6 +364,13 @@ remain largely unstarted.
 - Commit `8428c4c3` passed PSP run `41198218249`. Its bundle contains the
   expanded 16,408-byte font texture, 368-byte PFNT metadata and 248-byte PLOC
   table and is stored under `Runtime/PSP/8428c4c3`.
+- The port-status state now reads `TRenderMemory_PSP` directly and renders main
+  RAM and eDRAM current/budget values in KiB. Its fixed-capacity integer
+  formatter uses `TWCHAR`, `TUINT` and `TSIZE` only and performs no allocation
+  during a frame.
+- Commit `3ef30fdc` passed PSP run `41218936337`. The resulting bundle carries
+  the 290-byte PLOC table with memory labels and is stored under
+  `Runtime/PSP/3ef30fdc`.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
