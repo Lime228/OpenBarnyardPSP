@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **72%** complete, while the
-complete playable-game port is approximately **23%** complete. The second value
+The PSP platform/render bring-up is approximately **73%** complete, while the
+complete playable-game port is approximately **24%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
@@ -24,10 +24,10 @@ or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 50% | GU display, depth, indexed static models, textures, materials, budgets and small factories run in PPSSPP |
+| PSP renderer foundation | 53% | GU display, depth, indexed static models, textures, materials, colour rectangles, a bootstrap font, budgets and small factories build for PSP |
 | Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
 | Input integration | 55% | `AInputHandler_PSP` maps PSP controls to frontend actions above the runtime-verified Toshi controller bridge |
-| Game bootstrap and frontend | 18% | `AApplication_PSP` owns explicit frame phases and `AGameStateController_PSP` runs the first menu/probe transitions |
+| Game bootstrap and frontend | 22% | `AApplication_PSP` owns explicit frame phases and separate menu/probe state objects render the first labelled frontend |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
@@ -290,6 +290,10 @@ remain largely unstarted.
 - `AGameStateController_PSP` preserves the original controller naming and adds
   explicit `Boot`, `Menu`, `Probe`, and `Error` states. Probe update and render
   work is gated by the active state instead of running unconditionally.
+- `AGameState_PSP` provides the PSP state-object seam with insertion, removal,
+  update, clear-colour, and render hooks. `AFrontEndMainMenuState2_PSP` and
+  `AProbeState_PSP` now own their screen-specific behaviour; the controller only
+  commits requested transitions.
 - `AInputHandler_PSP` is the input phase and maps the Toshi PSP controller to
   frontend `Confirm`, `Cancel`, and `Pause` actions plus the movement axis.
   Frontend states no longer depend on physical PSP button doodads.
@@ -297,6 +301,19 @@ remain largely unstarted.
   PPSSPP 1.20.4. It boots to the menu checker, Cross transitions to the animated
   probe, and Circle returns to the menu. The bundle is stored under
   `Runtime/PSP/54216dcd`.
+- `T2GUIFont_PSP` adds a fixed, allocation-free 5x7 bootstrap font using Toshi
+  scalar types and the PSP render interface's colour-rectangle primitive. It is
+  intentionally a bring-up font rather than a replacement for the real
+  `T2GUIFont` resource pipeline. The main-menu state now labels itself and shows
+  a Cross prompt without loading another runtime asset.
+- Commit `ba11d36c` passed PSP run `41196369218`; Premake generation, converted
+  asset verification, compilation, EBOOT packaging, and artifact publication
+  all succeeded. The bundle is stored under `Runtime/PSP/ba11d36c`.
+- `RunPPSSPP.ps1` owns one recorded emulator PID, reuses it, supports background
+  PSP input, and forces PPSSPP's software backend only for automated runs. This
+  avoids Vulkan/D3D fallback dialogs and leaves the user's saved emulator
+  backend untouched. The current bundle stays alive through a background smoke
+  cycle; a visual check of the new bootstrap glyphs is still pending.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
@@ -304,10 +321,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and capture the debug output and
-memory high-water marks. In parallel with that hardware check, add a minimal
-PSP frontend state-object interface and move `Menu` and `Probe` behavior out of
-the controller into separate state objects. After that, add the smallest 2D UI
-or font seam needed for a recognizable menu screen. Keep audio and movies
+memory high-water marks. In parallel, replace the bootstrap glyph table with
+the smallest asset-backed font seam that can feed `T2GUIFont_PSP`, then add a
+bounded frontend menu-item model and selection state. Keep audio and movies
 disabled and retain the dependency-ordered source list; do not add the full
 `OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
 seam until a real game caller requires a specific part of the full
