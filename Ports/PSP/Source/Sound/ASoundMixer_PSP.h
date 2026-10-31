@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AWave_PSP.h"
+#include "AStreamWave_PSP.h"
 
 using ASoundVoiceHandle_PSP = TUINT32;
 
@@ -39,7 +40,8 @@ public:
 	struct Voice
 	{
 		const AWave_PSP* pWave;
-		TUINT32 uiSamplePosition;
+		AStreamWave_PSP* pStreamWave;
+		TUINT64 uiSamplePosition;
 		TUINT32 uiSampleStep;
 		TUINT uiFrequency;
 		TUINT uiVolume;
@@ -60,6 +62,11 @@ public:
 	    TINT a_iPan = 0,
 	    TBOOL a_bLoop = TFALSE,
 	    TUINT a_uiFrequency = DEFAULT_FREQUENCY
+	);
+	ASoundVoiceHandle_PSP PlayStream(
+	    AStreamWave_PSP* a_pStreamWave,
+	    TUINT a_uiVolume = MAX_VOLUME,
+	    TINT a_iPan = 0
 	);
 	TBOOL Stop( ASoundVoiceHandle_PSP a_hVoice );
 	void StopAll();
