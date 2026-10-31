@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 20% | deterministic converters produce PTEX, PMES, PFNT, PLOC and PPCM runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 25% | named bounded wave bank, command queue, generation-safe voices, scheduler-driven mixer, audio worker and PCM assets work; codecs, movies and saves are not started |
+| Audio, movies and saves | 27% | PSP sound events, named bounded wave bank, command queue, generation-safe voices, scheduler-driven mixer, audio worker and PCM assets work; codecs, movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -445,6 +445,15 @@ remain largely unstarted.
   drives the existing asynchronous play/control sequence through the named
   path. The single background PPSSPP instance retained every readiness gate as
   `OK`; its bundle and report are stored under `Runtime/PSP/937c0e5a`.
+- `ASoundEvent_PSP` exposes the gameplay-facing `PlayAudio`, `StopAudio`,
+  `UpdateChannelVolume` and `UpdateChannelPan` vocabulary. The adapter resolves
+  named play events and translates controls into the existing bounded command
+  queue; unsupported or missing-wave events never reach the mixer.
+- Commit `76e07162` passed PSP run `41222040345`. Its bootstrap validates a
+  rejected missing-wave event followed by named play, volume, pan, stop and
+  stale-handle rejection. The PPSSPP runtime retained every gate as `OK`, with
+  17,676 bytes of tracked main render memory and 1,392,640 bytes of eDRAM; the
+  bundle is stored under `Runtime/PSP/76e07162`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -453,8 +462,9 @@ remain largely unstarted.
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
 In parallel, bridge the bounded command vocabulary toward the real
-`ASoundManager::SOUNDEVENT_*` names and event parameters before attempting FSB
-decoding or the full sound manager. Continue bridging the bounded
+`ASoundManager::SoundEvent::fStartTime` behavior with a fixed delayed-event
+queue before attempting FSB decoding or the full sound manager. Continue
+bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
 dependency-ordered source list; do not add the full
