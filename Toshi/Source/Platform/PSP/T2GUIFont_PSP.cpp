@@ -1,6 +1,8 @@
 #include "ToshiPCH.h"
 #include "T2GUIFont_PSP.h"
 
+#include "Toshi/TUtil.h"
+
 TOSHI_NAMESPACE_START
 
 T2GUIFont_PSP::T2GUIFont_PSP()
