@@ -47,6 +47,8 @@
 #elif defined( TRENDERINTERFACE_PSP )
 #  include "Platform/PSP/T2Texture_PSP.h"
 #  include "Platform/PSP/TTextureFactory_PSP.h"
+#  include "Platform/PSP/T2GUIFont_PSP.h"
+#  include "Platform/PSP/T2GUIFontFactory_PSP.h"
 #  include "Platform/PSP/TRenderMemory_PSP.h"
 #  include "Platform/PSP/TRenderResourceCache_PSP.h"
 #  include "Platform/PSP/TRenderBuffer_PSP.h"
