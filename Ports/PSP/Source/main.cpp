@@ -96,6 +96,20 @@ static TBOOL LoadProbeModelFile_PSP()
 	return g_ModelFactory_PSP.CreateModelFromFile( g_ProbeModel_PSP, "local:probe.pmes" );
 }
 
+static TBOOL SubmitBootstrapWave_PSP()
+{
+	TINT16* pOutput = g_SoundManager_PSP.LockOutputBuffer();
+	if ( pOutput == TNULL )
+		return TFALSE;
+
+	const TBOOL bMixed = g_SoundMixer_PSP.Mix(
+	    pOutput,
+	    ASoundManager_PSP::BUFFER_SAMPLE_FRAMES
+	);
+	const TBOOL bSubmitted = g_SoundManager_PSP.UnlockOutputBuffer();
+	return bMixed && bSubmitted && g_SoundManager_PSP.WaitForSubmittedBuffer();
+}
+
 static TBOOL InitialiseProbeTexture( TBOOL a_bLoadExternal )
 {
 	g_bExternalTexture_PSP = a_bLoadExternal && LoadProbeTextureFile_PSP();
@@ -203,12 +217,7 @@ int main()
 	                              );
 	const TINT iBootstrapVoice = bAudioWaveReady ? g_SoundMixer_PSP.Play( &g_BootstrapWave_PSP ) : ASoundMixer_PSP::INVALID_VOICE;
 	const TBOOL bAudioReady = iBootstrapVoice != ASoundMixer_PSP::INVALID_VOICE &&
-	                          g_SoundMixer_PSP.Mix() &&
-	                          g_SoundManager_PSP.SubmitStereo(
-	                              g_SoundMixer_PSP.GetOutputSamples(),
-	                              AWave_PSP::MAX_SAMPLE_FRAMES
-	                          ) &&
-	                          g_SoundManager_PSP.WaitForSubmittedBuffer();
+	                          SubmitBootstrapWave_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
 	const TBOOL bFontReady      = bFontTextureReady && LoadFontFile_PSP();
@@ -270,7 +279,11 @@ int main()
 	};
 
 	AApplication_PSP oApplication( &oInputInterface, &oScheduler, &oFrameTimer );
-	const TBOOL bSchedulerReady = oApplication.Create( &oRenderContext );
+	const TBOOL bSchedulerReady = oApplication.Create(
+	    &oRenderContext,
+	    &g_SoundManager_PSP,
+	    &g_SoundMixer_PSP
+	);
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
 	                              bMeshReady && bModelReady && bCacheReady;

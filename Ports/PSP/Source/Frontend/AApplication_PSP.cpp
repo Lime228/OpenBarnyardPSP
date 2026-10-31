@@ -1,6 +1,7 @@
 #include "AApplication_PSP.h"
 #include "AGameStateController_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
+#include "../Sound/ASoundUpdateTask_PSP.h"
 
 AApplication_PSP::AApplication_PSP(
     Toshi::TInputInterface_PSP* a_pInputInterface,
@@ -20,10 +21,15 @@ AApplication_PSP::~AApplication_PSP()
 	Destroy();
 }
 
-TBOOL AApplication_PSP::Create( const AFrontendRenderContext_PSP* a_pRenderContext )
+TBOOL AApplication_PSP::Create(
+    const AFrontendRenderContext_PSP* a_pRenderContext,
+    ASoundManager_PSP* a_pSoundManager,
+    ASoundMixer_PSP* a_pSoundMixer
+)
 {
 	if ( IsCreated() || m_pInputInterface == TNULL || m_pScheduler == TNULL ||
-	     m_pFrameTimer == TNULL || a_pRenderContext == TNULL )
+	     m_pFrameTimer == TNULL || a_pRenderContext == TNULL ||
+	     a_pSoundManager == TNULL || a_pSoundMixer == TNULL )
 	{
 		return TFALSE;
 	}
@@ -31,12 +37,13 @@ TBOOL AApplication_PSP::Create( const AFrontendRenderContext_PSP* a_pRenderConte
 	m_FrontendState = {};
 
 	// TScheduler inserts new root tasks at the head, so reverse creation keeps
-	// the retail frame order: input, state controller, update, then render.
+	// the retail frame order: input, state controller, update, audio, then render.
 	auto* pRenderTask          = m_pScheduler->CreateTask<AFrontendRenderTask_PSP>();
+	auto* pSoundTask           = m_pScheduler->CreateTask<ASoundUpdateTask_PSP>();
 	auto* pUpdateTask          = m_pScheduler->CreateTask<AFrontendUpdateTask_PSP>();
 	auto* pStateControllerTask = m_pScheduler->CreateTask<AGameStateController_PSP>();
 	auto* pInputTask           = m_pScheduler->CreateTask<AInputHandler_PSP>();
-	if ( pRenderTask == TNULL || pUpdateTask == TNULL ||
+	if ( pRenderTask == TNULL || pSoundTask == TNULL || pUpdateTask == TNULL ||
 	     pStateControllerTask == TNULL || pInputTask == TNULL )
 	{
 		m_pScheduler->DestroyAllTasks();
@@ -45,10 +52,12 @@ TBOOL AApplication_PSP::Create( const AFrontendRenderContext_PSP* a_pRenderConte
 
 	pRenderTask->SetState( &m_FrontendState );
 	pRenderTask->SetContext( a_pRenderContext );
+	pSoundTask->SetSoundManager( a_pSoundManager );
+	pSoundTask->SetSoundMixer( a_pSoundMixer );
 	pUpdateTask->SetState( &m_FrontendState );
 	pStateControllerTask->SetState( &m_FrontendState );
 	pStateControllerTask->SetContext( a_pRenderContext );
-	if ( !pRenderTask->Create() || !pUpdateTask->Create() ||
+	if ( !pRenderTask->Create() || !pSoundTask->Create() || !pUpdateTask->Create() ||
 	     !pStateControllerTask->Create() || !pInputTask->Create() )
 	{
 		m_pScheduler->DestroyAllTasks();

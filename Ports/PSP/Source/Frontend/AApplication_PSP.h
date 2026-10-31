@@ -6,6 +6,9 @@
 #include <Toshi/TScheduler.h>
 #include <Platform/PSP/Input/TInputInterface_PSP.h>
 
+class ASoundManager_PSP;
+class ASoundMixer_PSP;
+
 enum AApplicationFlag_PSP
 {
 	AApplicationFlag_PSP_Created   = BITFLAG( 0 ),
@@ -22,7 +25,11 @@ public:
 	);
 	~AApplication_PSP();
 
-	TBOOL Create( const AFrontendRenderContext_PSP* a_pRenderContext );
+	TBOOL Create(
+	    const AFrontendRenderContext_PSP* a_pRenderContext,
+	    ASoundManager_PSP* a_pSoundManager,
+	    ASoundMixer_PSP* a_pSoundMixer
+	);
 	TBOOL Update();
 	void  Destroy();
 
