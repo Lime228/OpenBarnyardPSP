@@ -3,86 +3,58 @@
 
 TOSHI_NAMESPACE_START
 
-struct T2GUIFontGlyph_PSP
-{
-	TWCHAR a_wcCharacter;
-	TUINT8 aRows[ T2GUIFont_PSP::GLYPH_HEIGHT ];
-};
+static const TWCHAR s_aT2GUIFontCharacters_PSP[] = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ-.";
 
-static const T2GUIFontGlyph_PSP s_aT2GUIFontGlyphs_PSP[] = {
-	{ L'A', { 0x0e, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11 } },
-	{ L'B', { 0x1e, 0x11, 0x11, 0x1e, 0x11, 0x11, 0x1e } },
-	{ L'C', { 0x0e, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0e } },
-	{ L'D', { 0x1e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1e } },
-	{ L'E', { 0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x1f } },
-	{ L'F', { 0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10 } },
-	{ L'G', { 0x0e, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0f } },
-	{ L'H', { 0x11, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11 } },
-	{ L'I', { 0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1f } },
-	{ L'J', { 0x01, 0x01, 0x01, 0x01, 0x11, 0x11, 0x0e } },
-	{ L'K', { 0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11 } },
-	{ L'L', { 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1f } },
-	{ L'M', { 0x11, 0x1b, 0x15, 0x15, 0x11, 0x11, 0x11 } },
-	{ L'N', { 0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11 } },
-	{ L'O', { 0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e } },
-	{ L'P', { 0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10 } },
-	{ L'Q', { 0x0e, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0d } },
-	{ L'R', { 0x1e, 0x11, 0x11, 0x1e, 0x14, 0x12, 0x11 } },
-	{ L'S', { 0x0f, 0x10, 0x10, 0x0e, 0x01, 0x01, 0x1e } },
-	{ L'T', { 0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 } },
-	{ L'U', { 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e } },
-	{ L'V', { 0x11, 0x11, 0x11, 0x11, 0x11, 0x0a, 0x04 } },
-	{ L'W', { 0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0a } },
-	{ L'X', { 0x11, 0x11, 0x0a, 0x04, 0x0a, 0x11, 0x11 } },
-	{ L'Y', { 0x11, 0x11, 0x0a, 0x04, 0x04, 0x04, 0x04 } },
-	{ L'Z', { 0x1f, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1f } },
-	{ L'-', { 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00 } },
-	{ L'.', { 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c } },
-};
-
-static const TUINT8* T2GUIFindGlyph_PSP( TWCHAR a_wcCharacter )
+static TINT T2GUIFindGlyph_PSP( TWCHAR a_wcCharacter )
 {
-	for ( TSIZE i = 0; i < TARRAYSIZE( s_aT2GUIFontGlyphs_PSP ); i++ )
+	for ( TSIZE i = 0; i < TARRAYSIZE( s_aT2GUIFontCharacters_PSP ) - 1; i++ )
 	{
-		if ( s_aT2GUIFontGlyphs_PSP[ i ].a_wcCharacter == a_wcCharacter )
-			return s_aT2GUIFontGlyphs_PSP[ i ].aRows;
+		if ( s_aT2GUIFontCharacters_PSP[ i ] == a_wcCharacter )
+			return TINT( i );
 	}
 
-	return TNULL;
+	return -1;
 }
 
-T2GUIFont_PSP::T2GUIFont_PSP( TRenderInterface_PSP* a_pRenderInterface )
+T2GUIFont_PSP::T2GUIFont_PSP( TRenderInterface_PSP* a_pRenderInterface, const T2Texture* a_pTexture )
     : m_pRenderInterface( a_pRenderInterface )
+    , m_pTexture( a_pTexture )
 {
 	TASSERT( m_pRenderInterface != TNULL );
 }
 
+TBOOL T2GUIFont_PSP::IsReady() const
+{
+	return m_pRenderInterface != TNULL && m_pTexture != TNULL &&
+	       m_pTexture->GetImageData() != TNULL &&
+	       m_pTexture->GetWidth() == TUINT( ATLAS_WIDTH ) &&
+	       m_pTexture->GetHeight() == TUINT( ATLAS_HEIGHT );
+}
+
 void T2GUIFont_PSP::DrawTextSingleLine( const TWCHAR* a_wszText, TFLOAT a_fX, TFLOAT a_fY, TUINT32 a_uiColour, TFLOAT a_fScale ) const
 {
-	if ( m_pRenderInterface == TNULL || a_wszText == TNULL || a_fScale <= 0.0f )
+	if ( !IsReady() || a_wszText == TNULL || a_fScale <= 0.0f )
 		return;
 
 	for ( const TWCHAR* pCharacter = a_wszText; *pCharacter != L'\0'; pCharacter++ )
 	{
-		const TUINT8* pRows = T2GUIFindGlyph_PSP( *pCharacter );
-		if ( pRows != TNULL )
+		const TINT iGlyph = T2GUIFindGlyph_PSP( *pCharacter );
+		if ( iGlyph >= 0 )
 		{
-			for ( TINT iRow = 0; iRow < GLYPH_HEIGHT; iRow++ )
-			{
-				for ( TINT iColumn = 0; iColumn < GLYPH_WIDTH; iColumn++ )
-				{
-					if ( ( pRows[ iRow ] & ( 1 << ( GLYPH_WIDTH - iColumn - 1 ) ) ) != 0 )
-					{
-						m_pRenderInterface->DrawColourRectangle(
-						    a_fX + iColumn * a_fScale,
-						    a_fY + iRow * a_fScale,
-						    a_fScale,
-						    a_fScale,
-						    a_uiColour
-						);
-					}
-				}
-			}
+			const TFLOAT fSourceX = TFLOAT( iGlyph % ATLAS_COLUMNS * CELL_WIDTH );
+			const TFLOAT fSourceY = TFLOAT( iGlyph / ATLAS_COLUMNS * CELL_HEIGHT );
+			m_pRenderInterface->DrawTextureRegion(
+			    *m_pTexture,
+			    fSourceX,
+			    fSourceY,
+			    TFLOAT( GLYPH_WIDTH ),
+			    TFLOAT( GLYPH_HEIGHT ),
+			    a_fX,
+			    a_fY,
+			    GLYPH_WIDTH * a_fScale,
+			    GLYPH_HEIGHT * a_fScale,
+			    a_uiColour
+			);
 		}
 
 		a_fX += GLYPH_ADVANCE * a_fScale;

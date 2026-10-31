@@ -20,6 +20,18 @@ struct TRenderTextureVertex_PSP
 
 static_assert( sizeof( TRenderTextureVertex_PSP ) == 20, "Unexpected PSP texture vertex layout" );
 
+struct TRenderTextureColourVertex_PSP
+{
+	TFLOAT  fU;
+	TFLOAT  fV;
+	TUINT32 uiColour;
+	TFLOAT  fX;
+	TFLOAT  fY;
+	TFLOAT  fZ;
+};
+
+static_assert( sizeof( TRenderTextureColourVertex_PSP ) == 24, "Unexpected PSP texture colour vertex layout" );
+
 static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureFunction )
 {
 	sceGuEnable( GU_TEXTURE_2D );
@@ -260,6 +272,51 @@ void TRenderInterface_PSP::DrawTextureSprite( const T2Texture& a_rTexture, TFLOA
 	    TNULL,
 	    pVertices
 	);
+	sceGuDisable( GU_TEXTURE_2D );
+}
+
+void TRenderInterface_PSP::DrawTextureRegion(
+    const T2Texture& a_rTexture,
+    TFLOAT a_fSourceX,
+    TFLOAT a_fSourceY,
+    TFLOAT a_fSourceWidth,
+    TFLOAT a_fSourceHeight,
+    TFLOAT a_fX,
+    TFLOAT a_fY,
+    TFLOAT a_fWidth,
+    TFLOAT a_fHeight,
+    TUINT32 a_uiColour
+)
+{
+	if ( a_rTexture.GetImageData() == TNULL || a_fSourceWidth <= 0.0f || a_fSourceHeight <= 0.0f ||
+	     a_fWidth <= 0.0f || a_fHeight <= 0.0f )
+	{
+		return;
+	}
+
+	TRenderSetTexture_PSP( a_rTexture, GU_TFX_MODULATE );
+	sceGuEnable( GU_BLEND );
+	sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0 );
+
+	auto* pVertices = static_cast<TRenderTextureColourVertex_PSP*>( sceGuGetMemory( 2 * sizeof( TRenderTextureColourVertex_PSP ) ) );
+	pVertices[ 0 ] = { a_fSourceX, a_fSourceY, a_uiColour, a_fX, a_fY, 0.0f };
+	pVertices[ 1 ] = {
+		a_fSourceX + a_fSourceWidth,
+		a_fSourceY + a_fSourceHeight,
+		a_uiColour,
+		a_fX + a_fWidth,
+		a_fY + a_fHeight,
+		0.0f,
+	};
+
+	sceGuDrawArray(
+	    GU_SPRITES,
+	    GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
+	    2,
+	    TNULL,
+	    pVertices
+	);
+	sceGuDisable( GU_BLEND );
 	sceGuDisable( GU_TEXTURE_2D );
 }
 
