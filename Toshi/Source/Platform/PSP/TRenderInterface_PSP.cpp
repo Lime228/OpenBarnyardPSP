@@ -137,6 +137,28 @@ void TRenderInterface_PSP::DrawColourTriangle( TFLOAT a_fXOffset )
 	);
 }
 
+void TRenderInterface_PSP::DrawColourRectangle( TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight, TUINT32 a_uiColour )
+{
+	if ( a_fWidth <= 0.0f || a_fHeight <= 0.0f )
+		return;
+
+	sceGuDisable( GU_TEXTURE_2D );
+	sceGuDisable( GU_DEPTH_TEST );
+	sceGuDisable( GU_CULL_FACE );
+
+	auto* pVertices = static_cast<TRenderColourVertex_PSP*>( sceGuGetMemory( 2 * sizeof( TRenderColourVertex_PSP ) ) );
+	pVertices[ 0 ]  = { a_uiColour, a_fX, a_fY, 0.0f };
+	pVertices[ 1 ]  = { a_uiColour, a_fX + a_fWidth, a_fY + a_fHeight, 0.0f };
+
+	sceGuDrawArray(
+	    GU_SPRITES,
+	    GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
+	    2,
+	    TNULL,
+	    pVertices
+	);
+}
+
 void TRenderInterface_PSP::DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices )
 {
 	TASSERT( a_rVertices.GetVertexSize() == sizeof( TRenderColourVertex_PSP ) );
