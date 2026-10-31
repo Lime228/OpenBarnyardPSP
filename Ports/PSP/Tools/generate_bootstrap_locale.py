@@ -14,6 +14,7 @@ STRINGS = (
     "PSP PORT STATUS",
     "CORE READY",
     "RENDER READY",
+    "AUDIO READY",
     "CIRCLE - BACK",
     "FRAMES",
     "MAIN KB",
