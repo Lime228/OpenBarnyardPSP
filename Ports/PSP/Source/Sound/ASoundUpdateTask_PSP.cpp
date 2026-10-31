@@ -1,3 +1,4 @@
+#include <ToshiPCH.h>
 #include "ASoundUpdateTask_PSP.h"
 
 TDEFINE_CLASS( ASoundUpdateTask_PSP );
