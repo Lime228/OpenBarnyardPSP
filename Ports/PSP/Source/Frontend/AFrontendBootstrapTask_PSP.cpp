@@ -1,4 +1,5 @@
 #include "AFrontendBootstrapTask_PSP.h"
+#include "AGameState_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
 
 TDEFINE_CLASS( AFrontendUpdateTask_PSP );
@@ -16,17 +17,15 @@ TBOOL AFrontendUpdateTask_PSP::OnCreate()
 
 TBOOL AFrontendUpdateTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 {
-	if ( m_pState->eState != AFrontendState_PSP_Probe )
+	const AInputHandler_PSP* pInputHandler = AInputHandler_PSP::GetSingleton();
+	if ( m_pState->pActiveState == TNULL || pInputHandler == TNULL )
 		return TTRUE;
 
-	const AInputHandler_PSP* pInputHandler = AInputHandler_PSP::GetSingleton();
-	const TFLOAT fMoveX = pInputHandler != TNULL ? pInputHandler->GetMoveX() : 0.0f;
-	m_pState->fXOffset += fMoveX * 120.0f * a_fDeltaTime;
-	if ( m_pState->fXOffset < -100.0f ) m_pState->fXOffset = -100.0f;
-	if ( m_pState->fXOffset > 100.0f ) m_pState->fXOffset = 100.0f;
-
-	m_pState->fModelRotation += 0.9f * a_fDeltaTime;
-	m_pState->uiFrameCount += 1;
+	m_pState->eRequestedState = m_pState->pActiveState->OnUpdate(
+	    *m_pState,
+	    *pInputHandler,
+	    a_fDeltaTime
+	);
 	return TTRUE;
 }
 
@@ -44,30 +43,13 @@ TBOOL AFrontendRenderTask_PSP::OnCreate()
 TBOOL AFrontendRenderTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 {
 	(void)a_fDeltaTime;
-	TUINT32 uiClearColor = 0xff202080;
-	if ( m_pState->eState == AFrontendState_PSP_Probe )
-		uiClearColor = m_pState->bConfirmDown ? 0xff402010 : 0xff201810;
-	else if ( m_pState->eState == AFrontendState_PSP_Menu )
-		uiClearColor = 0xff302010;
-	else if ( m_pState->eState == AFrontendState_PSP_Error )
-		uiClearColor = 0xff202080;
+	const TUINT32 uiClearColor = m_pState->pActiveState != TNULL
+	    ? m_pState->pActiveState->GetClearColor( *m_pState )
+	    : 0xff202080;
 
 	m_pContext->pRenderInterface->BeginScene( uiClearColor );
-	if ( m_pState->eState == AFrontendState_PSP_Menu )
-	{
-		if ( m_pContext->pTexture != TNULL )
-			m_pContext->pRenderInterface->DrawTextureSprite( *m_pContext->pTexture, 176.0f, 72.0f, 128.0f, 128.0f );
-	}
-	else if ( m_pState->eState == AFrontendState_PSP_Probe )
-	{
-		m_pContext->pRenderInterface->DrawColourTriangle( m_pState->fXOffset );
-		if ( m_pContext->bMeshReady && m_pContext->pVertices != TNULL && m_pContext->pIndices != TNULL )
-			m_pContext->pRenderInterface->DrawIndexedColourTriangles( *m_pContext->pVertices, *m_pContext->pIndices );
-		if ( m_pContext->pTexture != TNULL )
-			m_pContext->pRenderInterface->DrawTextureSprite( *m_pContext->pTexture, 176.0f + m_pState->fXOffset, 72.0f, 128.0f, 128.0f );
-		if ( m_pContext->pModel != TNULL && m_pContext->pTexture != TNULL && m_pContext->pMaterial != TNULL )
-			m_pContext->pRenderInterface->DrawModel( *m_pContext->pModel, m_pState->fModelRotation, *m_pContext->pMaterial, m_pContext->pTexture );
-	}
+	if ( m_pState->pActiveState != TNULL )
+		m_pState->pActiveState->OnRender( *m_pState, *m_pContext );
 	m_pContext->pRenderInterface->EndScene();
 	return TTRUE;
 }

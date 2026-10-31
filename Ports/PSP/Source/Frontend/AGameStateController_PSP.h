@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AFrontendBootstrapTask_PSP.h"
+#include "AFrontEndMainMenuState2_PSP.h"
+#include "AProbeState_PSP.h"
 
 class AGameStateController_PSP : public Toshi::TTask
 {
@@ -18,8 +20,11 @@ public:
 
 private:
 	void EnterState( AFrontendState_PSP a_eState );
+	AGameState_PSP* GetState( AFrontendState_PSP a_eState );
 
 private:
 	AFrontendBootstrapState_PSP*      m_pState;
 	const AFrontendRenderContext_PSP* m_pContext;
+	AFrontEndMainMenuState2_PSP       m_MainMenuState;
+	AProbeState_PSP                   m_ProbeState;
 };

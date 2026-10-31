@@ -3,6 +3,8 @@
 #include <Toshi/TTask.h>
 #include <Render/TBackend.h>
 
+class AGameState_PSP;
+
 enum AFrontendState_PSP
 {
 	AFrontendState_PSP_Boot,
@@ -20,6 +22,8 @@ struct AFrontendBootstrapState_PSP
 	TUINT  uiFrameCount;
 	TUINT  uiTransitionCount;
 	AFrontendState_PSP eState;
+	AFrontendState_PSP eRequestedState;
+	AGameState_PSP* pActiveState;
 };
 
 struct AFrontendRenderContext_PSP
