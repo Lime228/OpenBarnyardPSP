@@ -12,12 +12,12 @@ console backend.
 the toolchain, portable core, input, and PSP GU rendering path independently
 from the Windows executable.
 
-## Progress snapshot (2026-10-29)
+## Progress snapshot (2026-10-31)
 
 The PSP platform/render bring-up is approximately **72%** complete, while the
-complete playable-game port is approximately **20%** complete. The second value
+complete playable-game port is approximately **21%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the game
-scheduler, real Barnyard asset conversion, animation, audio, UI, world streaming,
+game states, real Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
 
 | Area | Estimate | Current boundary |
@@ -27,14 +27,14 @@ or gameplay validation on hardware.
 | PSP renderer foundation | 50% | GU display, depth, indexed static models, textures, materials, budgets and small factories run in PPSSPP |
 | Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
 | Input integration | 45% | `TInputInterface_PSP` maps the PSP controller, buttons and single analog stick and is runtime-verified |
-| Game bootstrap and frontend | 10% | the first PSP frontend task runs through `TScheduler`; full `AApplication` and game states are not connected |
+| Game bootstrap and frontend | 14% | `AApplication_PSP` owns explicit input, update, and render tasks; full game states are not connected |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
-started with a minimal scheduler-driven frontend task. M4-M5 remain largely
-unstarted.
+an application lifecycle and a scheduler-driven three-phase frontend. M4-M5
+remain largely unstarted.
 
 ## Port conventions
 
@@ -279,6 +279,14 @@ unstarted.
 - The PSP CI artifact from commit `a3ef92e8` starts in PPSSPP 1.20.4 with the
   success bootstrap gate. The rotating model proves scheduler updates are
   running, and repeated analog-left input changes the task-owned render offset.
+- `AApplication_PSP` now mirrors the original application's create, update, and
+  destroy boundary without pulling the Win32 debug console or system manager
+  into the PSP link. It owns a shared frontend state and creates three explicit
+  scheduler phases in retail order: input, update, then render.
+- The CI artifact from commit `c2f308d4` (PSP run `41180933944`) was launched
+  in PPSSPP 1.20.4. The complete probe renders and continues animating through
+  the new application lifecycle; the validated bundle is stored under
+  `Runtime/PSP/c2f308d4`.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
@@ -286,10 +294,10 @@ unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and capture the debug output and
-memory high-water marks. In parallel with that hardware check, add the minimal
-PSP system/application lifecycle needed to mirror `AApplication` creation and
-destruction, then split the probe into explicit input, update, and render task
-phases. Keep audio and movies disabled and retain the dependency-ordered source
-list; do not add the full `OpenBarnyard/Source` glob. Keep the bounded
-factories/cache as the resource seam until a real game caller requires a
-specific part of the full `TTextureFactory`/`TResource` graph.
+memory high-water marks. In parallel with that hardware check, add a minimal
+PSP frontend-state controller above the validated input, update, and render
+phases, then move the probe into its first explicit state. Keep audio and movies
+disabled and retain the dependency-ordered source list; do not add the full
+`OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
+seam until a real game caller requires a specific part of the full
+`TTextureFactory`/`TResource` graph.
