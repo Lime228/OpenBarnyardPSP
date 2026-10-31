@@ -12,6 +12,17 @@ struct ASoundPosition_PSP
 	TUINT uiMaxDistance;
 };
 
+struct ASoundListener_PSP
+{
+	TINT iX;
+	TINT iY;
+	TINT iZ;
+	TINT iRightX;
+	TINT iRightZ;
+	TINT iForwardX;
+	TINT iForwardZ;
+};
+
 class ASoundMixer_PSP
 {
 public:
@@ -22,6 +33,7 @@ public:
 	static constexpr TUINT MIN_FREQUENCY = 11025;
 	static constexpr TUINT MAX_FREQUENCY = 88200;
 	static constexpr TINT MAX_POSITION = 1000000;
+	static constexpr TINT LISTENER_AXIS_SCALE = 4096;
 	static constexpr ASoundVoiceHandle_PSP INVALID_VOICE = 0xffffffff;
 
 	struct Voice
@@ -55,6 +67,8 @@ public:
 	TBOOL SetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
 	TBOOL SetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency );
 	TBOOL SetPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
+	TBOOL SetListener( const ASoundListener_PSP& a_rListener );
+	TBOOL SetWorldPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
 	TBOOL GetSpatialState(
 	    ASoundVoiceHandle_PSP a_hVoice,
 	    TINT& a_rPan,
@@ -69,7 +83,9 @@ private:
 	TINT ResolveVoice( ASoundVoiceHandle_PSP a_hVoice ) const;
 	void UpdateVoiceVolumes( Voice& a_rVoice );
 	TBOOL UpdateVoiceFrequency( Voice& a_rVoice, TUINT a_uiFrequency );
+	TBOOL IsListenerValid( const ASoundListener_PSP& a_rListener ) const;
 
 	Voice m_aVoices[ MAX_VOICES ];
 	TUINT32 m_auiVoiceGenerations[ MAX_VOICES ];
+	ASoundListener_PSP m_oListener;
 };

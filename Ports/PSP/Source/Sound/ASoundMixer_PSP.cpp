@@ -20,6 +20,7 @@ static TUINT AbsPositionComponent_PSP( TINT a_iValue )
 ASoundMixer_PSP::ASoundMixer_PSP()
     : m_aVoices{}
     , m_auiVoiceGenerations{}
+    , m_oListener{ 0, 0, 0, LISTENER_AXIS_SCALE, 0, 0, LISTENER_AXIS_SCALE }
 {
 }
 
@@ -130,6 +131,50 @@ TBOOL ASoundMixer_PSP::SetPosition(
 	                           a_rPosition.uiMaxDistance;
 	UpdateVoiceVolumes( rVoice );
 	return TTRUE;
+}
+
+TBOOL ASoundMixer_PSP::SetListener( const ASoundListener_PSP& a_rListener )
+{
+	if ( !IsListenerValid( a_rListener ) )
+		return TFALSE;
+
+	m_oListener = a_rListener;
+	return TTRUE;
+}
+
+TBOOL ASoundMixer_PSP::SetWorldPosition(
+    ASoundVoiceHandle_PSP a_hVoice,
+    const ASoundPosition_PSP& a_rPosition
+)
+{
+	if ( a_rPosition.iX < -MAX_POSITION || a_rPosition.iX > MAX_POSITION ||
+	     a_rPosition.iY < -MAX_POSITION || a_rPosition.iY > MAX_POSITION ||
+	     a_rPosition.iZ < -MAX_POSITION || a_rPosition.iZ > MAX_POSITION )
+	{
+		return TFALSE;
+	}
+
+	const TINT64 iRelativeX = TINT64( a_rPosition.iX ) - TINT64( m_oListener.iX );
+	const TINT64 iRelativeY = TINT64( a_rPosition.iY ) - TINT64( m_oListener.iY );
+	const TINT64 iRelativeZ = TINT64( a_rPosition.iZ ) - TINT64( m_oListener.iZ );
+	const TINT64 iLocalX = ( iRelativeX * m_oListener.iRightX +
+	                         iRelativeZ * m_oListener.iRightZ ) / LISTENER_AXIS_SCALE;
+	const TINT64 iLocalZ = ( iRelativeX * m_oListener.iForwardX +
+	                         iRelativeZ * m_oListener.iForwardZ ) / LISTENER_AXIS_SCALE;
+	if ( iLocalX < -MAX_POSITION || iLocalX > MAX_POSITION ||
+	     iRelativeY < -MAX_POSITION || iRelativeY > MAX_POSITION ||
+	     iLocalZ < -MAX_POSITION || iLocalZ > MAX_POSITION )
+	{
+		return TFALSE;
+	}
+
+	const ASoundPosition_PSP oListenerPosition = {
+		TINT( iLocalX ),
+		TINT( iRelativeY ),
+		TINT( iLocalZ ),
+		a_rPosition.uiMaxDistance,
+	};
+	return SetPosition( a_hVoice, oListenerPosition );
 }
 
 TBOOL ASoundMixer_PSP::GetSpatialState(
@@ -249,4 +294,32 @@ TBOOL ASoundMixer_PSP::UpdateVoiceFrequency( Voice& a_rVoice, TUINT a_uiFrequenc
 	    ( TUINT64( a_uiFrequency ) << 16 ) / TUINT64( DEFAULT_FREQUENCY )
 	);
 	return TTRUE;
+}
+
+TBOOL ASoundMixer_PSP::IsListenerValid( const ASoundListener_PSP& a_rListener ) const
+{
+	if ( a_rListener.iX < -MAX_POSITION || a_rListener.iX > MAX_POSITION ||
+	     a_rListener.iY < -MAX_POSITION || a_rListener.iY > MAX_POSITION ||
+	     a_rListener.iZ < -MAX_POSITION || a_rListener.iZ > MAX_POSITION ||
+	     a_rListener.iRightX < -LISTENER_AXIS_SCALE || a_rListener.iRightX > LISTENER_AXIS_SCALE ||
+	     a_rListener.iRightZ < -LISTENER_AXIS_SCALE || a_rListener.iRightZ > LISTENER_AXIS_SCALE ||
+	     a_rListener.iForwardX < -LISTENER_AXIS_SCALE || a_rListener.iForwardX > LISTENER_AXIS_SCALE ||
+	     a_rListener.iForwardZ < -LISTENER_AXIS_SCALE || a_rListener.iForwardZ > LISTENER_AXIS_SCALE )
+	{
+		return TFALSE;
+	}
+
+	const TINT64 iExpectedLength = TINT64( LISTENER_AXIS_SCALE ) * LISTENER_AXIS_SCALE;
+	const TINT64 iTolerance = iExpectedLength / 8;
+	const TINT64 iRightLength = TINT64( a_rListener.iRightX ) * a_rListener.iRightX +
+	                            TINT64( a_rListener.iRightZ ) * a_rListener.iRightZ;
+	const TINT64 iForwardLength = TINT64( a_rListener.iForwardX ) * a_rListener.iForwardX +
+	                              TINT64( a_rListener.iForwardZ ) * a_rListener.iForwardZ;
+	const TINT64 iDot = TINT64( a_rListener.iRightX ) * a_rListener.iForwardX +
+	                    TINT64( a_rListener.iRightZ ) * a_rListener.iForwardZ;
+	return iRightLength >= iExpectedLength - iTolerance &&
+	       iRightLength <= iExpectedLength + iTolerance &&
+	       iForwardLength >= iExpectedLength - iTolerance &&
+	       iForwardLength <= iExpectedLength + iTolerance &&
+	       iDot >= -iTolerance && iDot <= iTolerance;
 }
