@@ -1,11 +1,12 @@
 #include "AFrontEndMainMenuState2_PSP.h"
+#include "AFrontendLocale_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
 
 #include <Platform/PSP/T2GUIFont_PSP.h>
 
-static const TWCHAR* const s_apMenuItemLabels_PSP[ AFrontEndMainMenuState2_PSP::MenuItem_Count ] = {
-	L"START PROBE",
-	L"PORT STATUS",
+static const AFrontendLocaleString_PSP s_aeMenuItemLabels_PSP[ AFrontEndMainMenuState2_PSP::MenuItem_Count ] = {
+	AFrontendLocaleString_PSP_StartProbe,
+	AFrontendLocaleString_PSP_PortStatus,
 };
 
 AFrontEndMainMenuState2_PSP::AFrontEndMainMenuState2_PSP()
@@ -50,14 +51,14 @@ void AFrontEndMainMenuState2_PSP::OnRender(
 	auto* pRenderInterface = a_rContext.pRenderInterface;
 	const auto& oFont = *a_rContext.pFont;
 
-	static const TWCHAR s_wszTitle[] = L"OPENBARNYARD";
+	const TWCHAR* pTitle = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_Title );
 
 	pRenderInterface->DrawColourRectangle( 44.0f, 18.0f, 392.0f, 40.0f, 0xff181008 );
 
 	const TFLOAT fTitleScale = 3.0f;
-	const TFLOAT fTitleX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( s_wszTitle, fTitleScale ) ) * 0.5f;
-	oFont.DrawTextSingleLine( s_wszTitle, fTitleX + 2.0f, 29.0f, 0xff000000, fTitleScale );
-	oFont.DrawTextSingleLine( s_wszTitle, fTitleX, 27.0f, 0xff5ac8fa, fTitleScale );
+	const TFLOAT fTitleX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( pTitle, fTitleScale ) ) * 0.5f;
+	oFont.DrawTextSingleLine( pTitle, fTitleX + 2.0f, 29.0f, 0xff000000, fTitleScale );
+	oFont.DrawTextSingleLine( pTitle, fTitleX, 27.0f, 0xff5ac8fa, fTitleScale );
 
 	if ( a_rContext.pTexture != TNULL )
 		pRenderInterface->DrawTextureSprite( *a_rContext.pTexture, 176.0f, 72.0f, 128.0f, 128.0f );
@@ -67,7 +68,7 @@ void AFrontEndMainMenuState2_PSP::OnRender(
 	{
 		const TFLOAT fItemY = 216.0f + i * 26.0f;
 		const TBOOL bSelected = i == m_uiSelectedItem;
-		const TWCHAR* pLabel = s_apMenuItemLabels_PSP[ i ];
+		const TWCHAR* pLabel = a_rContext.pLocale->GetString( s_aeMenuItemLabels_PSP[ i ] );
 		const TFLOAT fItemX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( pLabel, fItemScale ) ) * 0.5f;
 
 		pRenderInterface->DrawColourRectangle( 124.0f, fItemY - 4.0f, 232.0f, 22.0f, bSelected ? 0xff302010 : 0xff181008 );

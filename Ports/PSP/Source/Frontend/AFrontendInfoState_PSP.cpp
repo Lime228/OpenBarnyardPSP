@@ -1,4 +1,5 @@
 #include "AFrontendInfoState_PSP.h"
+#include "AFrontendLocale_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
 
 #include <Platform/PSP/T2GUIFont_PSP.h>
@@ -31,21 +32,21 @@ void AFrontendInfoState_PSP::OnRender(
 	auto* pRenderInterface = a_rContext.pRenderInterface;
 	const auto& oFont = *a_rContext.pFont;
 
-	static const TWCHAR s_wszTitle[] = L"PSP PORT STATUS";
-	static const TWCHAR s_wszCore[] = L"CORE READY";
-	static const TWCHAR s_wszRender[] = L"RENDER READY";
-	static const TWCHAR s_wszBack[] = L"CIRCLE - BACK";
+	const TWCHAR* pTitle = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_StatusTitle );
+	const TWCHAR* pCore = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_CoreReady );
+	const TWCHAR* pRender = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_RenderReady );
+	const TWCHAR* pBack = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_Back );
 
 	pRenderInterface->DrawColourRectangle( 52.0f, 30.0f, 376.0f, 212.0f, 0xff181008 );
 
 	const TFLOAT fTitleScale = 3.0f;
-	const TFLOAT fTitleX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( s_wszTitle, fTitleScale ) ) * 0.5f;
-	oFont.DrawTextSingleLine( s_wszTitle, fTitleX, 50.0f, 0xff5ac8fa, fTitleScale );
+	const TFLOAT fTitleX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( pTitle, fTitleScale ) ) * 0.5f;
+	oFont.DrawTextSingleLine( pTitle, fTitleX, 50.0f, 0xff5ac8fa, fTitleScale );
 
 	const TFLOAT fLineScale = 2.0f;
-	oFont.DrawTextSingleLine( s_wszCore, 150.0f, 116.0f, 0xff65d26e, fLineScale );
-	oFont.DrawTextSingleLine( s_wszRender, 138.0f, 148.0f, 0xff65d26e, fLineScale );
+	oFont.DrawTextSingleLine( pCore, 150.0f, 116.0f, 0xff65d26e, fLineScale );
+	oFont.DrawTextSingleLine( pRender, 138.0f, 148.0f, 0xff65d26e, fLineScale );
 
-	const TFLOAT fBackX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( s_wszBack, fLineScale ) ) * 0.5f;
-	oFont.DrawTextSingleLine( s_wszBack, fBackX, 210.0f, 0xfff0cf65, fLineScale );
+	const TFLOAT fBackX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( pBack, fLineScale ) ) * 0.5f;
+	oFont.DrawTextSingleLine( pBack, fBackX, 210.0f, 0xfff0cf65, fLineScale );
 }

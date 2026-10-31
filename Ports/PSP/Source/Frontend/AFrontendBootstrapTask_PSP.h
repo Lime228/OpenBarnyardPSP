@@ -2,6 +2,7 @@
 
 #include <Toshi/TTask.h>
 #include <Render/TBackend.h>
+#include <Platform/PSP/T2Locale_PSP.h>
 
 class AGameState_PSP;
 
@@ -34,6 +35,7 @@ struct AFrontendRenderContext_PSP
 	Toshi::TIndexPoolResource_PSP*    pIndices;
 	Toshi::T2Texture*                 pTexture;
 	Toshi::T2GUIFont_PSP*             pFont;
+	Toshi::T2Locale_PSP*              pLocale;
 	Toshi::TModel_PSP*                pModel;
 	const Toshi::TRenderMaterial_PSP* pMaterial;
 	TBOOL                             bBootstrapReady;
