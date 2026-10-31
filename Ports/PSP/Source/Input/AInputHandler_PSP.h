@@ -8,6 +8,8 @@ enum AInputAction_PSP
 	AInputAction_PSP_Confirm = BITFLAG( 0 ),
 	AInputAction_PSP_Cancel  = BITFLAG( 1 ),
 	AInputAction_PSP_Pause   = BITFLAG( 2 ),
+	AInputAction_PSP_Up      = BITFLAG( 3 ),
+	AInputAction_PSP_Down    = BITFLAG( 4 ),
 };
 
 class AInputHandler_PSP : public Toshi::TTask

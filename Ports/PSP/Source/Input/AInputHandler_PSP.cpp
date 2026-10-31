@@ -36,6 +36,10 @@ TBOOL AInputHandler_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 		m_uiActionsDown |= AInputAction_PSP_Cancel;
 	if ( rController.IsDown( Toshi::TInputDeviceController::BUTTON_START ) )
 		m_uiActionsDown |= AInputAction_PSP_Pause;
+	if ( rController.IsDown( Toshi::TInputDeviceController::BUTTON_DPAD_UP ) )
+		m_uiActionsDown |= AInputAction_PSP_Up;
+	if ( rController.IsDown( Toshi::TInputDeviceController::BUTTON_DPAD_DOWN ) )
+		m_uiActionsDown |= AInputAction_PSP_Down;
 
 	m_uiActionsPressed = m_uiActionsDown & ~uiPreviousActions;
 	m_fMoveX = rController.GetAxisFloat( Toshi::TInputDeviceController::STICK_LEFT, 0 );
