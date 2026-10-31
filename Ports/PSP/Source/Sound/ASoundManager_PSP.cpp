@@ -1,3 +1,4 @@
+#include <ToshiPCH.h>
 #include "ASoundManager_PSP.h"
 
 #include <Toshi/TUtil.h>
