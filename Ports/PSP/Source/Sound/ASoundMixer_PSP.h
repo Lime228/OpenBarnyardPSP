@@ -2,18 +2,22 @@
 
 #include "AWave_PSP.h"
 
+using ASoundVoiceHandle_PSP = TUINT32;
+
 class ASoundMixer_PSP
 {
 public:
 	static constexpr TUINT MAX_VOICES = 4;
 	static constexpr TUINT MAX_VOLUME = 4096;
 	static constexpr TINT MAX_PAN = 4096;
-	static constexpr TINT INVALID_VOICE = -1;
+	static constexpr ASoundVoiceHandle_PSP INVALID_VOICE = 0xffffffff;
 
 	struct Voice
 	{
 		const AWave_PSP* pWave;
 		TUINT uiSampleFrame;
+		TUINT uiVolume;
+		TINT iPan;
 		TUINT uiLeftVolume;
 		TUINT uiRightVolume;
 		TBOOL bActive;
@@ -23,19 +27,25 @@ public:
 public:
 	ASoundMixer_PSP();
 
-	TINT Play(
+	ASoundVoiceHandle_PSP Play(
 	    const AWave_PSP* a_pWave,
 	    TUINT a_uiVolume = MAX_VOLUME,
 	    TINT a_iPan = 0,
 	    TBOOL a_bLoop = TFALSE
 	);
-	void Stop( TINT a_iVoice );
+	TBOOL Stop( ASoundVoiceHandle_PSP a_hVoice );
 	void StopAll();
+	TBOOL SetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiVolume );
+	TBOOL SetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
 
 	TBOOL Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames );
 	TUINT GetActiveVoiceCount() const;
-	TBOOL IsVoiceActive( TINT a_iVoice ) const;
+	TBOOL IsVoiceActive( ASoundVoiceHandle_PSP a_hVoice ) const;
 
 private:
+	TINT ResolveVoice( ASoundVoiceHandle_PSP a_hVoice ) const;
+	void UpdateVoiceVolumes( Voice& a_rVoice );
+
 	Voice m_aVoices[ MAX_VOICES ];
+	TUINT32 m_auiVoiceGenerations[ MAX_VOICES ];
 };
