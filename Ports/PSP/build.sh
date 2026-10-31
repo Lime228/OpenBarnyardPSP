@@ -21,7 +21,9 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository_dir="$(cd -- "$script_dir/../.." && pwd)"
 build_config="${PSP_BUILD_CONFIG:-release_psp}"
 
-python3 "$script_dir/Tools/generate_bootstrap_font.py" "$script_dir/Assets/bootstrap_font.ppm"
+python3 "$script_dir/Tools/generate_bootstrap_font.py" \
+    "$script_dir/Assets/bootstrap_font.ppm" \
+    "$script_dir/Assets/bootstrap_font.pfnt"
 python3 "$script_dir/Tools/convert_texture.py" --alpha-mask \
     "$script_dir/Assets/bootstrap_font.ppm" \
     "$script_dir/Assets/bootstrap_font.ptex"

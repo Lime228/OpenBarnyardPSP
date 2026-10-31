@@ -2,6 +2,7 @@
 
 import argparse
 import pathlib
+import struct
 
 
 GLYPH_WIDTH = 5
@@ -12,6 +13,8 @@ ATLAS_COLUMNS = 8
 ATLAS_WIDTH = 64
 ATLAS_HEIGHT = 32
 CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ-."
+PFNT_MAGIC = 0x544E4650
+PFNT_VERSION = 1
 
 GLYPHS = {
     "A": (0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11),
@@ -45,7 +48,7 @@ GLYPHS = {
 }
 
 
-def generate(destination: pathlib.Path) -> None:
+def generate(atlas_destination: pathlib.Path, metadata_destination: pathlib.Path) -> None:
     pixels = [[0 for _ in range(ATLAS_WIDTH)] for _ in range(ATLAS_HEIGHT)]
     for glyph_index, character in enumerate(CHARACTERS):
         origin_x = glyph_index % ATLAS_COLUMNS * CELL_WIDTH
@@ -59,15 +62,39 @@ def generate(destination: pathlib.Path) -> None:
     for row in pixels:
         lines.append(" ".join(f"{value} {value} {value}" for value in row))
 
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text("\n".join(lines) + "\n", encoding="ascii")
+    atlas_destination.parent.mkdir(parents=True, exist_ok=True)
+    atlas_destination.write_text("\n".join(lines) + "\n", encoding="ascii")
+
+    metadata = bytearray(
+        struct.pack(
+            "<10I",
+            PFNT_MAGIC,
+            PFNT_VERSION,
+            len(CHARACTERS),
+            ATLAS_WIDTH,
+            ATLAS_HEIGHT,
+            CELL_WIDTH,
+            CELL_HEIGHT,
+            GLYPH_WIDTH,
+            GLYPH_HEIGHT,
+            GLYPH_WIDTH + 1,
+        )
+    )
+    for glyph_index, character in enumerate(CHARACTERS):
+        source_x = glyph_index % ATLAS_COLUMNS * CELL_WIDTH
+        source_y = glyph_index // ATLAS_COLUMNS * CELL_HEIGHT
+        metadata.extend(struct.pack("<IHH", ord(character), source_x, source_y))
+
+    metadata_destination.parent.mkdir(parents=True, exist_ok=True)
+    metadata_destination.write_bytes(metadata)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate the PSP bootstrap font atlas")
-    parser.add_argument("destination", type=pathlib.Path)
+    parser.add_argument("atlas_destination", type=pathlib.Path)
+    parser.add_argument("metadata_destination", type=pathlib.Path)
     args = parser.parse_args()
-    generate(args.destination)
+    generate(args.atlas_destination, args.metadata_destination)
 
 
 if __name__ == "__main__":

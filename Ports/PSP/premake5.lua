@@ -109,6 +109,7 @@ project "OpenBarnyardPSP"
 		'cp -f "../../Ports/PSP/Assets/probe.ptex" "%{cfg.targetdir}/probe.ptex"',
 		'cp -f "../../Ports/PSP/Assets/probe.pmes" "%{cfg.targetdir}/probe.pmes"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_font.ptex" "%{cfg.targetdir}/bootstrap_font.ptex"',
+		'cp -f "../../Ports/PSP/Assets/bootstrap_font.pfnt" "%{cfg.targetdir}/bootstrap_font.pfnt"',
 		'rm -f "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"'
 	}
 

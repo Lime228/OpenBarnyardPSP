@@ -32,7 +32,7 @@ jobs:
         run: |
           python3 Ports/PSP/Tools/convert_texture.py Ports/PSP/Assets/probe.ppm /tmp/probe.ptex
           python3 Ports/PSP/Tools/convert_mesh.py Ports/PSP/Assets/probe.obj /tmp/probe.pmes
-          python3 Ports/PSP/Tools/generate_bootstrap_font.py Ports/PSP/Assets/bootstrap_font.ppm
+          python3 Ports/PSP/Tools/generate_bootstrap_font.py Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.pfnt
           python3 Ports/PSP/Tools/convert_texture.py --alpha-mask Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.ptex
           cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
@@ -61,4 +61,5 @@ jobs:
             bin/PSP/Release/probe.ptex
             bin/PSP/Release/probe.pmes
             bin/PSP/Release/bootstrap_font.ptex
+            bin/PSP/Release/bootstrap_font.pfnt
           if-no-files-found: error
