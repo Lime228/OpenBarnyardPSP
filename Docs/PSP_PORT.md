@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **85%** complete, while the
-complete playable-game port is approximately **35%** complete. The second value
+The PSP platform/render bring-up is approximately **86%** complete, while the
+complete playable-game port is approximately **36%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 20% | deterministic converters produce PTEX, PMES, PFNT, PLOC and PPCM runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 32% | generation-safe scheduled handles, delayed events, PSP sound events, named wave bank, command queue, mixer, audio worker and PCM assets work; codecs, movies and saves are not started |
+| Audio, movies and saves | 35% | fixed-point playback rate, scheduled handles, delayed events, PSP sound events, named wave bank, command queue, mixer, audio worker and PCM assets work; codecs, movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -472,6 +472,15 @@ remain largely unstarted.
   looping play, retrieves its voice exactly once and stops that voice through
   the mixer handle. PPSSPP retained every readiness gate as `OK`; the bundle is
   stored under `Runtime/PSP/84a72771`.
+- Mixer voices now keep a 16.16 sample position and precomputed integer step.
+  Playback frequency is bounded to 11,025-88,200 Hz and uses nearest-sample
+  resampling, avoiding floating-point work and extra buffers in the inner mix
+  loop. `UpdateChannelFrequency` is supported by immediate and delayed events.
+- Commit `5fb6d11d` passed PSP run `41223741510`. A silent bootstrap voice at
+  22,050 Hz remains active after one 1,024-frame output buffer, switches to
+  88,200 Hz and completes in the next buffer; invalid and stale frequency
+  updates are rejected. PPSSPP retained every readiness gate as `OK`; the
+  bundle is stored under `Runtime/PSP/5fb6d11d`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -479,9 +488,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add bounded fixed-point playback rate and map the original
-frequency/position sound events to pitch, pan and attenuation before attempting
-FSB decoding or the full sound manager. Continue bridging the bounded
+In parallel, map the original channel-position event to bounded listener-space
+pan and attenuation before attempting FSB decoding or the full sound manager.
+Continue bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
 dependency-ordered source list; do not add the full
