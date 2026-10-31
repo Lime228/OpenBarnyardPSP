@@ -50,6 +50,9 @@ ASoundScheduledEventHandle_PSP ASoundDelayedEventQueue_PSP::Schedule(
 		rEvent.uiVolume = a_rEvent.uiVolume;
 		rEvent.iPan = a_rEvent.iPan;
 		rEvent.bLoop = a_rEvent.bLoop;
+		rEvent.uiFrequency = a_rEvent.eEventType == ASoundEventType_PSP_PlayAudio &&
+		                         a_rEvent.uiFrequency == 0 ?
+		                         ASoundMixer_PSP::DEFAULT_FREQUENCY : a_rEvent.uiFrequency;
 		rEvent.uiRemainingSampleFrames = a_uiDelaySampleFrames;
 		m_uiEventCount++;
 		return MakeHandle( i );
@@ -137,7 +140,7 @@ TBOOL ASoundDelayedEventQueue_PSP::Dispatch(
 		case ASoundEventType_PSP_PlayAudio:
 		{
 			const ASoundCommandRequest_PSP uiRequest = a_rCommandQueue.QueuePlay(
-			    rEvent.pWave, rEvent.uiVolume, rEvent.iPan, rEvent.bLoop
+			    rEvent.pWave, rEvent.uiVolume, rEvent.iPan, rEvent.bLoop, rEvent.uiFrequency
 			);
 			if ( uiRequest == ASoundCommandQueue_PSP::INVALID_REQUEST ) return TFALSE;
 
@@ -152,6 +155,9 @@ TBOOL ASoundDelayedEventQueue_PSP::Dispatch(
 			break;
 		case ASoundEventType_PSP_UpdateChannelVolume:
 			if ( !a_rCommandQueue.QueueSetVolume( rEvent.hVoice, rEvent.uiVolume ) ) return TFALSE;
+			break;
+		case ASoundEventType_PSP_UpdateChannelFrequency:
+			if ( !a_rCommandQueue.QueueSetFrequency( rEvent.hVoice, rEvent.uiFrequency ) ) return TFALSE;
 			break;
 		case ASoundEventType_PSP_UpdateChannelPan:
 			if ( !a_rCommandQueue.QueueSetPan( rEvent.hVoice, rEvent.iPan ) ) return TFALSE;

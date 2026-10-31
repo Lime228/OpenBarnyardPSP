@@ -19,10 +19,13 @@ ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlay(
     const AWave_PSP* a_pWave,
     TUINT a_uiVolume,
     TINT a_iPan,
-    TBOOL a_bLoop
+    TBOOL a_bLoop,
+    TUINT a_uiFrequency
 )
 {
 	if ( a_pWave == TNULL || !a_pWave->IsCreated() ||
+	     a_uiFrequency < ASoundMixer_PSP::MIN_FREQUENCY ||
+	     a_uiFrequency > ASoundMixer_PSP::MAX_FREQUENCY ||
 	     m_uiPendingPlayCount + GetResultCount() >= MAX_RESULTS )
 	{
 		return INVALID_REQUEST;
@@ -37,6 +40,7 @@ ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlay(
 		a_uiVolume,
 		a_iPan,
 		a_bLoop,
+		a_uiFrequency,
 	};
 	if ( !Push( oCommand ) )
 		return INVALID_REQUEST;
@@ -50,10 +54,11 @@ ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlayNamed(
     const TCHAR* a_pWaveName,
     TUINT a_uiVolume,
     TINT a_iPan,
-    TBOOL a_bLoop
+    TBOOL a_bLoop,
+    TUINT a_uiFrequency
 )
 {
-	return QueuePlay( a_rWaveBank.FindWave( a_pWaveName ), a_uiVolume, a_iPan, a_bLoop );
+	return QueuePlay( a_rWaveBank.FindWave( a_pWaveName ), a_uiVolume, a_iPan, a_bLoop, a_uiFrequency );
 }
 
 TBOOL ASoundCommandQueue_PSP::QueueEvent(
@@ -71,13 +76,16 @@ TBOOL ASoundCommandQueue_PSP::QueueEvent(
 			    a_rEvent.pWaveName,
 			    a_rEvent.uiVolume,
 			    a_rEvent.iPan,
-			    a_rEvent.bLoop
+			    a_rEvent.bLoop,
+			    a_rEvent.uiFrequency == 0 ? ASoundMixer_PSP::DEFAULT_FREQUENCY : a_rEvent.uiFrequency
 			);
 			return a_rRequest != INVALID_REQUEST;
 		case ASoundEventType_PSP_StopAudio:
 			return QueueStop( a_rEvent.hVoice );
 		case ASoundEventType_PSP_UpdateChannelVolume:
 			return QueueSetVolume( a_rEvent.hVoice, a_rEvent.uiVolume );
+		case ASoundEventType_PSP_UpdateChannelFrequency:
+			return QueueSetFrequency( a_rEvent.hVoice, a_rEvent.uiFrequency );
 		case ASoundEventType_PSP_UpdateChannelPan:
 			return QueueSetPan( a_rEvent.hVoice, a_rEvent.iPan );
 		default:
@@ -87,17 +95,22 @@ TBOOL ASoundCommandQueue_PSP::QueueEvent(
 
 TBOOL ASoundCommandQueue_PSP::QueueStop( ASoundVoiceHandle_PSP a_hVoice )
 {
-	return Push( { ASoundCommandType_PSP_Stop, TNULL, a_hVoice, INVALID_REQUEST, 0, 0, TFALSE } );
+	return Push( { ASoundCommandType_PSP_Stop, TNULL, a_hVoice, INVALID_REQUEST, 0, 0, TFALSE, 0 } );
 }
 
 TBOOL ASoundCommandQueue_PSP::QueueSetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiVolume )
 {
-	return Push( { ASoundCommandType_PSP_SetVolume, TNULL, a_hVoice, INVALID_REQUEST, a_uiVolume, 0, TFALSE } );
+	return Push( { ASoundCommandType_PSP_SetVolume, TNULL, a_hVoice, INVALID_REQUEST, a_uiVolume, 0, TFALSE, 0 } );
+}
+
+TBOOL ASoundCommandQueue_PSP::QueueSetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency )
+{
+	return Push( { ASoundCommandType_PSP_SetFrequency, TNULL, a_hVoice, INVALID_REQUEST, 0, 0, TFALSE, a_uiFrequency } );
 }
 
 TBOOL ASoundCommandQueue_PSP::QueueSetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan )
 {
-	return Push( { ASoundCommandType_PSP_SetPan, TNULL, a_hVoice, INVALID_REQUEST, 0, a_iPan, TFALSE } );
+	return Push( { ASoundCommandType_PSP_SetPan, TNULL, a_hVoice, INVALID_REQUEST, 0, a_iPan, TFALSE, 0 } );
 }
 
 TBOOL ASoundCommandQueue_PSP::Process( ASoundMixer_PSP& a_rMixer )
@@ -119,7 +132,8 @@ TBOOL ASoundCommandQueue_PSP::Process( ASoundMixer_PSP& a_rMixer )
 				    oCommand.pWave,
 				    oCommand.uiVolume,
 				    oCommand.iPan,
-				    oCommand.bLoop
+				    oCommand.bLoop,
+				    oCommand.uiFrequency
 				);
 				for ( TUINT i = 0; i < MAX_RESULTS; i++ )
 				{
@@ -138,6 +152,9 @@ TBOOL ASoundCommandQueue_PSP::Process( ASoundMixer_PSP& a_rMixer )
 				break;
 			case ASoundCommandType_PSP_SetVolume:
 				bCommandSucceeded = a_rMixer.SetVolume( oCommand.hVoice, oCommand.uiVolume );
+				break;
+			case ASoundCommandType_PSP_SetFrequency:
+				bCommandSucceeded = a_rMixer.SetFrequency( oCommand.hVoice, oCommand.uiFrequency );
 				break;
 			case ASoundCommandType_PSP_SetPan:
 				bCommandSucceeded = a_rMixer.SetPan( oCommand.hVoice, oCommand.iPan );

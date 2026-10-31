@@ -7,6 +7,7 @@ enum ASoundEventType_PSP : TUINT
 	ASoundEventType_PSP_PlayAudio,
 	ASoundEventType_PSP_StopAudio,
 	ASoundEventType_PSP_UpdateChannelVolume,
+	ASoundEventType_PSP_UpdateChannelFrequency,
 	ASoundEventType_PSP_UpdateChannelPan,
 	ASoundEventType_PSP_Count,
 };
@@ -19,4 +20,5 @@ struct ASoundEvent_PSP
 	TUINT uiVolume;
 	TINT iPan;
 	TBOOL bLoop;
+	TUINT uiFrequency;
 };

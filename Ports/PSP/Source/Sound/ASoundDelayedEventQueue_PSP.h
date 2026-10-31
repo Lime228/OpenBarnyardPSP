@@ -49,6 +49,7 @@ private:
 		TUINT uiVolume;
 		TINT iPan;
 		TBOOL bLoop;
+		TUINT uiFrequency;
 		TUINT uiRemainingSampleFrames;
 	};
 

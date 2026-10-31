@@ -11,6 +11,7 @@ enum ASoundCommandType_PSP
 	ASoundCommandType_PSP_Play,
 	ASoundCommandType_PSP_Stop,
 	ASoundCommandType_PSP_SetVolume,
+	ASoundCommandType_PSP_SetFrequency,
 	ASoundCommandType_PSP_SetPan,
 };
 
@@ -23,6 +24,7 @@ struct ASoundCommand_PSP
 	TUINT uiVolume;
 	TINT iPan;
 	TBOOL bLoop;
+	TUINT uiFrequency;
 };
 
 struct ASoundCommandResult_PSP
@@ -45,14 +47,16 @@ public:
 	    const AWave_PSP* a_pWave,
 	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
 	    TINT a_iPan = 0,
-	    TBOOL a_bLoop = TFALSE
+	    TBOOL a_bLoop = TFALSE,
+	    TUINT a_uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY
 	);
 	ASoundCommandRequest_PSP QueuePlayNamed(
 	    const AWaveBank_PSP& a_rWaveBank,
 	    const TCHAR* a_pWaveName,
 	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
 	    TINT a_iPan = 0,
-	    TBOOL a_bLoop = TFALSE
+	    TBOOL a_bLoop = TFALSE,
+	    TUINT a_uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY
 	);
 	TBOOL QueueEvent(
 	    const AWaveBank_PSP& a_rWaveBank,
@@ -61,6 +65,7 @@ public:
 	);
 	TBOOL QueueStop( ASoundVoiceHandle_PSP a_hVoice );
 	TBOOL QueueSetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiVolume );
+	TBOOL QueueSetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency );
 	TBOOL QueueSetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
 
 	TBOOL Process( ASoundMixer_PSP& a_rMixer );
