@@ -4,6 +4,14 @@
 
 using ASoundVoiceHandle_PSP = TUINT32;
 
+struct ASoundPosition_PSP
+{
+	TINT iX;
+	TINT iY;
+	TINT iZ;
+	TUINT uiMaxDistance;
+};
+
 class ASoundMixer_PSP
 {
 public:
@@ -13,6 +21,7 @@ public:
 	static constexpr TUINT DEFAULT_FREQUENCY = 44100;
 	static constexpr TUINT MIN_FREQUENCY = 11025;
 	static constexpr TUINT MAX_FREQUENCY = 88200;
+	static constexpr TINT MAX_POSITION = 1000000;
 	static constexpr ASoundVoiceHandle_PSP INVALID_VOICE = 0xffffffff;
 
 	struct Voice
@@ -22,6 +31,7 @@ public:
 		TUINT32 uiSampleStep;
 		TUINT uiFrequency;
 		TUINT uiVolume;
+		TUINT uiAttenuation;
 		TINT iPan;
 		TUINT uiLeftVolume;
 		TUINT uiRightVolume;
@@ -44,6 +54,12 @@ public:
 	TBOOL SetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiVolume );
 	TBOOL SetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
 	TBOOL SetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency );
+	TBOOL SetPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
+	TBOOL GetSpatialState(
+	    ASoundVoiceHandle_PSP a_hVoice,
+	    TINT& a_rPan,
+	    TUINT& a_rAttenuation
+	) const;
 
 	TBOOL Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames );
 	TUINT GetActiveVoiceCount() const;

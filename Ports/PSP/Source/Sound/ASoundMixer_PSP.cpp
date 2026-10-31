@@ -12,6 +12,11 @@ static TINT16 ClampMixedSample_PSP( TINT32 a_iSample )
 	return TINT16( a_iSample );
 }
 
+static TUINT AbsPositionComponent_PSP( TINT a_iValue )
+{
+	return a_iValue < 0 ? TUINT( -a_iValue ) : TUINT( a_iValue );
+}
+
 ASoundMixer_PSP::ASoundMixer_PSP()
     : m_aVoices{}
     , m_auiVoiceGenerations{}
@@ -39,7 +44,7 @@ ASoundVoiceHandle_PSP ASoundMixer_PSP::Play(
 			if ( uiGeneration == 0 )
 				uiGeneration = 1;
 			m_auiVoiceGenerations[ i ] = uiGeneration;
-			m_aVoices[ i ] = { a_pWave, 0, 0, a_uiFrequency, a_uiVolume, a_iPan, 0, 0, TTRUE, a_bLoop };
+			m_aVoices[ i ] = { a_pWave, 0, 0, a_uiFrequency, a_uiVolume, MAX_VOLUME, a_iPan, 0, 0, TTRUE, a_bLoop };
 			UpdateVoiceFrequency( m_aVoices[ i ], a_uiFrequency );
 			UpdateVoiceVolumes( m_aVoices[ i ] );
 			return ( uiGeneration << 8 ) | i;
@@ -93,6 +98,53 @@ TBOOL ASoundMixer_PSP::SetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiF
 		return TFALSE;
 
 	return UpdateVoiceFrequency( m_aVoices[ iVoice ], a_uiFrequency );
+}
+
+TBOOL ASoundMixer_PSP::SetPosition(
+    ASoundVoiceHandle_PSP a_hVoice,
+    const ASoundPosition_PSP& a_rPosition
+)
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	if ( iVoice < 0 || a_rPosition.uiMaxDistance == 0 ||
+	     a_rPosition.uiMaxDistance > TUINT( MAX_POSITION ) ||
+	     a_rPosition.iX < -MAX_POSITION || a_rPosition.iX > MAX_POSITION ||
+	     a_rPosition.iY < -MAX_POSITION || a_rPosition.iY > MAX_POSITION ||
+	     a_rPosition.iZ < -MAX_POSITION || a_rPosition.iZ > MAX_POSITION )
+	{
+		return TFALSE;
+	}
+
+	Voice& rVoice = m_aVoices[ iVoice ];
+	const TUINT uiX = AbsPositionComponent_PSP( a_rPosition.iX );
+	const TUINT uiY = AbsPositionComponent_PSP( a_rPosition.iY );
+	const TUINT uiZ = AbsPositionComponent_PSP( a_rPosition.iZ );
+	const TUINT uiHorizontalMax = uiX > uiZ ? uiX : uiZ;
+	const TUINT uiHorizontalMin = uiX > uiZ ? uiZ : uiX;
+	const TUINT uiDistance = uiHorizontalMax + uiHorizontalMin / 2 + uiY / 2;
+	const TINT64 iPan = TINT64( a_rPosition.iX ) * TINT64( MAX_PAN ) /
+	                    TINT64( a_rPosition.uiMaxDistance );
+	rVoice.iPan = iPan < -MAX_PAN ? -MAX_PAN : iPan > MAX_PAN ? MAX_PAN : TINT( iPan );
+	rVoice.uiAttenuation = uiDistance >= a_rPosition.uiMaxDistance ? 0 :
+	                       ( a_rPosition.uiMaxDistance - uiDistance ) * MAX_VOLUME /
+	                           a_rPosition.uiMaxDistance;
+	UpdateVoiceVolumes( rVoice );
+	return TTRUE;
+}
+
+TBOOL ASoundMixer_PSP::GetSpatialState(
+    ASoundVoiceHandle_PSP a_hVoice,
+    TINT& a_rPan,
+    TUINT& a_rAttenuation
+) const
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	if ( iVoice < 0 )
+		return TFALSE;
+
+	a_rPan = m_aVoices[ iVoice ].iPan;
+	a_rAttenuation = m_aVoices[ iVoice ].uiAttenuation;
+	return TTRUE;
 }
 
 TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
@@ -180,10 +232,11 @@ TINT ASoundMixer_PSP::ResolveVoice( ASoundVoiceHandle_PSP a_hVoice ) const
 
 void ASoundMixer_PSP::UpdateVoiceVolumes( Voice& a_rVoice )
 {
+	const TUINT uiSpatialVolume = a_rVoice.uiVolume * a_rVoice.uiAttenuation / MAX_VOLUME;
 	const TUINT uiLeftPan = a_rVoice.iPan > 0 ? TUINT( MAX_PAN - a_rVoice.iPan ) : TUINT( MAX_PAN );
 	const TUINT uiRightPan = a_rVoice.iPan < 0 ? TUINT( MAX_PAN + a_rVoice.iPan ) : TUINT( MAX_PAN );
-	a_rVoice.uiLeftVolume = a_rVoice.uiVolume * uiLeftPan / TUINT( MAX_PAN );
-	a_rVoice.uiRightVolume = a_rVoice.uiVolume * uiRightPan / TUINT( MAX_PAN );
+	a_rVoice.uiLeftVolume = uiSpatialVolume * uiLeftPan / TUINT( MAX_PAN );
+	a_rVoice.uiRightVolume = uiSpatialVolume * uiRightPan / TUINT( MAX_PAN );
 }
 
 TBOOL ASoundMixer_PSP::UpdateVoiceFrequency( Voice& a_rVoice, TUINT a_uiFrequency )
