@@ -13,6 +13,7 @@
 #include "Diagnostics/APortReport_PSP.h"
 #include "Locale/ALocaleManager_PSP.h"
 #include "Sound/ASoundManager_PSP.h"
+#include "Sound/ASoundMixer_PSP.h"
 #include "Sound/AWaveFactory_PSP.h"
 #include "ToshiSmoke.h"
 
@@ -44,6 +45,7 @@ static Toshi::T2Texture g_FontTexture_PSP;
 static Toshi::T2GUIFont_PSP g_Font_PSP;
 static ALocaleManager_PSP g_LocaleManager_PSP;
 static ASoundManager_PSP g_SoundManager_PSP;
+static ASoundMixer_PSP g_SoundMixer_PSP;
 static AWave_PSP g_BootstrapWave_PSP;
 static AWaveFactory_PSP g_WaveFactory_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
@@ -199,10 +201,12 @@ int main()
 	                                  g_BootstrapWave_PSP,
 	                                  "local:bootstrap_audio.ppcm"
 	                              );
-	const TBOOL bAudioReady = bAudioWaveReady &&
+	const TINT iBootstrapVoice = bAudioWaveReady ? g_SoundMixer_PSP.Play( &g_BootstrapWave_PSP ) : ASoundMixer_PSP::INVALID_VOICE;
+	const TBOOL bAudioReady = iBootstrapVoice != ASoundMixer_PSP::INVALID_VOICE &&
+	                          g_SoundMixer_PSP.Mix() &&
 	                          g_SoundManager_PSP.SubmitStereo(
-	                              g_BootstrapWave_PSP.GetSamples(),
-	                              g_BootstrapWave_PSP.GetSampleFrames()
+	                              g_SoundMixer_PSP.GetOutputSamples(),
+	                              AWave_PSP::MAX_SAMPLE_FRAMES
 	                          ) &&
 	                          g_SoundManager_PSP.WaitForSubmittedBuffer();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -329,6 +333,7 @@ int main()
 	oApplication.Destroy();
 	oInputInterface.Deinitialise();
 	g_SoundManager_PSP.Destroy();
+	g_SoundMixer_PSP.StopAll();
 	g_BootstrapWave_PSP.Destroy();
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
