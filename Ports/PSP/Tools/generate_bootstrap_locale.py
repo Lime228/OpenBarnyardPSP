@@ -16,6 +16,8 @@ STRINGS = (
     "RENDER READY",
     "CIRCLE - BACK",
     "FRAMES",
+    "MAIN KB",
+    "EDRAM KB",
 )
 
 
