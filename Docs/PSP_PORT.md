@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **75%** complete, while the
-complete playable-game port is approximately **26%** complete. The second value
+The PSP platform/render bring-up is approximately **76%** complete, while the
+complete playable-game port is approximately **27%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
@@ -25,9 +25,9 @@ or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 15% | deterministic converters produce PTEX, PMES and versioned PFNT runtime assets |
+| Real-game asset pipeline | 18% | deterministic converters produce PTEX, PMES, PFNT and PLOC runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 27% | `AApplication_PSP` owns explicit frame phases and a cached asset-backed font labels the menu/probe/info flow |
+| Game bootstrap and frontend | 30% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
@@ -343,6 +343,17 @@ remain largely unstarted.
   PSP render-resource cache.
 - Commit `2bbb2a16` passed PSP run `41197415596`. The five-file bundle adds the
   264-byte `bootstrap_font.pfnt` and is stored under `Runtime/PSP/2bbb2a16`.
+- `PLOC` version 1 stores a fixed-width header, `string_count + 1` offsets, and
+  a UTF-16LE string table. `T2Locale_PSP` validates the exact file size, bounded
+  counts, monotonic string ranges, terminators and surrogate pairs before
+  copying text into fixed internal arrays; no source blob remains resident.
+- `T2LocaleFactory_PSP` bounds transient locale input and uses the existing
+  Toshi allocator and file layer. Frontend states address the seven bootstrap
+  labels through `AFrontendLocaleString_PSP` IDs instead of embedding their
+  user-facing wide strings.
+- Commit `9e78933f` passed PSP run `41197984217`. Its six-file bundle adds the
+  230-byte `bootstrap_locale.ploc` and is stored under
+  `Runtime/PSP/9e78933f`.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
@@ -350,9 +361,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and capture the debug output and
-memory high-water marks. In parallel, bridge the PFNT loader toward the real
-`T2GUIFont` definition vocabulary and add a bounded localized-string resource
-for frontend labels instead of embedding wide string literals. Keep audio and movies
+memory high-water marks. In parallel, bridge the bounded PFNT/PLOC loaders
+toward the real `T2GUIFont` and locale-manager vocabulary, then extend the
+offline font glyph set before adding another language. Keep audio and movies
 disabled and retain the dependency-ordered source list; do not add the full
 `OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
 seam until a real game caller requires a specific part of the full
