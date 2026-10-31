@@ -15,9 +15,9 @@ from the Windows executable.
 ## Progress snapshot (2026-10-31)
 
 The PSP platform/render bring-up is approximately **72%** complete, while the
-complete playable-game port is approximately **21%** complete. The second value
-is intentionally much lower: a compiling probe does not yet include the game
-game states, real Barnyard asset conversion, animation, audio, UI, world streaming,
+complete playable-game port is approximately **23%** complete. The second value
+is intentionally much lower: a compiling probe does not yet include the real
+game states, Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
 
 | Area | Estimate | Current boundary |
@@ -26,8 +26,8 @@ or gameplay validation on hardware.
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 50% | GU display, depth, indexed static models, textures, materials, budgets and small factories run in PPSSPP |
 | Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
-| Input integration | 45% | `TInputInterface_PSP` maps the PSP controller, buttons and single analog stick and is runtime-verified |
-| Game bootstrap and frontend | 14% | `AApplication_PSP` owns explicit input, update, and render tasks; full game states are not connected |
+| Input integration | 55% | `AInputHandler_PSP` maps PSP controls to frontend actions above the runtime-verified Toshi controller bridge |
+| Game bootstrap and frontend | 18% | `AApplication_PSP` owns explicit frame phases and `AGameStateController_PSP` runs the first menu/probe transitions |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
@@ -287,6 +287,16 @@ remain largely unstarted.
   in PPSSPP 1.20.4. The complete probe renders and continues animating through
   the new application lifecycle; the validated bundle is stored under
   `Runtime/PSP/c2f308d4`.
+- `AGameStateController_PSP` preserves the original controller naming and adds
+  explicit `Boot`, `Menu`, `Probe`, and `Error` states. Probe update and render
+  work is gated by the active state instead of running unconditionally.
+- `AInputHandler_PSP` is the input phase and maps the Toshi PSP controller to
+  frontend `Confirm`, `Cancel`, and `Pause` actions plus the movement axis.
+  Frontend states no longer depend on physical PSP button doodads.
+- The artifact from commit `54216dcd` (PSP run `41181540622`) was validated in
+  PPSSPP 1.20.4. It boots to the menu checker, Cross transitions to the animated
+  probe, and Circle returns to the menu. The bundle is stored under
+  `Runtime/PSP/54216dcd`.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
@@ -295,8 +305,9 @@ remain largely unstarted.
 
 Run the validated bundle on real hardware and capture the debug output and
 memory high-water marks. In parallel with that hardware check, add a minimal
-PSP frontend-state controller above the validated input, update, and render
-phases, then move the probe into its first explicit state. Keep audio and movies
+PSP frontend state-object interface and move `Menu` and `Probe` behavior out of
+the controller into separate state objects. After that, add the smallest 2D UI
+or font seam needed for a recognizable menu screen. Keep audio and movies
 disabled and retain the dependency-ordered source list; do not add the full
 `OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
 seam until a real game caller requires a specific part of the full
