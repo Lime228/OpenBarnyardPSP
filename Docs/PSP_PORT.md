@@ -14,7 +14,7 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **76%** complete, while the
+The PSP platform/render bring-up is approximately **77%** complete, while the
 complete playable-game port is approximately **27%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, audio, UI, world streaming,
@@ -371,6 +371,18 @@ remain largely unstarted.
 - Commit `3ef30fdc` passed PSP run `41218936337`. The resulting bundle carries
   the 290-byte PLOC table with memory labels and is stored under
   `Runtime/PSP/3ef30fdc`.
+- `APortReport_PSP` writes `openbarnyard_psp.log` beside the EBOOT at bootstrap
+  and clean exit. The bounded report records every readiness gate, frame count,
+  main-memory current/peak/budget and eDRAM current/budget through the existing
+  PSP `TFile` implementation.
+- Commit `5c3a11ac` passed PSP run `41219161474` and was launched through the
+  single-instance background runner. Its `RUNNING` report recorded every gate
+  as `OK`, 17,676 bytes of tracked main render memory against 16 MiB, and
+  1,392,640 bytes of eDRAM against 2 MiB. The bundle is stored under
+  `Runtime/PSP/5c3a11ac`.
+- The background PPSSPP runner now sends D-pad Up/Down in addition to face and
+  analog inputs. Menu-to-status navigation and Circle return were exercised on
+  the same emulator process without taking keyboard focus.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
