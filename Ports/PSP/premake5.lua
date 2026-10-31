@@ -89,6 +89,7 @@ project "OpenBarnyardPSP"
 
 	links
 	{
+		"pspaudio",
 		"pspgum",
 		"pspgu",
 		"pspge",
