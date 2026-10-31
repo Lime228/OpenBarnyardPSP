@@ -14,6 +14,7 @@
 #include "Locale/ALocaleManager_PSP.h"
 #include "Sound/ASoundManager_PSP.h"
 #include "Sound/ASoundMixer_PSP.h"
+#include "Sound/ASoundCommandQueue_PSP.h"
 #include "Sound/AWaveFactory_PSP.h"
 #include "ToshiSmoke.h"
 
@@ -46,6 +47,7 @@ static Toshi::T2GUIFont_PSP g_Font_PSP;
 static ALocaleManager_PSP g_LocaleManager_PSP;
 static ASoundManager_PSP g_SoundManager_PSP;
 static ASoundMixer_PSP g_SoundMixer_PSP;
+static ASoundCommandQueue_PSP g_SoundCommandQueue_PSP;
 static AWave_PSP g_BootstrapWave_PSP;
 static AWaveFactory_PSP g_WaveFactory_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
@@ -136,6 +138,42 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 
 	return !g_SoundMixer_PSP.IsVoiceActive( hBootstrapVoice ) &&
 	       !g_SoundMixer_PSP.SetPan( hBootstrapVoice, 0 );
+}
+
+static TBOOL TestSoundCommandQueue_PSP()
+{
+	const ASoundCommandRequest_PSP uiRequest = g_SoundCommandQueue_PSP.QueuePlay(
+	    &g_BootstrapWave_PSP,
+	    0,
+	    0,
+	    TTRUE
+	);
+	ASoundVoiceHandle_PSP hVoice = ASoundMixer_PSP::INVALID_VOICE;
+	if ( uiRequest == ASoundCommandQueue_PSP::INVALID_REQUEST ||
+	     !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     !g_SoundCommandQueue_PSP.GetPlayResult( uiRequest, hVoice ) ||
+	     hVoice == ASoundMixer_PSP::INVALID_VOICE )
+	{
+		g_SoundCommandQueue_PSP.Clear();
+		return TFALSE;
+	}
+
+	const TBOOL bControlsQueued =
+	    g_SoundCommandQueue_PSP.QueueSetVolume( hVoice, ASoundMixer_PSP::MAX_VOLUME / 4 ) &&
+	    g_SoundCommandQueue_PSP.QueueSetPan( hVoice, ASoundMixer_PSP::MAX_PAN / 2 ) &&
+	    g_SoundCommandQueue_PSP.QueueStop( hVoice );
+	const TBOOL bControlsProcessed = bControlsQueued &&
+	                                g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
+	                                !g_SoundMixer_PSP.IsVoiceActive( hVoice );
+	const TBOOL bStaleQueued = g_SoundCommandQueue_PSP.QueueSetVolume(
+	    hVoice,
+	    ASoundMixer_PSP::MAX_VOLUME
+	);
+	const TBOOL bStaleRejected = bStaleQueued &&
+	                             !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
+	                             g_SoundCommandQueue_PSP.GetFailedCommandCount() == 1;
+	g_SoundCommandQueue_PSP.Clear();
+	return bControlsProcessed && bStaleRejected;
 }
 
 static TBOOL InitialiseProbeTexture( TBOOL a_bLoadExternal )
@@ -243,7 +281,9 @@ int main()
 	                                  g_BootstrapWave_PSP,
 	                                  "local:bootstrap_audio.ppcm"
 	                              );
-	const TBOOL bAudioReady = bAudioWaveReady && TestBootstrapVoiceControls_PSP();
+	const TBOOL bAudioReady = bAudioWaveReady &&
+	                          TestSoundCommandQueue_PSP() &&
+	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
 	const TBOOL bFontReady      = bFontTextureReady && LoadFontFile_PSP();
@@ -308,7 +348,8 @@ int main()
 	const TBOOL bSchedulerReady = oApplication.Create(
 	    &oRenderContext,
 	    &g_SoundManager_PSP,
-	    &g_SoundMixer_PSP
+	    &g_SoundMixer_PSP,
+	    &g_SoundCommandQueue_PSP
 	);
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
@@ -372,6 +413,7 @@ int main()
 	oApplication.Destroy();
 	oInputInterface.Deinitialise();
 	g_SoundManager_PSP.Destroy();
+	g_SoundCommandQueue_PSP.Clear();
 	g_SoundMixer_PSP.StopAll();
 	g_BootstrapWave_PSP.Destroy();
 	g_ResourceCache_PSP.Clear();
