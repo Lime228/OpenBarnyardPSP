@@ -35,6 +35,7 @@ jobs:
           python3 Ports/PSP/Tools/generate_bootstrap_font.py Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.pfnt
           python3 Ports/PSP/Tools/convert_texture.py --alpha-mask Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.ptex
           python3 Ports/PSP/Tools/generate_bootstrap_locale.py Ports/PSP/Assets/bootstrap_locale.ploc
+          python3 Ports/PSP/Tools/generate_bootstrap_audio.py Ports/PSP/Assets/bootstrap_audio.ppcm
           cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
 
@@ -64,4 +65,5 @@ jobs:
             bin/PSP/Release/bootstrap_font.ptex
             bin/PSP/Release/bootstrap_font.pfnt
             bin/PSP/Release/bootstrap_locale.ploc
+            bin/PSP/Release/bootstrap_audio.ppcm
           if-no-files-found: error
