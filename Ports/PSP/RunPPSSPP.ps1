@@ -1,8 +1,14 @@
 param(
-    [ValidateSet('Start', 'Status', 'Stop', 'Restart')]
+    [ValidateSet('Start', 'Status', 'Stop', 'Restart', 'Press')]
     [string] $Action = 'Start',
     [string] $EbootPath = '',
-    [string] $PPSSPPPath = ''
+    [string] $PPSSPPPath = '',
+
+    [ValidateSet('Cross', 'Circle', 'AnalogLeft', 'AnalogRight')]
+    [string] $Key = 'Cross',
+
+    [ValidateRange(1, 60)]
+    [int] $Repeat = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,6 +17,22 @@ $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $runtimeRoot = Join-Path $repositoryRoot 'Runtime'
 $runnerRoot = Join-Path $runtimeRoot 'PPSSPP'
 $pidPath = Join-Path $runnerRoot 'openbarnyard-psp.pid'
+
+if (-not ('OpenBarnyard.PPSSPPWindow' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+namespace OpenBarnyard
+{
+    public static class PPSSPPWindow
+    {
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool PostMessage(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
+    }
+}
+'@
+}
 
 if (-not $PPSSPPPath) {
     $PPSSPPPath = Join-Path $runtimeRoot 'Tools\PPSSPP\PPSSPPWindows64.exe'
@@ -77,7 +99,7 @@ function Start-OpenBarnyardPPSSPP {
 
     $process = Start-Process `
         -FilePath $PPSSPPPath `
-        -ArgumentList @($EbootPath) `
+        -ArgumentList @('--graphics=software', '--windowed', '--scale=1', $EbootPath) `
         -WorkingDirectory (Split-Path -Parent $PPSSPPPath) `
         -WindowStyle Minimized `
         -PassThru
@@ -100,6 +122,48 @@ function Stop-OpenBarnyardPPSSPP {
     Write-Output "Stopped PPSSPP (PID $($process.Id))."
 }
 
+function Send-OpenBarnyardPPSSPPKey {
+    param(
+        [System.Diagnostics.Process] $Process,
+        [string] $Button,
+        [int] $Count
+    )
+
+    $virtualKeys = @{
+        Cross = 0x5A
+        Circle = 0x58
+        AnalogLeft = 0x4A
+        AnalogRight = 0x4C
+    }
+
+    for ($attempt = 0; $attempt -lt 50; $attempt++) {
+        $Process.Refresh()
+        if ($Process.MainWindowHandle -ne [IntPtr]::Zero) {
+            break
+        }
+
+        Start-Sleep -Milliseconds 20
+    }
+
+    if ($Process.MainWindowHandle -eq [IntPtr]::Zero) {
+        throw "PPSSPP process $($Process.Id) has no window handle."
+    }
+
+    $window = $Process.MainWindowHandle
+    $virtualKey = [UIntPtr] $virtualKeys[$Button]
+    for ($index = 0; $index -lt $Count; $index++) {
+        if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0100, $virtualKey, [IntPtr]::Zero)) {
+            throw "Could not send $Button to PPSSPP process $($Process.Id)."
+        }
+
+        Start-Sleep -Milliseconds 20
+        [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0101, $virtualKey, [IntPtr]::Zero) | Out-Null
+        Start-Sleep -Milliseconds 20
+    }
+
+    Write-Output "Sent $Button to PPSSPP (PID $($Process.Id), count $Count)."
+}
+
 switch ($Action) {
     'Start' { Start-OpenBarnyardPPSSPP }
     'Status' {
@@ -116,5 +180,13 @@ switch ($Action) {
     'Restart' {
         Stop-OpenBarnyardPPSSPP
         Start-OpenBarnyardPPSSPP
+    }
+    'Press' {
+        $process = Get-OpenBarnyardPPSSPPProcess
+        if (-not $process) {
+            throw 'PPSSPP is not running. Start it before sending background input.'
+        }
+
+        Send-OpenBarnyardPPSSPPKey -Process $process -Button $Key -Count $Repeat
     }
 }

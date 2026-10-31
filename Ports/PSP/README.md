@@ -45,11 +45,16 @@ instances or taking focus on every check:
 .\Ports\PSP\RunPPSSPP.ps1
 .\Ports\PSP\RunPPSSPP.ps1 -Action Status
 .\Ports\PSP\RunPPSSPP.ps1 -Action Restart -EbootPath .\Runtime\PSP\0a06d6b5\EBOOT.PBP
+.\Ports\PSP\RunPPSSPP.ps1 -Action Press -Key Cross -Repeat 8
 .\Ports\PSP\RunPPSSPP.ps1 -Action Stop
 ```
 
 The runner only stops the PPSSPP process whose PID it created and stored under
 the ignored `Runtime/PPSSPP` directory. Other emulator sessions are untouched.
+Background input uses window messages and does not activate the emulator window
+or take keyboard and mouse focus from the current application. Automated runs
+force PPSSPP's software backend for that process only, avoiding driver fallback
+dialogs without changing the user's saved graphics backend.
 
 ## Why this target is separate
 
