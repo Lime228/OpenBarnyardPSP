@@ -35,6 +35,22 @@ result is `bin/PSP/Release/EBOOT.PBP`. Copy it to a folder such as
 PPSSPP. The analog stick moves the triangle; Cross changes the background. A
 red background means that the embedded Toshi ABI/endianness smoke test failed.
 
+## Background PPSSPP runner
+
+For local PPSSPP checks on Windows, use the background runner. It records the
+PID of this port's emulator process and reuses it instead of opening duplicate
+instances or taking focus on every check:
+
+```powershell
+.\Ports\PSP\RunPPSSPP.ps1
+.\Ports\PSP\RunPPSSPP.ps1 -Action Status
+.\Ports\PSP\RunPPSSPP.ps1 -Action Restart -EbootPath .\Runtime\PSP\0a06d6b5\EBOOT.PBP
+.\Ports\PSP\RunPPSSPP.ps1 -Action Stop
+```
+
+The runner only stops the PPSSPP process whose PID it created and stored under
+the ignored `Runtime/PPSSPP` directory. Other emulator sessions are untouched.
+
 ## Why this target is separate
 
 The current `new-modcore` build scripts and executable are Windows-only. Keeping
