@@ -17,7 +17,7 @@
 #include "Sound/ASoundCommandQueue_PSP.h"
 #include "Sound/ASoundDelayedEventQueue_PSP.h"
 #include "Sound/AWaveBank_PSP.h"
-#include "Sound/AWaveFactory_PSP.h"
+#include "Sound/AWaveBankLoader_PSP.h"
 #include "ToshiSmoke.h"
 
 PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
@@ -52,8 +52,9 @@ static ASoundMixer_PSP g_SoundMixer_PSP;
 static ASoundCommandQueue_PSP g_SoundCommandQueue_PSP;
 static ASoundDelayedEventQueue_PSP g_DelayedEventQueue_PSP;
 static AWaveBank_PSP g_WaveBank_PSP;
-static AWave_PSP g_BootstrapWave_PSP;
-static AWaveFactory_PSP g_WaveFactory_PSP;
+static AWave_PSP g_BootstrapWaves_PSP[ 1 ];
+static AWaveBankLoader_PSP g_WaveBankLoader_PSP;
+static TUINT g_uiLoadedWaves_PSP = 0;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::T2GUIFontFactory_PSP g_FontFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
@@ -119,7 +120,7 @@ static TBOOL SubmitBootstrapWave_PSP()
 static TBOOL TestBootstrapVoiceControls_PSP()
 {
 	const ASoundVoiceHandle_PSP hStoppedVoice = g_SoundMixer_PSP.Play(
-	    &g_BootstrapWave_PSP,
+	    &g_BootstrapWaves_PSP[ 0 ],
 	    0,
 	    0,
 	    TTRUE
@@ -160,7 +161,7 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 		return TFALSE;
 	}
 
-	const ASoundVoiceHandle_PSP hBootstrapVoice = g_SoundMixer_PSP.Play( &g_BootstrapWave_PSP );
+	const ASoundVoiceHandle_PSP hBootstrapVoice = g_SoundMixer_PSP.Play( &g_BootstrapWaves_PSP[ 0 ] );
 	if ( hBootstrapVoice == ASoundMixer_PSP::INVALID_VOICE ||
 	     !g_SoundMixer_PSP.SetVolume( hBootstrapVoice, ASoundMixer_PSP::MAX_VOLUME / 2 ) ||
 	     !g_SoundMixer_PSP.SetPan( hBootstrapVoice, -ASoundMixer_PSP::MAX_PAN / 2 ) ||
@@ -176,7 +177,7 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 static TBOOL TestBootstrapVoiceFrequency_PSP()
 {
 	const ASoundVoiceHandle_PSP hVoice = g_SoundMixer_PSP.Play(
-	    &g_BootstrapWave_PSP,
+	    &g_BootstrapWaves_PSP[ 0 ],
 	    0,
 	    0,
 	    TFALSE,
@@ -277,7 +278,7 @@ static TBOOL TestSoundCommandQueue_PSP()
 static TBOOL TestDelayedSoundEvents_PSP()
 {
 	const ASoundVoiceHandle_PSP hLoopingVoice = g_SoundMixer_PSP.Play(
-	    &g_BootstrapWave_PSP, 0, 0, TTRUE
+	    &g_BootstrapWaves_PSP[ 0 ], 0, 0, TTRUE
 	);
 	const ASoundEvent_PSP oStopEvent = {
 		ASoundEventType_PSP_StopAudio, TNULL, hLoopingVoice, 0, 0, TFALSE,
@@ -468,15 +469,16 @@ int main()
 	const TBOOL bAudioDeviceReady = g_SoundManager_PSP.Create();
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
-	const TBOOL bAudioWaveReady = bAudioDeviceReady && bFileReady &&
-	                              g_WaveFactory_PSP.CreateWaveFromFile(
-	                                  g_BootstrapWave_PSP,
-	                                  "local:bootstrap_audio.ppcm"
-	                              );
-	const TBOOL bAudioBankReady = bAudioWaveReady &&
-	                              g_WaveBank_PSP.RegisterWave( "bootstrap", &g_BootstrapWave_PSP ) &&
-	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP" ) == &g_BootstrapWave_PSP &&
-	                              !g_WaveBank_PSP.RegisterWave( "BOOTSTRAP", &g_BootstrapWave_PSP );
+	const TBOOL bAudioBankReady = bAudioDeviceReady && bFileReady &&
+	                              g_WaveBankLoader_PSP.Load(
+	                                  g_WaveBank_PSP,
+	                                  g_BootstrapWaves_PSP,
+	                                  1,
+	                                  "local:bootstrap_audio.pbnk",
+	                                  g_uiLoadedWaves_PSP
+	                              ) &&
+	                              g_uiLoadedWaves_PSP == 1 &&
+	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP" ) == &g_BootstrapWaves_PSP[ 0 ];
 	const TBOOL bAudioReady = bAudioBankReady &&
 	                          TestSoundCommandQueue_PSP() &&
 	                          TestDelayedSoundEvents_PSP() &&
@@ -561,7 +563,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] font data   %s\n", bFontReady ? "bootstrap_font.pfnt" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP frontend] locale    %s\n", bLocaleReady ? "bootstrap_locale.ploc" : "FAILED" );
 	TDebug_FinalPrintf(
-	    "[PSP sound] audio        %s (bootstrap_audio.ppcm, channel %d)\n",
+	    "[PSP sound] audio        %s (bootstrap_audio.pbnk, channel %d)\n",
 	    bAudioReady ? "OK" : "FAILED",
 	    g_SoundManager_PSP.GetChannel()
 	);
@@ -615,8 +617,11 @@ int main()
 	g_SoundCommandQueue_PSP.Clear();
 	g_DelayedEventQueue_PSP.Clear();
 	g_SoundMixer_PSP.StopAll();
-	g_WaveBank_PSP.Clear();
-	g_BootstrapWave_PSP.Destroy();
+	g_WaveBankLoader_PSP.Unload(
+	    g_WaveBank_PSP,
+	    g_BootstrapWaves_PSP,
+	    g_uiLoadedWaves_PSP
+	);
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
 	g_Font_PSP.Destroy();
