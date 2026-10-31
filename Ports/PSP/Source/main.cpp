@@ -188,7 +188,9 @@ int main()
 	}
 
 	const TBOOL bInputReady = oInputInterface.Initialise();
-	const TBOOL bAudioReady = g_SoundManager_PSP.Create() && g_SoundManager_PSP.SubmitSilence();
+	const TBOOL bAudioReady = g_SoundManager_PSP.Create() &&
+	                          g_SoundManager_PSP.SubmitSilence() &&
+	                          g_SoundManager_PSP.WaitForSubmittedBuffer();
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
