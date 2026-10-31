@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **74%** complete, while the
-complete playable-game port is approximately **25%** complete. The second value
+The PSP platform/render bring-up is approximately **75%** complete, while the
+complete playable-game port is approximately **26%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
@@ -24,10 +24,10 @@ or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 55% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas regions, budgets and small factories build for PSP |
-| Real-game asset pipeline | 13% | deterministic PPM/OBJ/font-atlas conversion produces PTEX/PMES runtime assets |
+| PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
+| Real-game asset pipeline | 15% | deterministic converters produce PTEX, PMES and versioned PFNT runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 26% | `AApplication_PSP` owns explicit frame phases and a bounded, asset-labelled menu drives separate probe/info states |
+| Game bootstrap and frontend | 27% | `AApplication_PSP` owns explicit frame phases and a cached asset-backed font labels the menu/probe/info flow |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
@@ -333,6 +333,16 @@ remain largely unstarted.
 - Commit `a119bd18` passed PSP run `41196991679`. The published bundle contains
   `EBOOT.PBP`, `probe.ptex`, `probe.pmes`, and `bootstrap_font.ptex` and is stored
   under `Runtime/PSP/a119bd18`.
+- `PFNT` version 1 stores a fixed 40-byte header followed by 8-byte glyph
+  records. Atlas dimensions, cell/glyph metrics, advance, code points and source
+  positions are serialized with fixed-width Toshi-compatible fields; malformed
+  sizes, duplicate code points and out-of-bounds glyphs are rejected.
+- `T2GUIFontFactory_PSP` bounds font metadata to 64 glyphs, releases its temporary
+  file buffer after creation, and leaves `T2GUIFont_PSP` with a fixed internal
+  record array. The font and its atlas are separate named entries in the bounded
+  PSP render-resource cache.
+- Commit `2bbb2a16` passed PSP run `41197415596`. The five-file bundle adds the
+  264-byte `bootstrap_font.pfnt` and is stored under `Runtime/PSP/2bbb2a16`.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
@@ -340,9 +350,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and capture the debug output and
-memory high-water marks. In parallel, add a compact versioned font-metadata
-format so glyph mapping and metrics can also leave the executable, then bridge
-that data toward the real `T2GUIFont` definition vocabulary. Keep audio and movies
+memory high-water marks. In parallel, bridge the PFNT loader toward the real
+`T2GUIFont` definition vocabulary and add a bounded localized-string resource
+for frontend labels instead of embedding wide string literals. Keep audio and movies
 disabled and retain the dependency-ordered source list; do not add the full
 `OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
 seam until a real game caller requires a specific part of the full
