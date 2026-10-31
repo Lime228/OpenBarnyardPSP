@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **87%** complete, while the
-complete playable-game port is approximately **37%** complete. The second value
+The PSP platform/render bring-up is approximately **88%** complete, while the
+complete playable-game port is approximately **38%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 20% | deterministic converters produce PTEX, PMES, PFNT, PLOC and PPCM runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 38% | integer spatial controls, fixed-point rate, scheduled handles, delayed events, PSP sound events, named wave bank, command queue, mixer, audio worker and PCM assets work; codecs, movies and saves are not started |
+| Audio, movies and saves | 40% | listener/world transforms, integer spatial controls, fixed-point rate, scheduled events, named waves, command queue, mixer, audio worker and PCM assets work; codecs, movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -490,6 +490,17 @@ remain largely unstarted.
   half-right pan and half-volume attenuation, invalid maximum distance, stale
   voice rejection and command-event routing. PPSSPP retained every readiness
   gate as `OK`; the bundle is stored under `Runtime/PSP/77fe2b15`.
+- `ASoundListener_PSP` stores a bounded world position plus Q12 horizontal
+  right/forward axes. Listener validation checks axis length and orthogonality;
+  world-space channel positions are transformed with 64-bit integer dot
+  products before entering the existing pan/attenuation calculation.
+- Listener changes are commands in the same 16-entry ring as channel position,
+  preserving `SetListener` then `UpdateChannelPosition` order at the audio
+  phase boundary without sharing mutable float vectors between tasks.
+- Commit `c21c47c5` passed PSP run `41224645329`. The bootstrap validates a
+  translated, 90-degree rotated listener, rejects a zero basis and checks both
+  direct and queued world-position transforms. PPSSPP retained every readiness
+  gate as `OK`; the bundle is stored under `Runtime/PSP/c21c47c5`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -497,9 +508,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add a bounded listener transform so world-space sound positions
-can feed the existing integer spatial path before attempting FSB decoding or
-the full sound manager. Continue bridging the bounded
+In parallel, add a compact multi-wave bank manifest and loader so converted
+PPCM assets can be registered without hard-coded bootstrap calls before
+attempting compressed codecs or the full sound manager. Continue bridging the
+bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
 dependency-ordered source list; do not add the full
