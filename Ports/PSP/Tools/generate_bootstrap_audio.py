@@ -9,14 +9,17 @@ PPCM_MAGIC = 0x4D435050
 PPCM_VERSION = 1
 SAMPLE_RATE = 44100
 CHANNELS = 2
-SAMPLE_FRAMES = 1024
+DEFAULT_SAMPLE_FRAMES = 1024
 AMPLITUDE = 1200
 HALF_PERIOD_FRAMES = 50
 
 
-def generate(destination: pathlib.Path) -> None:
+def generate(destination: pathlib.Path, sample_frames: int) -> None:
+    if sample_frames <= 0:
+        raise ValueError("sample frame count must be positive")
+
     samples: list[int] = []
-    for frame in range(SAMPLE_FRAMES):
+    for frame in range(sample_frames):
         sample = AMPLITUDE if (frame // HALF_PERIOD_FRAMES) % 2 == 0 else -AMPLITUDE
         samples.extend((sample, sample))
 
@@ -27,7 +30,7 @@ def generate(destination: pathlib.Path) -> None:
             PPCM_VERSION,
             SAMPLE_RATE,
             CHANNELS,
-            SAMPLE_FRAMES,
+            sample_frames,
         )
     )
     output.extend(struct.pack(f"<{len(samples)}h", *samples))
@@ -38,8 +41,9 @@ def generate(destination: pathlib.Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate the PSP bootstrap PCM wave")
     parser.add_argument("destination", type=pathlib.Path)
+    parser.add_argument("--sample-frames", type=int, default=DEFAULT_SAMPLE_FRAMES)
     args = parser.parse_args()
-    generate(args.destination)
+    generate(args.destination, args.sample_frames)
 
 
 if __name__ == "__main__":

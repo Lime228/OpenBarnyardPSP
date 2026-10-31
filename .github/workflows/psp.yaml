@@ -36,10 +36,12 @@ jobs:
           python3 Ports/PSP/Tools/convert_texture.py --alpha-mask Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.ptex
           python3 Ports/PSP/Tools/generate_bootstrap_locale.py Ports/PSP/Assets/bootstrap_locale.ploc
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py Ports/PSP/Assets/bootstrap_audio.ppcm
+          python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/bootstrap_stream.ppcm --sample-frames 3072
           python3 Ports/PSP/Tools/generate_wave_bank.py /tmp/bootstrap_audio.pbnk --wave bootstrap=local:bootstrap_audio.ppcm
           cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
           cmp Ports/PSP/Assets/bootstrap_audio.pbnk /tmp/bootstrap_audio.pbnk
+          cmp Ports/PSP/Assets/bootstrap_stream.ppcm /tmp/bootstrap_stream.ppcm
 
       - name: Generate PSP project
         env:
@@ -69,4 +71,5 @@ jobs:
             bin/PSP/Release/bootstrap_locale.ploc
             bin/PSP/Release/bootstrap_audio.ppcm
             bin/PSP/Release/bootstrap_audio.pbnk
+            bin/PSP/Release/bootstrap_stream.ppcm
           if-no-files-found: error

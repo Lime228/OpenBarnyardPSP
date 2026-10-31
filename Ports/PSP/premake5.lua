@@ -114,6 +114,7 @@ project "OpenBarnyardPSP"
 		'cp -f "../../Ports/PSP/Assets/bootstrap_locale.ploc" "%{cfg.targetdir}/bootstrap_locale.ploc"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_audio.ppcm" "%{cfg.targetdir}/bootstrap_audio.ppcm"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_audio.pbnk" "%{cfg.targetdir}/bootstrap_audio.pbnk"',
+		'cp -f "../../Ports/PSP/Assets/bootstrap_stream.ppcm" "%{cfg.targetdir}/bootstrap_stream.ppcm"',
 		'rm -f "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"'
 	}
 
