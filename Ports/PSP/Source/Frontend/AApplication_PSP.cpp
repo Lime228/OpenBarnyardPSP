@@ -1,4 +1,5 @@
 #include "AApplication_PSP.h"
+#include "AGameStateController_PSP.h"
 
 AApplication_PSP::AApplication_PSP(
     Toshi::TInputInterface_PSP* a_pInputInterface,
@@ -29,11 +30,13 @@ TBOOL AApplication_PSP::Create( const AFrontendRenderContext_PSP* a_pRenderConte
 	m_FrontendState = {};
 
 	// TScheduler inserts new root tasks at the head, so reverse creation keeps
-	// the retail frame order: input, update, then render.
-	auto* pRenderTask = m_pScheduler->CreateTask<AFrontendRenderTask_PSP>();
-	auto* pUpdateTask = m_pScheduler->CreateTask<AFrontendUpdateTask_PSP>();
-	auto* pInputTask  = m_pScheduler->CreateTask<AFrontendInputTask_PSP>();
-	if ( pRenderTask == TNULL || pUpdateTask == TNULL || pInputTask == TNULL )
+	// the retail frame order: input, state controller, update, then render.
+	auto* pRenderTask          = m_pScheduler->CreateTask<AFrontendRenderTask_PSP>();
+	auto* pUpdateTask          = m_pScheduler->CreateTask<AFrontendUpdateTask_PSP>();
+	auto* pStateControllerTask = m_pScheduler->CreateTask<AGameStateController_PSP>();
+	auto* pInputTask           = m_pScheduler->CreateTask<AFrontendInputTask_PSP>();
+	if ( pRenderTask == TNULL || pUpdateTask == TNULL ||
+	     pStateControllerTask == TNULL || pInputTask == TNULL )
 	{
 		m_pScheduler->DestroyAllTasks();
 		return TFALSE;
@@ -42,9 +45,12 @@ TBOOL AApplication_PSP::Create( const AFrontendRenderContext_PSP* a_pRenderConte
 	pRenderTask->SetState( &m_FrontendState );
 	pRenderTask->SetContext( a_pRenderContext );
 	pUpdateTask->SetState( &m_FrontendState );
+	pStateControllerTask->SetState( &m_FrontendState );
+	pStateControllerTask->SetContext( a_pRenderContext );
 	pInputTask->SetState( &m_FrontendState );
 
-	if ( !pRenderTask->Create() || !pUpdateTask->Create() || !pInputTask->Create() )
+	if ( !pRenderTask->Create() || !pUpdateTask->Create() ||
+	     !pStateControllerTask->Create() || !pInputTask->Create() )
 	{
 		m_pScheduler->DestroyAllTasks();
 		return TFALSE;

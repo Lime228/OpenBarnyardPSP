@@ -41,6 +41,9 @@ TBOOL AFrontendUpdateTask_PSP::OnCreate()
 
 TBOOL AFrontendUpdateTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 {
+	if ( m_pState->eState != AFrontendState_PSP_Probe )
+		return TTRUE;
+
 	m_pState->fXOffset += m_pState->fAnalogX * 120.0f * a_fDeltaTime;
 	if ( m_pState->fXOffset < -100.0f ) m_pState->fXOffset = -100.0f;
 	if ( m_pState->fXOffset > 100.0f ) m_pState->fXOffset = 100.0f;
@@ -64,18 +67,23 @@ TBOOL AFrontendRenderTask_PSP::OnCreate()
 TBOOL AFrontendRenderTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 {
 	(void)a_fDeltaTime;
-	const TUINT32 uiClearColor = m_pContext->bBootstrapReady
-	    ? ( m_pState->bConfirmDown ? 0xff402010 : 0xff201810 )
-	    : 0xff202080;
+	TUINT32 uiClearColor = 0xff202080;
+	if ( m_pState->eState == AFrontendState_PSP_Probe )
+		uiClearColor = m_pState->bConfirmDown ? 0xff402010 : 0xff201810;
+	else if ( m_pState->eState == AFrontendState_PSP_Error )
+		uiClearColor = 0xff202080;
 
 	m_pContext->pRenderInterface->BeginScene( uiClearColor );
-	m_pContext->pRenderInterface->DrawColourTriangle( m_pState->fXOffset );
-	if ( m_pContext->bMeshReady && m_pContext->pVertices != TNULL && m_pContext->pIndices != TNULL )
-		m_pContext->pRenderInterface->DrawIndexedColourTriangles( *m_pContext->pVertices, *m_pContext->pIndices );
-	if ( m_pContext->pTexture != TNULL )
-		m_pContext->pRenderInterface->DrawTextureSprite( *m_pContext->pTexture, 176.0f + m_pState->fXOffset, 72.0f, 128.0f, 128.0f );
-	if ( m_pContext->pModel != TNULL && m_pContext->pTexture != TNULL && m_pContext->pMaterial != TNULL )
-		m_pContext->pRenderInterface->DrawModel( *m_pContext->pModel, m_pState->fModelRotation, *m_pContext->pMaterial, m_pContext->pTexture );
+	if ( m_pState->eState == AFrontendState_PSP_Probe )
+	{
+		m_pContext->pRenderInterface->DrawColourTriangle( m_pState->fXOffset );
+		if ( m_pContext->bMeshReady && m_pContext->pVertices != TNULL && m_pContext->pIndices != TNULL )
+			m_pContext->pRenderInterface->DrawIndexedColourTriangles( *m_pContext->pVertices, *m_pContext->pIndices );
+		if ( m_pContext->pTexture != TNULL )
+			m_pContext->pRenderInterface->DrawTextureSprite( *m_pContext->pTexture, 176.0f + m_pState->fXOffset, 72.0f, 128.0f, 128.0f );
+		if ( m_pContext->pModel != TNULL && m_pContext->pTexture != TNULL && m_pContext->pMaterial != TNULL )
+			m_pContext->pRenderInterface->DrawModel( *m_pContext->pModel, m_pState->fModelRotation, *m_pContext->pMaterial, m_pContext->pTexture );
+	}
 	m_pContext->pRenderInterface->EndScene();
 	return TTRUE;
 }

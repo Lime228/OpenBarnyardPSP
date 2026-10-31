@@ -3,13 +3,23 @@
 #include <Toshi/TTask.h>
 #include <Render/TBackend.h>
 
+enum AFrontendState_PSP
+{
+	AFrontendState_PSP_Boot,
+	AFrontendState_PSP_Probe,
+	AFrontendState_PSP_Error,
+};
+
 struct AFrontendBootstrapState_PSP
 {
 	TFLOAT fAnalogX;
 	TFLOAT fXOffset;
 	TFLOAT fModelRotation;
+	TFLOAT fStateTime;
 	TBOOL  bConfirmDown;
 	TUINT  uiFrameCount;
+	TUINT  uiTransitionCount;
+	AFrontendState_PSP eState;
 };
 
 struct AFrontendRenderContext_PSP
