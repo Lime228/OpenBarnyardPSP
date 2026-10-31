@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **73%** complete, while the
-complete playable-game port is approximately **24%** complete. The second value
+The PSP platform/render bring-up is approximately **74%** complete, while the
+complete playable-game port is approximately **25%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, audio, UI, world streaming,
 or gameplay validation on hardware.
@@ -24,10 +24,10 @@ or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 53% | GU display, depth, indexed static models, textures, materials, colour rectangles, a bootstrap font, budgets and small factories build for PSP |
-| Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
+| PSP renderer foundation | 55% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas regions, budgets and small factories build for PSP |
+| Real-game asset pipeline | 13% | deterministic PPM/OBJ/font-atlas conversion produces PTEX/PMES runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 25% | `AApplication_PSP` owns explicit frame phases and a bounded navigable menu drives separate probe/info states |
+| Game bootstrap and frontend | 26% | `AApplication_PSP` owns explicit frame phases and a bounded, asset-labelled menu drives separate probe/info states |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
@@ -322,6 +322,17 @@ remain largely unstarted.
   the frontend Cancel action instead of reading PSP doodads directly.
 - Commit `d2cedb77` passed PSP run `41196694395`, including Premake generation,
   the new frontend/input compilation, EBOOT packaging, and artifact publication.
+- The bootstrap font is now a deterministic 64x32 alpha atlas generated offline
+  and converted to swizzled `bootstrap_font.ptex`. `T2GUIFont_PSP` keeps only the
+  compact character map and submits one alpha-blended texture region per glyph
+  instead of emitting a GU rectangle for every lit pixel.
+- The font atlas is loaded through `TTextureFactory_PSP`, registered in the
+  bounded resource cache, required by the bootstrap gate, and released through
+  the existing texture lifecycle. The menu checker remains a Menu-state marker;
+  all 3D model/mesh probes remain available in the separate Probe state.
+- Commit `a119bd18` passed PSP run `41196991679`. The published bundle contains
+  `EBOOT.PBP`, `probe.ptex`, `probe.pmes`, and `bootstrap_font.ptex` and is stored
+  under `Runtime/PSP/a119bd18`.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
@@ -329,9 +340,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and capture the debug output and
-memory high-water marks. In parallel, replace the bootstrap glyph table with
-the smallest asset-backed font seam that can feed `T2GUIFont_PSP`, then add a
-bounded frontend menu-item model and selection state. Keep audio and movies
+memory high-water marks. In parallel, add a compact versioned font-metadata
+format so glyph mapping and metrics can also leave the executable, then bridge
+that data toward the real `T2GUIFont` definition vocabulary. Keep audio and movies
 disabled and retain the dependency-ordered source list; do not add the full
 `OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
 seam until a real game caller requires a specific part of the full
