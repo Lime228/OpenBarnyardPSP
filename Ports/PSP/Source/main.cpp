@@ -10,6 +10,7 @@
 
 #include "Frontend/AApplication_PSP.h"
 #include "Frontend/AFrontendLocale_PSP.h"
+#include "Diagnostics/APortReport_PSP.h"
 #include "Locale/ALocaleManager_PSP.h"
 #include "ToshiSmoke.h"
 
@@ -192,8 +193,6 @@ int main()
 	const TBOOL bFontReady      = bFontTextureReady && LoadFontFile_PSP();
 	const TBOOL bLocaleReady    = bFileReady && LoadLocaleFile_PSP();
 	const TBOOL bModelReady     = bFileReady && LoadProbeModelFile_PSP();
-	if ( bFileReady )
-		Toshi::TFileManager::Destroy();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
 	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
 	    "probe.texture",
@@ -273,8 +272,35 @@ int main()
 	    TUINT( oMemoryStats.uiEDRAMCurrent ),
 	    TUINT( oMemoryStats.uiEDRAMBudget )
 	);
+	APortReportData_PSP oPortReport = {
+		"RUNNING",
+		bBootstrapReady,
+		bInputReady,
+		bToshiReady,
+		bFileReady,
+		bTextureReady,
+		bFontReady,
+		bLocaleReady,
+		bMeshReady,
+		bModelReady,
+		bCacheReady,
+		bSchedulerReady,
+		0,
+		oMemoryStats,
+	};
+	if ( bFileReady )
+		APortReport_PSP::Write( oPortReport );
 
 	while ( g_Running && oApplication.Update() ) {}
+
+	oPortReport.pStage = "CLEAN_EXIT";
+	oPortReport.uiFrameCount = oApplication.GetFrontendState().uiFrameCount;
+	oPortReport.oMemory = Toshi::TRenderMemory_PSP::GetStats();
+	if ( bFileReady )
+	{
+		APortReport_PSP::Write( oPortReport );
+		Toshi::TFileManager::Destroy();
+	}
 
 	oApplication.Destroy();
 	oInputInterface.Deinitialise();
