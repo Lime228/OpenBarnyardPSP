@@ -354,6 +354,16 @@ remain largely unstarted.
 - Commit `9e78933f` passed PSP run `41197984217`. Its six-file bundle adds the
   230-byte `bootstrap_locale.ploc` and is stored under
   `Runtime/PSP/9e78933f`.
+- `ALocaleManager_PSP` mirrors the original manager's language, filename and
+  string-access vocabulary while owning the bounded PLOC resource. The current
+  bootstrap deliberately supports only English UK; unsupported language IDs
+  fail before attempting file I/O.
+- The offline bootstrap font now contains digits and diagnostic punctuation in
+  a 64x64 atlas. The port-status state uses those glyphs to render its live
+  scheduler frame count through a fixed stack buffer and Toshi scalar types.
+- Commit `8428c4c3` passed PSP run `41198218249`. Its bundle contains the
+  expanded 16,408-byte font texture, 368-byte PFNT metadata and 248-byte PLOC
+  table and is stored under `Runtime/PSP/8428c4c3`.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
