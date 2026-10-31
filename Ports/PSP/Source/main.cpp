@@ -35,6 +35,7 @@ alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
 	{}
 };
 static Toshi::T2Texture g_ProbeTexture;
+static Toshi::T2Texture g_FontTexture_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
 static Toshi::TRenderResourceCache_PSP g_ResourceCache_PSP;
@@ -54,6 +55,11 @@ static_assert( sizeof( void* ) == 4, "The PSP port requires a 32-bit ABI" );
 static TBOOL LoadProbeTextureFile_PSP()
 {
 	return g_TextureFactory_PSP.CreateTextureFromFile( g_ProbeTexture, "local:probe.ptex" );
+}
+
+static TBOOL LoadFontTextureFile_PSP()
+{
+	return g_TextureFactory_PSP.CreateTextureFromFile( g_FontTexture_PSP, "local:bootstrap_font.ptex" );
 }
 
 static TBOOL LoadProbeModelFile_PSP()
@@ -161,6 +167,7 @@ int main()
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
+	const TBOOL bFontReady      = bFileReady && LoadFontTextureFile_PSP();
 	const TBOOL bModelReady     = bFileReady && LoadProbeModelFile_PSP();
 	if ( bFileReady )
 		Toshi::TFileManager::Destroy();
@@ -175,6 +182,11 @@ int main()
 	    Toshi::TRENDERRESOURCETYPE_PSP_MODEL,
 	    &g_ProbeModel_PSP
 	);
+	const TBOOL bFontCached = bFontReady && g_ResourceCache_PSP.Register(
+	    "bootstrap.font",
+	    Toshi::TRENDERRESOURCETYPE_PSP_TEXTURE,
+	    &g_FontTexture_PSP
+	);
 	auto* pCachedTexture = static_cast<Toshi::T2Texture*>( g_ResourceCache_PSP.Find(
 	    "PROBE.TEXTURE",
 	    Toshi::TRENDERRESOURCETYPE_PSP_TEXTURE
@@ -183,13 +195,20 @@ int main()
 	    "PROBE.MODEL",
 	    Toshi::TRENDERRESOURCETYPE_PSP_MODEL
 	) );
-	const TBOOL bCacheReady = bTextureCached && bModelCached &&
-	                          pCachedTexture == &g_ProbeTexture && pCachedModel == &g_ProbeModel_PSP;
+	auto* pCachedFont = static_cast<Toshi::T2Texture*>( g_ResourceCache_PSP.Find(
+	    "BOOTSTRAP.FONT",
+	    Toshi::TRENDERRESOURCETYPE_PSP_TEXTURE
+	) );
+	const TBOOL bCacheReady = bTextureCached && bModelCached && bFontCached &&
+	                          pCachedTexture == &g_ProbeTexture &&
+	                          pCachedModel == &g_ProbeModel_PSP &&
+	                          pCachedFont == &g_FontTexture_PSP;
 	AFrontendRenderContext_PSP oRenderContext = {
 		&g_RenderInterface,
 		&g_ProbeVertices_PSP,
 		&g_ProbeIndices_PSP,
 		pCachedTexture,
+		pCachedFont,
 		pCachedModel,
 		&g_ProbeMaterial_PSP,
 		TFALSE,
@@ -199,11 +218,12 @@ int main()
 	AApplication_PSP oApplication( &oInputInterface, &oScheduler, &oFrameTimer );
 	const TBOOL bSchedulerReady = oApplication.Create( &oRenderContext );
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
-	                              bTextureReady && bMeshReady && bModelReady && bCacheReady;
+	                              bTextureReady && bFontReady && bMeshReady && bModelReady && bCacheReady;
 	oRenderContext.bBootstrapReady = bBootstrapReady;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
 	TDebug_FinalPrintf( "[PSP render] layout      %s\n", g_ProbeTexture.IsSwizzled() ? "swizzled" : "linear" );
+	TDebug_FinalPrintf( "[PSP render] font atlas  %s\n", bFontReady ? "bootstrap_font.ptex" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
@@ -224,6 +244,7 @@ int main()
 	oInputInterface.Deinitialise();
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
+	g_FontTexture_PSP.Unload();
 	g_ProbeTexture.Unload();
 	g_ProbeIndices_PSP.Destroy();
 	g_ProbeVertices_PSP.Destroy();
