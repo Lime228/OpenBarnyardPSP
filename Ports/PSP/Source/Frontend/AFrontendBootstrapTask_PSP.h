@@ -10,6 +10,7 @@ enum AFrontendState_PSP
 	AFrontendState_PSP_Boot,
 	AFrontendState_PSP_Menu,
 	AFrontendState_PSP_Probe,
+	AFrontendState_PSP_Info,
 	AFrontendState_PSP_Error,
 };
 

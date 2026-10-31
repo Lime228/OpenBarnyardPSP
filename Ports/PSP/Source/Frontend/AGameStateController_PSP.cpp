@@ -68,6 +68,7 @@ AGameState_PSP* AGameStateController_PSP::GetState( AFrontendState_PSP a_eState 
 	{
 		case AFrontendState_PSP_Menu: return &m_MainMenuState;
 		case AFrontendState_PSP_Probe: return &m_ProbeState;
+		case AFrontendState_PSP_Info: return &m_InfoState;
 		default: return TNULL;
 	}
 }

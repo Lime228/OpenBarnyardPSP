@@ -2,6 +2,7 @@
 
 #include "AFrontendBootstrapTask_PSP.h"
 #include "AFrontEndMainMenuState2_PSP.h"
+#include "AFrontendInfoState_PSP.h"
 #include "AProbeState_PSP.h"
 
 class AGameStateController_PSP : public Toshi::TTask
@@ -27,4 +28,5 @@ private:
 	const AFrontendRenderContext_PSP* m_pContext;
 	AFrontEndMainMenuState2_PSP       m_MainMenuState;
 	AProbeState_PSP                   m_ProbeState;
+	AFrontendInfoState_PSP            m_InfoState;
 };
