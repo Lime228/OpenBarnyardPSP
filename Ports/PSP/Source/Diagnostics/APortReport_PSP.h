@@ -10,6 +10,7 @@ struct APortReportData_PSP
 	TBOOL bInputReady;
 	TBOOL bToshiReady;
 	TBOOL bFileReady;
+	TBOOL bAudioReady;
 	TBOOL bTextureReady;
 	TBOOL bFontReady;
 	TBOOL bLocaleReady;

@@ -12,6 +12,7 @@
 #include "Frontend/AFrontendLocale_PSP.h"
 #include "Diagnostics/APortReport_PSP.h"
 #include "Locale/ALocaleManager_PSP.h"
+#include "Sound/ASoundManager_PSP.h"
 #include "ToshiSmoke.h"
 
 PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
@@ -41,6 +42,7 @@ static Toshi::T2Texture g_ProbeTexture;
 static Toshi::T2Texture g_FontTexture_PSP;
 static Toshi::T2GUIFont_PSP g_Font_PSP;
 static ALocaleManager_PSP g_LocaleManager_PSP;
+static ASoundManager_PSP g_SoundManager_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::T2GUIFontFactory_PSP g_FontFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
@@ -186,6 +188,7 @@ int main()
 	}
 
 	const TBOOL bInputReady = oInputInterface.Initialise();
+	const TBOOL bAudioReady = g_SoundManager_PSP.Create() && g_SoundManager_PSP.SubmitSilence();
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -251,7 +254,8 @@ int main()
 	AApplication_PSP oApplication( &oInputInterface, &oScheduler, &oFrameTimer );
 	const TBOOL bSchedulerReady = oApplication.Create( &oRenderContext );
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
-	                              bTextureReady && bFontReady && bLocaleReady && bMeshReady && bModelReady && bCacheReady;
+	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
+	                              bMeshReady && bModelReady && bCacheReady;
 	oRenderContext.bBootstrapReady = bBootstrapReady;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
@@ -259,6 +263,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] font atlas  %s\n", bFontTextureReady ? "bootstrap_font.ptex" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] font data   %s\n", bFontReady ? "bootstrap_font.pfnt" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP frontend] locale    %s\n", bLocaleReady ? "bootstrap_locale.ploc" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP sound] audio        %s (channel %d)\n", bAudioReady ? "OK" : "FAILED", g_SoundManager_PSP.GetChannel() );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
@@ -278,6 +283,7 @@ int main()
 		bInputReady,
 		bToshiReady,
 		bFileReady,
+		bAudioReady,
 		bTextureReady,
 		bFontReady,
 		bLocaleReady,
@@ -304,6 +310,7 @@ int main()
 
 	oApplication.Destroy();
 	oInputInterface.Deinitialise();
+	g_SoundManager_PSP.Destroy();
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
 	g_Font_PSP.Destroy();
