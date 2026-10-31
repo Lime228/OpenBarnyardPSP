@@ -124,9 +124,19 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 	    0,
 	    TTRUE
 	);
+	const ASoundPosition_PSP oHalfRightPosition = { 500, 0, 0, 1000 };
+	const ASoundPosition_PSP oInvalidPosition = { 0, 0, 0, 0 };
+	TINT iSpatialPan = 0;
+	TUINT uiAttenuation = 0;
 	if ( hStoppedVoice == ASoundMixer_PSP::INVALID_VOICE ||
+	     !g_SoundMixer_PSP.SetPosition( hStoppedVoice, oHalfRightPosition ) ||
+	     !g_SoundMixer_PSP.GetSpatialState( hStoppedVoice, iSpatialPan, uiAttenuation ) ||
+	     iSpatialPan != ASoundMixer_PSP::MAX_PAN / 2 ||
+	     uiAttenuation != ASoundMixer_PSP::MAX_VOLUME / 2 ||
+	     g_SoundMixer_PSP.SetPosition( hStoppedVoice, oInvalidPosition ) ||
 	     !g_SoundMixer_PSP.Stop( hStoppedVoice ) ||
-	     g_SoundMixer_PSP.SetVolume( hStoppedVoice, ASoundMixer_PSP::MAX_VOLUME ) )
+	     g_SoundMixer_PSP.SetVolume( hStoppedVoice, ASoundMixer_PSP::MAX_VOLUME ) ||
+	     g_SoundMixer_PSP.GetSpatialState( hStoppedVoice, iSpatialPan, uiAttenuation ) )
 	{
 		return TFALSE;
 	}
@@ -211,6 +221,10 @@ static TBOOL TestSoundCommandQueue_PSP()
 		ASoundEventType_PSP_UpdateChannelFrequency, TNULL, hVoice,
 		0, 0, TFALSE, ASoundMixer_PSP::DEFAULT_FREQUENCY / 2,
 	};
+	const ASoundEvent_PSP oPositionEvent = {
+		ASoundEventType_PSP_UpdateChannelPosition, TNULL, hVoice,
+		0, 0, TFALSE, 0, { -250, 0, 0, 1000 },
+	};
 	const ASoundEvent_PSP oStopEvent = {
 		ASoundEventType_PSP_StopAudio, TNULL, hVoice, 0, 0, TFALSE,
 	};
@@ -218,6 +232,7 @@ static TBOOL TestSoundCommandQueue_PSP()
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oVolumeEvent, uiControlRequest ) &&
 	    uiControlRequest == ASoundCommandQueue_PSP::INVALID_REQUEST &&
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oFrequencyEvent, uiControlRequest ) &&
+	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oPositionEvent, uiControlRequest ) &&
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oPanEvent, uiControlRequest ) &&
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oStopEvent, uiControlRequest );
 	const TBOOL bControlsProcessed = bControlsQueued &&
