@@ -125,7 +125,19 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 	    TTRUE
 	);
 	const ASoundPosition_PSP oHalfRightPosition = { 500, 0, 0, 1000 };
+	const ASoundPosition_PSP oHalfRightWorldPosition = { 100, 0, -400, 1000 };
 	const ASoundPosition_PSP oInvalidPosition = { 0, 0, 0, 0 };
+	const ASoundListener_PSP oRotatedListener = {
+		100, 0, 100,
+		0, -ASoundMixer_PSP::LISTENER_AXIS_SCALE,
+		ASoundMixer_PSP::LISTENER_AXIS_SCALE, 0,
+	};
+	const ASoundListener_PSP oIdentityListener = {
+		0, 0, 0,
+		ASoundMixer_PSP::LISTENER_AXIS_SCALE, 0,
+		0, ASoundMixer_PSP::LISTENER_AXIS_SCALE,
+	};
+	const ASoundListener_PSP oInvalidListener = {};
 	TINT iSpatialPan = 0;
 	TUINT uiAttenuation = 0;
 	if ( hStoppedVoice == ASoundMixer_PSP::INVALID_VOICE ||
@@ -133,6 +145,13 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 	     !g_SoundMixer_PSP.GetSpatialState( hStoppedVoice, iSpatialPan, uiAttenuation ) ||
 	     iSpatialPan != ASoundMixer_PSP::MAX_PAN / 2 ||
 	     uiAttenuation != ASoundMixer_PSP::MAX_VOLUME / 2 ||
+	     !g_SoundMixer_PSP.SetListener( oRotatedListener ) ||
+	     !g_SoundMixer_PSP.SetWorldPosition( hStoppedVoice, oHalfRightWorldPosition ) ||
+	     !g_SoundMixer_PSP.GetSpatialState( hStoppedVoice, iSpatialPan, uiAttenuation ) ||
+	     iSpatialPan != ASoundMixer_PSP::MAX_PAN / 2 ||
+	     uiAttenuation != ASoundMixer_PSP::MAX_VOLUME / 2 ||
+	     g_SoundMixer_PSP.SetListener( oInvalidListener ) ||
+	     !g_SoundMixer_PSP.SetListener( oIdentityListener ) ||
 	     g_SoundMixer_PSP.SetPosition( hStoppedVoice, oInvalidPosition ) ||
 	     !g_SoundMixer_PSP.Stop( hStoppedVoice ) ||
 	     g_SoundMixer_PSP.SetVolume( hStoppedVoice, ASoundMixer_PSP::MAX_VOLUME ) ||
@@ -223,12 +242,18 @@ static TBOOL TestSoundCommandQueue_PSP()
 	};
 	const ASoundEvent_PSP oPositionEvent = {
 		ASoundEventType_PSP_UpdateChannelPosition, TNULL, hVoice,
-		0, 0, TFALSE, 0, { -250, 0, 0, 1000 },
+		0, 0, TFALSE, 0, { 100, 0, -150, 1000 },
+	};
+	const ASoundListener_PSP oQueuedListener = {
+		100, 0, 100,
+		0, -ASoundMixer_PSP::LISTENER_AXIS_SCALE,
+		ASoundMixer_PSP::LISTENER_AXIS_SCALE, 0,
 	};
 	const ASoundEvent_PSP oStopEvent = {
 		ASoundEventType_PSP_StopAudio, TNULL, hVoice, 0, 0, TFALSE,
 	};
 	const TBOOL bControlsQueued =
+	    g_SoundCommandQueue_PSP.QueueSetListener( oQueuedListener ) &&
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oVolumeEvent, uiControlRequest ) &&
 	    uiControlRequest == ASoundCommandQueue_PSP::INVALID_REQUEST &&
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oFrequencyEvent, uiControlRequest ) &&
