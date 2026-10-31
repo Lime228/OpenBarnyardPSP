@@ -6,13 +6,13 @@
 enum AFrontendState_PSP
 {
 	AFrontendState_PSP_Boot,
+	AFrontendState_PSP_Menu,
 	AFrontendState_PSP_Probe,
 	AFrontendState_PSP_Error,
 };
 
 struct AFrontendBootstrapState_PSP
 {
-	TFLOAT fAnalogX;
 	TFLOAT fXOffset;
 	TFLOAT fModelRotation;
 	TFLOAT fStateTime;
@@ -32,23 +32,6 @@ struct AFrontendRenderContext_PSP
 	const Toshi::TRenderMaterial_PSP* pMaterial;
 	TBOOL                             bBootstrapReady;
 	TBOOL                             bMeshReady;
-};
-
-class AFrontendInputTask_PSP : public Toshi::TTask
-{
-public:
-	TDECLARE_CLASS( AFrontendInputTask_PSP, Toshi::TTask );
-
-public:
-	AFrontendInputTask_PSP();
-
-	virtual TBOOL OnCreate() override;
-	virtual TBOOL OnUpdate( TFLOAT a_fDeltaTime ) override;
-
-	void SetState( AFrontendBootstrapState_PSP* a_pState ) { m_pState = a_pState; }
-
-private:
-	AFrontendBootstrapState_PSP* m_pState;
 };
 
 class AFrontendUpdateTask_PSP : public Toshi::TTask

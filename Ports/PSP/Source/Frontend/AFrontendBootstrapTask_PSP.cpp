@@ -1,33 +1,8 @@
 #include "AFrontendBootstrapTask_PSP.h"
+#include "../Input/AInputHandler_PSP.h"
 
-#include <Platform/PSP/Input/TInputInterface_PSP.h>
-
-TDEFINE_CLASS( AFrontendInputTask_PSP );
 TDEFINE_CLASS( AFrontendUpdateTask_PSP );
 TDEFINE_CLASS( AFrontendRenderTask_PSP );
-
-AFrontendInputTask_PSP::AFrontendInputTask_PSP()
-    : m_pState( TNULL )
-{
-}
-
-TBOOL AFrontendInputTask_PSP::OnCreate()
-{
-	return m_pState != TNULL;
-}
-
-TBOOL AFrontendInputTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
-{
-	(void)a_fDeltaTime;
-	auto* pInputInterface = static_cast<Toshi::TInputInterface_PSP*>( Toshi::TInputInterface::GetSingleton() );
-	if ( pInputInterface == TNULL )
-		return TTRUE;
-
-	const Toshi::TInputDeviceController_PSP& rController = pInputInterface->GetController();
-	m_pState->fAnalogX = rController.GetAxisFloat( Toshi::TInputDeviceController::STICK_LEFT, 0 );
-	m_pState->bConfirmDown = rController.IsDown( Toshi::TInputDeviceController::BUTTON_CONTEXT_3 );
-	return TTRUE;
-}
 
 AFrontendUpdateTask_PSP::AFrontendUpdateTask_PSP()
     : m_pState( TNULL )
@@ -44,7 +19,9 @@ TBOOL AFrontendUpdateTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	if ( m_pState->eState != AFrontendState_PSP_Probe )
 		return TTRUE;
 
-	m_pState->fXOffset += m_pState->fAnalogX * 120.0f * a_fDeltaTime;
+	const AInputHandler_PSP* pInputHandler = AInputHandler_PSP::GetSingleton();
+	const TFLOAT fMoveX = pInputHandler != TNULL ? pInputHandler->GetMoveX() : 0.0f;
+	m_pState->fXOffset += fMoveX * 120.0f * a_fDeltaTime;
 	if ( m_pState->fXOffset < -100.0f ) m_pState->fXOffset = -100.0f;
 	if ( m_pState->fXOffset > 100.0f ) m_pState->fXOffset = 100.0f;
 
@@ -70,11 +47,18 @@ TBOOL AFrontendRenderTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	TUINT32 uiClearColor = 0xff202080;
 	if ( m_pState->eState == AFrontendState_PSP_Probe )
 		uiClearColor = m_pState->bConfirmDown ? 0xff402010 : 0xff201810;
+	else if ( m_pState->eState == AFrontendState_PSP_Menu )
+		uiClearColor = 0xff302010;
 	else if ( m_pState->eState == AFrontendState_PSP_Error )
 		uiClearColor = 0xff202080;
 
 	m_pContext->pRenderInterface->BeginScene( uiClearColor );
-	if ( m_pState->eState == AFrontendState_PSP_Probe )
+	if ( m_pState->eState == AFrontendState_PSP_Menu )
+	{
+		if ( m_pContext->pTexture != TNULL )
+			m_pContext->pRenderInterface->DrawTextureSprite( *m_pContext->pTexture, 176.0f, 72.0f, 128.0f, 128.0f );
+	}
+	else if ( m_pState->eState == AFrontendState_PSP_Probe )
 	{
 		m_pContext->pRenderInterface->DrawColourTriangle( m_pState->fXOffset );
 		if ( m_pContext->bMeshReady && m_pContext->pVertices != TNULL && m_pContext->pIndices != TNULL )

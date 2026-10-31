@@ -1,4 +1,5 @@
 #include "AGameStateController_PSP.h"
+#include "../Input/AInputHandler_PSP.h"
 
 #include <Toshi/TDebug.h>
 
@@ -27,9 +28,27 @@ TBOOL AGameStateController_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	{
 		EnterState(
 		    m_pContext->bBootstrapReady
-		        ? AFrontendState_PSP_Probe
+		        ? AFrontendState_PSP_Menu
 		        : AFrontendState_PSP_Error
 		);
+	}
+	else
+	{
+		const AInputHandler_PSP* pInputHandler = AInputHandler_PSP::GetSingleton();
+		if ( pInputHandler != TNULL )
+		{
+			m_pState->bConfirmDown = pInputHandler->IsActionDown( AInputAction_PSP_Confirm );
+			if ( m_pState->eState == AFrontendState_PSP_Menu &&
+			     pInputHandler->IsActionPressed( AInputAction_PSP_Confirm ) )
+			{
+				EnterState( AFrontendState_PSP_Probe );
+			}
+			else if ( m_pState->eState == AFrontendState_PSP_Probe &&
+			          pInputHandler->IsActionPressed( AInputAction_PSP_Cancel ) )
+			{
+				EnterState( AFrontendState_PSP_Menu );
+			}
+		}
 	}
 
 	return TTRUE;

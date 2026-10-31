@@ -1,5 +1,6 @@
 #include "AApplication_PSP.h"
 #include "AGameStateController_PSP.h"
+#include "../Input/AInputHandler_PSP.h"
 
 AApplication_PSP::AApplication_PSP(
     Toshi::TInputInterface_PSP* a_pInputInterface,
@@ -34,7 +35,7 @@ TBOOL AApplication_PSP::Create( const AFrontendRenderContext_PSP* a_pRenderConte
 	auto* pRenderTask          = m_pScheduler->CreateTask<AFrontendRenderTask_PSP>();
 	auto* pUpdateTask          = m_pScheduler->CreateTask<AFrontendUpdateTask_PSP>();
 	auto* pStateControllerTask = m_pScheduler->CreateTask<AGameStateController_PSP>();
-	auto* pInputTask           = m_pScheduler->CreateTask<AFrontendInputTask_PSP>();
+	auto* pInputTask           = m_pScheduler->CreateTask<AInputHandler_PSP>();
 	if ( pRenderTask == TNULL || pUpdateTask == TNULL ||
 	     pStateControllerTask == TNULL || pInputTask == TNULL )
 	{
@@ -47,8 +48,6 @@ TBOOL AApplication_PSP::Create( const AFrontendRenderContext_PSP* a_pRenderConte
 	pUpdateTask->SetState( &m_FrontendState );
 	pStateControllerTask->SetState( &m_FrontendState );
 	pStateControllerTask->SetContext( a_pRenderContext );
-	pInputTask->SetState( &m_FrontendState );
-
 	if ( !pRenderTask->Create() || !pUpdateTask->Create() ||
 	     !pStateControllerTask->Create() || !pInputTask->Create() )
 	{
