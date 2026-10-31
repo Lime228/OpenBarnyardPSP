@@ -8,6 +8,7 @@
 
 class ASoundManager_PSP;
 class ASoundMixer_PSP;
+class ASoundCommandQueue_PSP;
 
 enum AApplicationFlag_PSP
 {
@@ -28,7 +29,8 @@ public:
 	TBOOL Create(
 	    const AFrontendRenderContext_PSP* a_pRenderContext,
 	    ASoundManager_PSP* a_pSoundManager,
-	    ASoundMixer_PSP* a_pSoundMixer
+	    ASoundMixer_PSP* a_pSoundMixer,
+	    ASoundCommandQueue_PSP* a_pSoundCommandQueue
 	);
 	TBOOL Update();
 	void  Destroy();
