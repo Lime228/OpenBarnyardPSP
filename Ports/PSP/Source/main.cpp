@@ -144,6 +144,29 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 	       !g_SoundMixer_PSP.SetPan( hBootstrapVoice, 0 );
 }
 
+static TBOOL TestBootstrapVoiceFrequency_PSP()
+{
+	const ASoundVoiceHandle_PSP hVoice = g_SoundMixer_PSP.Play(
+	    &g_BootstrapWave_PSP,
+	    0,
+	    0,
+	    TFALSE,
+	    ASoundMixer_PSP::DEFAULT_FREQUENCY / 2
+	);
+	if ( hVoice == ASoundMixer_PSP::INVALID_VOICE ||
+	     g_SoundMixer_PSP.SetFrequency( hVoice, ASoundMixer_PSP::MAX_FREQUENCY + 1 ) ||
+	     !SubmitBootstrapWave_PSP() ||
+	     !g_SoundMixer_PSP.IsVoiceActive( hVoice ) ||
+	     !g_SoundMixer_PSP.SetFrequency( hVoice, ASoundMixer_PSP::MAX_FREQUENCY ) ||
+	     !SubmitBootstrapWave_PSP() )
+	{
+		return TFALSE;
+	}
+
+	return !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
+	       !g_SoundMixer_PSP.SetFrequency( hVoice, ASoundMixer_PSP::DEFAULT_FREQUENCY );
+}
+
 static TBOOL TestSoundCommandQueue_PSP()
 {
 	ASoundCommandRequest_PSP uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
@@ -184,12 +207,17 @@ static TBOOL TestSoundCommandQueue_PSP()
 		ASoundEventType_PSP_UpdateChannelPan, TNULL, hVoice,
 		0, ASoundMixer_PSP::MAX_PAN / 2, TFALSE,
 	};
+	const ASoundEvent_PSP oFrequencyEvent = {
+		ASoundEventType_PSP_UpdateChannelFrequency, TNULL, hVoice,
+		0, 0, TFALSE, ASoundMixer_PSP::DEFAULT_FREQUENCY / 2,
+	};
 	const ASoundEvent_PSP oStopEvent = {
 		ASoundEventType_PSP_StopAudio, TNULL, hVoice, 0, 0, TFALSE,
 	};
 	const TBOOL bControlsQueued =
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oVolumeEvent, uiControlRequest ) &&
 	    uiControlRequest == ASoundCommandQueue_PSP::INVALID_REQUEST &&
+	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oFrequencyEvent, uiControlRequest ) &&
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oPanEvent, uiControlRequest ) &&
 	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oStopEvent, uiControlRequest );
 	const TBOOL bControlsProcessed = bControlsQueued &&
@@ -412,6 +440,7 @@ int main()
 	const TBOOL bAudioReady = bAudioBankReady &&
 	                          TestSoundCommandQueue_PSP() &&
 	                          TestDelayedSoundEvents_PSP() &&
+	                          TestBootstrapVoiceFrequency_PSP() &&
 	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
