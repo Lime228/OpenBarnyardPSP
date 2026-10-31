@@ -15,6 +15,7 @@ STRINGS = (
     "CORE READY",
     "RENDER READY",
     "CIRCLE - BACK",
+    "FRAMES",
 )
 
 
