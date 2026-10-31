@@ -10,7 +10,7 @@
 
 #include "Frontend/AApplication_PSP.h"
 #include "Frontend/AFrontendLocale_PSP.h"
-#include <Platform/PSP/T2LocaleFactory_PSP.h>
+#include "Locale/ALocaleManager_PSP.h"
 #include "ToshiSmoke.h"
 
 PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
@@ -39,10 +39,9 @@ alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
 static Toshi::T2Texture g_ProbeTexture;
 static Toshi::T2Texture g_FontTexture_PSP;
 static Toshi::T2GUIFont_PSP g_Font_PSP;
-static Toshi::T2Locale_PSP g_Locale_PSP;
+static ALocaleManager_PSP g_LocaleManager_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::T2GUIFontFactory_PSP g_FontFactory_PSP;
-static Toshi::T2LocaleFactory_PSP g_LocaleFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
 static Toshi::TRenderResourceCache_PSP g_ResourceCache_PSP;
 static Toshi::TRenderInterface_PSP g_RenderInterface;
@@ -80,8 +79,8 @@ static TBOOL LoadFontFile_PSP()
 
 static TBOOL LoadLocaleFile_PSP()
 {
-	return g_LocaleFactory_PSP.CreateLocaleFromFile( g_Locale_PSP, "local:bootstrap_locale.ploc" ) &&
-	       g_Locale_PSP.GetNumStrings() == AFrontendLocaleString_PSP_Count;
+	return g_LocaleManager_PSP.SetLanguage( ALocaleManager_PSP::GetDefaultLanguage() ) &&
+	       g_LocaleManager_PSP.GetNumStrings() == AFrontendLocaleString_PSP_Count;
 }
 
 static TBOOL LoadProbeModelFile_PSP()
@@ -243,7 +242,7 @@ int main()
 		&g_ProbeIndices_PSP,
 		pCachedTexture,
 		pCachedFont,
-		&g_Locale_PSP,
+		&g_LocaleManager_PSP,
 		pCachedModel,
 		&g_ProbeMaterial_PSP,
 		TFALSE,
@@ -282,7 +281,7 @@ int main()
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
 	g_Font_PSP.Destroy();
-	g_Locale_PSP.Destroy();
+	g_LocaleManager_PSP.Destroy();
 	g_FontTexture_PSP.Unload();
 	g_ProbeTexture.Unload();
 	g_ProbeIndices_PSP.Destroy();
