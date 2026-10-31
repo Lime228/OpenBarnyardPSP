@@ -45,6 +45,17 @@ ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlay(
 	return uiRequest;
 }
 
+ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlayNamed(
+    const AWaveBank_PSP& a_rWaveBank,
+    const TCHAR* a_pWaveName,
+    TUINT a_uiVolume,
+    TINT a_iPan,
+    TBOOL a_bLoop
+)
+{
+	return QueuePlay( a_rWaveBank.FindWave( a_pWaveName ), a_uiVolume, a_iPan, a_bLoop );
+}
+
 TBOOL ASoundCommandQueue_PSP::QueueStop( ASoundVoiceHandle_PSP a_hVoice )
 {
 	return Push( { ASoundCommandType_PSP_Stop, TNULL, a_hVoice, INVALID_REQUEST, 0, 0, TFALSE } );

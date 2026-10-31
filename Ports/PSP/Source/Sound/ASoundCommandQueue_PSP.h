@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ASoundMixer_PSP.h"
+#include "AWaveBank_PSP.h"
 
 using ASoundCommandRequest_PSP = TUINT32;
 
@@ -41,6 +42,13 @@ public:
 
 	ASoundCommandRequest_PSP QueuePlay(
 	    const AWave_PSP* a_pWave,
+	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
+	    TINT a_iPan = 0,
+	    TBOOL a_bLoop = TFALSE
+	);
+	ASoundCommandRequest_PSP QueuePlayNamed(
+	    const AWaveBank_PSP& a_rWaveBank,
+	    const TCHAR* a_pWaveName,
 	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
 	    TINT a_iPan = 0,
 	    TBOOL a_bLoop = TFALSE
