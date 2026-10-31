@@ -101,6 +101,7 @@ void AFrontendInfoState_PSP::OnRender(
 	const TWCHAR* pTitle = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_StatusTitle );
 	const TWCHAR* pCore = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_CoreReady );
 	const TWCHAR* pRender = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_RenderReady );
+	const TWCHAR* pAudio = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_AudioReady );
 	const TWCHAR* pBack = a_rContext.pLocale->GetString( AFrontendLocaleString_PSP_Back );
 	TWCHAR aFrameText[ 32 ];
 	FormatUnsignedLine_PSP(
@@ -134,9 +135,10 @@ void AFrontendInfoState_PSP::OnRender(
 	oFont.DrawTextSingleLine( pTitle, fTitleX, 50.0f, 0xff5ac8fa, fTitleScale );
 
 	const TFLOAT fLineScale = 2.0f;
-	oFont.DrawTextSingleLine( pCore, 150.0f, 104.0f, 0xff65d26e, fLineScale );
-	oFont.DrawTextSingleLine( pRender, 138.0f, 128.0f, 0xff65d26e, fLineScale );
-	oFont.DrawTextSingleLine( aFrameText, 162.0f, 154.0f, 0xffc0c0c0, fLineScale );
+	oFont.DrawTextSingleLine( pCore, 150.0f, 92.0f, 0xff65d26e, fLineScale );
+	oFont.DrawTextSingleLine( pRender, 138.0f, 114.0f, 0xff65d26e, fLineScale );
+	oFont.DrawTextSingleLine( pAudio, 144.0f, 136.0f, 0xff65d26e, fLineScale );
+	oFont.DrawTextSingleLine( aFrameText, 162.0f, 158.0f, 0xffc0c0c0, fLineScale );
 
 	const TFLOAT fMemoryScale = 1.5f;
 	const TFLOAT fMainX = ( Toshi::TRenderInterface_PSP::SCREEN_WIDTH - oFont.GetTextWidth( aMainMemoryText, fMemoryScale ) ) * 0.5f;

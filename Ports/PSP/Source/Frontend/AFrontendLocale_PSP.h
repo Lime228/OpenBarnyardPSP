@@ -10,6 +10,7 @@ enum AFrontendLocaleString_PSP : TUINT
 	AFrontendLocaleString_PSP_StatusTitle,
 	AFrontendLocaleString_PSP_CoreReady,
 	AFrontendLocaleString_PSP_RenderReady,
+	AFrontendLocaleString_PSP_AudioReady,
 	AFrontendLocaleString_PSP_Back,
 	AFrontendLocaleString_PSP_Frames,
 	AFrontendLocaleString_PSP_MainMemory,
