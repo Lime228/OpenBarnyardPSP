@@ -144,15 +144,27 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 
 static TBOOL TestSoundCommandQueue_PSP()
 {
-	const ASoundCommandRequest_PSP uiRequest = g_SoundCommandQueue_PSP.QueuePlayNamed(
-	    g_WaveBank_PSP,
-	    "BOOTSTRAP",
-	    0,
-	    0,
-	    TTRUE
-	);
+	ASoundCommandRequest_PSP uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
+	const ASoundEvent_PSP oPlayEvent = {
+		ASoundEventType_PSP_PlayAudio,
+		"BOOTSTRAP",
+		ASoundMixer_PSP::INVALID_VOICE,
+		0,
+		0,
+		TTRUE,
+	};
+	const ASoundEvent_PSP oMissingPlayEvent = {
+		ASoundEventType_PSP_PlayAudio,
+		"missing",
+		ASoundMixer_PSP::INVALID_VOICE,
+		ASoundMixer_PSP::MAX_VOLUME,
+		0,
+		TFALSE,
+	};
 	ASoundVoiceHandle_PSP hVoice = ASoundMixer_PSP::INVALID_VOICE;
-	if ( uiRequest == ASoundCommandQueue_PSP::INVALID_REQUEST ||
+	if ( g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oMissingPlayEvent, uiRequest ) ||
+	     uiRequest != ASoundCommandQueue_PSP::INVALID_REQUEST ||
+	     !g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oPlayEvent, uiRequest ) ||
 	     !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
 	     !g_SoundCommandQueue_PSP.GetPlayResult( uiRequest, hVoice ) ||
 	     hVoice == ASoundMixer_PSP::INVALID_VOICE )
@@ -161,10 +173,23 @@ static TBOOL TestSoundCommandQueue_PSP()
 		return TFALSE;
 	}
 
+	ASoundCommandRequest_PSP uiControlRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
+	const ASoundEvent_PSP oVolumeEvent = {
+		ASoundEventType_PSP_UpdateChannelVolume, TNULL, hVoice,
+		ASoundMixer_PSP::MAX_VOLUME / 4, 0, TFALSE,
+	};
+	const ASoundEvent_PSP oPanEvent = {
+		ASoundEventType_PSP_UpdateChannelPan, TNULL, hVoice,
+		0, ASoundMixer_PSP::MAX_PAN / 2, TFALSE,
+	};
+	const ASoundEvent_PSP oStopEvent = {
+		ASoundEventType_PSP_StopAudio, TNULL, hVoice, 0, 0, TFALSE,
+	};
 	const TBOOL bControlsQueued =
-	    g_SoundCommandQueue_PSP.QueueSetVolume( hVoice, ASoundMixer_PSP::MAX_VOLUME / 4 ) &&
-	    g_SoundCommandQueue_PSP.QueueSetPan( hVoice, ASoundMixer_PSP::MAX_PAN / 2 ) &&
-	    g_SoundCommandQueue_PSP.QueueStop( hVoice );
+	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oVolumeEvent, uiControlRequest ) &&
+	    uiControlRequest == ASoundCommandQueue_PSP::INVALID_REQUEST &&
+	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oPanEvent, uiControlRequest ) &&
+	    g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oStopEvent, uiControlRequest );
 	const TBOOL bControlsProcessed = bControlsQueued &&
 	                                g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
 	                                !g_SoundMixer_PSP.IsVoiceActive( hVoice );
