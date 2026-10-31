@@ -15,6 +15,7 @@
 #include "Sound/ASoundManager_PSP.h"
 #include "Sound/ASoundMixer_PSP.h"
 #include "Sound/ASoundCommandQueue_PSP.h"
+#include "Sound/AWaveBank_PSP.h"
 #include "Sound/AWaveFactory_PSP.h"
 #include "ToshiSmoke.h"
 
@@ -48,6 +49,7 @@ static ALocaleManager_PSP g_LocaleManager_PSP;
 static ASoundManager_PSP g_SoundManager_PSP;
 static ASoundMixer_PSP g_SoundMixer_PSP;
 static ASoundCommandQueue_PSP g_SoundCommandQueue_PSP;
+static AWaveBank_PSP g_WaveBank_PSP;
 static AWave_PSP g_BootstrapWave_PSP;
 static AWaveFactory_PSP g_WaveFactory_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
@@ -142,8 +144,9 @@ static TBOOL TestBootstrapVoiceControls_PSP()
 
 static TBOOL TestSoundCommandQueue_PSP()
 {
-	const ASoundCommandRequest_PSP uiRequest = g_SoundCommandQueue_PSP.QueuePlay(
-	    &g_BootstrapWave_PSP,
+	const ASoundCommandRequest_PSP uiRequest = g_SoundCommandQueue_PSP.QueuePlayNamed(
+	    g_WaveBank_PSP,
+	    "BOOTSTRAP",
 	    0,
 	    0,
 	    TTRUE
@@ -281,7 +284,11 @@ int main()
 	                                  g_BootstrapWave_PSP,
 	                                  "local:bootstrap_audio.ppcm"
 	                              );
-	const TBOOL bAudioReady = bAudioWaveReady &&
+	const TBOOL bAudioBankReady = bAudioWaveReady &&
+	                              g_WaveBank_PSP.RegisterWave( "bootstrap", &g_BootstrapWave_PSP ) &&
+	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP" ) == &g_BootstrapWave_PSP &&
+	                              !g_WaveBank_PSP.RegisterWave( "BOOTSTRAP", &g_BootstrapWave_PSP );
+	const TBOOL bAudioReady = bAudioBankReady &&
 	                          TestSoundCommandQueue_PSP() &&
 	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -415,6 +422,7 @@ int main()
 	g_SoundManager_PSP.Destroy();
 	g_SoundCommandQueue_PSP.Clear();
 	g_SoundMixer_PSP.StopAll();
+	g_WaveBank_PSP.Clear();
 	g_BootstrapWave_PSP.Destroy();
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
