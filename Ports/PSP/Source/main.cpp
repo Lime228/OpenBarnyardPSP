@@ -214,12 +214,14 @@ static TBOOL TestDelayedSoundEvents_PSP()
 	const ASoundEvent_PSP oStopEvent = {
 		ASoundEventType_PSP_StopAudio, TNULL, hLoopingVoice, 0, 0, TFALSE,
 	};
+	const ASoundScheduledEventHandle_PSP hStopEvent = g_DelayedEventQueue_PSP.Schedule(
+	    g_WaveBank_PSP,
+	    oStopEvent,
+	    ASoundManager_PSP::BUFFER_SAMPLE_FRAMES * 2
+	);
 	if ( hLoopingVoice == ASoundMixer_PSP::INVALID_VOICE ||
-	     !g_DelayedEventQueue_PSP.Schedule(
-	         g_WaveBank_PSP,
-	         oStopEvent,
-	         ASoundManager_PSP::BUFFER_SAMPLE_FRAMES * 2
-	     ) ||
+	     hStopEvent == ASoundDelayedEventQueue_PSP::INVALID_EVENT ||
+	     !g_DelayedEventQueue_PSP.IsPending( hStopEvent ) ||
 	     g_DelayedEventQueue_PSP.Update(
 	         ASoundManager_PSP::BUFFER_SAMPLE_FRAMES,
 	         g_SoundCommandQueue_PSP
@@ -233,19 +235,21 @@ static TBOOL TestDelayedSoundEvents_PSP()
 	         ASoundManager_PSP::BUFFER_SAMPLE_FRAMES,
 	         g_SoundCommandQueue_PSP
 	     ) ||
+	     g_DelayedEventQueue_PSP.IsPending( hStopEvent ) ||
+	     g_DelayedEventQueue_PSP.Cancel( hStopEvent ) ||
 	     !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
 	     g_SoundMixer_PSP.IsVoiceActive( hLoopingVoice ) )
 	{
 		return TFALSE;
 	}
 
-	const ASoundEvent_PSP oPlayEvent = {
+	const ASoundEvent_PSP oLoopingPlayEvent = {
 		ASoundEventType_PSP_PlayAudio,
 		"bootstrap",
 		ASoundMixer_PSP::INVALID_VOICE,
 		0,
 		0,
-		TFALSE,
+		TTRUE,
 	};
 	const ASoundEvent_PSP oMissingEvent = {
 		ASoundEventType_PSP_PlayAudio,
@@ -255,34 +259,45 @@ static TBOOL TestDelayedSoundEvents_PSP()
 		0,
 		TFALSE,
 	};
-	const ASoundEvent_PSP oLoopingPlayEvent = {
-		ASoundEventType_PSP_PlayAudio,
-		"bootstrap",
-		ASoundMixer_PSP::INVALID_VOICE,
-		0,
-		0,
-		TTRUE,
-	};
-	const TBOOL bMissingRejected =
-	    !g_DelayedEventQueue_PSP.Schedule( g_WaveBank_PSP, oMissingEvent, 0 ) &&
-	    !g_DelayedEventQueue_PSP.Schedule( g_WaveBank_PSP, oLoopingPlayEvent, 0 ) &&
-	    g_DelayedEventQueue_PSP.GetRejectedEventCount() == 2;
-	const TBOOL bPlayScheduled = g_DelayedEventQueue_PSP.Schedule(
+	const TBOOL bMissingRejected = g_DelayedEventQueue_PSP.Schedule(
+	                                   g_WaveBank_PSP, oMissingEvent, 0
+	                               ) == ASoundDelayedEventQueue_PSP::INVALID_EVENT &&
+	                               g_DelayedEventQueue_PSP.GetRejectedEventCount() == 1;
+	const ASoundScheduledEventHandle_PSP hCancelledEvent = g_DelayedEventQueue_PSP.Schedule(
 	    g_WaveBank_PSP,
-	    oPlayEvent,
+	    oLoopingPlayEvent,
+	    ASoundManager_PSP::BUFFER_SAMPLE_FRAMES * 4
+	);
+	const TBOOL bCancelled = hCancelledEvent != ASoundDelayedEventQueue_PSP::INVALID_EVENT &&
+	                         g_DelayedEventQueue_PSP.Cancel( hCancelledEvent ) &&
+	                         !g_DelayedEventQueue_PSP.Cancel( hCancelledEvent );
+	const ASoundScheduledEventHandle_PSP hPlayEvent = g_DelayedEventQueue_PSP.Schedule(
+	    g_WaveBank_PSP,
+	    oLoopingPlayEvent,
 	    ASoundManager_PSP::BUFFER_SAMPLE_FRAMES
 	);
-	const TBOOL bPlayDispatched = bPlayScheduled &&
+	const TBOOL bPlayDispatched = hPlayEvent != ASoundDelayedEventQueue_PSP::INVALID_EVENT &&
+	                              hPlayEvent != hCancelledEvent &&
+	                              g_DelayedEventQueue_PSP.IsPending( hPlayEvent ) &&
 	                              g_DelayedEventQueue_PSP.Update(
 	                                  ASoundManager_PSP::BUFFER_SAMPLE_FRAMES,
 	                                  g_SoundCommandQueue_PSP
 	                              ) &&
 	                              g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
 	                              g_DelayedEventQueue_PSP.GetPendingPlayResultCount() == 1;
-	const TBOOL bResultConsumed = bPlayDispatched &&
-	                              g_DelayedEventQueue_PSP.Update( 0, g_SoundCommandQueue_PSP ) &&
-	                              g_DelayedEventQueue_PSP.GetPendingPlayResultCount() == 0;
-	return bMissingRejected && bResultConsumed;
+	ASoundVoiceHandle_PSP hDelayedVoice = ASoundMixer_PSP::INVALID_VOICE;
+	const TBOOL bResultReady = bPlayDispatched &&
+	                           g_DelayedEventQueue_PSP.Update( 0, g_SoundCommandQueue_PSP ) &&
+	                           !g_DelayedEventQueue_PSP.IsPending( hPlayEvent ) &&
+	                           g_DelayedEventQueue_PSP.GetPendingPlayResultCount() == 0 &&
+	                           g_DelayedEventQueue_PSP.GetReadyPlayResultCount() == 1;
+	const TBOOL bResultConsumed = bResultReady &&
+	                              g_DelayedEventQueue_PSP.GetPlayResult( hPlayEvent, hDelayedVoice ) &&
+	                              hDelayedVoice != ASoundMixer_PSP::INVALID_VOICE &&
+	                              g_SoundMixer_PSP.IsVoiceActive( hDelayedVoice ) &&
+	                              !g_DelayedEventQueue_PSP.GetPlayResult( hPlayEvent, hDelayedVoice ) &&
+	                              g_SoundMixer_PSP.Stop( hDelayedVoice );
+	return bMissingRejected && bCancelled && bResultConsumed;
 }
 
 static TBOOL InitialiseProbeTexture( TBOOL a_bLoadExternal )
