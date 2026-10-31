@@ -26,8 +26,8 @@ or gameplay validation on hardware.
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 53% | GU display, depth, indexed static models, textures, materials, colour rectangles, a bootstrap font, budgets and small factories build for PSP |
 | Real-game asset pipeline | 10% | only diagnostic PPM/OBJ to PTEX/PMES conversion exists |
-| Input integration | 55% | `AInputHandler_PSP` maps PSP controls to frontend actions above the runtime-verified Toshi controller bridge |
-| Game bootstrap and frontend | 22% | `AApplication_PSP` owns explicit frame phases and separate menu/probe state objects render the first labelled frontend |
+| Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
+| Game bootstrap and frontend | 25% | `AApplication_PSP` owns explicit frame phases and a bounded navigable menu drives separate probe/info states |
 | Audio, movies and saves | 0% | platform implementations are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
@@ -314,6 +314,14 @@ remain largely unstarted.
   avoids Vulkan/D3D fallback dialogs and leaves the user's saved emulator
   backend untouched. The current bundle stays alive through a background smoke
   cycle; a visual check of the new bootstrap glyphs is still pending.
+- The main-menu state owns a fixed two-item selection model with no dynamic
+  allocation. D-pad Up/Down selects `START PROBE` or `PORT STATUS`, while Cross
+  requests the corresponding state through the existing controller boundary.
+- `AFrontendInfoState_PSP` is the second real consumer of the state-object seam.
+  It renders bounded core/render readiness text and returns to the menu through
+  the frontend Cancel action instead of reading PSP doodads directly.
+- Commit `d2cedb77` passed PSP run `41196694395`, including Premake generation,
+  the new frontend/input compilation, EBOOT packaging, and artifact publication.
 - Audio and movies remain disabled and no full `OpenBarnyard/Source` glob has
   been added. Scheduler, task, and frontend sources remain dependency-ordered
   in Premake.
