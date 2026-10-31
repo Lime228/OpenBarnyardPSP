@@ -1,50 +1,95 @@
 #include <ToshiPCH.h>
 #include "ASoundDelayedEventQueue_PSP.h"
 
-#include <Toshi/TUtil.h>
-
 ASoundDelayedEventQueue_PSP::ASoundDelayedEventQueue_PSP()
     : m_aEvents{}
-    , m_aPendingPlayResults{}
     , m_uiEventCount( 0 )
     , m_uiPendingPlayResultCount( 0 )
+    , m_uiReadyPlayResultCount( 0 )
     , m_uiRejectedEvents( 0 )
 {
 }
 
-TBOOL ASoundDelayedEventQueue_PSP::Schedule(
+ASoundScheduledEventHandle_PSP ASoundDelayedEventQueue_PSP::Schedule(
     const AWaveBank_PSP& a_rWaveBank,
     const ASoundEvent_PSP& a_rEvent,
     TUINT a_uiDelaySampleFrames
 )
 {
-	if ( m_uiEventCount >= MAX_EVENTS || a_rEvent.eEventType >= ASoundEventType_PSP_Count )
+	if ( m_uiEventCount + m_uiPendingPlayResultCount + m_uiReadyPlayResultCount >= MAX_EVENTS ||
+	     a_rEvent.eEventType >= ASoundEventType_PSP_Count )
 	{
 		m_uiRejectedEvents++;
-		return TFALSE;
+		return INVALID_EVENT;
 	}
 
 	const AWave_PSP* pWave = TNULL;
 	if ( a_rEvent.eEventType == ASoundEventType_PSP_PlayAudio )
 	{
 		pWave = a_rWaveBank.FindWave( a_rEvent.pWaveName );
-		if ( pWave == TNULL || a_rEvent.bLoop )
+		if ( pWave == TNULL )
 		{
 			m_uiRejectedEvents++;
-			return TFALSE;
+			return INVALID_EVENT;
 		}
 	}
 
-	m_aEvents[ m_uiEventCount++ ] = {
-		a_rEvent.eEventType,
-		pWave,
-		a_rEvent.hVoice,
-		a_rEvent.uiVolume,
-		a_rEvent.iPan,
-		a_rEvent.bLoop,
-		a_uiDelaySampleFrames,
-	};
+	for ( TUINT i = 0; i < MAX_EVENTS; i++ )
+	{
+		Event& rEvent = m_aEvents[ i ];
+		if ( rEvent.eState != EventState_Free )
+			continue;
+
+		rEvent.uiGeneration = ( rEvent.uiGeneration + 1 ) & GENERATION_MASK;
+		if ( rEvent.uiGeneration == 0 ) rEvent.uiGeneration = 1;
+		rEvent.eState = EventState_Scheduled;
+		rEvent.eEventType = a_rEvent.eEventType;
+		rEvent.pWave = pWave;
+		rEvent.hVoice = a_rEvent.hVoice;
+		rEvent.uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
+		rEvent.uiVolume = a_rEvent.uiVolume;
+		rEvent.iPan = a_rEvent.iPan;
+		rEvent.bLoop = a_rEvent.bLoop;
+		rEvent.uiRemainingSampleFrames = a_uiDelaySampleFrames;
+		m_uiEventCount++;
+		return MakeHandle( i );
+	}
+
+	m_uiRejectedEvents++;
+	return INVALID_EVENT;
+}
+
+TBOOL ASoundDelayedEventQueue_PSP::Cancel( ASoundScheduledEventHandle_PSP a_hEvent )
+{
+	Event* pEvent = Resolve( a_hEvent );
+	if ( pEvent == TNULL || pEvent->eState != EventState_Scheduled ) return TFALSE;
+
+	const TUINT uiIndex = TUINT( pEvent - m_aEvents );
+	m_uiEventCount--;
+	ReleaseEvent( uiIndex );
 	return TTRUE;
+}
+
+TBOOL ASoundDelayedEventQueue_PSP::GetPlayResult(
+    ASoundScheduledEventHandle_PSP a_hEvent,
+    ASoundVoiceHandle_PSP& a_rVoice
+)
+{
+	Event* pEvent = Resolve( a_hEvent );
+	if ( pEvent == TNULL || pEvent->eState != EventState_ReadyPlayResult ) return TFALSE;
+
+	a_rVoice = pEvent->hVoice;
+	const TUINT uiIndex = TUINT( pEvent - m_aEvents );
+	m_uiReadyPlayResultCount--;
+	ReleaseEvent( uiIndex );
+	return TTRUE;
+}
+
+TBOOL ASoundDelayedEventQueue_PSP::IsPending( ASoundScheduledEventHandle_PSP a_hEvent ) const
+{
+	const Event* pEvent = Resolve( a_hEvent );
+	return pEvent != TNULL &&
+	       ( pEvent->eState == EventState_Scheduled || pEvent->eState == EventState_PendingPlayResult );
 }
 
 TBOOL ASoundDelayedEventQueue_PSP::Update(
@@ -54,25 +99,19 @@ TBOOL ASoundDelayedEventQueue_PSP::Update(
 {
 	ConsumePlayResults( a_rCommandQueue );
 
-	TUINT uiEvent = 0;
-	while ( uiEvent < m_uiEventCount )
+	for ( TUINT i = 0; i < MAX_EVENTS; i++ )
 	{
-		Event& rEvent = m_aEvents[ uiEvent ];
+		Event& rEvent = m_aEvents[ i ];
+		if ( rEvent.eState != EventState_Scheduled ) continue;
+
 		if ( rEvent.uiRemainingSampleFrames > a_uiElapsedSampleFrames )
 		{
 			rEvent.uiRemainingSampleFrames -= a_uiElapsedSampleFrames;
-			uiEvent++;
 			continue;
 		}
 
 		rEvent.uiRemainingSampleFrames = 0;
-		if ( !Dispatch( rEvent, a_rCommandQueue ) )
-		{
-			uiEvent++;
-			continue;
-		}
-
-		RemoveEvent( uiEvent );
+		Dispatch( i, a_rCommandQueue );
 	}
 
 	return m_uiEventCount == 0;
@@ -80,71 +119,101 @@ TBOOL ASoundDelayedEventQueue_PSP::Update(
 
 void ASoundDelayedEventQueue_PSP::Clear()
 {
-	Toshi::TUtil::MemClear( m_aEvents, sizeof( m_aEvents ) );
-	Toshi::TUtil::MemClear( m_aPendingPlayResults, sizeof( m_aPendingPlayResults ) );
+	for ( TUINT i = 0; i < MAX_EVENTS; i++ ) ReleaseEvent( i );
 	m_uiEventCount = 0;
 	m_uiPendingPlayResultCount = 0;
+	m_uiReadyPlayResultCount = 0;
 	m_uiRejectedEvents = 0;
 }
 
 TBOOL ASoundDelayedEventQueue_PSP::Dispatch(
-    const Event& a_rEvent,
+    TUINT a_uiIndex,
     ASoundCommandQueue_PSP& a_rCommandQueue
 )
 {
-	switch ( a_rEvent.eEventType )
+	Event& rEvent = m_aEvents[ a_uiIndex ];
+	switch ( rEvent.eEventType )
 	{
 		case ASoundEventType_PSP_PlayAudio:
 		{
-			if ( m_uiPendingPlayResultCount >= MAX_PENDING_PLAY_RESULTS )
-				return TFALSE;
-
 			const ASoundCommandRequest_PSP uiRequest = a_rCommandQueue.QueuePlay(
-			    a_rEvent.pWave,
-			    a_rEvent.uiVolume,
-			    a_rEvent.iPan,
-			    a_rEvent.bLoop
+			    rEvent.pWave, rEvent.uiVolume, rEvent.iPan, rEvent.bLoop
 			);
-			if ( uiRequest == ASoundCommandQueue_PSP::INVALID_REQUEST )
-				return TFALSE;
+			if ( uiRequest == ASoundCommandQueue_PSP::INVALID_REQUEST ) return TFALSE;
 
-			m_aPendingPlayResults[ m_uiPendingPlayResultCount++ ] = uiRequest;
+			rEvent.uiRequest = uiRequest;
+			rEvent.eState = EventState_PendingPlayResult;
+			m_uiEventCount--;
+			m_uiPendingPlayResultCount++;
 			return TTRUE;
 		}
 		case ASoundEventType_PSP_StopAudio:
-			return a_rCommandQueue.QueueStop( a_rEvent.hVoice );
+			if ( !a_rCommandQueue.QueueStop( rEvent.hVoice ) ) return TFALSE;
+			break;
 		case ASoundEventType_PSP_UpdateChannelVolume:
-			return a_rCommandQueue.QueueSetVolume( a_rEvent.hVoice, a_rEvent.uiVolume );
+			if ( !a_rCommandQueue.QueueSetVolume( rEvent.hVoice, rEvent.uiVolume ) ) return TFALSE;
+			break;
 		case ASoundEventType_PSP_UpdateChannelPan:
-			return a_rCommandQueue.QueueSetPan( a_rEvent.hVoice, a_rEvent.iPan );
+			if ( !a_rCommandQueue.QueueSetPan( rEvent.hVoice, rEvent.iPan ) ) return TFALSE;
+			break;
 		default:
 			return TFALSE;
 	}
-}
 
-void ASoundDelayedEventQueue_PSP::RemoveEvent( TUINT a_uiIndex )
-{
 	m_uiEventCount--;
-	for ( TUINT i = a_uiIndex; i < m_uiEventCount; i++ )
-		m_aEvents[ i ] = m_aEvents[ i + 1 ];
-	m_aEvents[ m_uiEventCount ] = {};
+	ReleaseEvent( a_uiIndex );
+	return TTRUE;
 }
 
 void ASoundDelayedEventQueue_PSP::ConsumePlayResults( ASoundCommandQueue_PSP& a_rCommandQueue )
 {
-	TUINT uiRequest = 0;
-	while ( uiRequest < m_uiPendingPlayResultCount )
+	for ( TUINT i = 0; i < MAX_EVENTS; i++ )
 	{
-		ASoundVoiceHandle_PSP hVoice = ASoundMixer_PSP::INVALID_VOICE;
-		if ( !a_rCommandQueue.GetPlayResult( m_aPendingPlayResults[ uiRequest ], hVoice ) )
-		{
-			uiRequest++;
-			continue;
-		}
+		Event& rEvent = m_aEvents[ i ];
+		if ( rEvent.eState != EventState_PendingPlayResult ) continue;
 
+		ASoundVoiceHandle_PSP hVoice = ASoundMixer_PSP::INVALID_VOICE;
+		if ( !a_rCommandQueue.GetPlayResult( rEvent.uiRequest, hVoice ) ) continue;
+
+		rEvent.uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
+		rEvent.hVoice = hVoice;
+		rEvent.eState = EventState_ReadyPlayResult;
 		m_uiPendingPlayResultCount--;
-		for ( TUINT i = uiRequest; i < m_uiPendingPlayResultCount; i++ )
-			m_aPendingPlayResults[ i ] = m_aPendingPlayResults[ i + 1 ];
-		m_aPendingPlayResults[ m_uiPendingPlayResultCount ] = ASoundCommandQueue_PSP::INVALID_REQUEST;
+		m_uiReadyPlayResultCount++;
 	}
+}
+
+void ASoundDelayedEventQueue_PSP::ReleaseEvent( TUINT a_uiIndex )
+{
+	Event& rEvent = m_aEvents[ a_uiIndex ];
+	const TUINT32 uiGeneration = rEvent.uiGeneration;
+	rEvent = {};
+	rEvent.uiGeneration = uiGeneration;
+}
+
+ASoundDelayedEventQueue_PSP::Event* ASoundDelayedEventQueue_PSP::Resolve(
+    ASoundScheduledEventHandle_PSP a_hEvent
+)
+{
+	return const_cast<Event*>( static_cast<const ASoundDelayedEventQueue_PSP*>( this )->Resolve( a_hEvent ) );
+}
+
+const ASoundDelayedEventQueue_PSP::Event* ASoundDelayedEventQueue_PSP::Resolve(
+    ASoundScheduledEventHandle_PSP a_hEvent
+) const
+{
+	if ( a_hEvent == INVALID_EVENT ) return TNULL;
+
+	const TUINT uiSlot = TUINT( a_hEvent & 0xff );
+	if ( uiSlot == 0 || uiSlot > MAX_EVENTS ) return TNULL;
+
+	const Event& rEvent = m_aEvents[ uiSlot - 1 ];
+	const TUINT32 uiGeneration = ( a_hEvent >> 8 ) & GENERATION_MASK;
+	if ( rEvent.eState == EventState_Free || rEvent.uiGeneration != uiGeneration ) return TNULL;
+	return &rEvent;
+}
+
+ASoundScheduledEventHandle_PSP ASoundDelayedEventQueue_PSP::MakeHandle( TUINT a_uiIndex ) const
+{
+	return ( m_aEvents[ a_uiIndex ].uiGeneration << 8 ) | TUINT32( a_uiIndex + 1 );
 }

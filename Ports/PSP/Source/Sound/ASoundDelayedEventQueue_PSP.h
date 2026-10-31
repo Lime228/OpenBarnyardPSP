@@ -2,33 +2,50 @@
 
 #include "ASoundCommandQueue_PSP.h"
 
+using ASoundScheduledEventHandle_PSP = TUINT32;
+
 class ASoundDelayedEventQueue_PSP
 {
 public:
 	static constexpr TUINT MAX_EVENTS = 8;
-	static constexpr TUINT MAX_PENDING_PLAY_RESULTS = 8;
+	static constexpr ASoundScheduledEventHandle_PSP INVALID_EVENT = 0;
 
 public:
 	ASoundDelayedEventQueue_PSP();
 
-	TBOOL Schedule(
+	ASoundScheduledEventHandle_PSP Schedule(
 	    const AWaveBank_PSP& a_rWaveBank,
 	    const ASoundEvent_PSP& a_rEvent,
 	    TUINT a_uiDelaySampleFrames
 	);
+	TBOOL Cancel( ASoundScheduledEventHandle_PSP a_hEvent );
+	TBOOL GetPlayResult( ASoundScheduledEventHandle_PSP a_hEvent, ASoundVoiceHandle_PSP& a_rVoice );
+	TBOOL IsPending( ASoundScheduledEventHandle_PSP a_hEvent ) const;
 	TBOOL Update( TUINT a_uiElapsedSampleFrames, ASoundCommandQueue_PSP& a_rCommandQueue );
 	void Clear();
 
 	TUINT GetEventCount() const { return m_uiEventCount; }
 	TUINT GetPendingPlayResultCount() const { return m_uiPendingPlayResultCount; }
+	TUINT GetReadyPlayResultCount() const { return m_uiReadyPlayResultCount; }
 	TUINT GetRejectedEventCount() const { return m_uiRejectedEvents; }
 
 private:
+	enum EventState : TUINT
+	{
+		EventState_Free,
+		EventState_Scheduled,
+		EventState_PendingPlayResult,
+		EventState_ReadyPlayResult,
+	};
+
 	struct Event
 	{
+		TUINT32 uiGeneration;
+		EventState eState;
 		ASoundEventType_PSP eEventType;
 		const AWave_PSP* pWave;
 		ASoundVoiceHandle_PSP hVoice;
+		ASoundCommandRequest_PSP uiRequest;
 		TUINT uiVolume;
 		TINT iPan;
 		TBOOL bLoop;
@@ -36,14 +53,19 @@ private:
 	};
 
 private:
-	TBOOL Dispatch( const Event& a_rEvent, ASoundCommandQueue_PSP& a_rCommandQueue );
-	void RemoveEvent( TUINT a_uiIndex );
+	static constexpr TUINT32 GENERATION_MASK = 0x00ffffff;
+
+	TBOOL Dispatch( TUINT a_uiIndex, ASoundCommandQueue_PSP& a_rCommandQueue );
 	void ConsumePlayResults( ASoundCommandQueue_PSP& a_rCommandQueue );
+	void ReleaseEvent( TUINT a_uiIndex );
+	Event* Resolve( ASoundScheduledEventHandle_PSP a_hEvent );
+	const Event* Resolve( ASoundScheduledEventHandle_PSP a_hEvent ) const;
+	ASoundScheduledEventHandle_PSP MakeHandle( TUINT a_uiIndex ) const;
 
 private:
 	Event m_aEvents[ MAX_EVENTS ];
-	ASoundCommandRequest_PSP m_aPendingPlayResults[ MAX_PENDING_PLAY_RESULTS ];
 	TUINT m_uiEventCount;
 	TUINT m_uiPendingPlayResultCount;
+	TUINT m_uiReadyPlayResultCount;
 	TUINT m_uiRejectedEvents;
 };
