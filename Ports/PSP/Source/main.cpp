@@ -157,11 +157,7 @@ int main()
 		return 1;
 	}
 
-	const TBOOL bInputReady     = oInputInterface.Initialise();
-	auto*       pFrontendTask   = oScheduler.CreateTask<AFrontendBootstrapTask_PSP>();
-	const TBOOL bSchedulerReady = pFrontendTask != TNULL && pFrontendTask->Create();
-	if ( !bSchedulerReady )
-		pFrontendTask = TNULL;
+	const TBOOL bInputReady = oInputInterface.Initialise();
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -189,9 +185,35 @@ int main()
 	) );
 	const TBOOL bCacheReady = bTextureCached && bModelCached &&
 	                          pCachedTexture == &g_ProbeTexture && pCachedModel == &g_ProbeModel_PSP;
+	AFrontendBootstrapState_PSP oFrontendState = {};
+	AFrontendRenderContext_PSP  oRenderContext = {
+		&g_RenderInterface,
+		&g_ProbeVertices_PSP,
+		&g_ProbeIndices_PSP,
+		pCachedTexture,
+		pCachedModel,
+		&g_ProbeMaterial_PSP,
+		TFALSE,
+		bMeshReady,
+	};
+
+	// Tasks are inserted at the root head. Create them in reverse phase order so
+	// the scheduler updates input, update, then render.
+	auto* pRenderTask = oScheduler.CreateTask<AFrontendRenderTask_PSP>();
+	auto* pUpdateTask = oScheduler.CreateTask<AFrontendUpdateTask_PSP>();
+	auto* pInputTask  = oScheduler.CreateTask<AFrontendInputTask_PSP>();
+	if ( pRenderTask != TNULL )
+	{
+		pRenderTask->SetState( &oFrontendState );
+		pRenderTask->SetContext( &oRenderContext );
+	}
+	if ( pUpdateTask != TNULL ) pUpdateTask->SetState( &oFrontendState );
+	if ( pInputTask != TNULL ) pInputTask->SetState( &oFrontendState );
+	const TBOOL bSchedulerReady = pRenderTask != TNULL && pUpdateTask != TNULL && pInputTask != TNULL &&
+	                              pRenderTask->Create() && pUpdateTask->Create() && pInputTask->Create();
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bTextureReady && bMeshReady && bModelReady && bCacheReady;
-	TUINT32     uiClearColor   = bBootstrapReady ? 0xff201810 : 0xff202080;
+	oRenderContext.bBootstrapReady = bBootstrapReady;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
 	TDebug_FinalPrintf( "[PSP render] layout      %s\n", g_ProbeTexture.IsSwizzled() ? "swizzled" : "linear" );
@@ -215,20 +237,6 @@ int main()
 		const TFLOAT fDeltaTime = oFrameTimer.GetDelta();
 		oInputInterface.ProcessEvents( fDeltaTime );
 		oScheduler.Update( fDeltaTime );
-		const TFLOAT fXOffset = pFrontendTask != TNULL ? pFrontendTask->GetXOffset() : 0.0f;
-		const TFLOAT fModelRotation = pFrontendTask != TNULL ? pFrontendTask->GetModelRotation() : 0.0f;
-
-		if ( bBootstrapReady )
-			uiClearColor = pFrontendTask->IsConfirmDown() ? 0xff402010 : 0xff201810;
-		g_RenderInterface.BeginScene( uiClearColor );
-		g_RenderInterface.DrawColourTriangle( fXOffset );
-		if ( bMeshReady )
-			g_RenderInterface.DrawIndexedColourTriangles( g_ProbeVertices_PSP, g_ProbeIndices_PSP );
-		if ( pCachedTexture != TNULL )
-			g_RenderInterface.DrawTextureSprite( *pCachedTexture, 176.0f + fXOffset, 72.0f, 128.0f, 128.0f );
-		if ( pCachedModel != TNULL && pCachedTexture != TNULL )
-			g_RenderInterface.DrawModel( *pCachedModel, fModelRotation, g_ProbeMaterial_PSP, pCachedTexture );
-		g_RenderInterface.EndScene();
 	}
 
 	oScheduler.DestroyAllTasks();

@@ -1,27 +1,78 @@
 #pragma once
 
 #include <Toshi/TTask.h>
+#include <Render/TBackend.h>
 
-class AFrontendBootstrapTask_PSP : public Toshi::TTask
+struct AFrontendBootstrapState_PSP
+{
+	TFLOAT fAnalogX;
+	TFLOAT fXOffset;
+	TFLOAT fModelRotation;
+	TBOOL  bConfirmDown;
+	TUINT  uiFrameCount;
+};
+
+struct AFrontendRenderContext_PSP
+{
+	Toshi::TRenderInterface_PSP*      pRenderInterface;
+	Toshi::TVertexPoolResource_PSP*   pVertices;
+	Toshi::TIndexPoolResource_PSP*    pIndices;
+	Toshi::T2Texture*                 pTexture;
+	Toshi::TModel_PSP*                pModel;
+	const Toshi::TRenderMaterial_PSP* pMaterial;
+	TBOOL                             bBootstrapReady;
+	TBOOL                             bMeshReady;
+};
+
+class AFrontendInputTask_PSP : public Toshi::TTask
 {
 public:
-	TDECLARE_CLASS( AFrontendBootstrapTask_PSP, Toshi::TTask );
+	TDECLARE_CLASS( AFrontendInputTask_PSP, Toshi::TTask );
 
 public:
-	AFrontendBootstrapTask_PSP();
-	virtual ~AFrontendBootstrapTask_PSP() override = default;
+	AFrontendInputTask_PSP();
 
 	virtual TBOOL OnCreate() override;
 	virtual TBOOL OnUpdate( TFLOAT a_fDeltaTime ) override;
 
-	TFLOAT GetXOffset() const { return m_fXOffset; }
-	TFLOAT GetModelRotation() const { return m_fModelRotation; }
-	TBOOL  IsConfirmDown() const { return m_bConfirmDown; }
-	TUINT  GetFrameCount() const { return m_uiFrameCount; }
+	void SetState( AFrontendBootstrapState_PSP* a_pState ) { m_pState = a_pState; }
 
 private:
-	TFLOAT m_fXOffset;
-	TFLOAT m_fModelRotation;
-	TBOOL  m_bConfirmDown;
-	TUINT  m_uiFrameCount;
+	AFrontendBootstrapState_PSP* m_pState;
+};
+
+class AFrontendUpdateTask_PSP : public Toshi::TTask
+{
+public:
+	TDECLARE_CLASS( AFrontendUpdateTask_PSP, Toshi::TTask );
+
+public:
+	AFrontendUpdateTask_PSP();
+
+	virtual TBOOL OnCreate() override;
+	virtual TBOOL OnUpdate( TFLOAT a_fDeltaTime ) override;
+
+	void SetState( AFrontendBootstrapState_PSP* a_pState ) { m_pState = a_pState; }
+
+private:
+	AFrontendBootstrapState_PSP* m_pState;
+};
+
+class AFrontendRenderTask_PSP : public Toshi::TTask
+{
+public:
+	TDECLARE_CLASS( AFrontendRenderTask_PSP, Toshi::TTask );
+
+public:
+	AFrontendRenderTask_PSP();
+
+	virtual TBOOL OnCreate() override;
+	virtual TBOOL OnUpdate( TFLOAT a_fDeltaTime ) override;
+
+	void SetState( AFrontendBootstrapState_PSP* a_pState ) { m_pState = a_pState; }
+	void SetContext( const AFrontendRenderContext_PSP* a_pContext ) { m_pContext = a_pContext; }
+
+private:
+	AFrontendBootstrapState_PSP*      m_pState;
+	const AFrontendRenderContext_PSP* m_pContext;
 };
