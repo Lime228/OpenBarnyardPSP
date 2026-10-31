@@ -99,6 +99,7 @@ StyleCopReport.xml
 Ports/PSP/Assets/bootstrap_font.ppm
 Ports/PSP/Assets/bootstrap_font.ptex
 Ports/PSP/Assets/bootstrap_font.pfnt
+Ports/PSP/Assets/bootstrap_locale.ploc
 *.iobj
 *.pch
 *.pdb

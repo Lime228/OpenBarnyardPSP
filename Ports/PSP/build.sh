@@ -27,6 +27,8 @@ python3 "$script_dir/Tools/generate_bootstrap_font.py" \
 python3 "$script_dir/Tools/convert_texture.py" --alpha-mask \
     "$script_dir/Assets/bootstrap_font.ppm" \
     "$script_dir/Assets/bootstrap_font.ptex"
+python3 "$script_dir/Tools/generate_bootstrap_locale.py" \
+    "$script_dir/Assets/bootstrap_locale.ploc"
 
 premake5 --file="$repository_dir/premake5.lua" gmake --target=psp
 make -C "$repository_dir/Build/PSP" config="$build_config" -j"$(nproc)" "$@"
