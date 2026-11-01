@@ -25,10 +25,10 @@ streaming, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 33% | deterministic converters accept textures, meshes and PCM16 stereo WAV input, including aligned stream loop metadata, and produce PTEX, PMES, PFNT, PLOC, PPCM, PADP and PBNK assets |
+| Real-game asset pipeline | 34% | deterministic converters accept textures, meshes and PCM16 stereo WAV input, including aligned stream loop metadata, and produce PTEX, PMES, PFNT, PLOC, PPCM, PADP and PBNK assets; three bounded resident GUI placeholders are authored |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 35% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge for menu cues |
-| Audio, movies and saves | 69% | immediate/delayed named stream commands, detached GUI cues, authorable PADP loops, typed PBNK entries, bounded ADPCM/PCM prefetch, underrun telemetry, spatial controls and audio output work; movies and saves are not started |
+| Game bootstrap and frontend | 37% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with an ID-to-bank cue map |
+| Audio, movies and saves | 70% | immediate/delayed named stream commands, three detached resident GUI cues, authorable PADP loops, typed PBNK entries, bounded ADPCM/PCM prefetch, underrun telemetry, spatial controls and audio output work; movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -600,8 +600,8 @@ remain largely unstarted.
   PID `11344`.
 - `AGUIAudioContext_PSP` preserves the original GUI caller's `PlaySound(TINT16)`
   vocabulary and the Barnyard UI IDs 166 (`UI_MENUCLICK`), 167 (`UI_MENUBACK`)
-  and 168 (`UI_MENUOK`). The temporary bootstrap map resolves all three IDs to
-  the resident `BOOTSTRAP` PBNK entry until real converted UI cues are available.
+  and 168 (`UI_MENUOK`). A static `TSIZE`-indexed table resolves them to separate
+  resident PBNK names without an anonymous namespace or runtime allocation.
 - GUI cues use a detached command path: they remain fire-and-forget like the
   original frontend and do not occupy any of the 16 asynchronous play-result
   slots. The fixed command ring, four-voice mixer and allocation-free audio
@@ -613,6 +613,18 @@ remain largely unstarted.
   `Runtime/PSP/7025d6fe` and the single tracked emulator process was PID `7572`.
   D-pad navigation, Cross confirmation and Circle return were exercised through
   the background runner without taking keyboard focus.
+- Three deterministic placeholder cues occupy 1,024, 1,536 and 2,048 bytes of
+  PCM payload. Their 256/384/512-frame lifetimes fit in one mixer submission,
+  remain well below the 1,024-frame resident-wave ceiling and leave one of the
+  four fixed voices free when all three are exercised together. Original game
+  audio remains outside the repository.
+- Commit `42fc7045` passed PSP run `41330398919`. CI regenerated every cue and
+  the five-entry PBNK byte-for-byte before building. The bootstrap resolved all
+  three GUI IDs, queued them through the detached path, observed three active
+  voices and confirmed completion with zero stored results. PPSSPP retained
+  `gui_audio=OK`, `audio=OK`, `adpcm=OK` and `stream_underruns=0`; the bundle is
+  stored under `Runtime/PSP/42fc7045` and the single emulator process was PID
+  `15592`. D-pad Up/Down, Cross and Circle remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -620,10 +632,11 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, replace the temporary GUI bootstrap mapping with a fixed cue-ID to
-PBNK-name table and add the first converted menu-click/back/confirm entries to
-the resident bank. Keep one music stream cursor and resident SFX until independent
-stream state has a measured PSP memory budget. Continue bridging the bounded
+In parallel, extend the WAV converter with bounded resident PPCM output so a
+user can replace the deterministic GUI placeholders with legally obtained
+menu-click/back/confirm samples. Route `UI_MENUBACK` through every frontend state
+that handles Cancel. Keep one music stream cursor and resident SFX until
+independent stream state has a measured PSP memory budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
 dependency-ordered source list; do not add the full
