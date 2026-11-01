@@ -3,6 +3,7 @@
 import argparse
 import pathlib
 import struct
+import wave
 
 
 PPCM_MAGIC = 0x4D435050
@@ -14,11 +15,20 @@ AMPLITUDE = 1200
 HALF_PERIOD_FRAMES = 50
 
 
+def generate_samples(sample_frames: int, amplitude: int, half_period_frames: int) -> list[int]:
+    samples: list[int] = []
+    for frame in range(sample_frames):
+        sample = amplitude if (frame // half_period_frames) % 2 == 0 else -amplitude
+        samples.extend((sample, sample))
+    return samples
+
+
 def generate(
     destination: pathlib.Path,
     sample_frames: int,
     amplitude: int = AMPLITUDE,
     half_period_frames: int = HALF_PERIOD_FRAMES,
+    output_format: str = "ppcm",
 ) -> None:
     if sample_frames <= 0:
         raise ValueError("sample frame count must be positive")
@@ -27,10 +37,17 @@ def generate(
     if half_period_frames <= 0:
         raise ValueError("half-period frame count must be positive")
 
-    samples: list[int] = []
-    for frame in range(sample_frames):
-        sample = amplitude if (frame // half_period_frames) % 2 == 0 else -amplitude
-        samples.extend((sample, sample))
+    samples = generate_samples(sample_frames, amplitude, half_period_frames)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if output_format == "wav":
+        with wave.open(str(destination), "wb") as wav_file:
+            wav_file.setnchannels(CHANNELS)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(SAMPLE_RATE)
+            wav_file.writeframes(struct.pack(f"<{len(samples)}h", *samples))
+        return
+    if output_format != "ppcm":
+        raise ValueError(f"unsupported output format: {output_format}")
 
     output = bytearray(
         struct.pack(
@@ -43,7 +60,6 @@ def generate(
         )
     )
     output.extend(struct.pack(f"<{len(samples)}h", *samples))
-    destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(output)
 
 
@@ -53,8 +69,15 @@ def main() -> None:
     parser.add_argument("--sample-frames", type=int, default=DEFAULT_SAMPLE_FRAMES)
     parser.add_argument("--amplitude", type=int, default=AMPLITUDE)
     parser.add_argument("--half-period-frames", type=int, default=HALF_PERIOD_FRAMES)
+    parser.add_argument("--format", choices=("ppcm", "wav"), default="ppcm")
     args = parser.parse_args()
-    generate(args.destination, args.sample_frames, args.amplitude, args.half_period_frames)
+    generate(
+        args.destination,
+        args.sample_frames,
+        args.amplitude,
+        args.half_period_frames,
+        args.format,
+    )
 
 
 if __name__ == "__main__":

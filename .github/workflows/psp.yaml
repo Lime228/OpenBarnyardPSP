@@ -39,6 +39,8 @@ jobs:
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/ui_menuclick.ppcm --sample-frames 256 --amplitude 9000 --half-period-frames 8
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/ui_menuback.ppcm --sample-frames 384 --amplitude 7000 --half-period-frames 16
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/ui_menuok.ppcm --sample-frames 512 --amplitude 8000 --half-period-frames 32
+          python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/ui_menuclick.wav --format wav --sample-frames 256 --amplitude 9000 --half-period-frames 8
+          python3 Ports/PSP/Tools/convert_audio.py /tmp/ui_menuclick.wav /tmp/ui_menuclick_converted.ppcm --format ppcm
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/bootstrap_stream.ppcm --sample-frames 3072
           python3 Ports/PSP/Tools/generate_bootstrap_adpcm.py /tmp/bootstrap_stream_generated.padp --sample-frames 3072 --loop-start 1024 --loop-end 3072
           python3 Ports/PSP/Tools/convert_audio.py Ports/PSP/Assets/bootstrap_stream.wav /tmp/bootstrap_stream.padp --loop-start 1024 --loop-end 3072
@@ -47,6 +49,7 @@ jobs:
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
           cmp Ports/PSP/Assets/bootstrap_audio.pbnk /tmp/bootstrap_audio.pbnk
           cmp Ports/PSP/Assets/ui_menuclick.ppcm /tmp/ui_menuclick.ppcm
+          cmp Ports/PSP/Assets/ui_menuclick.ppcm /tmp/ui_menuclick_converted.ppcm
           cmp Ports/PSP/Assets/ui_menuback.ppcm /tmp/ui_menuback.ppcm
           cmp Ports/PSP/Assets/ui_menuok.ppcm /tmp/ui_menuok.ppcm
           cmp Ports/PSP/Assets/bootstrap_stream.ppcm /tmp/bootstrap_stream.ppcm
