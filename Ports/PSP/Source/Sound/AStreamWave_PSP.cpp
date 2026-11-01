@@ -24,7 +24,11 @@ AStreamWave_PSP::AStreamWave_PSP()
     , m_oPrefetchThread()
     , m_pFile( TNULL )
     , m_oHeader{}
+    , m_eFormat( StreamFormat_None )
+    , m_uiDataOffset( 0 )
+    , m_uiBlockBytes( 0 )
     , m_aPages{}
+    , m_aCompressedBlock{}
     , m_uiCurrentPage( 0 )
     , m_uiPendingStart( INVALID_SAMPLE_FRAME )
     , m_uiLoadingStart( INVALID_SAMPLE_FRAME )
@@ -53,25 +57,74 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 	if ( pFile == TNULL )
 		return TFALSE;
 
-	AWaveDataHeader_PSP oHeader = {};
-	const TBOOL bValid = pFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
-	                     oHeader.uiMagic == AWaveDataHeader_PSP::MAGIC &&
-	                     oHeader.uiVersion == AWaveDataHeader_PSP::VERSION &&
-	                     oHeader.uiSampleRate == ASoundManager_PSP::SAMPLE_RATE &&
-	                     oHeader.uiChannels == AWave_PSP::OUTPUT_CHANNELS &&
-	                     oHeader.uiSampleFrames > AWave_PSP::MAX_SAMPLE_FRAMES &&
-	                     oHeader.uiSampleFrames <= MAX_STREAM_SAMPLE_FRAMES &&
-	                     pFile->GetSize() == sizeof( oHeader ) +
-	                                             oHeader.uiSampleFrames *
-	                                                 AWave_PSP::OUTPUT_CHANNELS * sizeof( TINT16 );
-	if ( !bValid )
+	TUINT32 uiMagic = 0;
+	if ( pFile->Read( &uiMagic, sizeof( uiMagic ) ) != sizeof( uiMagic ) ||
+	     !pFile->Seek( 0, Toshi::TSEEK_SET ) )
 	{
 		pFile->Destroy();
 		return TFALSE;
 	}
 
 	m_pFile = pFile;
-	m_oHeader = oHeader;
+	if ( uiMagic == AWaveDataHeader_PSP::MAGIC )
+	{
+		AWaveDataHeader_PSP oHeader = {};
+		const TBOOL bValid = pFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
+		                     oHeader.uiVersion == AWaveDataHeader_PSP::VERSION &&
+		                     oHeader.uiSampleRate == ASoundManager_PSP::SAMPLE_RATE &&
+		                     oHeader.uiChannels == AWave_PSP::OUTPUT_CHANNELS &&
+		                     oHeader.uiSampleFrames > AWave_PSP::MAX_SAMPLE_FRAMES &&
+		                     oHeader.uiSampleFrames <= MAX_STREAM_SAMPLE_FRAMES &&
+		                     pFile->GetSize() == sizeof( oHeader ) +
+		                                             oHeader.uiSampleFrames *
+		                                                 AWave_PSP::OUTPUT_CHANNELS * sizeof( TINT16 );
+		if ( !bValid )
+		{
+			Destroy();
+			return TFALSE;
+		}
+		m_oHeader = oHeader;
+		m_eFormat = StreamFormat_PCM;
+		m_uiDataOffset = sizeof( oHeader );
+	}
+	else if ( uiMagic == AADPCMStreamHeader_PSP::MAGIC )
+	{
+		AADPCMStreamHeader_PSP oHeader = {};
+		const TBOOL bValid = pFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
+		                     oHeader.uiVersion == AADPCMStreamHeader_PSP::VERSION &&
+		                     oHeader.uiSampleRate == ASoundManager_PSP::SAMPLE_RATE &&
+		                     oHeader.uiChannels == AWave_PSP::OUTPUT_CHANNELS &&
+		                     oHeader.uiSampleFrames > AWave_PSP::MAX_SAMPLE_FRAMES &&
+		                     oHeader.uiSampleFrames <= MAX_STREAM_SAMPLE_FRAMES &&
+		                     oHeader.uiBlockSampleFrames == AADPCMStreamHeader_PSP::BLOCK_SAMPLE_FRAMES &&
+		                     oHeader.uiBlockBytes == AADPCMStreamHeader_PSP::BLOCK_BYTES &&
+		                     oHeader.uiBlockCount ==
+		                         ( oHeader.uiSampleFrames + CACHE_SAMPLE_FRAMES - 1 ) /
+		                             CACHE_SAMPLE_FRAMES &&
+		                     pFile->GetSize() == sizeof( oHeader ) +
+		                                             oHeader.uiBlockCount * oHeader.uiBlockBytes;
+		if ( !bValid )
+		{
+			Destroy();
+			return TFALSE;
+		}
+		m_oHeader = {
+			AWaveDataHeader_PSP::MAGIC,
+			AWaveDataHeader_PSP::VERSION,
+			oHeader.uiSampleRate,
+			oHeader.uiChannels,
+			oHeader.uiSampleFrames,
+		};
+		m_eFormat = StreamFormat_ADPCM;
+		m_uiDataOffset = sizeof( oHeader );
+		m_uiBlockBytes = oHeader.uiBlockBytes;
+	}
+	else
+	{
+		Destroy();
+		return TFALSE;
+	}
+
 	if ( !ReadPage( 0, 0 ) ||
 	     !m_oStateMutex.Create() ||
 	     !m_oPrefetchRequested.Create( 0, 1 ) ||
@@ -122,11 +175,15 @@ void AStreamWave_PSP::Destroy()
 		m_pFile->Destroy();
 	m_pFile = TNULL;
 	m_oHeader = {};
+	m_eFormat = StreamFormat_None;
+	m_uiDataOffset = 0;
+	m_uiBlockBytes = 0;
 	m_uiCurrentPage = 0;
 	m_uiPendingStart = INVALID_SAMPLE_FRAME;
 	m_uiLoadingStart = INVALID_SAMPLE_FRAME;
 	m_uiUnderrunCount = 0;
 	Toshi::TUtil::MemClear( m_aPages, sizeof( m_aPages ) );
+	Toshi::TUtil::MemClear( m_aCompressedBlock, sizeof( m_aCompressedBlock ) );
 }
 
 TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
@@ -176,13 +233,34 @@ TBOOL AStreamWave_PSP::ReadPage( TUINT a_uiStartSampleFrame, TUINT a_uiPage )
 	const TUINT uiRemainingFrames = m_oHeader.uiSampleFrames - a_uiStartSampleFrame;
 	const TUINT uiFramesToRead = uiRemainingFrames < CACHE_SAMPLE_FRAMES ?
 	                               uiRemainingFrames : CACHE_SAMPLE_FRAMES;
-	const TSIZE uiBytesToRead = uiFramesToRead * AWave_PSP::OUTPUT_CHANNELS * sizeof( TINT16 );
-	const TINT iFileOffset = TINT(
-	    sizeof( AWaveDataHeader_PSP ) +
-	    a_uiStartSampleFrame * AWave_PSP::OUTPUT_CHANNELS * sizeof( TINT16 )
-	);
-	if ( !m_pFile->Seek( iFileOffset, Toshi::TSEEK_SET ) ||
-	     m_pFile->Read( m_aPages[ a_uiPage ].aSamples, uiBytesToRead ) != uiBytesToRead )
+	TBOOL bRead = TFALSE;
+	if ( m_eFormat == StreamFormat_PCM )
+	{
+		const TSIZE uiBytesToRead =
+		    uiFramesToRead * AWave_PSP::OUTPUT_CHANNELS * sizeof( TINT16 );
+		const TINT iFileOffset = TINT(
+		    m_uiDataOffset +
+		    a_uiStartSampleFrame * AWave_PSP::OUTPUT_CHANNELS * sizeof( TINT16 )
+		);
+		bRead = m_pFile->Seek( iFileOffset, Toshi::TSEEK_SET ) &&
+		        m_pFile->Read( m_aPages[ a_uiPage ].aSamples, uiBytesToRead ) == uiBytesToRead;
+	}
+	else if ( m_eFormat == StreamFormat_ADPCM &&
+	          a_uiStartSampleFrame % CACHE_SAMPLE_FRAMES == 0 )
+	{
+		const TUINT uiBlock = a_uiStartSampleFrame / CACHE_SAMPLE_FRAMES;
+		const TINT iFileOffset = TINT( m_uiDataOffset + uiBlock * m_uiBlockBytes );
+		bRead = m_pFile->Seek( iFileOffset, Toshi::TSEEK_SET ) &&
+		        m_pFile->Read( m_aCompressedBlock, m_uiBlockBytes ) == m_uiBlockBytes &&
+		        AADPCMDecoder_PSP::DecodeBlock(
+		            m_aCompressedBlock,
+		            m_uiBlockBytes,
+		            m_aPages[ a_uiPage ].aSamples,
+		            uiFramesToRead
+		        );
+	}
+
+	if ( !bRead )
 	{
 		return TFALSE;
 	}

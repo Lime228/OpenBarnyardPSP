@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AWave_PSP.h"
+#include "AADPCM_PSP.h"
 
 #include <Thread/TMutex.h>
 #include <Thread/TSemaphore.h>
@@ -21,6 +22,13 @@ public:
 	void SetStreamWave( AStreamWave_PSP* a_pStreamWave ) { m_pStreamWave = a_pStreamWave; }
 
 private:
+	enum StreamFormat
+	{
+		StreamFormat_None,
+		StreamFormat_PCM,
+		StreamFormat_ADPCM,
+	};
+
 	AStreamWave_PSP* m_pStreamWave;
 };
 
@@ -66,7 +74,11 @@ private:
 	AStreamPrefetchThread_PSP m_oPrefetchThread;
 	Toshi::TFile* m_pFile;
 	AWaveDataHeader_PSP m_oHeader;
+	StreamFormat m_eFormat;
+	TUINT m_uiDataOffset;
+	TUINT m_uiBlockBytes;
 	CachePage m_aPages[ CACHE_PAGE_COUNT ];
+	alignas( 64 ) TUINT8 m_aCompressedBlock[ AADPCMStreamHeader_PSP::BLOCK_BYTES ];
 	TUINT m_uiCurrentPage;
 	TUINT m_uiPendingStart;
 	TUINT m_uiLoadingStart;
