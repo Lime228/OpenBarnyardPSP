@@ -14,13 +14,22 @@ AMPLITUDE = 1200
 HALF_PERIOD_FRAMES = 50
 
 
-def generate(destination: pathlib.Path, sample_frames: int) -> None:
+def generate(
+    destination: pathlib.Path,
+    sample_frames: int,
+    amplitude: int = AMPLITUDE,
+    half_period_frames: int = HALF_PERIOD_FRAMES,
+) -> None:
     if sample_frames <= 0:
         raise ValueError("sample frame count must be positive")
+    if not 1 <= amplitude <= 32767:
+        raise ValueError("amplitude must be in the range 1-32767")
+    if half_period_frames <= 0:
+        raise ValueError("half-period frame count must be positive")
 
     samples: list[int] = []
     for frame in range(sample_frames):
-        sample = AMPLITUDE if (frame // HALF_PERIOD_FRAMES) % 2 == 0 else -AMPLITUDE
+        sample = amplitude if (frame // half_period_frames) % 2 == 0 else -amplitude
         samples.extend((sample, sample))
 
     output = bytearray(
@@ -42,8 +51,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate the PSP bootstrap PCM wave")
     parser.add_argument("destination", type=pathlib.Path)
     parser.add_argument("--sample-frames", type=int, default=DEFAULT_SAMPLE_FRAMES)
+    parser.add_argument("--amplitude", type=int, default=AMPLITUDE)
+    parser.add_argument("--half-period-frames", type=int, default=HALF_PERIOD_FRAMES)
     args = parser.parse_args()
-    generate(args.destination, args.sample_frames)
+    generate(args.destination, args.sample_frames, args.amplitude, args.half_period_frames)
 
 
 if __name__ == "__main__":

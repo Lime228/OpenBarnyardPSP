@@ -36,13 +36,19 @@ jobs:
           python3 Ports/PSP/Tools/convert_texture.py --alpha-mask Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.ptex
           python3 Ports/PSP/Tools/generate_bootstrap_locale.py Ports/PSP/Assets/bootstrap_locale.ploc
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py Ports/PSP/Assets/bootstrap_audio.ppcm
+          python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/ui_menuclick.ppcm --sample-frames 256 --amplitude 9000 --half-period-frames 8
+          python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/ui_menuback.ppcm --sample-frames 384 --amplitude 7000 --half-period-frames 16
+          python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/ui_menuok.ppcm --sample-frames 512 --amplitude 8000 --half-period-frames 32
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/bootstrap_stream.ppcm --sample-frames 3072
           python3 Ports/PSP/Tools/generate_bootstrap_adpcm.py /tmp/bootstrap_stream_generated.padp --sample-frames 3072 --loop-start 1024 --loop-end 3072
           python3 Ports/PSP/Tools/convert_audio.py Ports/PSP/Assets/bootstrap_stream.wav /tmp/bootstrap_stream.padp --loop-start 1024 --loop-end 3072
-          python3 Ports/PSP/Tools/generate_wave_bank.py /tmp/bootstrap_audio.pbnk --wave bootstrap=local:bootstrap_audio.ppcm --stream bootstrap_stream=local:bootstrap_stream.padp
+          python3 Ports/PSP/Tools/generate_wave_bank.py /tmp/bootstrap_audio.pbnk --wave bootstrap=local:bootstrap_audio.ppcm --wave ui_menuclick=local:ui_menuclick.ppcm --wave ui_menuback=local:ui_menuback.ppcm --wave ui_menuok=local:ui_menuok.ppcm --stream bootstrap_stream=local:bootstrap_stream.padp
           cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
           cmp Ports/PSP/Assets/bootstrap_audio.pbnk /tmp/bootstrap_audio.pbnk
+          cmp Ports/PSP/Assets/ui_menuclick.ppcm /tmp/ui_menuclick.ppcm
+          cmp Ports/PSP/Assets/ui_menuback.ppcm /tmp/ui_menuback.ppcm
+          cmp Ports/PSP/Assets/ui_menuok.ppcm /tmp/ui_menuok.ppcm
           cmp Ports/PSP/Assets/bootstrap_stream.ppcm /tmp/bootstrap_stream.ppcm
           cmp Ports/PSP/Assets/bootstrap_stream.padp /tmp/bootstrap_stream.padp
           cmp Ports/PSP/Assets/bootstrap_stream.padp /tmp/bootstrap_stream_generated.padp
@@ -75,6 +81,9 @@ jobs:
             bin/PSP/Release/bootstrap_locale.ploc
             bin/PSP/Release/bootstrap_audio.ppcm
             bin/PSP/Release/bootstrap_audio.pbnk
+            bin/PSP/Release/ui_menuclick.ppcm
+            bin/PSP/Release/ui_menuback.ppcm
+            bin/PSP/Release/ui_menuok.ppcm
             bin/PSP/Release/bootstrap_stream.ppcm
             bin/PSP/Release/bootstrap_stream.padp
           if-no-files-found: error

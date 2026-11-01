@@ -31,6 +31,22 @@ python3 "$script_dir/Tools/generate_bootstrap_locale.py" \
     "$script_dir/Assets/bootstrap_locale.ploc"
 python3 "$script_dir/Tools/generate_bootstrap_audio.py" \
     "$script_dir/Assets/bootstrap_audio.ppcm"
+python3 "$script_dir/Tools/generate_bootstrap_audio.py" \
+    "$script_dir/Assets/ui_menuclick.ppcm" \
+    --sample-frames 256 --amplitude 9000 --half-period-frames 8
+python3 "$script_dir/Tools/generate_bootstrap_audio.py" \
+    "$script_dir/Assets/ui_menuback.ppcm" \
+    --sample-frames 384 --amplitude 7000 --half-period-frames 16
+python3 "$script_dir/Tools/generate_bootstrap_audio.py" \
+    "$script_dir/Assets/ui_menuok.ppcm" \
+    --sample-frames 512 --amplitude 8000 --half-period-frames 32
+python3 "$script_dir/Tools/generate_wave_bank.py" \
+    "$script_dir/Assets/bootstrap_audio.pbnk" \
+    --wave bootstrap=local:bootstrap_audio.ppcm \
+    --wave ui_menuclick=local:ui_menuclick.ppcm \
+    --wave ui_menuback=local:ui_menuback.ppcm \
+    --wave ui_menuok=local:ui_menuok.ppcm \
+    --stream bootstrap_stream=local:bootstrap_stream.padp
 
 premake5 --file="$repository_dir/premake5.lua" gmake --target=psp
 make -C "$repository_dir/Build/PSP" config="$build_config" -j"$(nproc)" "$@"
