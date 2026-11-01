@@ -1,6 +1,18 @@
 #include <ToshiPCH.h>
 #include "AGUIAudioContext_PSP.h"
 
+struct AGUISoundMapping_PSP
+{
+	TINT16 iSoundID;
+	const TCHAR* pWaveName;
+};
+
+static const AGUISoundMapping_PSP g_aGUISoundMappings_PSP[] = {
+	{ ASoundId_PSP_UI_MENUCLICK, "UI_MENUCLICK" },
+	{ ASoundId_PSP_UI_MENUBACK, "UI_MENUBACK" },
+	{ ASoundId_PSP_UI_MENUOK, "UI_MENUOK" },
+};
+
 AGUIAudioContext_PSP::AGUIAudioContext_PSP()
     : m_pWaveBank( TNULL )
     , m_pCommandQueue( TNULL )
@@ -48,13 +60,11 @@ void AGUIAudioContext_PSP::PlaySound( TINT16 a_iSoundID )
 
 const TCHAR* AGUIAudioContext_PSP::ResolveWaveName( TINT16 a_iSoundID ) const
 {
-	switch ( a_iSoundID )
+	for ( TSIZE i = 0; i < TARRAYSIZE( g_aGUISoundMappings_PSP ); i++ )
 	{
-		case ASoundId_PSP_UI_MENUCLICK:
-		case ASoundId_PSP_UI_MENUBACK:
-		case ASoundId_PSP_UI_MENUOK:
-			return "BOOTSTRAP";
-		default:
-			return TNULL;
+		if ( g_aGUISoundMappings_PSP[ i ].iSoundID == a_iSoundID )
+			return g_aGUISoundMappings_PSP[ i ].pWaveName;
 	}
+
+	return TNULL;
 }
