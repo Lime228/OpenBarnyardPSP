@@ -200,44 +200,37 @@ static TBOOL TestBootstrapVoiceFrequency_PSP()
 	       !g_SoundMixer_PSP.SetFrequency( hVoice, ASoundMixer_PSP::DEFAULT_FREQUENCY );
 }
 
-static TBOOL TestBootstrapStream_PSP()
-{
-	const ASoundVoiceHandle_PSP hVoice = g_SoundMixer_PSP.PlayStream(
-	    &g_BootstrapStream_PSP,
-	    0,
-	    0
-	);
-	if ( hVoice == ASoundMixer_PSP::INVALID_VOICE ||
-	     g_SoundMixer_PSP.PlayStream( &g_BootstrapStream_PSP, 0, 0 ) !=
-	         ASoundMixer_PSP::INVALID_VOICE ||
-	     g_SoundMixer_PSP.SetFrequency(
-	         hVoice,
-	         ASoundMixer_PSP::DEFAULT_FREQUENCY / 2
-	     ) ||
-	     !SubmitBootstrapWave_PSP() ||
-	     !g_SoundMixer_PSP.IsVoiceActive( hVoice ) ||
-	     !SubmitBootstrapWave_PSP() ||
-	     !g_SoundMixer_PSP.IsVoiceActive( hVoice ) ||
-	     !SubmitBootstrapWave_PSP() )
-	{
-		return TFALSE;
-	}
-
-	return !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
-	       !g_SoundMixer_PSP.SetVolume( hVoice, ASoundMixer_PSP::MAX_VOLUME ) &&
-	       g_BootstrapStream_PSP.GetUnderrunCount() == 0;
-}
-
 static TBOOL TestBootstrapStreamLoop_PSP()
 {
-	const ASoundVoiceHandle_PSP hVoice = g_SoundMixer_PSP.PlayStream(
-	    &g_BootstrapStream_PSP,
-	    0,
-	    0,
-	    TTRUE
-	);
-	if ( hVoice == ASoundMixer_PSP::INVALID_VOICE )
+	g_SoundCommandQueue_PSP.Clear();
+	const ASoundEvent_PSP oPlayEvent = {
+		ASoundEventType_PSP_PlayAudio,
+		"BOOTSTRAP_STREAM",
+		ASoundMixer_PSP::INVALID_VOICE,
+		0,
+		0,
+		TTRUE,
+	};
+	ASoundCommandRequest_PSP uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
+	ASoundVoiceHandle_PSP hVoice = ASoundMixer_PSP::INVALID_VOICE;
+	if ( g_BootstrapStream_PSP.GetLoopStartFrame() != 1024 ||
+	     g_BootstrapStream_PSP.GetLoopEndFrame() != 3072 ||
+	     g_SoundCommandQueue_PSP.QueuePlayNamed(
+	         g_WaveBank_PSP,
+	         "BOOTSTRAP_STREAM",
+	         0,
+	         0,
+	         TTRUE,
+	         ASoundMixer_PSP::DEFAULT_FREQUENCY / 2
+	     ) != ASoundCommandQueue_PSP::INVALID_REQUEST ||
+	     !g_SoundCommandQueue_PSP.QueueEvent( g_WaveBank_PSP, oPlayEvent, uiRequest ) ||
+	     !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     !g_SoundCommandQueue_PSP.GetPlayResult( uiRequest, hVoice ) ||
+	     hVoice == ASoundMixer_PSP::INVALID_VOICE )
+	{
+		g_SoundCommandQueue_PSP.Clear();
 		return TFALSE;
+	}
 
 	for ( TUINT uiBuffer = 0; uiBuffer < 4; uiBuffer++ )
 	{
@@ -248,10 +241,11 @@ static TBOOL TestBootstrapStreamLoop_PSP()
 		}
 	}
 
-	return g_SoundMixer_PSP.Stop( hVoice ) &&
-	       !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
-	       !g_SoundMixer_PSP.Stop( hVoice ) &&
-	       g_BootstrapStream_PSP.GetUnderrunCount() == 0;
+	const TBOOL bStopped = g_SoundCommandQueue_PSP.QueueStop( hVoice ) &&
+	                       g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
+	                       !g_SoundMixer_PSP.IsVoiceActive( hVoice );
+	g_SoundCommandQueue_PSP.Clear();
+	return bStopped && g_BootstrapStream_PSP.GetUnderrunCount() == 0;
 }
 
 static TBOOL TestBootstrapCompressedStream_PSP()
@@ -259,8 +253,7 @@ static TBOOL TestBootstrapCompressedStream_PSP()
 	const TINT16* pFirstFrame = g_BootstrapStream_PSP.GetFrame( 0 );
 	return pFirstFrame != TNULL &&
 	       pFirstFrame[ 0 ] == 1200 && pFirstFrame[ 1 ] == 1200 &&
-	       TestBootstrapStreamLoop_PSP() &&
-	       TestBootstrapStream_PSP();
+	       TestBootstrapStreamLoop_PSP();
 }
 
 static TBOOL TestSoundCommandQueue_PSP()
