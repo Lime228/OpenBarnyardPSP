@@ -22,13 +22,6 @@ public:
 	void SetStreamWave( AStreamWave_PSP* a_pStreamWave ) { m_pStreamWave = a_pStreamWave; }
 
 private:
-	enum StreamFormat
-	{
-		StreamFormat_None,
-		StreamFormat_PCM,
-		StreamFormat_ADPCM,
-	};
-
 	AStreamWave_PSP* m_pStreamWave;
 };
 
@@ -55,6 +48,13 @@ public:
 	TBOOL IsCreated() const { return m_pFile != TNULL; }
 
 private:
+	enum StreamFormat
+	{
+		StreamFormat_None,
+		StreamFormat_PCM,
+		StreamFormat_ADPCM,
+	};
+
 	struct CachePage
 	{
 		TUINT uiStart;
