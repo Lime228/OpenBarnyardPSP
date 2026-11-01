@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-01)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **50%** complete. The second value
+complete playable-game port is approximately **51%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 74% | generation-safe managed/detached cues, immediate/delayed named commands, three GUI cues, PADP loops, typed PBNK entries, bounded prefetch, spatial controls and audio output work; `PlayCueEx`, movies and saves remain incomplete |
+| Audio, movies and saves | 76% | bounded `PlayCueEx` volume/delay, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; managed cue controls, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -664,6 +664,20 @@ remain largely unstarted.
   requests and play results. PPSSPP reported `managed_cues=OK`, all other gates
   `OK` and zero underruns; the bundle is stored under `Runtime/PSP/1dba1a74` and
   the single emulator process was PID `23940`.
+- `PlayCueEx` accepts bounded volume from 0.0 through 1.0 and delay from 0
+  through 300 seconds. Volume is converted once to the mixer's Q12 scale and
+  delay once to 44.1 kHz sample frames; neither conversion enters the inner mix
+  loop. Delayed managed cues reuse `ASoundDelayedEventQueue_PSP` and retain their
+  cue handle while moving through scheduled, command-result and active states.
+- Paused-start and explicit track selection return `-1` until those ownership
+  modes exist. Invalid volume, negative or excessive delay, NaN-like unordered
+  values and unsupported options do not reserve a cue or delayed-event slot.
+- Commit `1e0c7ce5` passed PSP run `41332139401`. The runtime gate held a cue for
+  exactly two 512-frame updates, resolved its asynchronous voice and verified
+  that a 0.5-volume 8,000-amplitude source mixed to `4000/4000`. It also tested
+  every unsupported mode and left no cue, event or result slots occupied.
+  PPSSPP reported `cue_ex=OK`, all other gates `OK` and zero underruns; the bundle
+  is stored under `Runtime/PSP/1e0c7ce5`, single process PID `23020`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -671,9 +685,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, layer the supported `PlayCueEx` volume/delay subset over the
-existing command and delayed-event queues. Explicitly reject paused-start and
-track-selection modes until their ownership semantics are implemented. Keep one
+In parallel, add `StopCue` and cue-volume updates over generation-safe managed
+handles, including pending delayed cues. Keep paused-start and track selection
+explicitly unsupported until their ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
