@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-01)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **44%** complete. The second value
+complete playable-game port is approximately **45%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -25,10 +25,10 @@ streaming, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 31% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, PPCM, PADP and PBNK assets |
+| Real-game asset pipeline | 33% | deterministic converters accept textures, meshes and PCM16 stereo WAV input, including aligned stream loop metadata, and produce PTEX, PMES, PFNT, PLOC, PPCM, PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 61% | typed PBNK resident/stream entries, bounded IMA ADPCM/PCM prefetch, page-aligned loops, underrun telemetry, spatial controls and audio output work; movies and saves are not started |
+| Audio, movies and saves | 65% | named stream commands, authorable PADP loop ranges, typed PBNK entries, bounded ADPCM/PCM prefetch, underrun telemetry, spatial controls and audio output work; movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -573,6 +573,20 @@ remain largely unstarted.
   then passed loop and one-shot playback. PPSSPP reported `adpcm=OK`, `audio=OK`
   and `stream_underruns=0`; the bundle is stored under `Runtime/PSP/a3818910`
   and the single tracked emulator process was PID `27300`.
+- PADP v2 adds aligned loop start/end frames to its fixed header. Both converter
+  paths reject out-of-range or non-1,024-frame-aligned points. The probe contains
+  a one-page intro followed by a two-page loop from frame 1,024 through 3,072.
+- The mixer wraps a stream cursor to its authored start and asks the prefetch
+  worker for that page while the loop's final page is still playing. Immediate
+  `PlayAudio` events now resolve either resident or stream names through PBNK;
+  streams retain the fixed 44.1 kHz restriction and delayed stream events remain
+  disabled until their queue stores typed sources.
+- Commit `417123e8` passed PSP run `41282217322`. The runtime command queue
+  resolved `BOOTSTRAP_STREAM`, rejected a pitch-changing stream request, played
+  the intro, crossed the authored 3,072-to-1,024 wrap and stopped through the
+  same command vocabulary. PPSSPP reported `adpcm=OK`, `audio=OK` and
+  `stream_underruns=0`; the bundle is stored under `Runtime/PSP/417123e8` and the
+  single tracked emulator process was PID `7044`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -580,8 +594,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, bridge typed PBNK names into the real sound-manager vocabulary and
-add authorable loop metadata to PADP before allowing non-whole-file music loops.
+In parallel, extend delayed sound events with typed resident/stream sources and
+then map the bounded vocabulary onto the first real game sound-manager caller.
 Keep one music stream cursor and resident SFX until independent stream state has
 a measured PSP memory budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
