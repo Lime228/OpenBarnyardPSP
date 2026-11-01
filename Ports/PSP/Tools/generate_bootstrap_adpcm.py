@@ -70,14 +70,15 @@ def encode_channel(samples: list[int]) -> bytes:
     return bytes(output)
 
 
-def generate(destination: pathlib.Path, sample_frames: int) -> None:
+def write_padp(destination: pathlib.Path, channel_samples: list[list[int]]) -> None:
+    if len(channel_samples) != CHANNELS:
+        raise ValueError(f"PADP requires exactly {CHANNELS} channels")
+    sample_frames = len(channel_samples[0])
     if sample_frames <= BLOCK_SAMPLE_FRAMES:
         raise ValueError("ADPCM stream must be longer than one block")
+    if any(len(samples) != sample_frames for samples in channel_samples):
+        raise ValueError("PADP channels must contain the same frame count")
 
-    samples = [
-        AMPLITUDE if (frame // HALF_PERIOD_FRAMES) % 2 == 0 else -AMPLITUDE
-        for frame in range(sample_frames)
-    ]
     block_count = (sample_frames + BLOCK_SAMPLE_FRAMES - 1) // BLOCK_SAMPLE_FRAMES
     output = bytearray(
         struct.pack(
@@ -95,13 +96,21 @@ def generate(destination: pathlib.Path, sample_frames: int) -> None:
 
     for block in range(block_count):
         start = block * BLOCK_SAMPLE_FRAMES
-        block_samples = samples[start : start + BLOCK_SAMPLE_FRAMES]
-        block_samples.extend([block_samples[-1]] * (BLOCK_SAMPLE_FRAMES - len(block_samples)))
-        for _channel in range(CHANNELS):
+        for samples in channel_samples:
+            block_samples = samples[start : start + BLOCK_SAMPLE_FRAMES]
+            block_samples.extend([block_samples[-1]] * (BLOCK_SAMPLE_FRAMES - len(block_samples)))
             output.extend(encode_channel(block_samples))
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(output)
+
+
+def generate(destination: pathlib.Path, sample_frames: int) -> None:
+    samples = [
+        AMPLITUDE if (frame // HALF_PERIOD_FRAMES) % 2 == 0 else -AMPLITUDE
+        for frame in range(sample_frames)
+    ]
+    write_padp(destination, [samples, samples])
 
 
 def main() -> None:
