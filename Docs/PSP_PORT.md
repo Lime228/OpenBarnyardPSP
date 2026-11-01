@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-01)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **41%** complete. The second value
+complete playable-game port is approximately **42%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 25% | deterministic converters produce PTEX, PMES, PFNT, PLOC, resident/streamed PPCM and PBNK runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 50% | bounded asynchronous PCM prefetch, PBNK manifests, listener/world transforms, spatial controls, scheduled events, mixer and audio output work; codecs, movies and saves are not started |
+| Audio, movies and saves | 53% | bounded asynchronous PCM prefetch, page-aligned stream loops, underrun telemetry, PBNK manifests, spatial controls, mixer and audio output work; codecs, movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -514,14 +514,12 @@ remain largely unstarted.
   artifact contains both files and PPSSPP retained every readiness gate as
   `OK`. The bundle is stored under `Runtime/PSP/663624e8`.
 - `AStreamWave_PSP` validates PPCM streams up to five minutes and retains an
-  open Toshi file plus one 64-byte-aligned 1,024-frame cache. Each audio buffer
-  is fetched in one read before mixing; the inner sample loop performs no file
-  I/O and the 16.16 cursor now uses `TUINT64` to avoid the old 65,535-frame
-  ceiling.
-- The initial stream path is deliberately limited to one 44.1 kHz one-shot
-  voice per cursor. Looping, pitch changes and duplicate playback are rejected
-  until independent prefetch state exists, preventing cache aliasing or an
-  unbounded refill path.
+  open Toshi file plus two 64-byte-aligned 1,024-frame pages. Each page is
+  fetched in one worker read; the mixer performs no file I/O and the 16.16
+  cursor uses `TUINT64` to avoid the old 65,535-frame ceiling.
+- The stream path remains limited to one 44.1 kHz voice per cursor. Pitch
+  changes and duplicate playback are rejected until independent prefetch state
+  exists, preventing cache aliasing or an unbounded refill path.
 - Commit `1b3d215a` passed PSP run `41225583499`. The bootstrap streams a silent
   3,072-frame probe across three distinct cache pages, verifies lifetime after
   the first two and completion after the third, then rejects its stale handle.
@@ -539,6 +537,16 @@ remain largely unstarted.
   readiness gate as `OK` in PPSSPP, including the three-page stream lifetime
   probe and worker shutdown. The bundle is stored under
   `Runtime/PSP/a943b59f`; the single tracked emulator process was PID `26632`.
+- Whole-file stream loops are accepted only when the PCM frame count is aligned
+  to the fixed 1,024-frame page. While the final page plays, the worker wraps
+  prefetch to page zero; the next mixer buffer therefore switches without a
+  storage wait or extra allocation. A missed page stops the voice and increments
+  the bounded `stream_underruns` diagnostic.
+- Commit `7f2e0614` passed PSP run `41281161509`. Its runtime probe crossed the
+  end of the 3,072-frame stream, remained active after wrap, then replayed the
+  same cursor as a terminating one-shot. PPSSPP reported `audio=OK` and
+  `stream_underruns=0`; the bundle is stored under `Runtime/PSP/7f2e0614` and
+  the single tracked emulator process was PID `10080`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -546,9 +554,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add bounded underrun telemetry and page-aligned loop points before
-attempting compressed codecs or the full sound manager. Keep one music stream
-cursor and resident SFX until independent stream state has a measured PSP memory
+In parallel, define a bounded compressed stream format and measure a fixed-block
+decoder before integrating the full sound manager. Keep one music stream cursor
+and resident SFX until independent stream state has a measured PSP memory
 budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
