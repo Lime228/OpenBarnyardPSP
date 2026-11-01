@@ -57,6 +57,7 @@ static AWave_PSP g_BootstrapWaves_PSP[ 1 ];
 static AWaveBankLoader_PSP g_WaveBankLoader_PSP;
 static TUINT g_uiLoadedWaves_PSP = 0;
 static AStreamWave_PSP g_BootstrapStream_PSP;
+static TUINT g_uiLoadedStreams_PSP = 0;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::T2GUIFontFactory_PSP g_FontFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
@@ -255,10 +256,6 @@ static TBOOL TestBootstrapStreamLoop_PSP()
 
 static TBOOL TestBootstrapCompressedStream_PSP()
 {
-	g_BootstrapStream_PSP.Destroy();
-	if ( !g_BootstrapStream_PSP.Create( "local:bootstrap_stream.padp" ) )
-		return TFALSE;
-
 	const TINT16* pFirstFrame = g_BootstrapStream_PSP.GetFrame( 0 );
 	return pFirstFrame != TNULL &&
 	       pFirstFrame[ 0 ] == 1200 && pFirstFrame[ 1 ] == 1200 &&
@@ -543,23 +540,24 @@ int main()
 	                                  g_WaveBank_PSP,
 	                                  g_BootstrapWaves_PSP,
 	                                  1,
+	                                  &g_BootstrapStream_PSP,
+	                                  1,
 	                                  "local:bootstrap_audio.pbnk",
-	                                  g_uiLoadedWaves_PSP
+	                                  g_uiLoadedWaves_PSP,
+	                                  g_uiLoadedStreams_PSP
 	                              ) &&
 	                              g_uiLoadedWaves_PSP == 1 &&
-	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP" ) == &g_BootstrapWaves_PSP[ 0 ];
-	const TBOOL bAudioStreamReady = bAudioBankReady &&
-	                                g_BootstrapStream_PSP.Create(
-	                                    "local:bootstrap_stream.ppcm"
-	                                );
+	                              g_uiLoadedStreams_PSP == 1 &&
+	                              g_WaveBank_PSP.GetCount() == 2 &&
+	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP" ) == &g_BootstrapWaves_PSP[ 0 ] &&
+	                              g_WaveBank_PSP.FindStream( "BOOTSTRAP_STREAM" ) == &g_BootstrapStream_PSP &&
+	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP_STREAM" ) == TNULL &&
+	                              g_WaveBank_PSP.FindStream( "BOOTSTRAP" ) == TNULL;
 	const TBOOL bResidentAudioReady = bAudioBankReady &&
 	                                  TestSoundCommandQueue_PSP() &&
 	                                  TestDelayedSoundEvents_PSP() &&
 	                                  TestBootstrapVoiceFrequency_PSP();
-	const TBOOL bPCMStreamReady = bAudioStreamReady &&
-	                              TestBootstrapStreamLoop_PSP() &&
-	                              TestBootstrapStream_PSP();
-	const TBOOL bADPCMReady = bPCMStreamReady && TestBootstrapCompressedStream_PSP();
+	const TBOOL bADPCMReady = bAudioBankReady && TestBootstrapCompressedStream_PSP();
 	const TBOOL bAudioReady = bResidentAudioReady && bADPCMReady &&
 	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -700,11 +698,12 @@ int main()
 	g_SoundCommandQueue_PSP.Clear();
 	g_DelayedEventQueue_PSP.Clear();
 	g_SoundMixer_PSP.StopAll();
-	g_BootstrapStream_PSP.Destroy();
 	g_WaveBankLoader_PSP.Unload(
 	    g_WaveBank_PSP,
 	    g_BootstrapWaves_PSP,
-	    g_uiLoadedWaves_PSP
+	    g_uiLoadedWaves_PSP,
+	    &g_BootstrapStream_PSP,
+	    g_uiLoadedStreams_PSP
 	);
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
