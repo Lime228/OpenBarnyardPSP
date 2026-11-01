@@ -6,7 +6,7 @@ import struct
 
 
 PADP_MAGIC = 0x50444150
-PADP_VERSION = 1
+PADP_VERSION = 2
 SAMPLE_RATE = 44100
 CHANNELS = 2
 BLOCK_SAMPLE_FRAMES = 1024
@@ -70,7 +70,12 @@ def encode_channel(samples: list[int]) -> bytes:
     return bytes(output)
 
 
-def write_padp(destination: pathlib.Path, channel_samples: list[list[int]]) -> None:
+def write_padp(
+    destination: pathlib.Path,
+    channel_samples: list[list[int]],
+    loop_start: int,
+    loop_end: int,
+) -> None:
     if len(channel_samples) != CHANNELS:
         raise ValueError(f"PADP requires exactly {CHANNELS} channels")
     sample_frames = len(channel_samples[0])
@@ -78,11 +83,15 @@ def write_padp(destination: pathlib.Path, channel_samples: list[list[int]]) -> N
         raise ValueError("ADPCM stream must be longer than one block")
     if any(len(samples) != sample_frames for samples in channel_samples):
         raise ValueError("PADP channels must contain the same frame count")
+    if not 0 <= loop_start < loop_end <= sample_frames:
+        raise ValueError("PADP loop range must be inside the stream")
+    if loop_start % BLOCK_SAMPLE_FRAMES or loop_end % BLOCK_SAMPLE_FRAMES:
+        raise ValueError("PADP loop points must be aligned to 1024 frames")
 
     block_count = (sample_frames + BLOCK_SAMPLE_FRAMES - 1) // BLOCK_SAMPLE_FRAMES
     output = bytearray(
         struct.pack(
-            "<8I",
+            "<10I",
             PADP_MAGIC,
             PADP_VERSION,
             SAMPLE_RATE,
@@ -91,6 +100,8 @@ def write_padp(destination: pathlib.Path, channel_samples: list[list[int]]) -> N
             BLOCK_SAMPLE_FRAMES,
             BLOCK_BYTES,
             block_count,
+            loop_start,
+            loop_end,
         )
     )
 
@@ -105,20 +116,23 @@ def write_padp(destination: pathlib.Path, channel_samples: list[list[int]]) -> N
     destination.write_bytes(output)
 
 
-def generate(destination: pathlib.Path, sample_frames: int) -> None:
+def generate(destination: pathlib.Path, sample_frames: int, loop_start: int, loop_end: int) -> None:
     samples = [
         AMPLITUDE if (frame // HALF_PERIOD_FRAMES) % 2 == 0 else -AMPLITUDE
         for frame in range(sample_frames)
     ]
-    write_padp(destination, [samples, samples])
+    write_padp(destination, [samples, samples], loop_start, loop_end)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate the PSP bootstrap IMA ADPCM stream")
     parser.add_argument("destination", type=pathlib.Path)
     parser.add_argument("--sample-frames", type=int, default=DEFAULT_SAMPLE_FRAMES)
+    parser.add_argument("--loop-start", type=int, default=1024)
+    parser.add_argument("--loop-end", type=int)
     args = parser.parse_args()
-    generate(args.destination, args.sample_frames)
+    loop_end = args.loop_end if args.loop_end is not None else args.sample_frames
+    generate(args.destination, args.sample_frames, args.loop_start, loop_end)
 
 
 if __name__ == "__main__":

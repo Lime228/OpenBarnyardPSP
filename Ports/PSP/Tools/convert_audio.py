@@ -8,7 +8,12 @@ import wave
 from generate_bootstrap_adpcm import CHANNELS, SAMPLE_RATE, write_padp
 
 
-def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
+def convert(
+    source: pathlib.Path,
+    destination: pathlib.Path,
+    loop_start: int,
+    loop_end: int | None,
+) -> None:
     with wave.open(str(source), "rb") as wav_file:
         if wav_file.getnchannels() != CHANNELS:
             raise ValueError(f"source WAV must contain exactly {CHANNELS} channels")
@@ -29,15 +34,18 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
         list(interleaved[channel::CHANNELS])
         for channel in range(CHANNELS)
     ]
-    write_padp(destination, channel_samples)
+    resolved_loop_end = loop_end if loop_end is not None else sample_frames
+    write_padp(destination, channel_samples, loop_start, resolved_loop_end)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert PCM16 stereo WAV to PSP PADP")
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
+    parser.add_argument("--loop-start", type=int, default=0)
+    parser.add_argument("--loop-end", type=int)
     args = parser.parse_args()
-    convert(args.source, args.destination)
+    convert(args.source, args.destination, args.loop_start, args.loop_end)
 
 
 if __name__ == "__main__":

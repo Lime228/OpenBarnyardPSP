@@ -37,8 +37,8 @@ jobs:
           python3 Ports/PSP/Tools/generate_bootstrap_locale.py Ports/PSP/Assets/bootstrap_locale.ploc
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py Ports/PSP/Assets/bootstrap_audio.ppcm
           python3 Ports/PSP/Tools/generate_bootstrap_audio.py /tmp/bootstrap_stream.ppcm --sample-frames 3072
-          python3 Ports/PSP/Tools/generate_bootstrap_adpcm.py /tmp/bootstrap_stream_generated.padp --sample-frames 3072
-          python3 Ports/PSP/Tools/convert_audio.py Ports/PSP/Assets/bootstrap_stream.wav /tmp/bootstrap_stream.padp
+          python3 Ports/PSP/Tools/generate_bootstrap_adpcm.py /tmp/bootstrap_stream_generated.padp --sample-frames 3072 --loop-start 1024 --loop-end 3072
+          python3 Ports/PSP/Tools/convert_audio.py Ports/PSP/Assets/bootstrap_stream.wav /tmp/bootstrap_stream.padp --loop-start 1024 --loop-end 3072
           python3 Ports/PSP/Tools/generate_wave_bank.py /tmp/bootstrap_audio.pbnk --wave bootstrap=local:bootstrap_audio.ppcm --stream bootstrap_stream=local:bootstrap_stream.padp
           cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
