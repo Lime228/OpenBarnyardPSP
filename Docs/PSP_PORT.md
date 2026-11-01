@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-01)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **52%** complete. The second value
+complete playable-game port is approximately **53%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 78% | bounded `PlayCueEx`, `StopCue` and cue volume, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; delayed controls, movies and saves remain incomplete |
+| Audio, movies and saves | 80% | bounded `PlayCueEx`, immediate/delayed stop and cue volume, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; cue frequency, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -693,6 +693,19 @@ remain largely unstarted.
   voice result could play. No cue, event or result slots remained occupied.
   PPSSPP reported `cue_controls=OK`, every other gate `OK` and zero underruns;
   bundle `Runtime/PSP/0d0d658c`, single process PID `16716`.
+- `StopCueAsync(TINT&, TFLOAT)` and `SetCueVolume(TINT, TFLOAT, TFLOAT)` now
+  preserve the original delayed-control signatures. Valid stop requests clear
+  the caller's cue handle immediately; scheduled plays are cancelled in place,
+  while active voices use the bounded delayed-event queue and the 44.1 kHz
+  sample clock. Each managed cue owns at most one pending stop event and one
+  pending volume event, and a full command ring is retried without allocation.
+- Commit `bf5f416a` passed PSP run `41333013176`. The runtime gate advanced each
+  control by exactly one sample frame, verified delayed quarter-volume mixing
+  from `8000/8000` to `2000/2000`, then verified delayed stop released both cue
+  and voice with no event or result slots left occupied. PPSSPP reported
+  `async_controls=OK`, every other gate `OK` and zero underruns; bundle
+  `Runtime/PSP/bf5f416a`, single process PID `17376`. Background D-pad, Cross
+  and Circle input remained responsive after the gate.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -700,9 +713,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add the original delayed-control overloads `StopCueAsync` and
-`SetCueVolume(..., delay)` over managed handles. Keep paused-start and track
-selection explicitly unsupported until their ownership semantics are implemented. Keep one
+In parallel, add immediate and delayed `SetCueFrequency` over managed handles,
+reusing the existing bounded mixer command and delayed-event paths. Keep
+paused-start and track selection explicitly unsupported until their ownership
+semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
