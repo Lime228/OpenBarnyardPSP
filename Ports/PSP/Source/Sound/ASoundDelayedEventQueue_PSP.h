@@ -44,6 +44,7 @@ private:
 		EventState eState;
 		ASoundEventType_PSP eEventType;
 		const AWave_PSP* pWave;
+		AStreamWave_PSP* pStream;
 		ASoundVoiceHandle_PSP hVoice;
 		ASoundCommandRequest_PSP uiRequest;
 		TUINT uiVolume;

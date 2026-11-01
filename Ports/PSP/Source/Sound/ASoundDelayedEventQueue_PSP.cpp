@@ -24,10 +24,19 @@ ASoundScheduledEventHandle_PSP ASoundDelayedEventQueue_PSP::Schedule(
 	}
 
 	const AWave_PSP* pWave = TNULL;
+	AStreamWave_PSP* pStream = TNULL;
 	if ( a_rEvent.eEventType == ASoundEventType_PSP_PlayAudio )
 	{
 		pWave = a_rWaveBank.FindWave( a_rEvent.pWaveName );
 		if ( pWave == TNULL )
+			pStream = a_rWaveBank.FindStream( a_rEvent.pWaveName );
+		const TUINT uiFrequency = a_rEvent.uiFrequency == 0 ?
+		                              ASoundMixer_PSP::DEFAULT_FREQUENCY :
+		                              a_rEvent.uiFrequency;
+		if ( ( pWave == TNULL && pStream == TNULL ) ||
+		     uiFrequency < ASoundMixer_PSP::MIN_FREQUENCY ||
+		     uiFrequency > ASoundMixer_PSP::MAX_FREQUENCY ||
+		     ( pStream != TNULL && uiFrequency != ASoundMixer_PSP::DEFAULT_FREQUENCY ) )
 		{
 			m_uiRejectedEvents++;
 			return INVALID_EVENT;
@@ -45,6 +54,7 @@ ASoundScheduledEventHandle_PSP ASoundDelayedEventQueue_PSP::Schedule(
 		rEvent.eState = EventState_Scheduled;
 		rEvent.eEventType = a_rEvent.eEventType;
 		rEvent.pWave = pWave;
+		rEvent.pStream = pStream;
 		rEvent.hVoice = a_rEvent.hVoice;
 		rEvent.uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
 		rEvent.uiVolume = a_rEvent.uiVolume;
@@ -140,9 +150,21 @@ TBOOL ASoundDelayedEventQueue_PSP::Dispatch(
 	{
 		case ASoundEventType_PSP_PlayAudio:
 		{
-			const ASoundCommandRequest_PSP uiRequest = a_rCommandQueue.QueuePlay(
-			    rEvent.pWave, rEvent.uiVolume, rEvent.iPan, rEvent.bLoop, rEvent.uiFrequency
-			);
+			const ASoundCommandRequest_PSP uiRequest = rEvent.pStream != TNULL ?
+			    a_rCommandQueue.QueuePlayStream(
+			        rEvent.pStream,
+			        rEvent.uiVolume,
+			        rEvent.iPan,
+			        rEvent.bLoop,
+			        rEvent.uiFrequency
+			    ) :
+			    a_rCommandQueue.QueuePlay(
+			        rEvent.pWave,
+			        rEvent.uiVolume,
+			        rEvent.iPan,
+			        rEvent.bLoop,
+			        rEvent.uiFrequency
+			    );
 			if ( uiRequest == ASoundCommandQueue_PSP::INVALID_REQUEST ) return TFALSE;
 
 			rEvent.uiRequest = uiRequest;
