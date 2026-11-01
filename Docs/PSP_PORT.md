@@ -14,8 +14,8 @@ from the Windows executable.
 
 ## Progress snapshot (2026-10-31)
 
-The PSP platform/render bring-up is approximately **88%** complete, while the
-complete playable-game port is approximately **39%** complete. The second value
+The PSP platform/render bring-up is approximately **89%** complete, while the
+complete playable-game port is approximately **40%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -25,10 +25,10 @@ streaming, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 23% | deterministic converters produce PTEX, PMES, PFNT, PLOC, PPCM and PBNK runtime assets |
+| Real-game asset pipeline | 25% | deterministic converters produce PTEX, PMES, PFNT, PLOC, resident/streamed PPCM and PBNK runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 42% | PBNK manifests, listener/world transforms, spatial controls, fixed-point rate, scheduled events, command queue, mixer, audio worker and PCM assets work; codecs, movies and saves are not started |
+| Audio, movies and saves | 47% | paged PCM streams, PBNK manifests, listener/world transforms, spatial controls, fixed-point rate, scheduled events, mixer and audio worker work; codecs, movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -513,6 +513,20 @@ remain largely unstarted.
   registers `bootstrap_audio.ppcm` only through `bootstrap_audio.pbnk`; the
   artifact contains both files and PPSSPP retained every readiness gate as
   `OK`. The bundle is stored under `Runtime/PSP/663624e8`.
+- `AStreamWave_PSP` validates PPCM streams up to five minutes and retains an
+  open Toshi file plus one 64-byte-aligned 1,024-frame cache. Each audio buffer
+  is fetched in one read before mixing; the inner sample loop performs no file
+  I/O and the 16.16 cursor now uses `TUINT64` to avoid the old 65,535-frame
+  ceiling.
+- The initial stream path is deliberately limited to one 44.1 kHz one-shot
+  voice per cursor. Looping, pitch changes and duplicate playback are rejected
+  until independent prefetch state exists, preventing cache aliasing or an
+  unbounded refill path.
+- Commit `1b3d215a` passed PSP run `41225583499`. The bootstrap streams a silent
+  3,072-frame probe across three distinct cache pages, verifies lifetime after
+  the first two and completion after the third, then rejects its stale handle.
+  PPSSPP retained every readiness gate as `OK`; the bundle is stored under
+  `Runtime/PSP/1b3d215a`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -520,9 +534,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add a bounded streamed PCM source for waves longer than the current
-1,024-frame resident limit before attempting compressed codecs or the full
-sound manager. Continue bridging the bounded
+In parallel, move stream-page reads to a bounded prefetch worker with two fixed
+pages so slow storage cannot stall the audio scheduler phase before attempting
+compressed codecs or the full sound manager. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
 dependency-ordered source list; do not add the full
