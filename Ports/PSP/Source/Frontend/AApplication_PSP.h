@@ -10,6 +10,7 @@ class ASoundManager_PSP;
 class ASoundMixer_PSP;
 class ASoundCommandQueue_PSP;
 class ASoundDelayedEventQueue_PSP;
+class AGUIAudioContext_PSP;
 
 enum AApplicationFlag_PSP
 {
@@ -32,7 +33,8 @@ public:
 	    ASoundManager_PSP* a_pSoundManager,
 	    ASoundMixer_PSP* a_pSoundMixer,
 	    ASoundCommandQueue_PSP* a_pSoundCommandQueue,
-	    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue
+	    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue,
+	    AGUIAudioContext_PSP* a_pGUIAudioContext
 	);
 	TBOOL Update();
 	void  Destroy();

@@ -1,5 +1,6 @@
 #include "AFrontEndMainMenuState2_PSP.h"
 #include "AFrontendLocale_PSP.h"
+#include "../GUI/AGUIAudioContext_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
 
 #include <Platform/PSP/T2GUIFont_PSP.h>
@@ -24,12 +25,22 @@ AFrontendState_PSP AFrontEndMainMenuState2_PSP::OnUpdate(
 	(void)a_fDeltaTime;
 
 	if ( a_rInputHandler.IsActionPressed( AInputAction_PSP_Up ) )
+	{
 		m_uiSelectedItem = ( m_uiSelectedItem + MenuItem_Count - 1 ) % MenuItem_Count;
+		if ( a_rState.pGUIAudioContext != TNULL )
+			a_rState.pGUIAudioContext->PlaySound( ASoundId_PSP_UI_MENUCLICK );
+	}
 	if ( a_rInputHandler.IsActionPressed( AInputAction_PSP_Down ) )
+	{
 		m_uiSelectedItem = ( m_uiSelectedItem + 1 ) % MenuItem_Count;
+		if ( a_rState.pGUIAudioContext != TNULL )
+			a_rState.pGUIAudioContext->PlaySound( ASoundId_PSP_UI_MENUCLICK );
+	}
 
 	if ( !a_rInputHandler.IsActionPressed( AInputAction_PSP_Confirm ) )
 		return AFrontendState_PSP_Menu;
+	if ( a_rState.pGUIAudioContext != TNULL )
+		a_rState.pGUIAudioContext->PlaySound( ASoundId_PSP_UI_MENUOK );
 
 	return m_uiSelectedItem == MenuItem_Probe
 	    ? AFrontendState_PSP_Probe

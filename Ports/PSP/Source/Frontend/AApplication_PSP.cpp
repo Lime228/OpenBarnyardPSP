@@ -26,18 +26,20 @@ TBOOL AApplication_PSP::Create(
     ASoundManager_PSP* a_pSoundManager,
     ASoundMixer_PSP* a_pSoundMixer,
     ASoundCommandQueue_PSP* a_pSoundCommandQueue,
-    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue
+    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue,
+    AGUIAudioContext_PSP* a_pGUIAudioContext
 )
 {
 	if ( IsCreated() || m_pInputInterface == TNULL || m_pScheduler == TNULL ||
 	     m_pFrameTimer == TNULL || a_pRenderContext == TNULL ||
 	     a_pSoundManager == TNULL || a_pSoundMixer == TNULL || a_pSoundCommandQueue == TNULL ||
-	     a_pDelayedEventQueue == TNULL )
+	     a_pDelayedEventQueue == TNULL || a_pGUIAudioContext == TNULL )
 	{
 		return TFALSE;
 	}
 
 	m_FrontendState = {};
+	m_FrontendState.pGUIAudioContext = a_pGUIAudioContext;
 
 	// TScheduler inserts new root tasks at the head, so reverse creation keeps
 	// the retail frame order: input, state controller, update, audio, then render.

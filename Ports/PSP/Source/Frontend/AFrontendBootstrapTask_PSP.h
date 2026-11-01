@@ -6,6 +6,7 @@
 #include "../Locale/ALocaleManager_PSP.h"
 
 class AGameState_PSP;
+class AGUIAudioContext_PSP;
 
 enum AFrontendState_PSP
 {
@@ -27,6 +28,7 @@ struct AFrontendBootstrapState_PSP
 	AFrontendState_PSP eState;
 	AFrontendState_PSP eRequestedState;
 	AGameState_PSP* pActiveState;
+	AGUIAudioContext_PSP* pGUIAudioContext;
 };
 
 struct AFrontendRenderContext_PSP
