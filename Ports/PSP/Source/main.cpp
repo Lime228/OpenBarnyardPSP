@@ -210,7 +210,6 @@ static TBOOL TestGUIAudioContext_PSP()
 	{
 		return TFALSE;
 	}
-
 	g_GUIAudioContext_PSP.PlaySound( ASoundId_PSP_UI_MENUCLICK );
 	if ( !g_GUIAudioContext_PSP.WasLastPlayQueued() )
 		return TFALSE;
@@ -627,10 +626,11 @@ int main()
 	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP_STREAM" ) == TNULL &&
 	                              g_WaveBank_PSP.FindStream( "BOOTSTRAP" ) == TNULL;
 	const TBOOL bGUIAudioReady = bAudioBankReady &&
-	                             g_GUIAudioContext_PSP.Create(
+	                             g_SoundManager_PSP.BindCueBank(
 	                                 &g_WaveBank_PSP,
 	                                 &g_SoundCommandQueue_PSP
 	                             ) &&
+	                             g_GUIAudioContext_PSP.Create( &g_SoundManager_PSP ) &&
 	                             TestGUIAudioContext_PSP();
 	const TBOOL bResidentAudioReady = bAudioBankReady &&
 	                                  TestSoundCommandQueue_PSP() &&
@@ -776,11 +776,12 @@ int main()
 
 	oApplication.Destroy();
 	oInputInterface.Deinitialise();
+	g_GUIAudioContext_PSP.Destroy();
+	g_SoundManager_PSP.UnbindCueBank();
 	g_SoundManager_PSP.Destroy();
 	g_SoundCommandQueue_PSP.Clear();
 	g_DelayedEventQueue_PSP.Clear();
 	g_SoundMixer_PSP.StopAll();
-	g_GUIAudioContext_PSP.Destroy();
 	g_WaveBankLoader_PSP.Unload(
 	    g_WaveBank_PSP,
 	    g_BootstrapWaves_PSP,

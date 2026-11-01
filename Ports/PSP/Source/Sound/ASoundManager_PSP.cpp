@@ -1,9 +1,23 @@
 #include <ToshiPCH.h>
 #include "ASoundManager_PSP.h"
+#include "ASoundCommandQueue_PSP.h"
+#include "AWaveBank_PSP.h"
 
 #include <Toshi/TUtil.h>
 
 #include <pspaudio.h>
+
+struct ASoundCueMapping_PSP
+{
+	ASoundId_PSP eSoundID;
+	const TCHAR* pWaveName;
+};
+
+static const ASoundCueMapping_PSP g_aSoundCueMappings_PSP[] = {
+	{ ASoundId_PSP_UI_MENUCLICK, "UI_MENUCLICK" },
+	{ ASoundId_PSP_UI_MENUBACK, "UI_MENUBACK" },
+	{ ASoundId_PSP_UI_MENUOK, "UI_MENUOK" },
+};
 
 ASoundOutputThread_PSP::ASoundOutputThread_PSP()
     : m_pSoundManager( TNULL )
@@ -29,6 +43,9 @@ ASoundManager_PSP::ASoundManager_PSP()
     , m_bOutputLocked( TFALSE )
     , m_uiWriteBuffer( 0 )
     , m_uiReadBuffer( 0 )
+    , m_pWaveBank( TNULL )
+    , m_pCommandQueue( TNULL )
+    , m_uiRejectedCues( 0 )
 {
 	m_OutputThread.SetSoundManager( this );
 }
@@ -74,6 +91,7 @@ TBOOL ASoundManager_PSP::Create()
 
 void ASoundManager_PSP::Destroy()
 {
+	UnbindCueBank();
 	if ( m_bRunning )
 	{
 		m_bRunning = TFALSE;
@@ -96,6 +114,57 @@ void ASoundManager_PSP::Destroy()
 	m_bOutputLocked = TFALSE;
 	m_uiWriteBuffer = 0;
 	m_uiReadBuffer = 0;
+}
+
+TBOOL ASoundManager_PSP::BindCueBank(
+    const AWaveBank_PSP* a_pWaveBank,
+    ASoundCommandQueue_PSP* a_pCommandQueue
+)
+{
+	UnbindCueBank();
+	if ( !IsCreated() || a_pWaveBank == TNULL || a_pCommandQueue == TNULL )
+		return TFALSE;
+
+	for ( TSIZE i = 0; i < TARRAYSIZE( g_aSoundCueMappings_PSP ); i++ )
+	{
+		if ( a_pWaveBank->FindWave( g_aSoundCueMappings_PSP[ i ].pWaveName ) == TNULL )
+			return TFALSE;
+	}
+
+	m_pWaveBank = a_pWaveBank;
+	m_pCommandQueue = a_pCommandQueue;
+	return TTRUE;
+}
+
+void ASoundManager_PSP::UnbindCueBank()
+{
+	m_pWaveBank = TNULL;
+	m_pCommandQueue = TNULL;
+	m_uiRejectedCues = 0;
+}
+
+TINT ASoundManager_PSP::PlayCue( ASoundId_PSP a_eSoundID )
+{
+	const TCHAR* pWaveName = ResolveCueName( a_eSoundID );
+	if ( !IsCueBankBound() || pWaveName == TNULL ||
+	     !m_pCommandQueue->QueuePlayDetachedNamed( *m_pWaveBank, pWaveName ) )
+	{
+		m_uiRejectedCues++;
+		return -1;
+	}
+
+	return 0;
+}
+
+const TCHAR* ASoundManager_PSP::ResolveCueName( ASoundId_PSP a_eSoundID ) const
+{
+	for ( TSIZE i = 0; i < TARRAYSIZE( g_aSoundCueMappings_PSP ); i++ )
+	{
+		if ( g_aSoundCueMappings_PSP[ i ].eSoundID == a_eSoundID )
+			return g_aSoundCueMappings_PSP[ i ].pWaveName;
+	}
+
+	return TNULL;
 }
 
 TBOOL ASoundManager_PSP::SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames )

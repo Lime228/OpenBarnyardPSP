@@ -5,6 +5,15 @@
 #include <Thread/TSemaphore.h>
 
 class ASoundManager_PSP;
+class ASoundCommandQueue_PSP;
+class AWaveBank_PSP;
+
+using ASoundId_PSP = TINT32;
+
+static constexpr ASoundId_PSP ASOUNDID_PSP_INVALID = -1;
+static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUCLICK = 166;
+static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUBACK  = 167;
+static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUOK    = 168;
 
 class ASoundOutputThread_PSP : public Toshi::TThread
 {
@@ -31,6 +40,9 @@ public:
 
 	TBOOL Create();
 	void Destroy();
+	TBOOL BindCueBank( const AWaveBank_PSP* a_pWaveBank, ASoundCommandQueue_PSP* a_pCommandQueue );
+	void UnbindCueBank();
+	TINT PlayCue( ASoundId_PSP a_eSoundID );
 
 	TBOOL SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames );
 	TBOOL SubmitSilence();
@@ -40,9 +52,12 @@ public:
 	TBOOL UnlockOutputBuffer();
 
 	TBOOL IsCreated() const { return m_iChannel >= 0; }
+	TBOOL IsCueBankBound() const { return m_pWaveBank != TNULL && m_pCommandQueue != TNULL; }
 	TINT GetChannel() const { return m_iChannel; }
+	TUINT GetRejectedCueCount() const { return m_uiRejectedCues; }
 
 private:
+	const TCHAR* ResolveCueName( ASoundId_PSP a_eSoundID ) const;
 	void RunOutputThread();
 	friend class ASoundOutputThread_PSP;
 
@@ -60,4 +75,7 @@ private:
 	TBOOL m_bOutputLocked;
 	TUINT m_uiWriteBuffer;
 	TUINT m_uiReadBuffer;
+	const AWaveBank_PSP* m_pWaveBank;
+	ASoundCommandQueue_PSP* m_pCommandQueue;
+	TUINT m_uiRejectedCues;
 };
