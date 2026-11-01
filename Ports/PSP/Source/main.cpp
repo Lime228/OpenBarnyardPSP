@@ -425,7 +425,57 @@ static TBOOL TestDelayedSoundEvents_PSP()
 	                              g_SoundMixer_PSP.IsVoiceActive( hDelayedVoice ) &&
 	                              !g_DelayedEventQueue_PSP.GetPlayResult( hPlayEvent, hDelayedVoice ) &&
 	                              g_SoundMixer_PSP.Stop( hDelayedVoice );
-	return bMissingRejected && bCancelled && bResultConsumed;
+
+	const ASoundEvent_PSP oInvalidStreamEvent = {
+		ASoundEventType_PSP_PlayAudio,
+		"bootstrap_stream",
+		ASoundMixer_PSP::INVALID_VOICE,
+		0,
+		0,
+		TTRUE,
+		ASoundMixer_PSP::DEFAULT_FREQUENCY / 2,
+	};
+	const ASoundEvent_PSP oStreamEvent = {
+		ASoundEventType_PSP_PlayAudio,
+		"bootstrap_stream",
+		ASoundMixer_PSP::INVALID_VOICE,
+		0,
+		0,
+		TTRUE,
+	};
+	const TBOOL bInvalidStreamRejected =
+	    g_DelayedEventQueue_PSP.Schedule(
+	        g_WaveBank_PSP,
+	        oInvalidStreamEvent,
+	        0
+	    ) == ASoundDelayedEventQueue_PSP::INVALID_EVENT &&
+	    g_DelayedEventQueue_PSP.GetRejectedEventCount() == 2;
+	const ASoundScheduledEventHandle_PSP hStreamEvent =
+	    g_DelayedEventQueue_PSP.Schedule(
+	        g_WaveBank_PSP,
+	        oStreamEvent,
+	        ASoundManager_PSP::BUFFER_SAMPLE_FRAMES
+	    );
+	const TBOOL bStreamDispatched =
+	    hStreamEvent != ASoundDelayedEventQueue_PSP::INVALID_EVENT &&
+	    g_DelayedEventQueue_PSP.Update(
+	        ASoundManager_PSP::BUFFER_SAMPLE_FRAMES,
+	        g_SoundCommandQueue_PSP
+	    ) &&
+	    g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
+	    g_DelayedEventQueue_PSP.GetPendingPlayResultCount() == 1 &&
+	    g_DelayedEventQueue_PSP.Update( 0, g_SoundCommandQueue_PSP );
+	ASoundVoiceHandle_PSP hStreamVoice = ASoundMixer_PSP::INVALID_VOICE;
+	const TBOOL bStreamResultConsumed = bStreamDispatched &&
+	                                        g_DelayedEventQueue_PSP.GetPlayResult(
+	                                            hStreamEvent,
+	                                            hStreamVoice
+	                                        ) &&
+	                                        hStreamVoice != ASoundMixer_PSP::INVALID_VOICE &&
+	                                        g_SoundMixer_PSP.IsVoiceActive( hStreamVoice ) &&
+	                                        g_SoundMixer_PSP.Stop( hStreamVoice );
+	return bMissingRejected && bCancelled && bResultConsumed &&
+	       bInvalidStreamRejected && bStreamResultConsumed;
 }
 
 static TBOOL InitialiseProbeTexture( TBOOL a_bLoadExternal )
