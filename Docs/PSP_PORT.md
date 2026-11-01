@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-01)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **45%** complete. The second value
+complete playable-game port is approximately **46%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 33% | deterministic converters accept textures, meshes and PCM16 stereo WAV input, including aligned stream loop metadata, and produce PTEX, PMES, PFNT, PLOC, PPCM, PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 65% | named stream commands, authorable PADP loop ranges, typed PBNK entries, bounded ADPCM/PCM prefetch, underrun telemetry, spatial controls and audio output work; movies and saves are not started |
+| Audio, movies and saves | 67% | immediate/delayed named stream commands, authorable PADP loops, typed PBNK entries, bounded ADPCM/PCM prefetch, underrun telemetry, spatial controls and audio output work; movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -587,6 +587,17 @@ remain largely unstarted.
   same command vocabulary. PPSSPP reported `adpcm=OK`, `audio=OK` and
   `stream_underruns=0`; the bundle is stored under `Runtime/PSP/417123e8` and the
   single tracked emulator process was PID `7044`.
+- Delayed-event slots now retain either a resident wave or stream pointer resolved
+  at schedule time. Invalid stream pitch is rejected before consuming a slot;
+  dispatch uses the matching typed command and preserves the existing scheduled,
+  pending-result and ready-result generation-safe states. The queue remains fixed
+  at eight events and gains no dynamic storage.
+- Commit `3304a7c1` passed PSP run `41282485271`. The bootstrap rejected an
+  invalid delayed stream, dispatched a valid named stream after 1,024 frames,
+  consumed its voice result and stopped it before the normal authored-loop probe.
+  PPSSPP reported `adpcm=OK`, `audio=OK` and `stream_underruns=0`; the bundle is
+  stored under `Runtime/PSP/3304a7c1` and the single tracked emulator process was
+  PID `11344`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -594,10 +605,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, extend delayed sound events with typed resident/stream sources and
-then map the bounded vocabulary onto the first real game sound-manager caller.
-Keep one music stream cursor and resident SFX until independent stream state has
-a measured PSP memory budget. Continue bridging the bounded
+In parallel, map the bounded vocabulary onto the first real game sound-manager
+caller and identify the minimum event/bank translation needed by a frontend game
+state. Keep one music stream cursor and resident SFX until independent stream
+state has a measured PSP memory budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
 dependency-ordered source list; do not add the full
