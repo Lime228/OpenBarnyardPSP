@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-01)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **49%** complete. The second value
+complete playable-game port is approximately **50%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 72% | `ASoundManager_PSP::PlayCue`, immediate/delayed named commands, three detached GUI cues, PADP loops, typed PBNK entries, bounded prefetch, spatial controls and audio output work; managed cue handles, movies and saves are not started |
+| Audio, movies and saves | 74% | generation-safe managed/detached cues, immediate/delayed named commands, three GUI cues, PADP loops, typed PBNK entries, bounded prefetch, spatial controls and audio output work; `PlayCueEx`, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -650,6 +650,20 @@ remain largely unstarted.
   queued all three supported cues and completed them with zero stored results.
   PPSSPP reported `gui_audio=OK`, `audio=OK`, `adpcm=OK` and zero underruns; menu
   click, confirm and back remained responsive in the single process, PID `20528`.
+- `ASoundManager_PSP::PlayCue` now reserves one of eight fixed managed-cue
+  slots. Its positive `TINT` handle combines an eight-bit slot with a 23-bit
+  generation, so a completed handle cannot address a later cue that reuses the
+  slot. Pending command requests are consumed by the audio task, linked to the
+  mixer's existing generation-safe voice handle and released after playback.
+- GUI forwarding uses the separate `PlayCueDetached` path because original menu
+  callers ignore the return value. This preserves all eight managed slots and
+  all 16 asynchronous result slots for callers that actually retain a cue.
+- Commit `1dba1a74` passed PSP run `41331570277`. The runtime gate exercised
+  pending, active and completed states, reused the same slot with a new
+  generation, rejected the stale handle and left zero managed cues, pending
+  requests and play results. PPSSPP reported `managed_cues=OK`, all other gates
+  `OK` and zero underruns; the bundle is stored under `Runtime/PSP/1dba1a74` and
+  the single emulator process was PID `23940`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -657,9 +671,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add a bounded managed-cue path for callers that retain the integer
-returned by `PlayCue`, then layer the supported `PlayCueEx` volume/delay subset
-over the existing command and delayed-event queues. Keep one music stream cursor and resident SFX until
+In parallel, layer the supported `PlayCueEx` volume/delay subset over the
+existing command and delayed-event queues. Explicitly reject paused-start and
+track-selection modes until their ownership semantics are implemented. Keep one
+music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
