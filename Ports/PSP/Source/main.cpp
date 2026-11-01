@@ -54,7 +54,7 @@ static ASoundMixer_PSP g_SoundMixer_PSP;
 static ASoundCommandQueue_PSP g_SoundCommandQueue_PSP;
 static ASoundDelayedEventQueue_PSP g_DelayedEventQueue_PSP;
 static AWaveBank_PSP g_WaveBank_PSP;
-static AWave_PSP g_BootstrapWaves_PSP[ 1 ];
+static AWave_PSP g_BootstrapWaves_PSP[ 4 ];
 static AWaveBankLoader_PSP g_WaveBankLoader_PSP;
 static TUINT g_uiLoadedWaves_PSP = 0;
 static AStreamWave_PSP g_BootstrapStream_PSP;
@@ -212,11 +212,17 @@ static TBOOL TestGUIAudioContext_PSP()
 	}
 
 	g_GUIAudioContext_PSP.PlaySound( ASoundId_PSP_UI_MENUCLICK );
+	if ( !g_GUIAudioContext_PSP.WasLastPlayQueued() )
+		return TFALSE;
+	g_GUIAudioContext_PSP.PlaySound( ASoundId_PSP_UI_MENUBACK );
+	if ( !g_GUIAudioContext_PSP.WasLastPlayQueued() )
+		return TFALSE;
+	g_GUIAudioContext_PSP.PlaySound( ASoundId_PSP_UI_MENUOK );
 	return g_GUIAudioContext_PSP.WasLastPlayQueued() &&
-	       g_SoundCommandQueue_PSP.GetQueuedCommandCount() == 1 &&
+	       g_SoundCommandQueue_PSP.GetQueuedCommandCount() == 3 &&
 	       g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
 	       g_SoundCommandQueue_PSP.GetPlayResultCount() == 0 &&
-	       g_SoundMixer_PSP.GetActiveVoiceCount() == 1 &&
+	       g_SoundMixer_PSP.GetActiveVoiceCount() == 3 &&
 	       SubmitBootstrapWave_PSP() &&
 	       g_SoundMixer_PSP.GetActiveVoiceCount() == 0;
 }
@@ -603,17 +609,20 @@ int main()
 	                              g_WaveBankLoader_PSP.Load(
 	                                  g_WaveBank_PSP,
 	                                  g_BootstrapWaves_PSP,
-	                                  1,
+	                                  TARRAYSIZE( g_BootstrapWaves_PSP ),
 	                                  &g_BootstrapStream_PSP,
 	                                  1,
 	                                  "local:bootstrap_audio.pbnk",
 	                                  g_uiLoadedWaves_PSP,
 	                                  g_uiLoadedStreams_PSP
 	                              ) &&
-	                              g_uiLoadedWaves_PSP == 1 &&
+	                              g_uiLoadedWaves_PSP == TARRAYSIZE( g_BootstrapWaves_PSP ) &&
 	                              g_uiLoadedStreams_PSP == 1 &&
-	                              g_WaveBank_PSP.GetCount() == 2 &&
+	                              g_WaveBank_PSP.GetCount() == 5 &&
 	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP" ) == &g_BootstrapWaves_PSP[ 0 ] &&
+	                              g_WaveBank_PSP.FindWave( "UI_MENUCLICK" ) == &g_BootstrapWaves_PSP[ 1 ] &&
+	                              g_WaveBank_PSP.FindWave( "UI_MENUBACK" ) == &g_BootstrapWaves_PSP[ 2 ] &&
+	                              g_WaveBank_PSP.FindWave( "UI_MENUOK" ) == &g_BootstrapWaves_PSP[ 3 ] &&
 	                              g_WaveBank_PSP.FindStream( "BOOTSTRAP_STREAM" ) == &g_BootstrapStream_PSP &&
 	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP_STREAM" ) == TNULL &&
 	                              g_WaveBank_PSP.FindStream( "BOOTSTRAP" ) == TNULL;
