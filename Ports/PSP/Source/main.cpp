@@ -223,7 +223,34 @@ static TBOOL TestBootstrapStream_PSP()
 	}
 
 	return !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
-	       !g_SoundMixer_PSP.SetVolume( hVoice, ASoundMixer_PSP::MAX_VOLUME );
+	       !g_SoundMixer_PSP.SetVolume( hVoice, ASoundMixer_PSP::MAX_VOLUME ) &&
+	       g_BootstrapStream_PSP.GetUnderrunCount() == 0;
+}
+
+static TBOOL TestBootstrapStreamLoop_PSP()
+{
+	const ASoundVoiceHandle_PSP hVoice = g_SoundMixer_PSP.PlayStream(
+	    &g_BootstrapStream_PSP,
+	    0,
+	    0,
+	    TTRUE
+	);
+	if ( hVoice == ASoundMixer_PSP::INVALID_VOICE )
+		return TFALSE;
+
+	for ( TUINT uiBuffer = 0; uiBuffer < 4; uiBuffer++ )
+	{
+		if ( !SubmitBootstrapWave_PSP() ||
+		     !g_SoundMixer_PSP.IsVoiceActive( hVoice ) )
+		{
+			return TFALSE;
+		}
+	}
+
+	return g_SoundMixer_PSP.Stop( hVoice ) &&
+	       !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
+	       !g_SoundMixer_PSP.Stop( hVoice ) &&
+	       g_BootstrapStream_PSP.GetUnderrunCount() == 0;
 }
 
 static TBOOL TestSoundCommandQueue_PSP()
@@ -516,6 +543,7 @@ int main()
 	                          TestSoundCommandQueue_PSP() &&
 	                          TestDelayedSoundEvents_PSP() &&
 	                          TestBootstrapVoiceFrequency_PSP() &&
+	                          TestBootstrapStreamLoop_PSP() &&
 	                          TestBootstrapStream_PSP() &&
 	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
@@ -601,6 +629,10 @@ int main()
 	    bAudioReady ? "OK" : "FAILED",
 	    g_SoundManager_PSP.GetChannel()
 	);
+	TDebug_FinalPrintf(
+	    "[PSP sound] underruns    %u\n",
+	    g_BootstrapStream_PSP.GetUnderrunCount()
+	);
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
@@ -621,6 +653,7 @@ int main()
 		bToshiReady,
 		bFileReady,
 		bAudioReady,
+		g_BootstrapStream_PSP.GetUnderrunCount(),
 		bTextureReady,
 		bFontReady,
 		bLocaleReady,
@@ -638,6 +671,7 @@ int main()
 
 	oPortReport.pStage = "CLEAN_EXIT";
 	oPortReport.uiFrameCount = oApplication.GetFrontendState().uiFrameCount;
+	oPortReport.uiStreamUnderruns = g_BootstrapStream_PSP.GetUnderrunCount();
 	oPortReport.oMemory = Toshi::TRenderMemory_PSP::GetStats();
 	if ( bFileReady )
 		APortReport_PSP::Write( oPortReport );
