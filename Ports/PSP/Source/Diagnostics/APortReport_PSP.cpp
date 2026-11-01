@@ -25,6 +25,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "file=%s\n", GetReportStatus_PSP( a_rData.bFileReady ) );
 	pFile->CPrintf( "audio=%s\n", GetReportStatus_PSP( a_rData.bAudioReady ) );
 	pFile->CPrintf( "adpcm=%s\n", GetReportStatus_PSP( a_rData.bADPCMReady ) );
+	pFile->CPrintf( "gui_audio=%s\n", GetReportStatus_PSP( a_rData.bGUIAudioReady ) );
 	pFile->CPrintf( "stream_underruns=%u\n", a_rData.uiStreamUnderruns );
 	pFile->CPrintf( "texture=%s\n", GetReportStatus_PSP( a_rData.bTextureReady ) );
 	pFile->CPrintf( "font=%s\n", GetReportStatus_PSP( a_rData.bFontReady ) );

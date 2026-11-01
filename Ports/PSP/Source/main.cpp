@@ -9,6 +9,7 @@
 #include <Render/TBackend.h>
 
 #include "Frontend/AApplication_PSP.h"
+#include "GUI/AGUIAudioContext_PSP.h"
 #include "Frontend/AFrontendLocale_PSP.h"
 #include "Diagnostics/APortReport_PSP.h"
 #include "Locale/ALocaleManager_PSP.h"
@@ -58,6 +59,7 @@ static AWaveBankLoader_PSP g_WaveBankLoader_PSP;
 static TUINT g_uiLoadedWaves_PSP = 0;
 static AStreamWave_PSP g_BootstrapStream_PSP;
 static TUINT g_uiLoadedStreams_PSP = 0;
+static AGUIAudioContext_PSP g_GUIAudioContext_PSP;
 static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::T2GUIFontFactory_PSP g_FontFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
@@ -198,6 +200,25 @@ static TBOOL TestBootstrapVoiceFrequency_PSP()
 
 	return !g_SoundMixer_PSP.IsVoiceActive( hVoice ) &&
 	       !g_SoundMixer_PSP.SetFrequency( hVoice, ASoundMixer_PSP::DEFAULT_FREQUENCY );
+}
+
+static TBOOL TestGUIAudioContext_PSP()
+{
+	g_GUIAudioContext_PSP.PlaySound( -1 );
+	if ( g_GUIAudioContext_PSP.GetRejectedSoundCount() != 1 ||
+	     g_GUIAudioContext_PSP.WasLastPlayQueued() )
+	{
+		return TFALSE;
+	}
+
+	g_GUIAudioContext_PSP.PlaySound( ASoundId_PSP_UI_MENUCLICK );
+	return g_GUIAudioContext_PSP.WasLastPlayQueued() &&
+	       g_SoundCommandQueue_PSP.GetQueuedCommandCount() == 1 &&
+	       g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
+	       g_SoundCommandQueue_PSP.GetPlayResultCount() == 0 &&
+	       g_SoundMixer_PSP.GetActiveVoiceCount() == 1 &&
+	       SubmitBootstrapWave_PSP() &&
+	       g_SoundMixer_PSP.GetActiveVoiceCount() == 0;
 }
 
 static TBOOL TestBootstrapStreamLoop_PSP()
@@ -596,12 +617,18 @@ int main()
 	                              g_WaveBank_PSP.FindStream( "BOOTSTRAP_STREAM" ) == &g_BootstrapStream_PSP &&
 	                              g_WaveBank_PSP.FindWave( "BOOTSTRAP_STREAM" ) == TNULL &&
 	                              g_WaveBank_PSP.FindStream( "BOOTSTRAP" ) == TNULL;
+	const TBOOL bGUIAudioReady = bAudioBankReady &&
+	                             g_GUIAudioContext_PSP.Create(
+	                                 &g_WaveBank_PSP,
+	                                 &g_SoundCommandQueue_PSP
+	                             ) &&
+	                             TestGUIAudioContext_PSP();
 	const TBOOL bResidentAudioReady = bAudioBankReady &&
 	                                  TestSoundCommandQueue_PSP() &&
 	                                  TestDelayedSoundEvents_PSP() &&
 	                                  TestBootstrapVoiceFrequency_PSP();
 	const TBOOL bADPCMReady = bAudioBankReady && TestBootstrapCompressedStream_PSP();
-	const TBOOL bAudioReady = bResidentAudioReady && bADPCMReady &&
+	const TBOOL bAudioReady = bGUIAudioReady && bResidentAudioReady && bADPCMReady &&
 	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
@@ -669,7 +696,8 @@ int main()
 	    &g_SoundManager_PSP,
 	    &g_SoundMixer_PSP,
 	    &g_SoundCommandQueue_PSP,
-	    &g_DelayedEventQueue_PSP
+	    &g_DelayedEventQueue_PSP,
+	    &g_GUIAudioContext_PSP
 	);
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
@@ -691,6 +719,7 @@ int main()
 	    g_BootstrapStream_PSP.GetUnderrunCount()
 	);
 	TDebug_FinalPrintf( "[PSP sound] ADPCM        %s\n", bADPCMReady ? "OK" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP frontend] GUI audio %s\n", bGUIAudioReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
@@ -712,6 +741,7 @@ int main()
 		bFileReady,
 		bAudioReady,
 		bADPCMReady,
+		bGUIAudioReady,
 		g_BootstrapStream_PSP.GetUnderrunCount(),
 		bTextureReady,
 		bFontReady,
@@ -741,6 +771,7 @@ int main()
 	g_SoundCommandQueue_PSP.Clear();
 	g_DelayedEventQueue_PSP.Clear();
 	g_SoundMixer_PSP.StopAll();
+	g_GUIAudioContext_PSP.Destroy();
 	g_WaveBankLoader_PSP.Unload(
 	    g_WaveBank_PSP,
 	    g_BootstrapWaves_PSP,

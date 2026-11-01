@@ -12,6 +12,7 @@ struct APortReportData_PSP
 	TBOOL bFileReady;
 	TBOOL bAudioReady;
 	TBOOL bADPCMReady;
+	TBOOL bGUIAudioReady;
 	TUINT uiStreamUnderruns;
 	TBOOL bTextureReady;
 	TBOOL bFontReady;
