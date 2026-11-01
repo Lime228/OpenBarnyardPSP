@@ -4,9 +4,9 @@
 #include <Thread/TThread.h>
 #include <Thread/TSemaphore.h>
 
+#include "ASoundCommandQueue_PSP.h"
+
 class ASoundManager_PSP;
-class ASoundCommandQueue_PSP;
-class AWaveBank_PSP;
 
 using ASoundId_PSP = TINT32;
 
@@ -43,6 +43,10 @@ public:
 	TBOOL BindCueBank( const AWaveBank_PSP* a_pWaveBank, ASoundCommandQueue_PSP* a_pCommandQueue );
 	void UnbindCueBank();
 	TINT PlayCue( ASoundId_PSP a_eSoundID );
+	TBOOL PlayCueDetached( ASoundId_PSP a_eSoundID );
+	void UpdateCues( const ASoundMixer_PSP& a_rMixer );
+	TBOOL IsCuePlaying( TINT a_iCue ) const;
+	TBOOL GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoice ) const;
 
 	TBOOL SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames );
 	TBOOL SubmitSilence();
@@ -55,13 +59,37 @@ public:
 	TBOOL IsCueBankBound() const { return m_pWaveBank != TNULL && m_pCommandQueue != TNULL; }
 	TINT GetChannel() const { return m_iChannel; }
 	TUINT GetRejectedCueCount() const { return m_uiRejectedCues; }
+	TUINT GetManagedCueCount() const { return m_uiManagedCues; }
+	TUINT GetPendingCueCount() const { return m_uiPendingCues; }
 
 private:
+	enum CueState : TUINT
+	{
+		CueState_Free,
+		CueState_Pending,
+		CueState_Active,
+	};
+
+	struct Cue
+	{
+		TUINT32 uiGeneration;
+		CueState eState;
+		ASoundCommandRequest_PSP uiRequest;
+		ASoundVoiceHandle_PSP hVoice;
+	};
+
 	const TCHAR* ResolveCueName( ASoundId_PSP a_eSoundID ) const;
+	const Cue* ResolveCue( TINT a_iCue ) const;
+	TINT MakeCueHandle( TUINT a_uiIndex ) const;
+	void ReleaseCue( TUINT a_uiIndex );
+	void ClearCues();
 	void RunOutputThread();
 	friend class ASoundOutputThread_PSP;
 
 	static constexpr TUINT OUTPUT_BUFFER_COUNT = 2;
+	static constexpr TUINT MAX_MANAGED_CUES = 8;
+	static constexpr TUINT32 CUE_INDEX_MASK = 0xff;
+	static constexpr TUINT32 CUE_GENERATION_MASK = 0x007fffff;
 
 	Toshi::TSemaphore m_FreeBuffers;
 	Toshi::TSemaphore m_ReadyBuffers;
@@ -77,5 +105,8 @@ private:
 	TUINT m_uiReadBuffer;
 	const AWaveBank_PSP* m_pWaveBank;
 	ASoundCommandQueue_PSP* m_pCommandQueue;
+	Cue m_aCues[ MAX_MANAGED_CUES ];
+	TUINT m_uiManagedCues;
+	TUINT m_uiPendingCues;
 	TUINT m_uiRejectedCues;
 };

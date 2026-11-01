@@ -34,7 +34,7 @@ void AGUIAudioContext_PSP::PlaySound( TINT16 a_iSoundID )
 		return;
 	}
 
-	m_bLastPlayQueued = m_pSoundManager->PlayCue( ASoundId_PSP( a_iSoundID ) ) >= 0;
+	m_bLastPlayQueued = m_pSoundManager->PlayCueDetached( ASoundId_PSP( a_iSoundID ) );
 	if ( !m_bLastPlayQueued )
 		m_uiRejectedSounds++;
 }
