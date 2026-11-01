@@ -9,6 +9,7 @@ using ASoundCommandRequest_PSP = TUINT32;
 enum ASoundCommandType_PSP
 {
 	ASoundCommandType_PSP_Play,
+	ASoundCommandType_PSP_PlayStream,
 	ASoundCommandType_PSP_Stop,
 	ASoundCommandType_PSP_SetVolume,
 	ASoundCommandType_PSP_SetFrequency,
@@ -29,6 +30,7 @@ struct ASoundCommand_PSP
 	TUINT uiFrequency;
 	ASoundPosition_PSP oPosition;
 	ASoundListener_PSP oListener;
+	AStreamWave_PSP* pStream;
 };
 
 struct ASoundCommandResult_PSP
@@ -57,6 +59,13 @@ public:
 	ASoundCommandRequest_PSP QueuePlayNamed(
 	    const AWaveBank_PSP& a_rWaveBank,
 	    const TCHAR* a_pWaveName,
+	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
+	    TINT a_iPan = 0,
+	    TBOOL a_bLoop = TFALSE,
+	    TUINT a_uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY
+	);
+	ASoundCommandRequest_PSP QueuePlayStream(
+	    AStreamWave_PSP* a_pStream,
 	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
 	    TINT a_iPan = 0,
 	    TBOOL a_bLoop = TFALSE,

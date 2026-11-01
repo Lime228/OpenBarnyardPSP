@@ -60,7 +60,52 @@ ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlayNamed(
     TUINT a_uiFrequency
 )
 {
-	return QueuePlay( a_rWaveBank.FindWave( a_pWaveName ), a_uiVolume, a_iPan, a_bLoop, a_uiFrequency );
+	const AWave_PSP* pWave = a_rWaveBank.FindWave( a_pWaveName );
+	if ( pWave != TNULL )
+		return QueuePlay( pWave, a_uiVolume, a_iPan, a_bLoop, a_uiFrequency );
+	return QueuePlayStream(
+	    a_rWaveBank.FindStream( a_pWaveName ),
+	    a_uiVolume,
+	    a_iPan,
+	    a_bLoop,
+	    a_uiFrequency
+	);
+}
+
+ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlayStream(
+    AStreamWave_PSP* a_pStream,
+    TUINT a_uiVolume,
+    TINT a_iPan,
+    TBOOL a_bLoop,
+    TUINT a_uiFrequency
+)
+{
+	if ( a_pStream == TNULL || !a_pStream->IsCreated() ||
+	     a_uiFrequency != ASoundMixer_PSP::DEFAULT_FREQUENCY ||
+	     m_uiPendingPlayCount + GetResultCount() >= MAX_RESULTS )
+	{
+		return INVALID_REQUEST;
+	}
+
+	const ASoundCommandRequest_PSP uiRequest = AllocateRequest();
+	const ASoundCommand_PSP oCommand = {
+		ASoundCommandType_PSP_PlayStream,
+		TNULL,
+		ASoundMixer_PSP::INVALID_VOICE,
+		uiRequest,
+		a_uiVolume,
+		a_iPan,
+		a_bLoop,
+		a_uiFrequency,
+		{},
+		{},
+		a_pStream,
+	};
+	if ( !Push( oCommand ) )
+		return INVALID_REQUEST;
+
+	m_uiPendingPlayCount++;
+	return uiRequest;
 }
 
 TBOOL ASoundCommandQueue_PSP::QueueEvent(
@@ -162,6 +207,26 @@ TBOOL ASoundCommandQueue_PSP::Process( ASoundMixer_PSP& a_rMixer )
 				    oCommand.iPan,
 				    oCommand.bLoop,
 				    oCommand.uiFrequency
+				);
+				for ( TUINT i = 0; i < MAX_RESULTS; i++ )
+				{
+					if ( m_aResults[ i ].uiRequest == INVALID_REQUEST )
+					{
+						m_aResults[ i ] = { oCommand.uiRequest, hVoice };
+						break;
+					}
+				}
+				m_uiPendingPlayCount--;
+				bCommandSucceeded = hVoice != ASoundMixer_PSP::INVALID_VOICE;
+				break;
+			}
+			case ASoundCommandType_PSP_PlayStream:
+			{
+				const ASoundVoiceHandle_PSP hVoice = a_rMixer.PlayStream(
+				    oCommand.pStream,
+				    oCommand.uiVolume,
+				    oCommand.iPan,
+				    oCommand.bLoop
 				);
 				for ( TUINT i = 0; i < MAX_RESULTS; i++ )
 				{
