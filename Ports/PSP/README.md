@@ -56,6 +56,27 @@ or take keyboard and mouse focus from the current application. Automated runs
 force PPSSPP's software backend for that process only, avoiding driver fallback
 dialogs without changing the user's saved graphics backend.
 
+## Audio conversion
+
+Resident GUI and gameplay effects use bounded PPCM files. The source must be an
+uncompressed 44.1 kHz stereo PCM16 WAV containing no more than 1,024 sample
+frames:
+
+```sh
+python3 Ports/PSP/Tools/convert_audio.py input.wav output.ppcm --format ppcm
+```
+
+Longer streamed audio uses PADP and requires 1,024-frame-aligned loop points:
+
+```sh
+python3 Ports/PSP/Tools/convert_audio.py input.wav output.padp \
+  --format padp --loop-start 1024 --loop-end 3072
+```
+
+The converter rejects loop metadata for resident sounds and does not resample,
+downmix, or retain source data at runtime. Original game audio must be supplied
+by the user and remains outside the repository.
+
 ## Why this target is separate
 
 The current `new-modcore` build scripts and executable are Windows-only. Keeping
