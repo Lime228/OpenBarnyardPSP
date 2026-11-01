@@ -72,6 +72,37 @@ ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlayNamed(
 	);
 }
 
+TBOOL ASoundCommandQueue_PSP::QueuePlayDetachedNamed(
+    const AWaveBank_PSP& a_rWaveBank,
+    const TCHAR* a_pWaveName,
+    TUINT a_uiVolume,
+    TINT a_iPan,
+    TBOOL a_bLoop,
+    TUINT a_uiFrequency
+)
+{
+	const AWave_PSP* pWave = a_rWaveBank.FindWave( a_pWaveName );
+	if ( pWave == TNULL || !pWave->IsCreated() ||
+	     a_uiFrequency < ASoundMixer_PSP::MIN_FREQUENCY ||
+	     a_uiFrequency > ASoundMixer_PSP::MAX_FREQUENCY )
+	{
+		return TFALSE;
+	}
+
+	return Push( {
+		ASoundCommandType_PSP_Play,
+		pWave,
+		ASoundMixer_PSP::INVALID_VOICE,
+		INVALID_REQUEST,
+		a_uiVolume,
+		a_iPan,
+		a_bLoop,
+		a_uiFrequency,
+		{},
+		{},
+	} );
+}
+
 ASoundCommandRequest_PSP ASoundCommandQueue_PSP::QueuePlayStream(
     AStreamWave_PSP* a_pStream,
     TUINT a_uiVolume,
@@ -208,7 +239,9 @@ TBOOL ASoundCommandQueue_PSP::Process( ASoundMixer_PSP& a_rMixer )
 				    oCommand.bLoop,
 				    oCommand.uiFrequency
 				);
-				for ( TUINT i = 0; i < MAX_RESULTS; i++ )
+				for ( TUINT i = 0;
+				      oCommand.uiRequest != INVALID_REQUEST && i < MAX_RESULTS;
+				      i++ )
 				{
 					if ( m_aResults[ i ].uiRequest == INVALID_REQUEST )
 					{
@@ -216,7 +249,8 @@ TBOOL ASoundCommandQueue_PSP::Process( ASoundMixer_PSP& a_rMixer )
 						break;
 					}
 				}
-				m_uiPendingPlayCount--;
+				if ( oCommand.uiRequest != INVALID_REQUEST )
+					m_uiPendingPlayCount--;
 				bCommandSucceeded = hVoice != ASoundMixer_PSP::INVALID_VOICE;
 				break;
 			}

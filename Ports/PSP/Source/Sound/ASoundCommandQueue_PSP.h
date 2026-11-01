@@ -64,6 +64,14 @@ public:
 	    TBOOL a_bLoop = TFALSE,
 	    TUINT a_uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY
 	);
+	TBOOL QueuePlayDetachedNamed(
+	    const AWaveBank_PSP& a_rWaveBank,
+	    const TCHAR* a_pWaveName,
+	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
+	    TINT a_iPan = 0,
+	    TBOOL a_bLoop = TFALSE,
+	    TUINT a_uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY
+	);
 	ASoundCommandRequest_PSP QueuePlayStream(
 	    AStreamWave_PSP* a_pStream,
 	    TUINT a_uiVolume = ASoundMixer_PSP::MAX_VOLUME,
@@ -88,6 +96,7 @@ public:
 	void Clear();
 
 	TUINT GetQueuedCommandCount() const { return m_uiCommandCount; }
+	TUINT GetPlayResultCount() const { return GetResultCount(); }
 	TUINT GetFailedCommandCount() const { return m_uiFailedCommands; }
 
 private:
