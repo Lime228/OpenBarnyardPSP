@@ -1,4 +1,5 @@
 #include "AProbeState_PSP.h"
+#include "../GUI/AGUIAudioContext_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
 
 void AProbeState_PSP::OnInsertion( AFrontendBootstrapState_PSP& a_rState )
@@ -20,9 +21,12 @@ AFrontendState_PSP AProbeState_PSP::OnUpdate(
 
 	a_rState.fModelRotation += 0.9f * a_fDeltaTime;
 	a_rState.uiFrameCount += 1;
-	return a_rInputHandler.IsActionPressed( AInputAction_PSP_Cancel )
-	    ? AFrontendState_PSP_Menu
-	    : AFrontendState_PSP_Probe;
+	if ( !a_rInputHandler.IsActionPressed( AInputAction_PSP_Cancel ) )
+		return AFrontendState_PSP_Probe;
+
+	if ( a_rState.pGUIAudioContext != TNULL )
+		a_rState.pGUIAudioContext->PlaySound( ASoundId_PSP_UI_MENUBACK );
+	return AFrontendState_PSP_Menu;
 }
 
 TUINT32 AProbeState_PSP::GetClearColor( const AFrontendBootstrapState_PSP& a_rState ) const

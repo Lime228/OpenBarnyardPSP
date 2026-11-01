@@ -1,5 +1,6 @@
 #include "AFrontendInfoState_PSP.h"
 #include "AFrontendLocale_PSP.h"
+#include "../GUI/AGUIAudioContext_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
 
 #include <Platform/PSP/T2GUIFont_PSP.h>
@@ -77,11 +78,13 @@ AFrontendState_PSP AFrontendInfoState_PSP::OnUpdate(
     TFLOAT a_fDeltaTime
 )
 {
-	(void)a_rState;
 	(void)a_fDeltaTime;
-	return a_rInputHandler.IsActionPressed( AInputAction_PSP_Cancel )
-	    ? AFrontendState_PSP_Menu
-	    : AFrontendState_PSP_Info;
+	if ( !a_rInputHandler.IsActionPressed( AInputAction_PSP_Cancel ) )
+		return AFrontendState_PSP_Info;
+
+	if ( a_rState.pGUIAudioContext != TNULL )
+		a_rState.pGUIAudioContext->PlaySound( ASoundId_PSP_UI_MENUBACK );
+	return AFrontendState_PSP_Menu;
 }
 
 TUINT32 AFrontendInfoState_PSP::GetClearColor( const AFrontendBootstrapState_PSP& a_rState ) const
