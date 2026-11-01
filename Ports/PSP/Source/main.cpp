@@ -210,6 +210,13 @@ static TBOOL TestGUIAudioContext_PSP()
 	{
 		return TFALSE;
 	}
+	g_GUIAudioContext_PSP.PlaySound( 1 );
+	if ( g_GUIAudioContext_PSP.GetRejectedSoundCount() != 2 ||
+	     g_GUIAudioContext_PSP.WasLastPlayQueued() ||
+	     g_SoundManager_PSP.GetRejectedCueCount() != 1 )
+	{
+		return TFALSE;
+	}
 	g_GUIAudioContext_PSP.PlaySound( ASoundId_PSP_UI_MENUCLICK );
 	if ( !g_GUIAudioContext_PSP.WasLastPlayQueued() )
 		return TFALSE;
@@ -221,6 +228,7 @@ static TBOOL TestGUIAudioContext_PSP()
 	       g_SoundCommandQueue_PSP.GetQueuedCommandCount() == 3 &&
 	       g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) &&
 	       g_SoundCommandQueue_PSP.GetPlayResultCount() == 0 &&
+	       g_SoundManager_PSP.GetRejectedCueCount() == 1 &&
 	       g_SoundMixer_PSP.GetActiveVoiceCount() == 3 &&
 	       SubmitBootstrapWave_PSP() &&
 	       g_SoundMixer_PSP.GetActiveVoiceCount() == 0;
