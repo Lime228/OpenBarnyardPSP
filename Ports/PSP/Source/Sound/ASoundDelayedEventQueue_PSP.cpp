@@ -84,6 +84,22 @@ TBOOL ASoundDelayedEventQueue_PSP::Cancel( ASoundScheduledEventHandle_PSP a_hEve
 	return TTRUE;
 }
 
+TBOOL ASoundDelayedEventQueue_PSP::SetScheduledVolume(
+    ASoundScheduledEventHandle_PSP a_hEvent,
+    TUINT a_uiVolume
+)
+{
+	Event* pEvent = Resolve( a_hEvent );
+	if ( pEvent == TNULL || pEvent->eState != EventState_Scheduled ||
+	     a_uiVolume > ASoundMixer_PSP::MAX_VOLUME )
+	{
+		return TFALSE;
+	}
+
+	pEvent->uiVolume = a_uiVolume;
+	return TTRUE;
+}
+
 TBOOL ASoundDelayedEventQueue_PSP::GetPlayResult(
     ASoundScheduledEventHandle_PSP a_hEvent,
     ASoundVoiceHandle_PSP& a_rVoice

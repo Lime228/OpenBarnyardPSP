@@ -23,11 +23,15 @@ TBOOL ASoundUpdateTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	(void)a_fDeltaTime;
 	m_pCommandQueue->Process( *m_pSoundMixer );
 	m_pSoundManager->UpdateCues( *m_pSoundMixer );
+	m_pCommandQueue->Process( *m_pSoundMixer );
+	m_pSoundManager->UpdateCues( *m_pSoundMixer );
 	TINT16* pOutput = m_pSoundManager->TryLockOutputBuffer();
 	if ( pOutput == TNULL )
 		return TTRUE;
 
 	m_pDelayedEventQueue->Update( ASoundManager_PSP::BUFFER_SAMPLE_FRAMES, *m_pCommandQueue );
+	m_pCommandQueue->Process( *m_pSoundMixer );
+	m_pSoundManager->UpdateCues( *m_pSoundMixer );
 	m_pCommandQueue->Process( *m_pSoundMixer );
 	m_pSoundManager->UpdateCues( *m_pSoundMixer );
 	m_pSoundMixer->Mix( pOutput, ASoundManager_PSP::BUFFER_SAMPLE_FRAMES );

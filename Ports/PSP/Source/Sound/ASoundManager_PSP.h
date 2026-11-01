@@ -56,6 +56,8 @@ public:
 	    TFLOAT a_fDelay,
 	    TINT a_iTrack
 	);
+	void StopCue( TINT& a_rCue );
+	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume );
 	TBOOL PlayCueDetached( ASoundId_PSP a_eSoundID );
 	void UpdateCues( const ASoundMixer_PSP& a_rMixer );
 	TBOOL IsCuePlaying( TINT a_iCue ) const;
@@ -94,6 +96,9 @@ private:
 		ASoundCommandRequest_PSP uiRequest;
 		ASoundScheduledEventHandle_PSP hScheduledEvent;
 		ASoundVoiceHandle_PSP hVoice;
+		TUINT uiVolume;
+		TBOOL bVolumeDirty;
+		TBOOL bStopPending;
 	};
 
 	const TCHAR* ResolveCueName( ASoundId_PSP a_eSoundID ) const;
@@ -101,6 +106,7 @@ private:
 	TINT MakeCueHandle( TUINT a_uiIndex ) const;
 	void ReleaseCue( TUINT a_uiIndex );
 	void ClearCues();
+	void QueueCueControls( Cue& a_rCue );
 	void RunOutputThread();
 	friend class ASoundOutputThread_PSP;
 
