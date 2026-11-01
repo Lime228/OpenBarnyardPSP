@@ -253,6 +253,19 @@ static TBOOL TestBootstrapStreamLoop_PSP()
 	       g_BootstrapStream_PSP.GetUnderrunCount() == 0;
 }
 
+static TBOOL TestBootstrapCompressedStream_PSP()
+{
+	g_BootstrapStream_PSP.Destroy();
+	if ( !g_BootstrapStream_PSP.Create( "local:bootstrap_stream.padp" ) )
+		return TFALSE;
+
+	const TINT16* pFirstFrame = g_BootstrapStream_PSP.GetFrame( 0 );
+	return pFirstFrame != TNULL &&
+	       pFirstFrame[ 0 ] == 1200 && pFirstFrame[ 1 ] == 1200 &&
+	       TestBootstrapStreamLoop_PSP() &&
+	       TestBootstrapStream_PSP();
+}
+
 static TBOOL TestSoundCommandQueue_PSP()
 {
 	ASoundCommandRequest_PSP uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
@@ -539,12 +552,15 @@ int main()
 	                                g_BootstrapStream_PSP.Create(
 	                                    "local:bootstrap_stream.ppcm"
 	                                );
-	const TBOOL bAudioReady = bAudioStreamReady &&
-	                          TestSoundCommandQueue_PSP() &&
-	                          TestDelayedSoundEvents_PSP() &&
-	                          TestBootstrapVoiceFrequency_PSP() &&
-	                          TestBootstrapStreamLoop_PSP() &&
-	                          TestBootstrapStream_PSP() &&
+	const TBOOL bResidentAudioReady = bAudioBankReady &&
+	                                  TestSoundCommandQueue_PSP() &&
+	                                  TestDelayedSoundEvents_PSP() &&
+	                                  TestBootstrapVoiceFrequency_PSP();
+	const TBOOL bPCMStreamReady = bAudioStreamReady &&
+	                              TestBootstrapStreamLoop_PSP() &&
+	                              TestBootstrapStream_PSP();
+	const TBOOL bADPCMReady = bPCMStreamReady && TestBootstrapCompressedStream_PSP();
+	const TBOOL bAudioReady = bResidentAudioReady && bADPCMReady &&
 	                          TestBootstrapVoiceControls_PSP();
 	const TBOOL bTextureReady   = InitialiseProbeTexture( bFileReady );
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
@@ -633,6 +649,7 @@ int main()
 	    "[PSP sound] underruns    %u\n",
 	    g_BootstrapStream_PSP.GetUnderrunCount()
 	);
+	TDebug_FinalPrintf( "[PSP sound] ADPCM        %s\n", bADPCMReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
@@ -653,6 +670,7 @@ int main()
 		bToshiReady,
 		bFileReady,
 		bAudioReady,
+		bADPCMReady,
 		g_BootstrapStream_PSP.GetUnderrunCount(),
 		bTextureReady,
 		bFontReady,
