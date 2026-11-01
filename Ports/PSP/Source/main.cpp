@@ -686,7 +686,8 @@ int main()
 	const TBOOL bGUIAudioReady = bAudioBankReady &&
 	                             g_SoundManager_PSP.BindCueBank(
 	                                 &g_WaveBank_PSP,
-	                                 &g_SoundCommandQueue_PSP
+	                                 &g_SoundCommandQueue_PSP,
+	                                 &g_DelayedEventQueue_PSP
 	                             ) &&
 	                             g_GUIAudioContext_PSP.Create( &g_SoundManager_PSP ) &&
 	                             TestGUIAudioContext_PSP();
