@@ -12,10 +12,10 @@ console backend.
 the toolchain, portable core, input, and PSP GU rendering path independently
 from the Windows executable.
 
-## Progress snapshot (2026-10-31)
+## Progress snapshot (2026-11-01)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **40%** complete. The second value
+complete playable-game port is approximately **41%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 25% | deterministic converters produce PTEX, PMES, PFNT, PLOC, resident/streamed PPCM and PBNK runtime assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 31% | `AApplication_PSP` owns explicit frame phases and cached font/locale resources label the menu/probe/info flow and live budget diagnostics |
-| Audio, movies and saves | 47% | paged PCM streams, PBNK manifests, listener/world transforms, spatial controls, fixed-point rate, scheduled events, mixer and audio worker work; codecs, movies and saves are not started |
+| Audio, movies and saves | 50% | bounded asynchronous PCM prefetch, PBNK manifests, listener/world transforms, spatial controls, scheduled events, mixer and audio output work; codecs, movies and saves are not started |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -527,6 +527,18 @@ remain largely unstarted.
   the first two and completion after the third, then rejects its stale handle.
   PPSSPP retained every readiness gate as `OK`; the bundle is stored under
   `Runtime/PSP/1b3d215a`.
+- `AStreamWave_PSP` now owns exactly two fixed 1,024-frame pages and one
+  low-priority prefetch thread. The first page is read during creation; every
+  later read targets the inactive page. `Prepare` only switches to a published
+  page under the Toshi mutex and never waits for storage in the mixer path.
+- The bounded stream cost is 8 KiB of PCM payload plus an 8 KiB worker stack and
+  small synchronization metadata. If storage misses the approximately 23 ms
+  page window, the current safe policy stops the voice instead of blocking the
+  audio scheduler or allocating a recovery buffer.
+- Commit `a943b59f` passed PSP run `41280403051`. Its artifact retained every
+  readiness gate as `OK` in PPSSPP, including the three-page stream lifetime
+  probe and worker shutdown. The bundle is stored under
+  `Runtime/PSP/a943b59f`; the single tracked emulator process was PID `26632`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -534,9 +546,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, move stream-page reads to a bounded prefetch worker with two fixed
-pages so slow storage cannot stall the audio scheduler phase before attempting
-compressed codecs or the full sound manager. Continue bridging the bounded
+In parallel, add bounded underrun telemetry and page-aligned loop points before
+attempting compressed codecs or the full sound manager. Keep one music stream
+cursor and resident SFX until independent stream state has a measured PSP memory
+budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
 `T2GUIFont` and locale-manager vocabulary. Keep movies disabled and retain the
 dependency-ordered source list; do not add the full
