@@ -66,7 +66,8 @@ public:
 	ASoundVoiceHandle_PSP PlayStream(
 	    AStreamWave_PSP* a_pStreamWave,
 	    TUINT a_uiVolume = MAX_VOLUME,
-	    TINT a_iPan = 0
+	    TINT a_iPan = 0,
+	    TBOOL a_bLoop = TFALSE
 	);
 	TBOOL Stop( ASoundVoiceHandle_PSP a_hVoice );
 	void StopAll();

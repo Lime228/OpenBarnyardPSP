@@ -58,11 +58,13 @@ ASoundVoiceHandle_PSP ASoundMixer_PSP::Play(
 ASoundVoiceHandle_PSP ASoundMixer_PSP::PlayStream(
     AStreamWave_PSP* a_pStreamWave,
     TUINT a_uiVolume,
-    TINT a_iPan
+    TINT a_iPan,
+    TBOOL a_bLoop
 )
 {
 	if ( a_pStreamWave == TNULL || !a_pStreamWave->IsCreated() ||
-	     a_uiVolume > MAX_VOLUME || a_iPan < -MAX_PAN || a_iPan > MAX_PAN )
+	     a_uiVolume > MAX_VOLUME || a_iPan < -MAX_PAN || a_iPan > MAX_PAN ||
+	     ( a_bLoop && !a_pStreamWave->IsLoopAligned() ) )
 	{
 		return INVALID_VOICE;
 	}
@@ -82,7 +84,7 @@ ASoundVoiceHandle_PSP ASoundMixer_PSP::PlayStream(
 			m_auiVoiceGenerations[ i ] = uiGeneration;
 			m_aVoices[ i ] = {
 				TNULL, a_pStreamWave, 0, 1 << 16, DEFAULT_FREQUENCY,
-				a_uiVolume, MAX_VOLUME, a_iPan, 0, 0, TTRUE, TFALSE,
+				a_uiVolume, MAX_VOLUME, a_iPan, 0, 0, TTRUE, a_bLoop,
 			};
 			UpdateVoiceVolumes( m_aVoices[ i ] );
 			return ( uiGeneration << 8 ) | i;
@@ -246,8 +248,21 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 		Voice& rVoice = m_aVoices[ uiVoice ];
 		if ( rVoice.bActive && rVoice.pStreamWave != TNULL )
 		{
+			const TUINT64 uiWaveLength =
+			    TUINT64( rVoice.pStreamWave->GetSampleFrames() ) << 16;
+			if ( rVoice.uiSamplePosition >= uiWaveLength )
+			{
+				if ( rVoice.bLoop )
+					rVoice.uiSamplePosition %= uiWaveLength;
+				else
+				{
+					rVoice = {};
+					continue;
+				}
+			}
+
 			const TUINT uiSampleFrame = TUINT( rVoice.uiSamplePosition >> 16 );
-			if ( !rVoice.pStreamWave->Prepare( uiSampleFrame ) )
+			if ( !rVoice.pStreamWave->Prepare( uiSampleFrame, rVoice.bLoop ) )
 				rVoice = {};
 		}
 	}

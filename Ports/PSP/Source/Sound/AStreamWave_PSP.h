@@ -38,10 +38,12 @@ public:
 
 	TBOOL Create( const TCHAR* a_pFilePath );
 	void Destroy();
-	TBOOL Prepare( TUINT a_uiStartSampleFrame );
+	TBOOL Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop = TFALSE );
 	const TINT16* GetFrame( TUINT a_uiSampleFrame ) const;
 
 	TUINT GetSampleFrames() const { return m_oHeader.uiSampleFrames; }
+	TUINT GetUnderrunCount() const { return m_uiUnderrunCount; }
+	TBOOL IsLoopAligned() const { return m_oHeader.uiSampleFrames % CACHE_SAMPLE_FRAMES == 0; }
 	TBOOL IsCreated() const { return m_pFile != TNULL; }
 
 private:
@@ -68,6 +70,7 @@ private:
 	TUINT m_uiCurrentPage;
 	TUINT m_uiPendingStart;
 	TUINT m_uiLoadingStart;
+	TUINT m_uiUnderrunCount;
 	volatile TBOOL m_bPrefetchRunning;
 	TBOOL m_bSyncReady;
 };

@@ -28,6 +28,7 @@ AStreamWave_PSP::AStreamWave_PSP()
     , m_uiCurrentPage( 0 )
     , m_uiPendingStart( INVALID_SAMPLE_FRAME )
     , m_uiLoadingStart( INVALID_SAMPLE_FRAME )
+    , m_uiUnderrunCount( 0 )
     , m_bPrefetchRunning( TFALSE )
     , m_bSyncReady( TFALSE )
 {
@@ -124,10 +125,11 @@ void AStreamWave_PSP::Destroy()
 	m_uiCurrentPage = 0;
 	m_uiPendingStart = INVALID_SAMPLE_FRAME;
 	m_uiLoadingStart = INVALID_SAMPLE_FRAME;
+	m_uiUnderrunCount = 0;
 	Toshi::TUtil::MemClear( m_aPages, sizeof( m_aPages ) );
 }
 
-TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame )
+TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
 {
 	if ( !IsCreated() || a_uiStartSampleFrame >= m_oHeader.uiSampleFrames )
 		return TFALSE;
@@ -148,6 +150,7 @@ TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame )
 	     a_uiStartSampleFrame < rNextPage.uiStart ||
 	     a_uiStartSampleFrame >= rNextPage.uiStart + rNextPage.uiFrames )
 	{
+		m_uiUnderrunCount++;
 		m_oStateMutex.Unlock();
 		return TFALSE;
 	}
@@ -157,6 +160,8 @@ TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame )
 	m_oStateMutex.Unlock();
 	if ( uiPrefetchStart < m_oHeader.uiSampleFrames )
 		RequestPrefetch( uiPrefetchStart );
+	else if ( a_bLoop )
+		RequestPrefetch( 0 );
 	return TTRUE;
 }
 
