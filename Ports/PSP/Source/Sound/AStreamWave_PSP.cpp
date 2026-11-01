@@ -27,6 +27,8 @@ AStreamWave_PSP::AStreamWave_PSP()
     , m_eFormat( StreamFormat_None )
     , m_uiDataOffset( 0 )
     , m_uiBlockBytes( 0 )
+    , m_uiLoopStartFrame( 0 )
+    , m_uiLoopEndFrame( 0 )
     , m_aPages{}
     , m_aCompressedBlock{}
     , m_uiCurrentPage( 0 )
@@ -86,6 +88,8 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 		m_oHeader = oHeader;
 		m_eFormat = StreamFormat_PCM;
 		m_uiDataOffset = sizeof( oHeader );
+		m_uiLoopStartFrame = 0;
+		m_uiLoopEndFrame = oHeader.uiSampleFrames;
 	}
 	else if ( uiMagic == AADPCMStreamHeader_PSP::MAGIC )
 	{
@@ -101,6 +105,10 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 		                     oHeader.uiBlockCount ==
 		                         ( oHeader.uiSampleFrames + CACHE_SAMPLE_FRAMES - 1 ) /
 		                             CACHE_SAMPLE_FRAMES &&
+		                     oHeader.uiLoopStartFrame < oHeader.uiLoopEndFrame &&
+		                     oHeader.uiLoopEndFrame <= oHeader.uiSampleFrames &&
+		                     oHeader.uiLoopStartFrame % CACHE_SAMPLE_FRAMES == 0 &&
+		                     oHeader.uiLoopEndFrame % CACHE_SAMPLE_FRAMES == 0 &&
 		                     pFile->GetSize() == sizeof( oHeader ) +
 		                                             oHeader.uiBlockCount * oHeader.uiBlockBytes;
 		if ( !bValid )
@@ -118,6 +126,8 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 		m_eFormat = StreamFormat_ADPCM;
 		m_uiDataOffset = sizeof( oHeader );
 		m_uiBlockBytes = oHeader.uiBlockBytes;
+		m_uiLoopStartFrame = oHeader.uiLoopStartFrame;
+		m_uiLoopEndFrame = oHeader.uiLoopEndFrame;
 	}
 	else
 	{
@@ -178,6 +188,8 @@ void AStreamWave_PSP::Destroy()
 	m_eFormat = StreamFormat_None;
 	m_uiDataOffset = 0;
 	m_uiBlockBytes = 0;
+	m_uiLoopStartFrame = 0;
+	m_uiLoopEndFrame = 0;
 	m_uiCurrentPage = 0;
 	m_uiPendingStart = INVALID_SAMPLE_FRAME;
 	m_uiLoadingStart = INVALID_SAMPLE_FRAME;
@@ -215,10 +227,10 @@ TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
 	m_uiCurrentPage = uiNextPage;
 	const TUINT uiPrefetchStart = rNextPage.uiStart + rNextPage.uiFrames;
 	m_oStateMutex.Unlock();
-	if ( uiPrefetchStart < m_oHeader.uiSampleFrames )
+	if ( a_bLoop && uiPrefetchStart >= m_uiLoopEndFrame )
+		RequestPrefetch( m_uiLoopStartFrame );
+	else if ( uiPrefetchStart < m_oHeader.uiSampleFrames )
 		RequestPrefetch( uiPrefetchStart );
-	else if ( a_bLoop )
-		RequestPrefetch( 0 );
 	return TTRUE;
 }
 

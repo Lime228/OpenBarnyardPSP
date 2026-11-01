@@ -248,17 +248,22 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 		Voice& rVoice = m_aVoices[ uiVoice ];
 		if ( rVoice.bActive && rVoice.pStreamWave != TNULL )
 		{
-			const TUINT64 uiWaveLength =
+			const TUINT64 uiLoopStart =
+			    TUINT64( rVoice.pStreamWave->GetLoopStartFrame() ) << 16;
+			const TUINT64 uiLoopEnd =
+			    TUINT64( rVoice.pStreamWave->GetLoopEndFrame() ) << 16;
+			const TUINT64 uiStreamEnd =
 			    TUINT64( rVoice.pStreamWave->GetSampleFrames() ) << 16;
-			if ( rVoice.uiSamplePosition >= uiWaveLength )
+			if ( rVoice.bLoop && rVoice.uiSamplePosition >= uiLoopEnd )
 			{
-				if ( rVoice.bLoop )
-					rVoice.uiSamplePosition %= uiWaveLength;
-				else
-				{
-					rVoice = {};
-					continue;
-				}
+				const TUINT64 uiLoopLength = uiLoopEnd - uiLoopStart;
+				rVoice.uiSamplePosition = uiLoopStart +
+				    ( rVoice.uiSamplePosition - uiLoopEnd ) % uiLoopLength;
+			}
+			else if ( !rVoice.bLoop && rVoice.uiSamplePosition >= uiStreamEnd )
+			{
+				rVoice = {};
+				continue;
 			}
 
 			const TUINT uiSampleFrame = TUINT( rVoice.uiSamplePosition >> 16 );
@@ -277,7 +282,9 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 			if ( !rVoice.bActive )
 				continue;
 
-			const TUINT uiSourceFrames = rVoice.pStreamWave != TNULL ?
+			const TUINT uiSourceFrames = rVoice.pStreamWave != TNULL && rVoice.bLoop ?
+			                                 rVoice.pStreamWave->GetLoopEndFrame() :
+			                             rVoice.pStreamWave != TNULL ?
 			                                 rVoice.pStreamWave->GetSampleFrames() :
 			                                 rVoice.pWave->GetSampleFrames();
 			const TUINT64 uiWaveLength = TUINT64( uiSourceFrames ) << 16;

@@ -5,7 +5,7 @@
 struct AADPCMStreamHeader_PSP
 {
 	static constexpr TUINT32 MAGIC = 0x50444150;
-	static constexpr TUINT32 VERSION = 1;
+	static constexpr TUINT32 VERSION = 2;
 	static constexpr TUINT BLOCK_SAMPLE_FRAMES = 1024;
 	static constexpr TUINT CHANNEL_HEADER_BYTES = 4;
 	static constexpr TUINT CHANNEL_DATA_BYTES = 512;
@@ -20,9 +20,11 @@ struct AADPCMStreamHeader_PSP
 	TUINT32 uiBlockSampleFrames;
 	TUINT32 uiBlockBytes;
 	TUINT32 uiBlockCount;
+	TUINT32 uiLoopStartFrame;
+	TUINT32 uiLoopEndFrame;
 };
 
-static_assert( sizeof( AADPCMStreamHeader_PSP ) == 32, "Unexpected PSP ADPCM header layout" );
+static_assert( sizeof( AADPCMStreamHeader_PSP ) == 40, "Unexpected PSP ADPCM header layout" );
 
 class AADPCMDecoder_PSP
 {

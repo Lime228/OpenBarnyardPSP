@@ -43,8 +43,14 @@ public:
 	const TINT16* GetFrame( TUINT a_uiSampleFrame ) const;
 
 	TUINT GetSampleFrames() const { return m_oHeader.uiSampleFrames; }
+	TUINT GetLoopStartFrame() const { return m_uiLoopStartFrame; }
+	TUINT GetLoopEndFrame() const { return m_uiLoopEndFrame; }
 	TUINT GetUnderrunCount() const { return m_uiUnderrunCount; }
-	TBOOL IsLoopAligned() const { return m_oHeader.uiSampleFrames % CACHE_SAMPLE_FRAMES == 0; }
+	TBOOL IsLoopAligned() const {
+		return m_uiLoopStartFrame < m_uiLoopEndFrame &&
+		       m_uiLoopStartFrame % CACHE_SAMPLE_FRAMES == 0 &&
+		       m_uiLoopEndFrame % CACHE_SAMPLE_FRAMES == 0;
+	}
 	TBOOL IsCreated() const { return m_pFile != TNULL; }
 
 private:
@@ -77,6 +83,8 @@ private:
 	StreamFormat m_eFormat;
 	TUINT m_uiDataOffset;
 	TUINT m_uiBlockBytes;
+	TUINT m_uiLoopStartFrame;
+	TUINT m_uiLoopEndFrame;
 	CachePage m_aPages[ CACHE_PAGE_COUNT ];
 	alignas( 64 ) TUINT8 m_aCompressedBlock[ AADPCMStreamHeader_PSP::BLOCK_BYTES ];
 	TUINT m_uiCurrentPage;
