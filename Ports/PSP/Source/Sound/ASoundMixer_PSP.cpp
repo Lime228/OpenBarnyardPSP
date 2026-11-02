@@ -255,6 +255,19 @@ TBOOL ASoundMixer_PSP::GetFrequency(
 	return TTRUE;
 }
 
+TBOOL ASoundMixer_PSP::GetVolume(
+    ASoundVoiceHandle_PSP a_hVoice,
+    TUINT& a_rVolume
+) const
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	if ( iVoice < 0 )
+		return TFALSE;
+
+	a_rVolume = m_aVoices[ iVoice ].uiVolume;
+	return TTRUE;
+}
+
 TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 {
 	if ( a_pOutputSamples == TNULL || a_uiSampleFrames != AWave_PSP::MAX_SAMPLE_FRAMES )

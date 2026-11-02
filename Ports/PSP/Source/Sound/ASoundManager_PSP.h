@@ -80,6 +80,7 @@ public:
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume, TFLOAT a_fDelay );
 	void FadeCue( TINT a_iCue, TFLOAT a_fDuration, TFLOAT a_fVolume, TFLOAT a_fUnused );
 	void FadeOutCue( TINT a_iCue, TFLOAT a_fDuration, TBOOL a_bStop, TFLOAT a_fUnused );
+	void SetGlobalVolume( TFLOAT a_fVolume );
 	TBOOL IsCueFading( TINT a_iCue ) const;
 	void UpdateFades( TUINT a_uiElapsedSampleFrames );
 	void SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency );
@@ -160,6 +161,7 @@ private:
 	void ReleaseCue( TUINT a_uiIndex );
 	void ClearCues();
 	void QueueCueControls( Cue& a_rCue );
+	TUINT GetAppliedCueVolume( const Cue& a_rCue ) const;
 	void RunOutputThread();
 	friend class ASoundOutputThread_PSP;
 
@@ -187,4 +189,5 @@ private:
 	TUINT m_uiManagedCues;
 	TUINT m_uiPendingCues;
 	TUINT m_uiRejectedCues;
+	TUINT m_uiGlobalVolume;
 };

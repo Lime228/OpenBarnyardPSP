@@ -80,6 +80,7 @@ public:
 	TBOOL SetListener( const ASoundListener_PSP& a_rListener );
 	TBOOL SetWorldPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
 	TBOOL GetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT& a_rFrequency ) const;
+	TBOOL GetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT& a_rVolume ) const;
 	TBOOL GetSpatialState(
 	    ASoundVoiceHandle_PSP a_hVoice,
 	    TINT& a_rPan,
