@@ -12,10 +12,10 @@ console backend.
 the toolchain, portable core, input, and PSP GU rendering path independently
 from the Windows executable.
 
-## Progress snapshot (2026-11-01)
+## Progress snapshot (2026-11-02)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **53%** complete. The second value
+complete playable-game port is approximately **54%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 80% | bounded `PlayCueEx`, immediate/delayed stop and cue volume, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; cue frequency, movies and saves remain incomplete |
+| Audio, movies and saves | 82% | bounded `PlayCueEx`, immediate/delayed stop, volume and frequency, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; managed cue position, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -706,6 +706,18 @@ remain largely unstarted.
   `async_controls=OK`, every other gate `OK` and zero underruns; bundle
   `Runtime/PSP/bf5f416a`, single process PID `17376`. Background D-pad, Cross
   and Circle input remained responsive after the gate.
+- Managed cues now expose both original `SetCueFrequency` overloads. Multipliers
+  are converted once to the PSP mixer's bounded 11,025-88,200 Hz range; pending
+  delayed plays update their fixed event slot, while active immediate and
+  delayed changes reuse the existing command and sample-clock event paths. A
+  cue owns at most one pending frequency event and performs no mix-loop work.
+- Commit `ed237d0d` passed PSP run `41473143508` after the delayed play result
+  was consumed on its required scheduler pass. The runtime gate verified exact
+  88,200, 11,025 and 22,050 Hz states, rejected an out-of-range multiplier and
+  proved quarter-speed lifetime across two 1,024-frame buffers. PPSSPP reported
+  `cue_frequency=OK`, every other gate `OK` and zero underruns; bundle
+  `Runtime/PSP/ed237d0d`, single process PID `17280`. Background D-pad, Cross
+  and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -713,8 +725,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add immediate and delayed `SetCueFrequency` over managed handles,
-reusing the existing bounded mixer command and delayed-event paths. Keep
+In parallel, add immediate and delayed managed-cue position controls over the
+existing bounded spatial command and delayed-event paths. Keep
 paused-start and track selection explicitly unsupported until their ownership
 semantics are implemented. Keep one
 music stream cursor and resident SFX until
