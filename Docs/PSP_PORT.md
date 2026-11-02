@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 87% | bounded `PlayCueEx`, pause/resume, immediate/delayed stop, volume, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; fades, movies and saves remain incomplete |
+| Audio, movies and saves | 88% | bounded `PlayCueEx`, pause/resume, cue queries, immediate/delayed stop, volume, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; fades, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -753,6 +753,16 @@ remain largely unstarted.
   `8000/8000` sample. PPSSPP reported `cue_pause=OK`, every other gate `OK` and
   zero underruns; bundle `Runtime/PSP/1eb9903e`, single process PID `5776`.
   Background D-pad, Cross and Circle input remained responsive.
+- Managed cue queries now expose original-style `IsCueUsed`, `GetCueVolume`,
+  `GetCueSoundId` and `FindPlayingCue` entry points. They resolve the full
+  generation-tagged handle rather than indexing the fixed cue array directly,
+  so completed and reused stale handles cannot observe a later cue.
+- Commit `aa029f05` passed PSP run `41475258589`. The runtime gate queried a
+  pending and active cue, observed an exact quarter-volume update, then stopped
+  it and verified every stale query returned its invalid value. PPSSPP reported
+  `cue_queries=OK`, every other gate `OK` and zero underruns; bundle
+  `Runtime/PSP/aa029f05`, single process PID `15052`. Background D-pad, Cross
+  and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
