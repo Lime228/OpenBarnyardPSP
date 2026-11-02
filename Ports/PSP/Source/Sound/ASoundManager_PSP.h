@@ -60,6 +60,8 @@ public:
 	void StopCueAsync( TINT& a_rCue, TFLOAT a_fDelay );
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume );
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume, TFLOAT a_fDelay );
+	void SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency );
+	void SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency, TFLOAT a_fDelay );
 	TBOOL PlayCueDetached( ASoundId_PSP a_eSoundID );
 	void UpdateCues( const ASoundMixer_PSP& a_rMixer );
 	TBOOL IsCuePlaying( TINT a_iCue ) const;
@@ -99,11 +101,15 @@ private:
 		ASoundScheduledEventHandle_PSP hScheduledEvent;
 		ASoundScheduledEventHandle_PSP hStopEvent;
 		ASoundScheduledEventHandle_PSP hVolumeEvent;
+		ASoundScheduledEventHandle_PSP hFrequencyEvent;
 		ASoundVoiceHandle_PSP hVoice;
 		TUINT uiVolume;
+		TUINT uiFrequency;
 		TUINT uiStopDelaySampleFrames;
 		TUINT uiVolumeDelaySampleFrames;
+		TUINT uiFrequencyDelaySampleFrames;
 		TBOOL bVolumeDirty;
+		TBOOL bFrequencyDirty;
 		TBOOL bStopPending;
 	};
 

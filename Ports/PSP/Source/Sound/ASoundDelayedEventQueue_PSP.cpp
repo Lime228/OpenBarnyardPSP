@@ -100,6 +100,23 @@ TBOOL ASoundDelayedEventQueue_PSP::SetScheduledVolume(
 	return TTRUE;
 }
 
+TBOOL ASoundDelayedEventQueue_PSP::SetScheduledFrequency(
+    ASoundScheduledEventHandle_PSP a_hEvent,
+    TUINT a_uiFrequency
+)
+{
+	Event* pEvent = Resolve( a_hEvent );
+	if ( pEvent == TNULL || pEvent->eState != EventState_Scheduled ||
+	     pEvent->eEventType != ASoundEventType_PSP_PlayAudio ||
+	     pEvent->pStream != TNULL ||
+	     a_uiFrequency < ASoundMixer_PSP::MIN_FREQUENCY ||
+	     a_uiFrequency > ASoundMixer_PSP::MAX_FREQUENCY )
+		return TFALSE;
+
+	pEvent->uiFrequency = a_uiFrequency;
+	return TTRUE;
+}
+
 TBOOL ASoundDelayedEventQueue_PSP::GetPlayResult(
     ASoundScheduledEventHandle_PSP a_hEvent,
     ASoundVoiceHandle_PSP& a_rVoice

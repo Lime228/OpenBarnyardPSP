@@ -243,11 +243,15 @@ TINT ASoundManager_PSP::PlayCueEx(
 	rCue.hScheduledEvent = hScheduledEvent;
 	rCue.hStopEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 	rCue.hVolumeEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
+	rCue.hFrequencyEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 	rCue.hVoice = ASoundMixer_PSP::INVALID_VOICE;
 	rCue.uiVolume = uiVolume;
+	rCue.uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY;
 	rCue.uiStopDelaySampleFrames = 0;
 	rCue.uiVolumeDelaySampleFrames = 0;
+	rCue.uiFrequencyDelaySampleFrames = 0;
 	rCue.bVolumeDirty = TFALSE;
+	rCue.bFrequencyDirty = TFALSE;
 	rCue.bStopPending = TFALSE;
 	m_uiManagedCues++;
 	m_uiPendingCues++;
@@ -323,6 +327,47 @@ void ASoundManager_PSP::SetCueVolume(
 	    m_pDelayedEventQueue->SetScheduledVolume(
 	        pCue->hScheduledEvent,
 	        pCue->uiVolume
+	    )
+	);
+	QueueCueControls( *pCue );
+}
+
+void ASoundManager_PSP::SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency )
+{
+	SetCueFrequency( a_iCue, a_fFrequency, 0.0f );
+}
+
+void ASoundManager_PSP::SetCueFrequency(
+    TINT a_iCue,
+    TFLOAT a_fFrequency,
+    TFLOAT a_fDelay
+)
+{
+	const TFLOAT fMinFrequency = TFLOAT( ASoundMixer_PSP::MIN_FREQUENCY ) /
+	                              TFLOAT( ASoundMixer_PSP::DEFAULT_FREQUENCY );
+	const TFLOAT fMaxFrequency = TFLOAT( ASoundMixer_PSP::MAX_FREQUENCY ) /
+	                              TFLOAT( ASoundMixer_PSP::DEFAULT_FREQUENCY );
+	if ( !( a_fFrequency >= fMinFrequency && a_fFrequency <= fMaxFrequency ) ||
+	     !( a_fDelay >= 0.0f && a_fDelay <= MAX_CUE_DELAY_SECONDS ) )
+		return;
+
+	const TUINT uiIndex = a_iCue >= 0 ? TUINT( a_iCue ) & CUE_INDEX_MASK : MAX_MANAGED_CUES;
+	Cue* pCue = uiIndex < MAX_MANAGED_CUES ? &m_aCues[ uiIndex ] : TNULL;
+	if ( pCue == TNULL || ResolveCue( a_iCue ) == TNULL )
+		return;
+
+	pCue->uiFrequency = TUINT(
+	    a_fFrequency * TFLOAT( ASoundMixer_PSP::DEFAULT_FREQUENCY ) + 0.5f
+	);
+	pCue->uiFrequencyDelaySampleFrames = pCue->eState == CueState_Active ?
+	    TUINT( a_fDelay * TFLOAT( SAMPLE_RATE ) + 0.5f ) : 0;
+	if ( pCue->eState == CueState_Active )
+		m_pDelayedEventQueue->Cancel( pCue->hFrequencyEvent );
+	pCue->bFrequencyDirty = !(
+	    pCue->eState == CueState_PendingEvent &&
+	    m_pDelayedEventQueue->SetScheduledFrequency(
+	        pCue->hScheduledEvent,
+	        pCue->uiFrequency
 	    )
 	);
 	QueueCueControls( *pCue );
@@ -453,13 +498,18 @@ void ASoundManager_PSP::ReleaseCue( TUINT a_uiIndex )
 	rCue.hScheduledEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 	m_pDelayedEventQueue->Cancel( rCue.hStopEvent );
 	m_pDelayedEventQueue->Cancel( rCue.hVolumeEvent );
+	m_pDelayedEventQueue->Cancel( rCue.hFrequencyEvent );
 	rCue.hStopEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 	rCue.hVolumeEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
+	rCue.hFrequencyEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 	rCue.hVoice = ASoundMixer_PSP::INVALID_VOICE;
 	rCue.uiVolume = 0;
+	rCue.uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY;
 	rCue.uiStopDelaySampleFrames = 0;
 	rCue.uiVolumeDelaySampleFrames = 0;
+	rCue.uiFrequencyDelaySampleFrames = 0;
 	rCue.bVolumeDirty = TFALSE;
+	rCue.bFrequencyDirty = TFALSE;
 	rCue.bStopPending = TFALSE;
 	m_uiManagedCues--;
 }
@@ -473,11 +523,15 @@ void ASoundManager_PSP::ClearCues()
 		m_aCues[ i ].hScheduledEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 		m_aCues[ i ].hStopEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 		m_aCues[ i ].hVolumeEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
+		m_aCues[ i ].hFrequencyEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 		m_aCues[ i ].hVoice = ASoundMixer_PSP::INVALID_VOICE;
 		m_aCues[ i ].uiVolume = 0;
+		m_aCues[ i ].uiFrequency = ASoundMixer_PSP::DEFAULT_FREQUENCY;
 		m_aCues[ i ].uiStopDelaySampleFrames = 0;
 		m_aCues[ i ].uiVolumeDelaySampleFrames = 0;
+		m_aCues[ i ].uiFrequencyDelaySampleFrames = 0;
 		m_aCues[ i ].bVolumeDirty = TFALSE;
+		m_aCues[ i ].bFrequencyDirty = TFALSE;
 		m_aCues[ i ].bStopPending = TFALSE;
 	}
 	m_uiManagedCues = 0;
@@ -520,33 +574,57 @@ void ASoundManager_PSP::QueueCueControls( Cue& a_rCue )
 		return;
 	}
 
-	if ( !a_rCue.bVolumeDirty )
-		return;
-
-	if ( a_rCue.uiVolumeDelaySampleFrames == 0 )
+	if ( a_rCue.bVolumeDirty && a_rCue.uiVolumeDelaySampleFrames == 0 )
 	{
 		if ( m_pCommandQueue->QueueSetVolume( a_rCue.hVoice, a_rCue.uiVolume ) )
 			a_rCue.bVolumeDirty = TFALSE;
-		return;
+	}
+	else if ( a_rCue.bVolumeDirty )
+	{
+		const ASoundEvent_PSP oEvent = {
+			ASoundEventType_PSP_UpdateChannelVolume,
+			TNULL,
+			a_rCue.hVoice,
+			a_rCue.uiVolume,
+			0,
+			TFALSE,
+			0,
+			{},
+		};
+		a_rCue.hVolumeEvent = m_pDelayedEventQueue->Schedule(
+		    *m_pWaveBank,
+		    oEvent,
+		    a_rCue.uiVolumeDelaySampleFrames
+		);
+		if ( a_rCue.hVolumeEvent != ASoundDelayedEventQueue_PSP::INVALID_EVENT )
+			a_rCue.bVolumeDirty = TFALSE;
 	}
 
-	const ASoundEvent_PSP oEvent = {
-		ASoundEventType_PSP_UpdateChannelVolume,
-		TNULL,
-		a_rCue.hVoice,
-		a_rCue.uiVolume,
-		0,
-		TFALSE,
-		0,
-		{},
-	};
-	a_rCue.hVolumeEvent = m_pDelayedEventQueue->Schedule(
-	    *m_pWaveBank,
-	    oEvent,
-	    a_rCue.uiVolumeDelaySampleFrames
-	);
-	if ( a_rCue.hVolumeEvent != ASoundDelayedEventQueue_PSP::INVALID_EVENT )
-		a_rCue.bVolumeDirty = TFALSE;
+	if ( a_rCue.bFrequencyDirty && a_rCue.uiFrequencyDelaySampleFrames == 0 )
+	{
+		if ( m_pCommandQueue->QueueSetFrequency( a_rCue.hVoice, a_rCue.uiFrequency ) )
+			a_rCue.bFrequencyDirty = TFALSE;
+	}
+	else if ( a_rCue.bFrequencyDirty )
+	{
+		const ASoundEvent_PSP oEvent = {
+			ASoundEventType_PSP_UpdateChannelFrequency,
+			TNULL,
+			a_rCue.hVoice,
+			0,
+			0,
+			TFALSE,
+			a_rCue.uiFrequency,
+			{},
+		};
+		a_rCue.hFrequencyEvent = m_pDelayedEventQueue->Schedule(
+		    *m_pWaveBank,
+		    oEvent,
+		    a_rCue.uiFrequencyDelaySampleFrames
+		);
+		if ( a_rCue.hFrequencyEvent != ASoundDelayedEventQueue_PSP::INVALID_EVENT )
+			a_rCue.bFrequencyDirty = TFALSE;
+	}
 }
 
 TBOOL ASoundManager_PSP::SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames )

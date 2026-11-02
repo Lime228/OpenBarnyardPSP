@@ -20,6 +20,7 @@ public:
 	);
 	TBOOL Cancel( ASoundScheduledEventHandle_PSP a_hEvent );
 	TBOOL SetScheduledVolume( ASoundScheduledEventHandle_PSP a_hEvent, TUINT a_uiVolume );
+	TBOOL SetScheduledFrequency( ASoundScheduledEventHandle_PSP a_hEvent, TUINT a_uiFrequency );
 	TBOOL GetPlayResult( ASoundScheduledEventHandle_PSP a_hEvent, ASoundVoiceHandle_PSP& a_rVoice );
 	TBOOL IsPending( ASoundScheduledEventHandle_PSP a_hEvent ) const;
 	TBOOL Update( TUINT a_uiElapsedSampleFrames, ASoundCommandQueue_PSP& a_rCommandQueue );

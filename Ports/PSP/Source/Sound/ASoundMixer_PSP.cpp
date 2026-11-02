@@ -232,6 +232,19 @@ TBOOL ASoundMixer_PSP::GetSpatialState(
 	return TTRUE;
 }
 
+TBOOL ASoundMixer_PSP::GetFrequency(
+    ASoundVoiceHandle_PSP a_hVoice,
+    TUINT& a_rFrequency
+) const
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	if ( iVoice < 0 )
+		return TFALSE;
+
+	a_rFrequency = m_aVoices[ iVoice ].uiFrequency;
+	return TTRUE;
+}
+
 TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 {
 	if ( a_pOutputSamples == TNULL || a_uiSampleFrames != AWave_PSP::MAX_SAMPLE_FRAMES )
