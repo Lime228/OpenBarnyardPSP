@@ -52,6 +52,7 @@ public:
 	void Destroy();
 	TBOOL BindCueBank(
 	    const AWaveBank_PSP* a_pWaveBank,
+	    ASoundMixer_PSP* a_pMixer,
 	    ASoundCommandQueue_PSP* a_pCommandQueue,
 	    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue
 	);
@@ -97,6 +98,8 @@ public:
 	TINT FindPlayingCue( ASoundId_PSP a_eSoundID ) const;
 	TBOOL IsCueStreamReady( TINT a_iCue ) const;
 	TBOOL IsStreamCueActive( TINT a_iCue ) const;
+	TINT GetStreamCueTime( TINT a_iCue ) const;
+	void SetStreamCueTime( TINT a_iCue, TINT a_iMilliseconds );
 	TBOOL GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoice ) const;
 
 	TBOOL SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames );
@@ -109,7 +112,8 @@ public:
 	TBOOL IsCreated() const { return m_iChannel >= 0; }
 	TBOOL IsCueBankBound() const
 	{
-		return m_pWaveBank != TNULL && m_pCommandQueue != TNULL && m_pDelayedEventQueue != TNULL;
+		return m_pWaveBank != TNULL && m_pMixer != TNULL && m_pCommandQueue != TNULL &&
+		       m_pDelayedEventQueue != TNULL;
 	}
 	TINT GetChannel() const { return m_iChannel; }
 	TUINT GetRejectedCueCount() const { return m_uiRejectedCues; }
@@ -187,6 +191,7 @@ private:
 	TUINT m_uiWriteBuffer;
 	TUINT m_uiReadBuffer;
 	const AWaveBank_PSP* m_pWaveBank;
+	ASoundMixer_PSP* m_pMixer;
 	ASoundCommandQueue_PSP* m_pCommandQueue;
 	ASoundDelayedEventQueue_PSP* m_pDelayedEventQueue;
 	Cue m_aCues[ MAX_MANAGED_CUES ];

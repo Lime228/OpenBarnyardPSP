@@ -14,6 +14,7 @@ enum ASoundCommandType_PSP
 	ASoundCommandType_PSP_SetVolume,
 	ASoundCommandType_PSP_SetFrequency,
 	ASoundCommandType_PSP_SetPaused,
+	ASoundCommandType_PSP_SetStreamTime,
 	ASoundCommandType_PSP_SetPan,
 	ASoundCommandType_PSP_SetPosition,
 	ASoundCommandType_PSP_SetListener,
@@ -89,6 +90,7 @@ public:
 	TBOOL QueueSetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiVolume );
 	TBOOL QueueSetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency );
 	TBOOL QueueSetPaused( ASoundVoiceHandle_PSP a_hVoice, TBOOL a_bPaused );
+	TBOOL QueueSetStreamTime( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiMilliseconds );
 	TBOOL QueueSetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
 	TBOOL QueueSetPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
 	TBOOL QueueSetListener( const ASoundListener_PSP& a_rListener );

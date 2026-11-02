@@ -76,11 +76,13 @@ public:
 	TBOOL SetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
 	TBOOL SetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency );
 	TBOOL SetPaused( ASoundVoiceHandle_PSP a_hVoice, TBOOL a_bPaused );
+	TBOOL SetStreamTime( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiMilliseconds );
 	TBOOL SetPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
 	TBOOL SetListener( const ASoundListener_PSP& a_rListener );
 	TBOOL SetWorldPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
 	TBOOL GetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT& a_rFrequency ) const;
 	TBOOL GetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT& a_rVolume ) const;
+	TBOOL GetStreamTime( ASoundVoiceHandle_PSP a_hVoice, TINT& a_rMilliseconds ) const;
 	TBOOL GetSpatialState(
 	    ASoundVoiceHandle_PSP a_hVoice,
 	    TINT& a_rPan,

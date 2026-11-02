@@ -151,6 +151,24 @@ TBOOL ASoundMixer_PSP::SetPaused( ASoundVoiceHandle_PSP a_hVoice, TBOOL a_bPause
 	return TTRUE;
 }
 
+TBOOL ASoundMixer_PSP::SetStreamTime(
+    ASoundVoiceHandle_PSP a_hVoice,
+    TUINT a_uiMilliseconds
+)
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	if ( iVoice < 0 || m_aVoices[ iVoice ].pStreamWave == TNULL )
+		return TFALSE;
+
+	const TUINT64 uiSampleFrame = TUINT64( a_uiMilliseconds ) *
+	                              DEFAULT_FREQUENCY / 1000;
+	if ( uiSampleFrame >= m_aVoices[ iVoice ].pStreamWave->GetSampleFrames() )
+		return TFALSE;
+
+	m_aVoices[ iVoice ].uiSamplePosition = uiSampleFrame << 16;
+	return TTRUE;
+}
+
 TBOOL ASoundMixer_PSP::SetPosition(
     ASoundVoiceHandle_PSP a_hVoice,
     const ASoundPosition_PSP& a_rPosition
@@ -265,6 +283,22 @@ TBOOL ASoundMixer_PSP::GetVolume(
 		return TFALSE;
 
 	a_rVolume = m_aVoices[ iVoice ].uiVolume;
+	return TTRUE;
+}
+
+TBOOL ASoundMixer_PSP::GetStreamTime(
+    ASoundVoiceHandle_PSP a_hVoice,
+    TINT& a_rMilliseconds
+) const
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	if ( iVoice < 0 || m_aVoices[ iVoice ].pStreamWave == TNULL )
+		return TFALSE;
+
+	a_rMilliseconds = TINT(
+	    ( m_aVoices[ iVoice ].uiSamplePosition >> 16 ) * 1000 /
+	    DEFAULT_FREQUENCY
+	);
 	return TTRUE;
 }
 

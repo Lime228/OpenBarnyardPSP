@@ -63,6 +63,7 @@ ASoundManager_PSP::ASoundManager_PSP()
     , m_uiWriteBuffer( 0 )
     , m_uiReadBuffer( 0 )
     , m_pWaveBank( TNULL )
+	, m_pMixer( TNULL )
     , m_pCommandQueue( TNULL )
     , m_pDelayedEventQueue( TNULL )
     , m_aCues{}
@@ -142,12 +143,13 @@ void ASoundManager_PSP::Destroy()
 
 TBOOL ASoundManager_PSP::BindCueBank(
     const AWaveBank_PSP* a_pWaveBank,
+    ASoundMixer_PSP* a_pMixer,
     ASoundCommandQueue_PSP* a_pCommandQueue,
     ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue
 )
 {
 	UnbindCueBank();
-	if ( !IsCreated() || a_pWaveBank == TNULL || a_pCommandQueue == TNULL ||
+	if ( !IsCreated() || a_pWaveBank == TNULL || a_pMixer == TNULL || a_pCommandQueue == TNULL ||
 	     a_pDelayedEventQueue == TNULL )
 		return TFALSE;
 
@@ -159,6 +161,7 @@ TBOOL ASoundManager_PSP::BindCueBank(
 	}
 
 	m_pWaveBank = a_pWaveBank;
+	m_pMixer = a_pMixer;
 	m_pCommandQueue = a_pCommandQueue;
 	m_pDelayedEventQueue = a_pDelayedEventQueue;
 	return TTRUE;
@@ -168,6 +171,7 @@ void ASoundManager_PSP::UnbindCueBank()
 {
 	ClearCues();
 	m_pWaveBank = TNULL;
+	m_pMixer = TNULL;
 	m_pCommandQueue = TNULL;
 	m_pDelayedEventQueue = TNULL;
 	m_uiRejectedCues = 0;
@@ -764,6 +768,27 @@ TBOOL ASoundManager_PSP::IsStreamCueActive( TINT a_iCue ) const
 {
 	const Cue* pCue = ResolveCue( a_iCue );
 	return pCue != TNULL && pCue->bStream;
+}
+
+TINT ASoundManager_PSP::GetStreamCueTime( TINT a_iCue ) const
+{
+	const Cue* pCue = ResolveCue( a_iCue );
+	TINT iMilliseconds = -1;
+	return pCue != TNULL && pCue->bStream && pCue->eState == CueState_Active &&
+	       m_pMixer != TNULL && m_pMixer->GetStreamTime( pCue->hVoice, iMilliseconds ) ?
+	    iMilliseconds : -1;
+}
+
+void ASoundManager_PSP::SetStreamCueTime( TINT a_iCue, TINT a_iMilliseconds )
+{
+	const Cue* pCue = ResolveCue( a_iCue );
+	if ( pCue == TNULL || !pCue->bStream || pCue->eState != CueState_Active ||
+	     a_iMilliseconds < 0 )
+	{
+		return;
+	}
+
+	m_pCommandQueue->QueueSetStreamTime( pCue->hVoice, TUINT( a_iMilliseconds ) );
 }
 
 TBOOL ASoundManager_PSP::GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoice ) const
