@@ -1012,7 +1012,16 @@ static TBOOL TestManagedStreamCue_PSP()
 	g_SoundManager_PSP.PauseCue( iCue, TFALSE );
 	g_SoundManager_PSP.SetCueVolume( iCue, 0.5f );
 	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
-	     g_SoundMixer_PSP.IsVoicePaused( hVoice ) )
+	     g_SoundMixer_PSP.IsVoicePaused( hVoice ) ||
+	     g_SoundManager_PSP.GetStreamCueTime( iCue ) != 0 ||
+	     !SubmitBootstrapWave_PSP() ||
+	     g_SoundManager_PSP.GetStreamCueTime( iCue ) != 23 )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.SetStreamCueTime( iCue, 0 );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     g_SoundManager_PSP.GetStreamCueTime( iCue ) != 0 )
 	{
 		return TFALSE;
 	}
@@ -1430,6 +1439,7 @@ int main()
 	const TBOOL bGUIAudioReady = bAudioBankReady &&
 	                             g_SoundManager_PSP.BindCueBank(
 	                                 &g_WaveBank_PSP,
+	                                 &g_SoundMixer_PSP,
 	                                 &g_SoundCommandQueue_PSP,
 	                                 &g_DelayedEventQueue_PSP
 	                             ) &&
