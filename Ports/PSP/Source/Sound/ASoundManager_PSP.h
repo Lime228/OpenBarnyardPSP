@@ -77,6 +77,10 @@ public:
 	void PauseCue( TINT a_iCue, TBOOL a_bPause );
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume );
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume, TFLOAT a_fDelay );
+	void FadeCue( TINT a_iCue, TFLOAT a_fDuration, TFLOAT a_fVolume, TFLOAT a_fUnused );
+	void FadeOutCue( TINT a_iCue, TFLOAT a_fDuration, TBOOL a_bStop, TFLOAT a_fUnused );
+	TBOOL IsCueFading( TINT a_iCue ) const;
+	void UpdateFades( TUINT a_uiElapsedSampleFrames );
 	void SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency );
 	void SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency, TFLOAT a_fDelay );
 	void SetCuePosition( TINT a_iCue, const Toshi::TVector4& a_rcPosition );
@@ -140,7 +144,13 @@ private:
 		TBOOL bPositionDirty;
 		TBOOL bPaused;
 		TBOOL bPauseDirty;
+		TBOOL bFading;
+		TBOOL bFadeStopWhenDone;
 		TBOOL bStopPending;
+		TUINT uiFadeStartVolume;
+		TUINT uiFadeEndVolume;
+		TUINT uiFadeElapsedSampleFrames;
+		TUINT uiFadeDurationSampleFrames;
 	};
 
 	const TCHAR* ResolveCueName( ASoundId_PSP a_eSoundID ) const;

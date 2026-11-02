@@ -30,6 +30,7 @@ TBOOL ASoundUpdateTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 		return TTRUE;
 
 	m_pDelayedEventQueue->Update( ASoundManager_PSP::BUFFER_SAMPLE_FRAMES, *m_pCommandQueue );
+	m_pSoundManager->UpdateFades( ASoundManager_PSP::BUFFER_SAMPLE_FRAMES );
 	m_pCommandQueue->Process( *m_pSoundMixer );
 	m_pSoundManager->UpdateCues( *m_pSoundMixer );
 	m_pCommandQueue->Process( *m_pSoundMixer );

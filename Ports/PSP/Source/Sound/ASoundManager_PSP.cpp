@@ -276,7 +276,13 @@ TINT ASoundManager_PSP::PlayCueEx(
 	rCue.bPositionDirty = TFALSE;
 	rCue.bPaused = a_bStartPaused;
 	rCue.bPauseDirty = a_bStartPaused;
+	rCue.bFading = TFALSE;
+	rCue.bFadeStopWhenDone = TFALSE;
 	rCue.bStopPending = TFALSE;
+	rCue.uiFadeStartVolume = 0;
+	rCue.uiFadeEndVolume = 0;
+	rCue.uiFadeElapsedSampleFrames = 0;
+	rCue.uiFadeDurationSampleFrames = 0;
 	m_uiManagedCues++;
 	m_uiPendingCues++;
 	return MakeCueHandle( uiCue );
@@ -396,6 +402,7 @@ void ASoundManager_PSP::SetCueVolume(
 	pCue->uiVolume = TUINT(
 	    fVolume * TFLOAT( ASoundMixer_PSP::MAX_VOLUME ) + 0.5f
 	);
+	pCue->bFading = TFALSE;
 	pCue->uiVolumeDelaySampleFrames = pCue->eState == CueState_Active ?
 	    TUINT( a_fDelay * TFLOAT( SAMPLE_RATE ) + 0.5f ) : 0;
 	if ( pCue->eState == CueState_Active )
@@ -408,6 +415,107 @@ void ASoundManager_PSP::SetCueVolume(
 	    )
 	);
 	QueueCueControls( *pCue );
+}
+
+void ASoundManager_PSP::FadeCue(
+    TINT a_iCue,
+    TFLOAT a_fDuration,
+    TFLOAT a_fVolume,
+    TFLOAT a_fUnused
+)
+{
+	(void)a_fUnused;
+	if ( a_fVolume != a_fVolume ||
+	     !( a_fDuration >= 0.0f && a_fDuration <= MAX_CUE_DELAY_SECONDS ) )
+		return;
+
+	const TUINT uiIndex = a_iCue >= 0 ? TUINT( a_iCue ) & CUE_INDEX_MASK : MAX_MANAGED_CUES;
+	Cue* pCue = uiIndex < MAX_MANAGED_CUES ? &m_aCues[ uiIndex ] : TNULL;
+	if ( pCue == TNULL || ResolveCue( a_iCue ) == TNULL )
+		return;
+
+	const TFLOAT fVolume = a_fVolume <= 0.0f ? 0.0f :
+	                       a_fVolume >= 1.0f ? 1.0f : a_fVolume;
+	const TUINT uiEndVolume = TUINT(
+	    fVolume * TFLOAT( ASoundMixer_PSP::MAX_VOLUME ) + 0.5f
+	);
+	const TUINT uiDuration = TUINT(
+	    a_fDuration * TFLOAT( SAMPLE_RATE ) + 0.5f
+	);
+	if ( uiDuration == 0 )
+	{
+		SetCueVolume( a_iCue, fVolume );
+		return;
+	}
+
+	pCue->bFading = TTRUE;
+	pCue->bFadeStopWhenDone = TFALSE;
+	pCue->uiFadeStartVolume = pCue->uiVolume;
+	pCue->uiFadeEndVolume = uiEndVolume;
+	pCue->uiFadeElapsedSampleFrames = 0;
+	pCue->uiFadeDurationSampleFrames = uiDuration;
+}
+
+void ASoundManager_PSP::FadeOutCue(
+    TINT a_iCue,
+    TFLOAT a_fDuration,
+    TBOOL a_bStop,
+    TFLOAT a_fUnused
+)
+{
+	if ( !( a_fDuration >= 0.0f && a_fDuration <= MAX_CUE_DELAY_SECONDS ) )
+		return;
+
+	FadeCue( a_iCue, a_fDuration, 0.0f, a_fUnused );
+	const TUINT uiIndex = a_iCue >= 0 ? TUINT( a_iCue ) & CUE_INDEX_MASK : MAX_MANAGED_CUES;
+	Cue* pCue = uiIndex < MAX_MANAGED_CUES ? &m_aCues[ uiIndex ] : TNULL;
+	if ( pCue != TNULL && ResolveCue( a_iCue ) != TNULL )
+	{
+		if ( pCue->bFading )
+			pCue->bFadeStopWhenDone = a_bStop;
+		else if ( a_bStop && pCue->uiVolume == 0 )
+		{
+			pCue->bStopPending = TTRUE;
+			QueueCueControls( *pCue );
+		}
+	}
+}
+
+TBOOL ASoundManager_PSP::IsCueFading( TINT a_iCue ) const
+{
+	const Cue* pCue = ResolveCue( a_iCue );
+	return pCue != TNULL && pCue->bFading;
+}
+
+void ASoundManager_PSP::UpdateFades( TUINT a_uiElapsedSampleFrames )
+{
+	for ( TUINT i = 0; i < MAX_MANAGED_CUES; i++ )
+	{
+		Cue& rCue = m_aCues[ i ];
+		if ( !rCue.bFading || rCue.eState != CueState_Active )
+			continue;
+
+		const TUINT uiRemaining = rCue.uiFadeDurationSampleFrames -
+		                          rCue.uiFadeElapsedSampleFrames;
+		const TUINT uiAdvance = a_uiElapsedSampleFrames < uiRemaining ?
+		                             a_uiElapsedSampleFrames : uiRemaining;
+		rCue.uiFadeElapsedSampleFrames += uiAdvance;
+		const TINT64 iRange = TINT64( rCue.uiFadeEndVolume ) -
+		                     TINT64( rCue.uiFadeStartVolume );
+		rCue.uiVolume = TUINT(
+		    TINT64( rCue.uiFadeStartVolume ) +
+		    iRange * TINT64( rCue.uiFadeElapsedSampleFrames ) /
+		        TINT64( rCue.uiFadeDurationSampleFrames )
+		);
+		rCue.bVolumeDirty = TTRUE;
+		if ( rCue.uiFadeElapsedSampleFrames == rCue.uiFadeDurationSampleFrames )
+		{
+			rCue.bFading = TFALSE;
+			if ( rCue.bFadeStopWhenDone )
+				rCue.bStopPending = TTRUE;
+		}
+		QueueCueControls( rCue );
+	}
 }
 
 void ASoundManager_PSP::SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency )
@@ -667,7 +775,13 @@ void ASoundManager_PSP::ReleaseCue( TUINT a_uiIndex )
 	rCue.bPositionDirty = TFALSE;
 	rCue.bPaused = TFALSE;
 	rCue.bPauseDirty = TFALSE;
+	rCue.bFading = TFALSE;
+	rCue.bFadeStopWhenDone = TFALSE;
 	rCue.bStopPending = TFALSE;
+	rCue.uiFadeStartVolume = 0;
+	rCue.uiFadeEndVolume = 0;
+	rCue.uiFadeElapsedSampleFrames = 0;
+	rCue.uiFadeDurationSampleFrames = 0;
 	m_uiManagedCues--;
 }
 
@@ -696,7 +810,13 @@ void ASoundManager_PSP::ClearCues()
 		m_aCues[ i ].bPositionDirty = TFALSE;
 		m_aCues[ i ].bPaused = TFALSE;
 		m_aCues[ i ].bPauseDirty = TFALSE;
+		m_aCues[ i ].bFading = TFALSE;
+		m_aCues[ i ].bFadeStopWhenDone = TFALSE;
 		m_aCues[ i ].bStopPending = TFALSE;
+		m_aCues[ i ].uiFadeStartVolume = 0;
+		m_aCues[ i ].uiFadeEndVolume = 0;
+		m_aCues[ i ].uiFadeElapsedSampleFrames = 0;
+		m_aCues[ i ].uiFadeDurationSampleFrames = 0;
 	}
 	m_uiManagedCues = 0;
 	m_uiPendingCues = 0;
