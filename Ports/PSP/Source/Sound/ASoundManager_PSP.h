@@ -20,6 +20,7 @@ static constexpr ASoundId_PSP ASOUNDID_PSP_INVALID = -1;
 static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUCLICK = 166;
 static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUBACK  = 167;
 static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUOK    = 168;
+static constexpr ASoundId_PSP ASoundId_PSP_BOOTSTRAP_STREAM = 10000;
 
 class ASoundOutputThread_PSP : public Toshi::TThread
 {
@@ -94,6 +95,8 @@ public:
 	TFLOAT GetCueVolume( TINT a_iCue ) const;
 	ASoundId_PSP GetCueSoundId( TINT a_iCue ) const;
 	TINT FindPlayingCue( ASoundId_PSP a_eSoundID ) const;
+	TBOOL IsCueStreamReady( TINT a_iCue ) const;
+	TBOOL IsStreamCueActive( TINT a_iCue ) const;
 	TBOOL GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoice ) const;
 
 	TBOOL SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames );
@@ -146,6 +149,7 @@ private:
 		TBOOL bPositionDirty;
 		TBOOL bPaused;
 		TBOOL bPauseDirty;
+		TBOOL bStream;
 		TBOOL bFading;
 		TBOOL bFadeStopWhenDone;
 		TBOOL bStopPending;

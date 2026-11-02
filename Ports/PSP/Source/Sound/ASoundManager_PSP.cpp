@@ -20,6 +20,7 @@ static const ASoundCueMapping_PSP g_aSoundCueMappings_PSP[] = {
 	{ ASoundId_PSP_UI_MENUCLICK, "UI_MENUCLICK" },
 	{ ASoundId_PSP_UI_MENUBACK, "UI_MENUBACK" },
 	{ ASoundId_PSP_UI_MENUOK, "UI_MENUOK" },
+	{ ASoundId_PSP_BOOTSTRAP_STREAM, "BOOTSTRAP_STREAM" },
 };
 
 static TINT ConvertCueCoordinate_PSP( TFLOAT a_fCoordinate )
@@ -152,7 +153,8 @@ TBOOL ASoundManager_PSP::BindCueBank(
 
 	for ( TSIZE i = 0; i < TARRAYSIZE( g_aSoundCueMappings_PSP ); i++ )
 	{
-		if ( a_pWaveBank->FindWave( g_aSoundCueMappings_PSP[ i ].pWaveName ) == TNULL )
+		if ( a_pWaveBank->FindWave( g_aSoundCueMappings_PSP[ i ].pWaveName ) == TNULL &&
+		     a_pWaveBank->FindStream( g_aSoundCueMappings_PSP[ i ].pWaveName ) == TNULL )
 			return TFALSE;
 	}
 
@@ -279,6 +281,7 @@ TINT ASoundManager_PSP::PlayCueEx(
 	rCue.bPositionDirty = TFALSE;
 	rCue.bPaused = a_bStartPaused;
 	rCue.bPauseDirty = a_bStartPaused;
+	rCue.bStream = m_pWaveBank->FindStream( pWaveName ) != TNULL;
 	rCue.bFading = TFALSE;
 	rCue.bFadeStopWhenDone = TFALSE;
 	rCue.bStopPending = TFALSE;
@@ -585,6 +588,8 @@ void ASoundManager_PSP::SetCueFrequency(
 	Cue* pCue = uiIndex < MAX_MANAGED_CUES ? &m_aCues[ uiIndex ] : TNULL;
 	if ( pCue == TNULL || ResolveCue( a_iCue ) == TNULL )
 		return;
+	if ( pCue->bStream && a_fFrequency != 1.0f )
+		return;
 
 	pCue->uiFrequency = TUINT(
 	    a_fFrequency * TFLOAT( ASoundMixer_PSP::DEFAULT_FREQUENCY ) + 0.5f
@@ -749,6 +754,18 @@ TINT ASoundManager_PSP::FindPlayingCue( ASoundId_PSP a_eSoundID ) const
 	return -1;
 }
 
+TBOOL ASoundManager_PSP::IsCueStreamReady( TINT a_iCue ) const
+{
+	const Cue* pCue = ResolveCue( a_iCue );
+	return pCue != TNULL && pCue->bStream;
+}
+
+TBOOL ASoundManager_PSP::IsStreamCueActive( TINT a_iCue ) const
+{
+	const Cue* pCue = ResolveCue( a_iCue );
+	return pCue != TNULL && pCue->bStream;
+}
+
 TBOOL ASoundManager_PSP::GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoice ) const
 {
 	const Cue* pCue = ResolveCue( a_iCue );
@@ -823,6 +840,7 @@ void ASoundManager_PSP::ReleaseCue( TUINT a_uiIndex )
 	rCue.bPositionDirty = TFALSE;
 	rCue.bPaused = TFALSE;
 	rCue.bPauseDirty = TFALSE;
+	rCue.bStream = TFALSE;
 	rCue.bFading = TFALSE;
 	rCue.bFadeStopWhenDone = TFALSE;
 	rCue.bStopPending = TFALSE;
@@ -858,6 +876,7 @@ void ASoundManager_PSP::ClearCues()
 		m_aCues[ i ].bPositionDirty = TFALSE;
 		m_aCues[ i ].bPaused = TFALSE;
 		m_aCues[ i ].bPauseDirty = TFALSE;
+		m_aCues[ i ].bStream = TFALSE;
 		m_aCues[ i ].bFading = TFALSE;
 		m_aCues[ i ].bFadeStopWhenDone = TFALSE;
 		m_aCues[ i ].bStopPending = TFALSE;
