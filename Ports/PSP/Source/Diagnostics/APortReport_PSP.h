@@ -23,6 +23,7 @@ struct APortReportData_PSP
 	TBOOL bCuePauseReady;
 	TBOOL bCueQueriesReady;
 	TBOOL bCueFadeReady;
+	TBOOL bGlobalVolumeReady;
 	TUINT uiStreamUnderruns;
 	TBOOL bTextureReady;
 	TBOOL bFontReady;
