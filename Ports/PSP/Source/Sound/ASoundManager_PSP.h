@@ -3,6 +3,7 @@
 #include <Toshi/Typedefs.h>
 #include <Thread/TThread.h>
 #include <Thread/TSemaphore.h>
+#include <Math/TVector4.h>
 
 #include "ASoundCommandQueue_PSP.h"
 #include "ASoundDelayedEventQueue_PSP.h"
@@ -35,6 +36,8 @@ public:
 	static constexpr TUINT BUFFER_SAMPLE_FRAMES = 1024;
 	static constexpr TUINT OUTPUT_CHANNELS = 2;
 	static constexpr TFLOAT MAX_CUE_DELAY_SECONDS = 300.0f;
+	static constexpr TINT CUE_POSITION_SCALE = 1000;
+	static constexpr TUINT DEFAULT_CUE_MAX_DISTANCE = 100000;
 
 public:
 	ASoundManager_PSP();
@@ -62,6 +65,8 @@ public:
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume, TFLOAT a_fDelay );
 	void SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency );
 	void SetCueFrequency( TINT a_iCue, TFLOAT a_fFrequency, TFLOAT a_fDelay );
+	void SetCuePosition( TINT a_iCue, const Toshi::TVector4& a_rcPosition );
+	void SetCuePosition( TINT a_iCue, const Toshi::TVector4& a_rcPosition, TFLOAT a_fDelay );
 	TBOOL PlayCueDetached( ASoundId_PSP a_eSoundID );
 	void UpdateCues( const ASoundMixer_PSP& a_rMixer );
 	TBOOL IsCuePlaying( TINT a_iCue ) const;
@@ -102,14 +107,18 @@ private:
 		ASoundScheduledEventHandle_PSP hStopEvent;
 		ASoundScheduledEventHandle_PSP hVolumeEvent;
 		ASoundScheduledEventHandle_PSP hFrequencyEvent;
+		ASoundScheduledEventHandle_PSP hPositionEvent;
 		ASoundVoiceHandle_PSP hVoice;
 		TUINT uiVolume;
 		TUINT uiFrequency;
+		ASoundPosition_PSP oPosition;
 		TUINT uiStopDelaySampleFrames;
 		TUINT uiVolumeDelaySampleFrames;
 		TUINT uiFrequencyDelaySampleFrames;
+		TUINT uiPositionDelaySampleFrames;
 		TBOOL bVolumeDirty;
 		TBOOL bFrequencyDirty;
+		TBOOL bPositionDirty;
 		TBOOL bStopPending;
 	};
 
