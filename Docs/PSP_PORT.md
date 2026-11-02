@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-02)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **56%** complete. The second value
+complete playable-game port is approximately **57%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 85% | bounded `PlayCueEx`, immediate/delayed stop, volume, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; cue pause, movies and saves remain incomplete |
+| Audio, movies and saves | 87% | bounded `PlayCueEx`, pause/resume, immediate/delayed stop, volume, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; fades, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -742,6 +742,17 @@ remain largely unstarted.
   reported `position_play=OK`, every other gate `OK` and zero underruns; bundle
   `Runtime/PSP/2a778411`, single process PID `25304`. Background D-pad, Cross
   and Circle input remained responsive.
+- `PauseCue` now preserves the original gameplay-facing signature. Each of the
+  four fixed mixer voices owns one paused flag; paused voices remain active but
+  neither mix nor advance their sample cursor. Pending cue state carries the
+  desired pause until its asynchronous voice resolves, so `PlayCueEx` now
+  accepts paused starts while track selection remains explicitly unsupported.
+- Commit `1eb9903e` passed PSP run `41474814467`. The runtime gate started a cue
+  paused, verified a full 1,024-frame silent buffer without cursor advancement,
+  toggled public pause/resume and confirmed playback resumed at the first
+  `8000/8000` sample. PPSSPP reported `cue_pause=OK`, every other gate `OK` and
+  zero underruns; bundle `Runtime/PSP/1eb9903e`, single process PID `5776`.
+  Background D-pad, Cross and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -749,10 +760,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add the original `PauseCue` entry point with a bounded paused flag
-inside each of the four PSP mixer voices, then use it to enable paused-start in
-`PlayCueEx`. Keep track selection explicitly unsupported until its ownership
-semantics are implemented. Keep one
+In parallel, add the original cue state/volume query seam and a bounded
+sample-clock volume fade over managed cues. Keep track selection explicitly
+unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
 PFNT/PLOC loaders toward the real
