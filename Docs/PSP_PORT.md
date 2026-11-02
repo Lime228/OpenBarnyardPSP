@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-02)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **59%** complete. The second value
+complete playable-game port is approximately **60%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 92% | bounded `PlayCueEx`, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; managed music streams, movies and saves remain incomplete |
+| Audio, movies and saves | 94% | bounded resident/stream cues, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; stream seeking, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -792,6 +792,17 @@ remain largely unstarted.
   PPSSPP reported `global_volume=OK`, every other gate `OK` and zero underruns;
   bundle `Runtime/PSP/1e56794d`, single process PID `10788`. Background D-pad,
   Cross and Circle input remained responsive.
+- The existing single PADP cursor can now be owned by a normal generation-safe
+  managed cue. `IsCueStreamReady` and `IsStreamCueActive` reject resident and
+  stale handles; pause, volume, fades, global controls and stop reuse the same
+  fixed cue state. Non-default stream frequency remains rejected because the
+  PADP backend intentionally has no resampler.
+- Commit `6bdbd2bc` passed PSP run `41489158932`. The runtime gate resolved the
+  PBNK stream through the manager, verified ready/active state, rejected a
+  half-rate request, paused/resumed, changed volume and released the stream
+  voice. PPSSPP reported `stream_cues=OK`, every other gate `OK` and zero
+  underruns; bundle `Runtime/PSP/6bdbd2bc`, single process PID `15776`.
+  Background D-pad, Cross and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -799,8 +810,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, extend managed cue ownership to the existing single PADP music
-stream and expose stream-ready/active state without adding another cursor. Keep track selection explicitly
+In parallel, add `GetStreamCueTime` and bounded `SetStreamCueTime` over the
+owned PADP voice cursor without adding another stream cursor. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
