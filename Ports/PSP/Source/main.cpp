@@ -780,9 +780,49 @@ static TBOOL TestManagedCuePause_PSP()
 	const TBOOL bResumeSubmitted = g_SoundManager_PSP.UnlockOutputBuffer() &&
 	                              g_SoundManager_PSP.WaitForSubmittedBuffer();
 	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
-	return bMixedAfterResume && bResumedAtStart && bResumeSubmitted &&
-	       !g_SoundManager_PSP.IsCuePlaying( iCue ) &&
-	       g_SoundManager_PSP.GetManagedCueCount() == 0 &&
+	if ( !bMixedAfterResume || !bResumedAtStart || !bResumeSubmitted ||
+	     g_SoundManager_PSP.IsCuePlaying( iCue ) ||
+	     g_SoundManager_PSP.GetManagedCueCount() != 0 ||
+	     g_SoundMixer_PSP.GetActiveVoiceCount() != 0 )
+	{
+		return TFALSE;
+	}
+
+	TINT iFirstCue = g_SoundManager_PSP.PlayCue( ASoundId_PSP_UI_MENUCLICK );
+	TINT iSecondCue = g_SoundManager_PSP.PlayCue( ASoundId_PSP_UI_MENUBACK );
+	if ( iFirstCue < 0 || iSecondCue < 0 ||
+	     !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
+	ASoundVoiceHandle_PSP hFirstVoice = ASoundMixer_PSP::INVALID_VOICE;
+	ASoundVoiceHandle_PSP hSecondVoice = ASoundMixer_PSP::INVALID_VOICE;
+	if ( !g_SoundManager_PSP.GetCueVoice( iFirstCue, hFirstVoice ) ||
+	     !g_SoundManager_PSP.GetCueVoice( iSecondCue, hSecondVoice ) )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.PauseAllCues( TTRUE );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     !g_SoundMixer_PSP.IsVoicePaused( hFirstVoice ) ||
+	     !g_SoundMixer_PSP.IsVoicePaused( hSecondVoice ) )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.PauseAllCues( TFALSE );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     g_SoundMixer_PSP.IsVoicePaused( hFirstVoice ) ||
+	     g_SoundMixer_PSP.IsVoicePaused( hSecondVoice ) )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.StopCue( iFirstCue );
+	g_SoundManager_PSP.StopCue( iSecondCue );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) )
+		return TFALSE;
+	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
+	return g_SoundManager_PSP.GetManagedCueCount() == 0 &&
 	       g_SoundMixer_PSP.GetActiveVoiceCount() == 0;
 }
 
