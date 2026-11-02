@@ -28,6 +28,15 @@ static TINT ConvertCueCoordinate_PSP( TFLOAT a_fCoordinate )
 	return TINT( fScaled + ( fScaled >= 0.0f ? 0.5f : -0.5f ) );
 }
 
+static TBOOL IsCuePositionValid_PSP( const Toshi::TVector4& a_rcPosition )
+{
+	const TFLOAT fMaxCoordinate = TFLOAT( ASoundMixer_PSP::MAX_POSITION ) /
+	                              TFLOAT( ASoundManager_PSP::CUE_POSITION_SCALE );
+	return a_rcPosition.x >= -fMaxCoordinate && a_rcPosition.x <= fMaxCoordinate &&
+	       a_rcPosition.y >= -fMaxCoordinate && a_rcPosition.y <= fMaxCoordinate &&
+	       a_rcPosition.z >= -fMaxCoordinate && a_rcPosition.z <= fMaxCoordinate;
+}
+
 ASoundOutputThread_PSP::ASoundOutputThread_PSP()
     : m_pSoundManager( TNULL )
 {
@@ -270,6 +279,48 @@ TINT ASoundManager_PSP::PlayCueEx(
 	return MakeCueHandle( uiCue );
 }
 
+TINT ASoundManager_PSP::PlayCueAtPosition(
+    ASoundId_PSP a_eSoundID,
+    const Toshi::TVector4& a_rcPosition
+)
+{
+	return PlayCueAtPositionEx(
+	    a_eSoundID,
+	    a_rcPosition,
+	    1.0f,
+	    TFALSE,
+	    0.0f,
+	    -1
+	);
+}
+
+TINT ASoundManager_PSP::PlayCueAtPositionEx(
+    ASoundId_PSP a_eSoundID,
+    const Toshi::TVector4& a_rcPosition,
+    TFLOAT a_fVolume,
+    TBOOL a_bStartPaused,
+    TFLOAT a_fDelay,
+    TINT a_iTrack
+)
+{
+	if ( !IsCuePositionValid_PSP( a_rcPosition ) )
+	{
+		m_uiRejectedCues++;
+		return -1;
+	}
+
+	const TINT iCue = PlayCueEx(
+	    a_eSoundID,
+	    a_fVolume,
+	    a_bStartPaused,
+	    a_fDelay,
+	    a_iTrack
+	);
+	if ( iCue >= 0 )
+		SetCuePosition( iCue, a_rcPosition, a_fDelay );
+	return iCue;
+}
+
 void ASoundManager_PSP::StopCue( TINT& a_rCue )
 {
 	StopCueAsync( a_rCue, 0.0f );
@@ -399,11 +450,7 @@ void ASoundManager_PSP::SetCuePosition(
     TFLOAT a_fDelay
 )
 {
-	const TFLOAT fMaxCoordinate = TFLOAT( ASoundMixer_PSP::MAX_POSITION ) /
-	                              TFLOAT( CUE_POSITION_SCALE );
-	if ( !( a_rcPosition.x >= -fMaxCoordinate && a_rcPosition.x <= fMaxCoordinate ) ||
-	     !( a_rcPosition.y >= -fMaxCoordinate && a_rcPosition.y <= fMaxCoordinate ) ||
-	     !( a_rcPosition.z >= -fMaxCoordinate && a_rcPosition.z <= fMaxCoordinate ) ||
+	if ( !IsCuePositionValid_PSP( a_rcPosition ) ||
 	     !( a_fDelay >= 0.0f && a_fDelay <= MAX_CUE_DELAY_SECONDS ) )
 	{
 		return;

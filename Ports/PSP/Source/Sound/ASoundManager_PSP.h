@@ -63,6 +63,15 @@ public:
 	    TFLOAT a_fDelay,
 	    TINT a_iTrack
 	);
+	TINT PlayCueAtPosition( ASoundId_PSP a_eSoundID, const Toshi::TVector4& a_rcPosition );
+	TINT PlayCueAtPositionEx(
+	    ASoundId_PSP a_eSoundID,
+	    const Toshi::TVector4& a_rcPosition,
+	    TFLOAT a_fVolume,
+	    TBOOL a_bStartPaused,
+	    TFLOAT a_fDelay,
+	    TINT a_iTrack
+	);
 	void StopCue( TINT& a_rCue );
 	void StopCueAsync( TINT& a_rCue, TFLOAT a_fDelay );
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume );
