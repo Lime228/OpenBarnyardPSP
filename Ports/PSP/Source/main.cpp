@@ -582,6 +582,61 @@ static TBOOL TestManagedCueFrequency_PSP()
 	       g_SoundCommandQueue_PSP.GetPlayResultCount() == 0;
 }
 
+static TBOOL TestManagedCuePosition_PSP()
+{
+	const TFLOAT fOneFrameDelay = 1.0f / TFLOAT( ASoundManager_PSP::SAMPLE_RATE );
+	const Toshi::TVector4 oHalfRight( 50.0f, 0.0f, 0.0f );
+	const Toshi::TVector4 oHalfLeft( -50.0f, 0.0f, 0.0f );
+	const Toshi::TVector4 oInvalid( 1001.0f, 0.0f, 0.0f );
+	TINT iCue = g_SoundManager_PSP.PlayCue( ASoundId_PSP_UI_MENUOK );
+	if ( iCue < 0 || !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) )
+		return TFALSE;
+	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
+
+	ASoundVoiceHandle_PSP hVoice = ASoundMixer_PSP::INVALID_VOICE;
+	TINT iPan = 0;
+	TUINT uiAttenuation = 0;
+	if ( !g_SoundManager_PSP.GetCueVoice( iCue, hVoice ) )
+		return TFALSE;
+	g_SoundManager_PSP.SetCuePosition( iCue, oHalfRight );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     !g_SoundMixer_PSP.GetSpatialState( hVoice, iPan, uiAttenuation ) ||
+	     iPan != ASoundMixer_PSP::MAX_PAN / 2 ||
+	     uiAttenuation != ASoundMixer_PSP::MAX_VOLUME / 2 )
+	{
+		return TFALSE;
+	}
+
+	g_SoundManager_PSP.SetCuePosition( iCue, oInvalid );
+	if ( g_SoundCommandQueue_PSP.GetQueuedCommandCount() != 0 )
+		return TFALSE;
+	g_SoundManager_PSP.SetCuePosition( iCue, oHalfLeft, fOneFrameDelay );
+	if ( g_DelayedEventQueue_PSP.GetEventCount() != 1 ||
+	     !g_SoundMixer_PSP.GetSpatialState( hVoice, iPan, uiAttenuation ) ||
+	     iPan != ASoundMixer_PSP::MAX_PAN / 2 )
+	{
+		return TFALSE;
+	}
+	g_DelayedEventQueue_PSP.Update( 1, g_SoundCommandQueue_PSP );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     !g_SoundMixer_PSP.GetSpatialState( hVoice, iPan, uiAttenuation ) ||
+	     iPan != -ASoundMixer_PSP::MAX_PAN / 2 ||
+	     uiAttenuation != ASoundMixer_PSP::MAX_VOLUME / 2 )
+	{
+		return TFALSE;
+	}
+
+	const TINT iStoppedCue = iCue;
+	g_SoundManager_PSP.StopCue( iCue );
+	if ( iCue != -1 || !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) )
+		return TFALSE;
+	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
+	return !g_SoundManager_PSP.IsCuePlaying( iStoppedCue ) &&
+	       g_SoundMixer_PSP.GetActiveVoiceCount() == 0 &&
+	       g_DelayedEventQueue_PSP.GetEventCount() == 0 &&
+	       g_SoundManager_PSP.GetManagedCueCount() == 0;
+}
+
 static TBOOL TestBootstrapStreamLoop_PSP()
 {
 	g_SoundCommandQueue_PSP.Clear();
@@ -994,7 +1049,8 @@ int main()
 	const TBOOL bCueControlsReady = bCueExReady && TestManagedCueControls_PSP();
 	const TBOOL bDelayedCueControlsReady = bCueControlsReady && TestDelayedCueControls_PSP();
 	const TBOOL bCueFrequencyReady = bDelayedCueControlsReady && TestManagedCueFrequency_PSP();
-	const TBOOL bResidentAudioReady = bCueFrequencyReady &&
+	const TBOOL bCuePositionReady = bCueFrequencyReady && TestManagedCuePosition_PSP();
+	const TBOOL bResidentAudioReady = bCuePositionReady &&
 	                                  TestSoundCommandQueue_PSP() &&
 	                                  TestDelayedSoundEvents_PSP() &&
 	                                  TestBootstrapVoiceFrequency_PSP();
@@ -1096,6 +1152,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP sound] cue controls %s\n", bCueControlsReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP sound] async controls %s\n", bDelayedCueControlsReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP sound] cue frequency %s\n", bCueFrequencyReady ? "OK" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP sound] cue position  %s\n", bCuePositionReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
@@ -1123,6 +1180,7 @@ int main()
 		bCueControlsReady,
 		bDelayedCueControlsReady,
 		bCueFrequencyReady,
+		bCuePositionReady,
 		g_BootstrapStream_PSP.GetUnderrunCount(),
 		bTextureReady,
 		bFontReady,
