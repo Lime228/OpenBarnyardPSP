@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-02)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **55%** complete. The second value
+complete playable-game port is approximately **56%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 84% | bounded `PlayCueEx`, immediate/delayed stop, volume, frequency and managed cue position, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; positional play wrappers, movies and saves remain incomplete |
+| Audio, movies and saves | 85% | bounded `PlayCueEx`, immediate/delayed stop, volume, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; cue pause, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -731,6 +731,17 @@ remain largely unstarted.
   PPSSPP reported `cue_position=OK`, every other gate `OK` and zero underruns;
   bundle `Runtime/PSP/d030b54a`, single process PID `2076`. Background D-pad,
   Cross and Circle input remained responsive.
+- `PlayCueAtPosition` and `PlayCueAtPositionEx` now preserve the original entry
+  point names over the managed PSP cue path. Invalid world coordinates reject
+  before reserving a cue, immediate plays apply position when their voice result
+  arrives, and delayed plays carry desired position without adding a second
+  delay after voice creation.
+- Commit `2a778411` passed PSP run `41474303828`. The runtime gate covered
+  invalid-position rejection, immediate right-position playback and delayed
+  left-position playback with exact half-distance pan/attenuation. PPSSPP
+  reported `position_play=OK`, every other gate `OK` and zero underruns; bundle
+  `Runtime/PSP/2a778411`, single process PID `25304`. Background D-pad, Cross
+  and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -738,9 +749,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add the original `PlayCueAtPosition` and `PlayCueAtPositionEx`
-entry points over the validated managed-cue position path. Keep
-paused-start and track selection explicitly unsupported until their ownership
+In parallel, add the original `PauseCue` entry point with a bounded paused flag
+inside each of the four PSP mixer voices, then use it to enable paused-start in
+`PlayCueEx`. Keep track selection explicitly unsupported until its ownership
 semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
