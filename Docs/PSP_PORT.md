@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-02)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **60%** complete. The second value
+complete playable-game port is approximately **61%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -28,7 +28,7 @@ streaming, or gameplay validation on hardware.
 | Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
-| Audio, movies and saves | 94% | bounded resident/stream cues, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; stream seeking, movies and saves remain incomplete |
+| Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
 | World, animation and gameplay | 0% | no game room or player simulation is loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
@@ -803,6 +803,15 @@ remain largely unstarted.
   voice. PPSSPP reported `stream_cues=OK`, every other gate `OK` and zero
   underruns; bundle `Runtime/PSP/6bdbd2bc`, single process PID `15776`.
   Background D-pad, Cross and Circle input remained responsive.
+- `GetStreamCueTime` and `SetStreamCueTime` now preserve the original manager
+  entry points over the owned PADP voice. The command ring performs bounded
+  seeks, while conversion between milliseconds and the 44.1 kHz fixed-point
+  cursor is integer-only and out-of-range positions are rejected by the mixer.
+- Commit `417440cf` passed PSP run `41489608438`. The expanded managed-stream
+  gate advanced one 1,024-frame buffer, observed `23 ms`, sought back to `0 ms`
+  and released the voice. PPSSPP retained `stream_cues=OK`, every other gate
+  `OK` and zero underruns; bundle `Runtime/PSP/417440cf`, single process PID
+  `1680`. Background D-pad, Cross and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -810,8 +819,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, add `GetStreamCueTime` and bounded `SetStreamCueTime` over the
-owned PADP voice cursor without adding another stream cursor. Keep track selection explicitly
+In parallel, define the first bounded PSP skeleton/animation asset seam and
+offline conversion contract before adding runtime skinning. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
