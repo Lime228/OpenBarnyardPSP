@@ -75,6 +75,7 @@ public:
 	void StopCue( TINT& a_rCue );
 	void StopCueAsync( TINT& a_rCue, TFLOAT a_fDelay );
 	void PauseCue( TINT a_iCue, TBOOL a_bPause );
+	void PauseAllCues( TBOOL a_bPause );
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume );
 	void SetCueVolume( TINT a_iCue, TFLOAT a_fVolume, TFLOAT a_fDelay );
 	void FadeCue( TINT a_iCue, TFLOAT a_fDuration, TFLOAT a_fVolume, TFLOAT a_fUnused );

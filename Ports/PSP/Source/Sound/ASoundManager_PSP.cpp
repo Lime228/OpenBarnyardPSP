@@ -377,6 +377,20 @@ void ASoundManager_PSP::PauseCue( TINT a_iCue, TBOOL a_bPause )
 	QueueCueControls( *pCue );
 }
 
+void ASoundManager_PSP::PauseAllCues( TBOOL a_bPause )
+{
+	for ( TUINT i = 0; i < MAX_MANAGED_CUES; i++ )
+	{
+		Cue& rCue = m_aCues[ i ];
+		if ( rCue.eState == CueState_Free )
+			continue;
+
+		rCue.bPaused = a_bPause;
+		rCue.bPauseDirty = TTRUE;
+		QueueCueControls( rCue );
+	}
+}
+
 void ASoundManager_PSP::SetCueVolume( TINT a_iCue, TFLOAT a_fVolume )
 {
 	SetCueVolume( a_iCue, a_fVolume, 0.0f );
