@@ -32,6 +32,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "async_controls=%s\n", GetReportStatus_PSP( a_rData.bDelayedCueControlsReady ) );
 	pFile->CPrintf( "cue_frequency=%s\n", GetReportStatus_PSP( a_rData.bCueFrequencyReady ) );
 	pFile->CPrintf( "cue_position=%s\n", GetReportStatus_PSP( a_rData.bCuePositionReady ) );
+	pFile->CPrintf( "position_play=%s\n", GetReportStatus_PSP( a_rData.bPositionalCueReady ) );
 	pFile->CPrintf( "stream_underruns=%u\n", a_rData.uiStreamUnderruns );
 	pFile->CPrintf( "texture=%s\n", GetReportStatus_PSP( a_rData.bTextureReady ) );
 	pFile->CPrintf( "font=%s\n", GetReportStatus_PSP( a_rData.bFontReady ) );
