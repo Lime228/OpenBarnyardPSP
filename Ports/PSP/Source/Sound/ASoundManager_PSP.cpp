@@ -256,6 +256,7 @@ TINT ASoundManager_PSP::PlayCueEx(
 	rCue.eState = uiRequest != ASoundCommandQueue_PSP::INVALID_REQUEST ?
 	                    CueState_PendingCommand :
 	                    CueState_PendingEvent;
+	rCue.eSoundID = a_eSoundID;
 	rCue.uiRequest = uiRequest;
 	rCue.hScheduledEvent = hScheduledEvent;
 	rCue.hStopEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
@@ -560,6 +561,38 @@ TBOOL ASoundManager_PSP::IsCuePlaying( TINT a_iCue ) const
 	return ResolveCue( a_iCue ) != TNULL;
 }
 
+TBOOL ASoundManager_PSP::IsCueUsed( TINT a_iCue ) const
+{
+	return ResolveCue( a_iCue ) != TNULL;
+}
+
+TFLOAT ASoundManager_PSP::GetCueVolume( TINT a_iCue ) const
+{
+	const Cue* pCue = ResolveCue( a_iCue );
+	return pCue != TNULL ?
+	    TFLOAT( pCue->uiVolume ) / TFLOAT( ASoundMixer_PSP::MAX_VOLUME ) : 0.0f;
+}
+
+ASoundId_PSP ASoundManager_PSP::GetCueSoundId( TINT a_iCue ) const
+{
+	const Cue* pCue = ResolveCue( a_iCue );
+	return pCue != TNULL ? pCue->eSoundID : ASOUNDID_PSP_INVALID;
+}
+
+TINT ASoundManager_PSP::FindPlayingCue( ASoundId_PSP a_eSoundID ) const
+{
+	for ( TUINT i = 0; i < MAX_MANAGED_CUES; i++ )
+	{
+		if ( m_aCues[ i ].eState != CueState_Free &&
+		     m_aCues[ i ].eSoundID == a_eSoundID )
+		{
+			return MakeCueHandle( i );
+		}
+	}
+
+	return -1;
+}
+
 TBOOL ASoundManager_PSP::GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoice ) const
 {
 	const Cue* pCue = ResolveCue( a_iCue );
@@ -610,6 +643,7 @@ void ASoundManager_PSP::ReleaseCue( TUINT a_uiIndex )
 		return;
 
 	rCue.eState = CueState_Free;
+	rCue.eSoundID = ASOUNDID_PSP_INVALID;
 	rCue.uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
 	rCue.hScheduledEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 	m_pDelayedEventQueue->Cancel( rCue.hStopEvent );
@@ -642,6 +676,7 @@ void ASoundManager_PSP::ClearCues()
 	for ( TUINT i = 0; i < MAX_MANAGED_CUES; i++ )
 	{
 		m_aCues[ i ].eState = CueState_Free;
+		m_aCues[ i ].eSoundID = ASOUNDID_PSP_INVALID;
 		m_aCues[ i ].uiRequest = ASoundCommandQueue_PSP::INVALID_REQUEST;
 		m_aCues[ i ].hScheduledEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;
 		m_aCues[ i ].hStopEvent = ASoundDelayedEventQueue_PSP::INVALID_EVENT;

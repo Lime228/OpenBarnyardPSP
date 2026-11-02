@@ -84,6 +84,10 @@ public:
 	TBOOL PlayCueDetached( ASoundId_PSP a_eSoundID );
 	void UpdateCues( const ASoundMixer_PSP& a_rMixer );
 	TBOOL IsCuePlaying( TINT a_iCue ) const;
+	TBOOL IsCueUsed( TINT a_iCue ) const;
+	TFLOAT GetCueVolume( TINT a_iCue ) const;
+	ASoundId_PSP GetCueSoundId( TINT a_iCue ) const;
+	TINT FindPlayingCue( ASoundId_PSP a_eSoundID ) const;
 	TBOOL GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoice ) const;
 
 	TBOOL SubmitStereo( const TINT16* a_pSamples, TUINT a_uiSampleFrames );
@@ -116,6 +120,7 @@ private:
 	{
 		TUINT32 uiGeneration;
 		CueState eState;
+		ASoundId_PSP eSoundID;
 		ASoundCommandRequest_PSP uiRequest;
 		ASoundScheduledEventHandle_PSP hScheduledEvent;
 		ASoundScheduledEventHandle_PSP hStopEvent;
