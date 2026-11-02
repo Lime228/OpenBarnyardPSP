@@ -45,7 +45,7 @@ ASoundVoiceHandle_PSP ASoundMixer_PSP::Play(
 			if ( uiGeneration == 0 )
 				uiGeneration = 1;
 			m_auiVoiceGenerations[ i ] = uiGeneration;
-			m_aVoices[ i ] = { a_pWave, TNULL, 0, 0, a_uiFrequency, a_uiVolume, MAX_VOLUME, a_iPan, 0, 0, TTRUE, a_bLoop };
+			m_aVoices[ i ] = { a_pWave, TNULL, 0, 0, a_uiFrequency, a_uiVolume, MAX_VOLUME, a_iPan, 0, 0, TTRUE, a_bLoop, TFALSE };
 			UpdateVoiceFrequency( m_aVoices[ i ], a_uiFrequency );
 			UpdateVoiceVolumes( m_aVoices[ i ] );
 			return ( uiGeneration << 8 ) | i;
@@ -84,7 +84,7 @@ ASoundVoiceHandle_PSP ASoundMixer_PSP::PlayStream(
 			m_auiVoiceGenerations[ i ] = uiGeneration;
 			m_aVoices[ i ] = {
 				TNULL, a_pStreamWave, 0, 1 << 16, DEFAULT_FREQUENCY,
-				a_uiVolume, MAX_VOLUME, a_iPan, 0, 0, TTRUE, a_bLoop,
+				a_uiVolume, MAX_VOLUME, a_iPan, 0, 0, TTRUE, a_bLoop, TFALSE,
 			};
 			UpdateVoiceVolumes( m_aVoices[ i ] );
 			return ( uiGeneration << 8 ) | i;
@@ -139,6 +139,16 @@ TBOOL ASoundMixer_PSP::SetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiF
 		return TFALSE;
 
 	return UpdateVoiceFrequency( m_aVoices[ iVoice ], a_uiFrequency );
+}
+
+TBOOL ASoundMixer_PSP::SetPaused( ASoundVoiceHandle_PSP a_hVoice, TBOOL a_bPaused )
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	if ( iVoice < 0 )
+		return TFALSE;
+
+	m_aVoices[ iVoice ].bPaused = a_bPaused;
+	return TTRUE;
 }
 
 TBOOL ASoundMixer_PSP::SetPosition(
@@ -292,7 +302,7 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 		for ( TUINT uiVoice = 0; uiVoice < MAX_VOICES; uiVoice++ )
 		{
 			Voice& rVoice = m_aVoices[ uiVoice ];
-			if ( !rVoice.bActive )
+			if ( !rVoice.bActive || rVoice.bPaused )
 				continue;
 
 			const TUINT uiSourceFrames = rVoice.pStreamWave != TNULL && rVoice.bLoop ?
@@ -362,6 +372,12 @@ TUINT ASoundMixer_PSP::GetActiveVoiceCount() const
 TBOOL ASoundMixer_PSP::IsVoiceActive( ASoundVoiceHandle_PSP a_hVoice ) const
 {
 	return ResolveVoice( a_hVoice ) >= 0;
+}
+
+TBOOL ASoundMixer_PSP::IsVoicePaused( ASoundVoiceHandle_PSP a_hVoice ) const
+{
+	const TINT iVoice = ResolveVoice( a_hVoice );
+	return iVoice >= 0 && m_aVoices[ iVoice ].bPaused;
 }
 
 TINT ASoundMixer_PSP::ResolveVoice( ASoundVoiceHandle_PSP a_hVoice ) const

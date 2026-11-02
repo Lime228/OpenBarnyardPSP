@@ -51,6 +51,7 @@ public:
 		TUINT uiRightVolume;
 		TBOOL bActive;
 		TBOOL bLoop;
+		TBOOL bPaused;
 	};
 
 public:
@@ -74,6 +75,7 @@ public:
 	TBOOL SetVolume( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiVolume );
 	TBOOL SetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan );
 	TBOOL SetFrequency( ASoundVoiceHandle_PSP a_hVoice, TUINT a_uiFrequency );
+	TBOOL SetPaused( ASoundVoiceHandle_PSP a_hVoice, TBOOL a_bPaused );
 	TBOOL SetPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
 	TBOOL SetListener( const ASoundListener_PSP& a_rListener );
 	TBOOL SetWorldPosition( ASoundVoiceHandle_PSP a_hVoice, const ASoundPosition_PSP& a_rPosition );
@@ -87,6 +89,7 @@ public:
 	TBOOL Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames );
 	TUINT GetActiveVoiceCount() const;
 	TBOOL IsVoiceActive( ASoundVoiceHandle_PSP a_hVoice ) const;
+	TBOOL IsVoicePaused( ASoundVoiceHandle_PSP a_hVoice ) const;
 
 private:
 	TINT ResolveVoice( ASoundVoiceHandle_PSP a_hVoice ) const;

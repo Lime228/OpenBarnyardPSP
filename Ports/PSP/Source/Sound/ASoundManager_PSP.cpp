@@ -187,7 +187,7 @@ TINT ASoundManager_PSP::PlayCueEx(
 	if ( !IsCueBankBound() || pWaveName == TNULL ||
 	     !( a_fVolume >= 0.0f && a_fVolume <= 1.0f ) ||
 	     !( a_fDelay >= 0.0f && a_fDelay <= MAX_CUE_DELAY_SECONDS ) ||
-	     a_bStartPaused || a_iTrack != -1 )
+	     a_iTrack != -1 )
 	{
 		m_uiRejectedCues++;
 		return -1;
@@ -273,6 +273,8 @@ TINT ASoundManager_PSP::PlayCueEx(
 	rCue.bVolumeDirty = TFALSE;
 	rCue.bFrequencyDirty = TFALSE;
 	rCue.bPositionDirty = TFALSE;
+	rCue.bPaused = a_bStartPaused;
+	rCue.bPauseDirty = a_bStartPaused;
 	rCue.bStopPending = TFALSE;
 	m_uiManagedCues++;
 	m_uiPendingCues++;
@@ -353,6 +355,18 @@ void ASoundManager_PSP::StopCueAsync( TINT& a_rCue, TFLOAT a_fDelay )
 	pCue->uiStopDelaySampleFrames = TUINT(
 	    a_fDelay * TFLOAT( SAMPLE_RATE ) + 0.5f
 	);
+	QueueCueControls( *pCue );
+}
+
+void ASoundManager_PSP::PauseCue( TINT a_iCue, TBOOL a_bPause )
+{
+	const TUINT uiIndex = a_iCue >= 0 ? TUINT( a_iCue ) & CUE_INDEX_MASK : MAX_MANAGED_CUES;
+	Cue* pCue = uiIndex < MAX_MANAGED_CUES ? &m_aCues[ uiIndex ] : TNULL;
+	if ( pCue == TNULL || ResolveCue( a_iCue ) == TNULL )
+		return;
+
+	pCue->bPaused = a_bPause;
+	pCue->bPauseDirty = TTRUE;
 	QueueCueControls( *pCue );
 }
 
@@ -617,6 +631,8 @@ void ASoundManager_PSP::ReleaseCue( TUINT a_uiIndex )
 	rCue.bVolumeDirty = TFALSE;
 	rCue.bFrequencyDirty = TFALSE;
 	rCue.bPositionDirty = TFALSE;
+	rCue.bPaused = TFALSE;
+	rCue.bPauseDirty = TFALSE;
 	rCue.bStopPending = TFALSE;
 	m_uiManagedCues--;
 }
@@ -643,6 +659,8 @@ void ASoundManager_PSP::ClearCues()
 		m_aCues[ i ].bVolumeDirty = TFALSE;
 		m_aCues[ i ].bFrequencyDirty = TFALSE;
 		m_aCues[ i ].bPositionDirty = TFALSE;
+		m_aCues[ i ].bPaused = TFALSE;
+		m_aCues[ i ].bPauseDirty = TFALSE;
 		m_aCues[ i ].bStopPending = TFALSE;
 	}
 	m_uiManagedCues = 0;
@@ -683,6 +701,12 @@ void ASoundManager_PSP::QueueCueControls( Cue& a_rCue )
 				a_rCue.bStopPending = TFALSE;
 		}
 		return;
+	}
+
+	if ( a_rCue.bPauseDirty &&
+	     m_pCommandQueue->QueueSetPaused( a_rCue.hVoice, a_rCue.bPaused ) )
+	{
+		a_rCue.bPauseDirty = TFALSE;
 	}
 
 	if ( a_rCue.bVolumeDirty && a_rCue.uiVolumeDelaySampleFrames == 0 )

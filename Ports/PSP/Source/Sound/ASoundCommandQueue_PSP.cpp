@@ -188,6 +188,14 @@ TBOOL ASoundCommandQueue_PSP::QueueSetFrequency( ASoundVoiceHandle_PSP a_hVoice,
 	return Push( { ASoundCommandType_PSP_SetFrequency, TNULL, a_hVoice, INVALID_REQUEST, 0, 0, TFALSE, a_uiFrequency, {}, {} } );
 }
 
+TBOOL ASoundCommandQueue_PSP::QueueSetPaused(
+    ASoundVoiceHandle_PSP a_hVoice,
+    TBOOL a_bPaused
+)
+{
+	return Push( { ASoundCommandType_PSP_SetPaused, TNULL, a_hVoice, INVALID_REQUEST, TUINT( a_bPaused ), 0, TFALSE, 0, {}, {} } );
+}
+
 TBOOL ASoundCommandQueue_PSP::QueueSetPan( ASoundVoiceHandle_PSP a_hVoice, TINT a_iPan )
 {
 	return Push( { ASoundCommandType_PSP_SetPan, TNULL, a_hVoice, INVALID_REQUEST, 0, a_iPan, TFALSE, 0, {}, {} } );
@@ -282,6 +290,9 @@ TBOOL ASoundCommandQueue_PSP::Process( ASoundMixer_PSP& a_rMixer )
 				break;
 			case ASoundCommandType_PSP_SetFrequency:
 				bCommandSucceeded = a_rMixer.SetFrequency( oCommand.hVoice, oCommand.uiFrequency );
+				break;
+			case ASoundCommandType_PSP_SetPaused:
+				bCommandSucceeded = a_rMixer.SetPaused( oCommand.hVoice, oCommand.uiVolume != 0 );
 				break;
 			case ASoundCommandType_PSP_SetPan:
 				bCommandSucceeded = a_rMixer.SetPan( oCommand.hVoice, oCommand.iPan );
