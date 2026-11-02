@@ -4,6 +4,8 @@
 #include <Toshi/TDebug.h>
 #include <Toshi/THPTimer.h>
 #include <Toshi/TScheduler.h>
+#include <Math/TMathInline.h>
+#include <Math/TVector4.h>
 #include <File/TFile.h>
 #include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Render/TBackend.h>

@@ -3,12 +3,16 @@
 #include <Toshi/Typedefs.h>
 #include <Thread/TThread.h>
 #include <Thread/TSemaphore.h>
-#include <Math/TVector4.h>
 
 #include "ASoundCommandQueue_PSP.h"
 #include "ASoundDelayedEventQueue_PSP.h"
 
 class ASoundManager_PSP;
+
+namespace Toshi
+{
+class TVector4;
+}
 
 using ASoundId_PSP = TINT32;
 

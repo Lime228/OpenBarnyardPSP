@@ -1,4 +1,6 @@
 #include <ToshiPCH.h>
+#include <Math/TMathInline.h>
+#include <Math/TVector4.h>
 #include "ASoundManager_PSP.h"
 #include "ASoundCommandQueue_PSP.h"
 #include "ASoundMixer_PSP.h"
