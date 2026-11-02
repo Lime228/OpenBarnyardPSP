@@ -37,6 +37,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "cue_queries=%s\n", GetReportStatus_PSP( a_rData.bCueQueriesReady ) );
 	pFile->CPrintf( "cue_fade=%s\n", GetReportStatus_PSP( a_rData.bCueFadeReady ) );
 	pFile->CPrintf( "global_volume=%s\n", GetReportStatus_PSP( a_rData.bGlobalVolumeReady ) );
+	pFile->CPrintf( "stream_cues=%s\n", GetReportStatus_PSP( a_rData.bManagedStreamReady ) );
 	pFile->CPrintf( "stream_underruns=%u\n", a_rData.uiStreamUnderruns );
 	pFile->CPrintf( "texture=%s\n", GetReportStatus_PSP( a_rData.bTextureReady ) );
 	pFile->CPrintf( "font=%s\n", GetReportStatus_PSP( a_rData.bFontReady ) );

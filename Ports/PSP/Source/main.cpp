@@ -982,6 +982,52 @@ static TBOOL TestGlobalCueVolume_PSP()
 	       g_SoundMixer_PSP.GetActiveVoiceCount() == 0;
 }
 
+static TBOOL TestManagedStreamCue_PSP()
+{
+	TINT iCue = g_SoundManager_PSP.PlayCue( ASoundId_PSP_BOOTSTRAP_STREAM );
+	if ( iCue < 0 || !g_SoundManager_PSP.IsCueStreamReady( iCue ) ||
+	     !g_SoundManager_PSP.IsStreamCueActive( iCue ) ||
+	     !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
+	ASoundVoiceHandle_PSP hVoice = ASoundMixer_PSP::INVALID_VOICE;
+	TUINT uiFrequency = 0;
+	if ( !g_SoundManager_PSP.GetCueVoice( iCue, hVoice ) ||
+	     !g_SoundMixer_PSP.GetFrequency( hVoice, uiFrequency ) ||
+	     uiFrequency != ASoundMixer_PSP::DEFAULT_FREQUENCY )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.SetCueFrequency( iCue, 0.5f );
+	if ( g_SoundCommandQueue_PSP.GetQueuedCommandCount() != 0 )
+		return TFALSE;
+	g_SoundManager_PSP.PauseCue( iCue, TTRUE );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     !g_SoundMixer_PSP.IsVoicePaused( hVoice ) )
+	{
+		return TFALSE;
+	}
+	g_SoundManager_PSP.PauseCue( iCue, TFALSE );
+	g_SoundManager_PSP.SetCueVolume( iCue, 0.5f );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) ||
+	     g_SoundMixer_PSP.IsVoicePaused( hVoice ) )
+	{
+		return TFALSE;
+	}
+
+	const TINT iStoppedCue = iCue;
+	g_SoundManager_PSP.StopCue( iCue );
+	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) )
+		return TFALSE;
+	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
+	return !g_SoundManager_PSP.IsCueStreamReady( iStoppedCue ) &&
+	       !g_SoundManager_PSP.IsStreamCueActive( iStoppedCue ) &&
+	       g_SoundManager_PSP.GetManagedCueCount() == 0 &&
+	       g_SoundMixer_PSP.GetActiveVoiceCount() == 0;
+}
+
 static TBOOL TestBootstrapStreamLoop_PSP()
 {
 	g_SoundCommandQueue_PSP.Clear();
@@ -1400,7 +1446,8 @@ int main()
 	const TBOOL bCueQueriesReady = bCuePauseReady && TestManagedCueQueries_PSP();
 	const TBOOL bCueFadeReady = bCueQueriesReady && TestManagedCueFade_PSP();
 	const TBOOL bGlobalVolumeReady = bCueFadeReady && TestGlobalCueVolume_PSP();
-	const TBOOL bResidentAudioReady = bGlobalVolumeReady &&
+	const TBOOL bManagedStreamReady = bGlobalVolumeReady && TestManagedStreamCue_PSP();
+	const TBOOL bResidentAudioReady = bManagedStreamReady &&
 	                                  TestSoundCommandQueue_PSP() &&
 	                                  TestDelayedSoundEvents_PSP() &&
 	                                  TestBootstrapVoiceFrequency_PSP();
@@ -1508,6 +1555,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP sound] cue queries   %s\n", bCueQueriesReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP sound] cue fade      %s\n", bCueFadeReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP sound] global volume %s\n", bGlobalVolumeReady ? "OK" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP sound] stream cues   %s\n", bManagedStreamReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
@@ -1541,6 +1589,7 @@ int main()
 		bCueQueriesReady,
 		bCueFadeReady,
 		bGlobalVolumeReady,
+		bManagedStreamReady,
 		g_BootstrapStream_PSP.GetUnderrunCount(),
 		bTextureReady,
 		bFontReady,
