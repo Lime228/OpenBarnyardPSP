@@ -561,6 +561,7 @@ static TBOOL TestManagedCueFrequency_PSP()
 	g_DelayedEventQueue_PSP.Update( 1, g_SoundCommandQueue_PSP );
 	if ( !g_SoundCommandQueue_PSP.Process( g_SoundMixer_PSP ) )
 		return TFALSE;
+	g_DelayedEventQueue_PSP.Update( 0, g_SoundCommandQueue_PSP );
 	g_SoundManager_PSP.UpdateCues( g_SoundMixer_PSP );
 	if ( !g_SoundManager_PSP.GetCueVoice( iCue, hVoice ) ||
 	     !g_SoundMixer_PSP.GetFrequency( hVoice, uiFrequency ) ||
