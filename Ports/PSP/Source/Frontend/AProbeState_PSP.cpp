@@ -51,9 +51,23 @@ void AProbeState_PSP::OnRender(
 	     a_rContext.pTexture != TNULL &&
 	     a_rContext.pMaterial != TNULL )
 	{
-		TUINT uiAnimationTime = TUINT( a_rState.fStateTime * 1000.0f ) % 1000;
-		if ( uiAnimationTime > 500 )
-			uiAnimationTime = 1000 - uiAnimationTime;
+		TUINT uiAnimationTime = TUINT( a_rState.fStateTime * 1000.0f );
+		if ( !a_rContext.pAnimation->IsLooping() )
+		{
+			const TUINT uiLastFrameTime =
+			    ( a_rContext.pAnimation->GetFrameCount() - 1 ) * 1000 / a_rContext.pAnimation->GetSampleRate();
+			if ( uiLastFrameTime == 0 )
+			{
+				uiAnimationTime = 0;
+			}
+			else
+			{
+				const TUINT uiPingPongTime = uiLastFrameTime * 2;
+				uiAnimationTime %= uiPingPongTime;
+				if ( uiAnimationTime > uiLastFrameTime )
+					uiAnimationTime = uiPingPongTime - uiAnimationTime;
+			}
+		}
 		if ( a_rContext.pSkeletonInstance->SetAnimationPose( *a_rContext.pAnimation, uiAnimationTime ) &&
 		     a_rContext.pSkinningBuffer->Skin( *a_rContext.pSkeletonInstance ) )
 		{
