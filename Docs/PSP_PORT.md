@@ -15,17 +15,17 @@ from the Windows executable.
 ## Progress snapshot (2026-11-03)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **66%** complete. The second value
-is intentionally much lower: a compiling probe does not yet include the real
-game states, Barnyard asset conversion, animation, complete audio, UI, world
-streaming, or gameplay validation on hardware.
+complete playable-game port is approximately **67%** complete. The second value
+is intentionally much lower: the compiling probe does not yet include the real
+game states, converted Barnyard content, rooms, player simulation, complete UI,
+movies, or gameplay validation on hardware.
 
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 62% | GU display, depth, indexed static/skinned models, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 48% | deterministic converters accept textures, static/skinned meshes, bounded skeleton/animation JSON and PCM16 stereo WAV input and produce PTEX, PMES, PSKL, PANM, PFNT, PLOC, resident PPCM, streamed PADP and PBNK assets |
+| Real-game asset pipeline | 57% | the host TMDL tool relocates one skin LOD and explicitly selected TKL sequences through the existing PTRB reader; portable second stages produce bounded PSKL/PMES/PANM and the remaining deterministic converters produce PTEX, PFNT, PLOC, PPCM, PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
@@ -230,6 +230,26 @@ remain largely unstarted.
 - `Ports/PSP/Tools/convert_animation.py` requires every frame to define every
   skeleton bone exactly once, normalizes rotations, chooses one bounded clip
   translation scale and emits deterministic 16-bit samples offline.
+- The Windows host `TMDL` tool exposes `-psp-dump <model.tmd> -o <dump.json>`.
+  It reuses the existing PTRB relocation and `TTMDWin` layouts, accepts only
+  skin-shader LOD0, validates a topologically sorted skeleton and every mesh
+  pointer/index/palette reference, then writes a versioned intermediate dump.
+  Neither the desktop parser nor STL serialization is linked into the EBOOT.
+- `Ports/PSP/Tools/convert_tmd_dump.py` is the portable second stage. It
+  combines duplicate influences, keeps the two strongest global bones,
+  renormalizes their byte weights to 255, converts alternating triangle strips
+  to lists while dropping degenerates, and enforces 64-bone and 16-bit element
+  ceilings before producing PSKL and skinned PMES. The checked-in synthetic
+  dump and unit tests keep this contract deterministic without distributing
+  original Barnyard assets.
+- The host animation command takes `-psp-animation <model.tmd>`,
+  `-keylib <library.tkl>`, `-sequence <name>`, `-sample-rate <1..60>` and
+  `-o <clip.json>`. It reuses the relocated skeleton, sequence and key-library
+  arrays to sample one explicitly named base animation. It
+  preserves bind poses for manual or unkeyed bones, rejects overlays and
+  malformed key ranges, emits every skeleton bone in topological order and
+  caps output at the PANM limit of 64 frames. `convert_animation.py` performs
+  the final normalization and fixed-point quantization offline.
 - PMES format 2 appends two 8-bit bone indices, two normalized 8-bit weights
   and a reserved validation word to each textured bind-pose vertex. The mesh
   converter resolves authored bone names through the same skeleton JSON and
@@ -903,6 +923,12 @@ remain largely unstarted.
   SHA-256 `a273f7debb9b18240612b9b717f34582ebc11856b361ac701c2358d4080edb16`,
   bundle `Runtime/PSP/e983bc37`, single process PID `23260`. A three-second
   animated frontend pass and background navigation remained responsive.
+- Commit `5264b5b3` passed PSP run `41673341664`. CI regenerated and compared
+  the synthetic TMD bridge's 164-byte PMES and 208-byte PSKL outputs, ran the
+  weight-reduction/strip unit tests and rebuilt the complete PSP bootstrap.
+  The unchanged runtime EBOOT was not rerun in PPSSPP for this host-only slice;
+  the workflow artifact digest is
+  `f0d3d425472d1aa09330cabff6444b72c9a59c037ce62cc4612d56d4008c8b79`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -910,10 +936,12 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, begin a host-only bridge from the existing `TTMDWin::Vertex` and TRB mesh
-metadata into PSKL/PANM/PMES, initially exporting one LOD and reducing four PC
-influences to the two strongest normalized PSP weights. Do not add the relocatable
-desktop TMD/TRB parser to the EBOOT. Keep track selection explicitly
+Next, exercise both host TMD/TKL bridge commands against one user-owned
+Barnyard skin model and one explicitly selected base sequence, record their
+converted vertex/index/bone/frame footprint and correct real-format edge cases
+without checking source assets into Git. Keep animation selection explicit and
+all quantization offline. Do not add the relocatable desktop TMD/TRB parser to
+the EBOOT. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
