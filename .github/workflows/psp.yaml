@@ -38,6 +38,7 @@ jobs:
           python3 Ports/PSP/Tools/convert_animation.py Ports/PSP/Assets/probe_skeleton.json Ports/PSP/Assets/probe_animation.json /tmp/probe.panm
           python3 Ports/PSP/Tools/convert_tmd_dump.py Ports/PSP/Assets/probe_tmd_dump.json /tmp/probe_tmd_bridge.pmes /tmp/probe_tmd_bridge.pskl
           python3 Ports/PSP/Tools/test_convert_tmd_dump.py
+          python3 Ports/PSP/Tools/test_convert_barnyard_skin.py
           python3 Ports/PSP/Tools/generate_bootstrap_font.py Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.pfnt
           python3 Ports/PSP/Tools/convert_texture.py --alpha-mask Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.ptex
           python3 Ports/PSP/Tools/generate_bootstrap_locale.py Ports/PSP/Assets/bootstrap_locale.ploc
