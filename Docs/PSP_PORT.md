@@ -24,10 +24,10 @@ movies, or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 62% | GU display, depth, indexed static/skinned models, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
+| PSP renderer foundation | 64% | GU display, depth, indexed static/skinned models, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
 | Real-game asset pipeline | 60% | one host command now relocates a skin LOD and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports the PSP footprint and can stage the optional runtime preview layout; PTEX, PFNT, PLOC, PPCM, PADP and PBNK remain separate deterministic stages |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 43% | `AApplication_PSP` owns explicit frame phases and can select an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
+| Game bootstrap and frontend | 45% | `AApplication_PSP` owns explicit frame phases and can select, centre and auto-fit an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
 | World, animation and gameplay | 19% | bounded skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning run; rooms and player simulation are not loaded |
 
@@ -269,6 +269,12 @@ remain largely unstarted.
   skinning buffer, so partial loads roll back without changing the working
   probe. Clip playback derives timing from the PANM frame count, sample rate and
   loop flag instead of assuming the two-frame 500 ms diagnostic animation.
+- `TModel_PSP` rejects non-finite positions and records the bind-pose AABB while
+  it validates PMES input, before allocating either GU-visible pool. The
+  optional preview derives its centre and uniform scale once from those bounds;
+  the synthetic probe retains the identity transform and no vertex scan or heap
+  work is added to a rendered frame. Bounds do not yet include animation extrema,
+  so unusually wide authored motion still needs a converter-side policy.
 - Loop sampling uses the complete `frame_count / sample_rate` cycle and wraps
   the last frame back to frame zero. Non-looping clips clamp internally while
   the preview state ping-pongs across their real last-frame duration.
@@ -964,6 +970,14 @@ remain largely unstarted.
   192 bytes and pose samples from 6 to 11, proving the loop-boundary samples
   executed; pose last/max was `12/13 us` and skin last/max `8/8 us`. No retail
   preview files were present, so the optional path correctly stayed inactive.
+- Commit `404df87c` passed PSP run `41721831358`. The host test staged an
+  optional `barnyard_preview.ptex`, validated its dimensions, format and exact
+  payload size, and rejected a truncated preconverted texture without requiring
+  retail assets.
+- Commit `7578758f` passed PSP run `41722734247`. PSP GCC compiled bind-pose
+  bounds validation, the non-finite-position rejection gate and one-time preview
+  auto-fit through the Premake workspace. This CI-only slice did not claim
+  visual validation because no retail preview set was available.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
