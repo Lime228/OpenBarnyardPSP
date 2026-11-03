@@ -1,6 +1,8 @@
 #include "ToshiPCH.h"
 #include "TModel_PSP.h"
 
+#include <Math/TMathInline.h>
+
 #include <cstring>
 
 TOSHI_NAMESPACE_START
@@ -20,10 +22,42 @@ static TUINT32 TModelGetVertexSize_PSP( TUINT32 a_uiFormat )
 	}
 }
 
+static void TModelGetVertexPosition_PSP(
+    const TUINT8* a_pVertex,
+    TUINT32 a_uiFormat,
+    TFLOAT& a_rfX,
+    TFLOAT& a_rfY,
+    TFLOAT& a_rfZ
+)
+{
+	if ( a_uiFormat == TMODELFORMAT_PSP_COLOUR_XYZ )
+	{
+		const auto* pVertex = reinterpret_cast<const TModelVertex_PSP*>( a_pVertex );
+		a_rfX = pVertex->fX;
+		a_rfY = pVertex->fY;
+		a_rfZ = pVertex->fZ;
+	}
+	else if ( a_uiFormat == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ )
+	{
+		const auto* pVertex = reinterpret_cast<const TModelTextureVertex_PSP*>( a_pVertex );
+		a_rfX = pVertex->fX;
+		a_rfY = pVertex->fY;
+		a_rfZ = pVertex->fZ;
+	}
+	else
+	{
+		const auto* pVertex = reinterpret_cast<const TModelSkinTextureVertex_PSP*>( a_pVertex );
+		a_rfX = pVertex->fX;
+		a_rfY = pVertex->fY;
+		a_rfZ = pVertex->fZ;
+	}
+}
+
 TModel_PSP::TModel_PSP()
     : m_pData( TNULL )
     , m_uiDataSize( 0 )
     , m_uiFormat( TMODELFORMAT_PSP_COLOUR_XYZ )
+    , m_Bounds{}
 {
 }
 
@@ -71,7 +105,49 @@ TBOOL TModel_PSP::Load()
 	if ( TSIZE( m_uiDataSize ) != uiExpectedSize )
 		return TFALSE;
 
-	const auto* pSourceBytes   = static_cast<const TUINT8*>( m_pData );
+	const auto* pSourceBytes = static_cast<const TUINT8*>( m_pData );
+	const TUINT8* pSourceVertices = pSourceBytes + sizeof( TModelDataHeader_PSP );
+	TModelGetVertexPosition_PSP(
+	    pSourceVertices,
+	    pHeader->uiFormat,
+	    m_Bounds.aMin[ 0 ],
+	    m_Bounds.aMin[ 1 ],
+	    m_Bounds.aMin[ 2 ]
+	);
+	if ( !TMath::IsFinite( m_Bounds.aMin[ 0 ] ) ||
+	     !TMath::IsFinite( m_Bounds.aMin[ 1 ] ) ||
+	     !TMath::IsFinite( m_Bounds.aMin[ 2 ] ) )
+	{
+		Unload();
+		return TFALSE;
+	}
+	m_Bounds.aMax[ 0 ] = m_Bounds.aMin[ 0 ];
+	m_Bounds.aMax[ 1 ] = m_Bounds.aMin[ 1 ];
+	m_Bounds.aMax[ 2 ] = m_Bounds.aMin[ 2 ];
+	for ( TUINT32 i = 1; i < pHeader->uiVertexCount; i++ )
+	{
+		TFLOAT fX;
+		TFLOAT fY;
+		TFLOAT fZ;
+		TModelGetVertexPosition_PSP(
+		    pSourceVertices + TSIZE( i ) * pHeader->uiVertexSize,
+		    pHeader->uiFormat,
+		    fX,
+		    fY,
+		    fZ
+		);
+		if ( !TMath::IsFinite( fX ) || !TMath::IsFinite( fY ) || !TMath::IsFinite( fZ ) )
+		{
+			Unload();
+			return TFALSE;
+		}
+		m_Bounds.aMin[ 0 ] = TMath::Min( m_Bounds.aMin[ 0 ], fX );
+		m_Bounds.aMin[ 1 ] = TMath::Min( m_Bounds.aMin[ 1 ], fY );
+		m_Bounds.aMin[ 2 ] = TMath::Min( m_Bounds.aMin[ 2 ], fZ );
+		m_Bounds.aMax[ 0 ] = TMath::Max( m_Bounds.aMax[ 0 ], fX );
+		m_Bounds.aMax[ 1 ] = TMath::Max( m_Bounds.aMax[ 1 ], fY );
+		m_Bounds.aMax[ 2 ] = TMath::Max( m_Bounds.aMax[ 2 ], fZ );
+	}
 	if ( pHeader->uiFormat == TMODELFORMAT_PSP_SKIN_TEXTURE_COLOUR_XYZ )
 	{
 		const auto* pSkinVertices = reinterpret_cast<const TModelSkinTextureVertex_PSP*>(
@@ -125,6 +201,7 @@ void TModel_PSP::Unload()
 	m_Indices.Destroy();
 	m_Vertices.Destroy();
 	m_uiFormat = TMODELFORMAT_PSP_COLOUR_XYZ;
+	m_Bounds = {};
 }
 
 TOSHI_NAMESPACE_END

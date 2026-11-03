@@ -55,6 +55,12 @@ struct TModelSkinTextureVertex_PSP
 	TUINT32 uiReserved;
 };
 
+struct TModelBounds_PSP
+{
+	TFLOAT aMin[ 3 ];
+	TFLOAT aMax[ 3 ];
+};
+
 static_assert( sizeof( TModelDataHeader_PSP ) == 24, "Unexpected PSP model header layout" );
 static_assert( sizeof( TModelVertex_PSP ) == 16, "Unexpected PSP model vertex layout" );
 static_assert( sizeof( TModelTextureVertex_PSP ) == 24, "Unexpected PSP textured model vertex layout" );
@@ -74,6 +80,7 @@ public:
 
 	const TVertexPoolResource_PSP& GetVertices() const { return m_Vertices; }
 	const TIndexPoolResource_PSP&  GetIndices() const { return m_Indices; }
+	const TModelBounds_PSP&        GetBounds() const { return m_Bounds; }
 	TUINT32 GetFormat() const { return m_uiFormat; }
 	TBOOL IsLoaded() const { return m_Vertices.GetData() != TNULL && m_Indices.GetData() != TNULL; }
 
@@ -81,6 +88,7 @@ private:
 	const void*             m_pData;
 	TUINT                   m_uiDataSize;
 	TUINT32                 m_uiFormat;
+	TModelBounds_PSP        m_Bounds;
 	TVertexPoolResource_PSP m_Vertices;
 	TIndexPoolResource_PSP  m_Indices;
 };
