@@ -54,5 +54,9 @@
 #  include "Platform/PSP/TRenderBuffer_PSP.h"
 #  include "Platform/PSP/TModel_PSP.h"
 #  include "Platform/PSP/TModelFactory_PSP.h"
+#  include "Platform/PSP/TSkeleton_PSP.h"
+#  include "Platform/PSP/TSkeletonInstance_PSP.h"
+#  include "Platform/PSP/TAnimationClip_PSP.h"
+#  include "Platform/PSP/TSkinningBuffer_PSP.h"
 #  include "Platform/PSP/TRenderInterface_PSP.h"
 #endif
