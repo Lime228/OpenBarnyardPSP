@@ -6,7 +6,7 @@ import pathlib
 import tempfile
 import unittest
 
-from convert_barnyard_skin import run_pipeline, safe_name
+from convert_barnyard_skin import run_pipeline, safe_name, stage_texture
 
 
 MODEL_DUMP = {
@@ -61,14 +61,27 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             safe_name("..")
 
+    def test_rejects_invalid_preconverted_texture(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            source = temporary / "invalid.ptex"
+            source.write_bytes(b"not a texture")
+            with self.assertRaisesRegex(ValueError, "smaller than its header"):
+                stage_texture(source, temporary / "output.ptex")
+
     @unittest.skipIf(os.name == "nt", "temporary shebang executable is a POSIX test fixture")
     def test_runs_model_and_animation_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_name:
             temporary = pathlib.Path(temporary_name)
             model = temporary / "model.tmd"
             key_library = temporary / "library.tkl"
+            texture = temporary / "preview.ppm"
             model.touch()
             key_library.touch()
+            texture.write_text(
+                "P3\n4 8\n255\n" + "\n".join(["255 128 0"] * 32) + "\n",
+                encoding="ascii",
+            )
             exporter = temporary / "fake_tmdl.py"
             exporter.write_text(
                 "#!/usr/bin/env python3\n"
@@ -92,6 +105,7 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
                 20,
                 keep_intermediate=True,
                 runtime_preview=True,
+                preview_texture=texture,
             )
 
             self.assertEqual(summary["vertices"], 3)
@@ -99,9 +113,13 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertEqual(summary["bones"], 2)
             self.assertEqual(summary["frames"], 2)
             self.assertEqual(summary["sample_rate"], 20)
+            self.assertEqual(summary["texture_width"], 4)
+            self.assertEqual(summary["texture_height"], 8)
+            self.assertEqual(summary["texture_bytes"], 152)
             self.assertTrue((output / "barnyard_preview.pmes").is_file())
             self.assertTrue((output / "barnyard_preview.pskl").is_file())
             self.assertTrue((output / "barnyard_preview.panm").is_file())
+            self.assertTrue((output / "barnyard_preview.ptex").is_file())
             self.assertTrue((output / "probe_intermediate" / "animation.json").is_file())
 
 
