@@ -1,0 +1,22 @@
+{
+  "bones": [
+    {
+      "name": "root",
+      "parent": null,
+      "translation": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0]
+    },
+    {
+      "name": "center",
+      "parent": "root",
+      "translation": [0.0, 0.5, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0]
+    },
+    {
+      "name": "marker",
+      "parent": "center",
+      "translation": [0.0, 0.5, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0]
+    }
+  ]
+}
