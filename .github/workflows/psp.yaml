@@ -10,6 +10,7 @@ on:
       - 'premake5.lua'
       - 'Settings.lua'
       - 'Ports/PSP/**'
+      - 'Tools/TMDL/**'
       - 'Toshi/**'
   workflow_dispatch:
 

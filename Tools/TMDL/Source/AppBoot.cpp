@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "NvTriStrip/NvTriStrip.h"
 #include "World/AWorldVIS.h"
+#include "PSP/TPSPModelDump.h"
 
 #include <Toshi/Toshi.h>
 #include <Toshi/TPString8.h>
@@ -79,8 +80,25 @@ int main( int argc, char** argv )
 	auto          strTexturesPath  = commandLine.GetParameterValue( "-d" );
 	auto          strOutPath       = commandLine.GetParameterValue( "-o" );
 	auto          strKeyLib        = commandLine.GetParameterValue( "-keylib" );
+	auto          strPSPDumpFile   = commandLine.GetParameterValue( "-psp-dump" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPDumpFile )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-dump requires -o <output.json>\n" );
+			return 1;
+		}
+		if ( !ExportPSPModelDump( strPSPDumpFile.GetString(), strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP TMD dump\n" );
+			return 1;
+		}
+		TINFO( "PSP TMD dump written to %s\n", strOutPath.GetString() );
+		return 0;
+	}
 
 	if ( strInfoFile )
 	{
