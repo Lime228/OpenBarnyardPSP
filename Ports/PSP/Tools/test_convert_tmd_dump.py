@@ -2,7 +2,7 @@
 
 import unittest
 
-from convert_tmd_dump import reduce_weights, triangulate_strip
+from convert_tmd_dump import MAX_ANIMATED_VERTEX_COUNT, build_mesh, reduce_weights, triangulate_strip
 
 
 class TMDPSPBridgeTests(unittest.TestCase):
@@ -21,6 +21,34 @@ class TMDPSPBridgeTests(unittest.TestCase):
     def test_converts_strip_winding_and_skips_degenerates(self) -> None:
         self.assertEqual(triangulate_strip([0, 1, 2, 3], 4), [0, 1, 2, 2, 1, 3])
         self.assertEqual(triangulate_strip([0, 1, 1, 2, 3], 4), [1, 2, 3])
+
+    def test_rejects_mesh_above_runtime_skinning_budget(self) -> None:
+        vertex = {
+            "position": [0.0, 0.0, 0.0],
+            "uv": [0.0, 0.0],
+            "bones": [0, 0, 0, 0],
+            "weights": [255, 0, 0, 0],
+        }
+        document = {
+            "lods": [
+                {
+                    "shader": "skin",
+                    "meshes": [
+                        {
+                            "submeshes": [
+                                {
+                                    "bone_palette": [0],
+                                    "vertices": [vertex] * (MAX_ANIMATED_VERTEX_COUNT + 1),
+                                    "triangle_strip": [0, 1, 2],
+                                }
+                            ]
+                        }
+                    ],
+                }
+            ]
+        }
+        with self.assertRaisesRegex(ValueError, "8192-vertex skinning budget"):
+            build_mesh(document, 1)
 
 
 if __name__ == "__main__":
