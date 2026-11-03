@@ -12,10 +12,10 @@ console backend.
 the toolchain, portable core, input, and PSP GU rendering path independently
 from the Windows executable.
 
-## Progress snapshot (2026-11-03)
+## Progress snapshot (2026-11-04)
 
-The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **67%** complete. The second value
+The PSP platform/render bring-up is approximately **90%** complete, while the
+complete playable-game port is approximately **68%** complete. The second value
 is intentionally much lower: the compiling probe does not yet include the real
 game states, converted Barnyard content, rooms, player simulation, complete UI,
 movies, or gameplay validation on hardware.
@@ -25,11 +25,11 @@ movies, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 62% | GU display, depth, indexed static/skinned models, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 57% | the host TMDL tool relocates one skin LOD and explicitly selected TKL sequences through the existing PTRB reader; portable second stages produce bounded PSKL/PMES/PANM and the remaining deterministic converters produce PTEX, PFNT, PLOC, PPCM, PADP and PBNK assets |
+| Real-game asset pipeline | 60% | one host command now relocates a skin LOD and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports the PSP footprint and can stage the optional runtime preview layout; PTEX, PFNT, PLOC, PPCM, PADP and PBNK remain separate deterministic stages |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
+| Game bootstrap and frontend | 43% | `AApplication_PSP` owns explicit frame phases and can select an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 17% | bounded skeletons, sampled clips, hierarchical poses and budgeted/profiled two-weight CPU skinning run; rooms and player simulation are not loaded |
+| World, animation and gameplay | 19% | bounded skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning run; rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -250,6 +250,28 @@ remain largely unstarted.
   malformed key ranges, emits every skeleton bone in topological order and
   caps output at the PANM limit of 64 frames. `convert_animation.py` performs
   the final normalization and fixed-point quantization offline.
+- `convert_barnyard_skin.py` orchestrates both host dumps and portable
+  conversion stages, keeps intermediate JSON in a temporary directory by
+  default and prints vertex, index, bone, frame and byte counts. Supplying
+  `--runtime-preview` writes `barnyard_preview.pmes`,
+  `barnyard_preview.pskl` and `barnyard_preview.panm`; place those three files
+  beside `EBOOT.PBP` to select the real preview without replacing or committing
+  the deterministic probe assets. `--keep-intermediate` retains the JSON only
+  when a real-format issue needs inspection.
+
+  ```powershell
+  py Ports/PSP/Tools/convert_barnyard_skin.py --tmdl <TMDL.exe> --model <model.tmd> --keylib <library.tkl> --sequence <base-sequence> --sample-rate 30 --output <EBOOT-directory> --runtime-preview
+  ```
+
+- The frontend treats missing or invalid preview files as an optional inactive
+  set and keeps every bootstrap gate on the synthetic assets. A complete valid
+  set receives its own bounded model, skeleton, clip, instance and double
+  skinning buffer, so partial loads roll back without changing the working
+  probe. Clip playback derives timing from the PANM frame count, sample rate and
+  loop flag instead of assuming the two-frame 500 ms diagnostic animation.
+- Loop sampling uses the complete `frame_count / sample_rate` cycle and wraps
+  the last frame back to frame zero. Non-looping clips clamp internally while
+  the preview state ping-pongs across their real last-frame duration.
 - PMES format 2 appends two 8-bit bone indices, two normalized 8-bit weights
   and a reserved validation word to each textured bind-pose vertex. The mesh
   converter resolves authored bone names through the same skeleton JSON and
@@ -929,6 +951,19 @@ remain largely unstarted.
   The unchanged runtime EBOOT was not rerun in PPSSPP for this host-only slice;
   the workflow artifact digest is
   `f0d3d425472d1aa09330cabff6444b72c9a59c037ce62cc4612d56d4008c8b79`.
+- Commit `a698bb5c` passed PSP run `41717567121`. Its host-only end-to-end test
+  drove a synthetic TMDL executable through the orchestration command, emitted
+  a three-vertex/two-bone preview set and verified the PMES, PSKL, PANM and
+  retained-intermediate layout without requiring retail data.
+- Commit `2b6228b7` passed PSP run `41718660047`; artifact SHA-256
+  `93c6e3c644be7e18dc6d1bb66d0bc402dbacf7f68d58c66497e61282d7a2890c`,
+  bundle `Runtime/PSP/2b6228b7`. The PPSSPP bootstrap report retained every
+  gate at `OK`, zero stream underruns, 18,204 bytes of persistent render memory
+  and the normal two instances/one skinned model/six vertices after the
+  temporary loop test released its resources. Its sample peak rose from 96 to
+  192 bytes and pose samples from 6 to 11, proving the loop-boundary samples
+  executed; pose last/max was `12/13 us` and skin last/max `8/8 us`. No retail
+  preview files were present, so the optional path correctly stayed inactive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
