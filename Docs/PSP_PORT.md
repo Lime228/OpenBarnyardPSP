@@ -12,10 +12,10 @@ console backend.
 the toolchain, portable core, input, and PSP GU rendering path independently
 from the Windows executable.
 
-## Progress snapshot (2026-11-02)
+## Progress snapshot (2026-11-03)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **61%** complete. The second value
+complete playable-game port is approximately **62%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -25,11 +25,11 @@ streaming, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 36% | deterministic converters accept textures, meshes and PCM16 stereo WAV input and produce PTEX, PMES, PFNT, PLOC, bounded resident PPCM, streamed PADP and PBNK assets |
+| Real-game asset pipeline | 40% | deterministic converters accept textures, meshes, bounded skeleton JSON and PCM16 stereo WAV input and produce PTEX, PMES, PSKL, PFNT, PLOC, resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 0% | no game room or player simulation is loaded |
+| World, animation and gameplay | 3% | a bounded bind-pose skeleton resource loads and validates; animation clips, skinning, rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -204,6 +204,16 @@ remain largely unstarted.
   vertex/index pools. Once both aligned buffers have been populated and written
   back, the frontend releases the source file allocation instead of retaining a
   duplicate model in the PSP heap.
+- `TSkeleton_PSP` defines the first animation-side asset seam without pulling
+  the desktop `TSkeleton` graph into the probe. Versioned `PSKL` files contain
+  at most 64 topologically sorted bones, fixed 31-byte ASCII names, local bind
+  rotation quaternions and translations. The loader rejects duplicate names,
+  invalid parents, non-normalized rotations, non-finite or unbounded transforms
+  and trailing data before copying records into fixed object storage.
+- `Ports/PSP/Tools/convert_skeleton.py` converts a deterministic JSON hierarchy
+  to `PSKL`, resolves parents by name, normalizes quaternions offline and rejects
+  forward parent references. `TSkeletonFactory_PSP` bounds transient input to
+  4,112 bytes and releases the source blob immediately after validation.
 - `TRenderInterface_PSP::DrawModel` supplies the minimal GUM projection, view,
   and model transforms, clears and enables the 16-bit depth buffer for the 3D
   draw, then restores the depth-test state used by the independent 2D probes.
@@ -812,6 +822,14 @@ remain largely unstarted.
   and released the voice. PPSSPP retained `stream_cues=OK`, every other gate
   `OK` and zero underruns; bundle `Runtime/PSP/417440cf`, single process PID
   `1680`. Background D-pad, Cross and Circle input remained responsive.
+- Commit `4aa317b4` passed PSP run `41668350697`. CI regenerated and compared
+  the 208-byte `probe.pskl`, packaged it beside the EBOOT and compiled the new
+  bounded skeleton loader. PPSSPP reported `skeleton=OK`, every previous gate
+  `OK`, zero stream underruns and a 17,676-byte measured render/main allocation;
+  artifact SHA-256
+  `aa09322ccf8a26f1c2ef3760825120299c54b56cd683edbcf8cb6029326d3fe7`,
+  bundle `Runtime/PSP/4aa317b4`, single process PID `888`. Background D-pad,
+  Cross and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -819,8 +837,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-In parallel, define the first bounded PSP skeleton/animation asset seam and
-offline conversion contract before adding runtime skinning. Keep track selection explicitly
+Next, define a compact PSP animation-clip asset keyed by the validated `PSKL`
+bone order, then evaluate one local pose before adding bounded CPU skinning to
+the PMES path. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
