@@ -9,6 +9,7 @@
 #include <File/TFile.h>
 #include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Platform/PSP/TSkeletonFactory_PSP.h>
+#include <Platform/PSP/TSkeletonInstance_PSP.h>
 #include <Render/TBackend.h>
 
 #include "Frontend/AApplication_PSP.h"
@@ -167,6 +168,33 @@ static TBOOL TestProbeSkeletonFile_PSP()
 	    &oInvalidData,
 	    sizeof( oInvalidData )
 	);
+}
+
+static TBOOL TestProbeSkeletonPose_PSP()
+{
+	Toshi::TSkeletonInstance_PSP oInstance;
+	if ( !oInstance.Create( &g_ProbeSkeleton_PSP ) ||
+	     oInstance.GetSkeleton() != &g_ProbeSkeleton_PSP )
+	{
+		return TFALSE;
+	}
+
+	const Toshi::TSkeletonTransform_PSP* pRoot = oInstance.GetBoneTransform( "root" );
+	const Toshi::TSkeletonTransform_PSP* pCenter = oInstance.GetBoneTransform( 1 );
+	const Toshi::TSkeletonTransform_PSP* pMarker = oInstance.GetBoneTransform( "MARKER" );
+	if ( pRoot == TNULL || pCenter == TNULL || pMarker == TNULL ||
+	     oInstance.GetBoneTransform( 3 ) != TNULL ||
+	     oInstance.GetBoneTransform( "missing" ) != TNULL ||
+	     pRoot->aTranslation[ 1 ] != 0.0f ||
+	     pCenter->aTranslation[ 1 ] != 0.5f ||
+	     pMarker->aTranslation[ 1 ] != 1.0f ||
+	     pMarker->aRotation[ 3 ] != 1.0f )
+	{
+		return TFALSE;
+	}
+
+	oInstance.Destroy();
+	return oInstance.GetBoneTransform( TUINT32( 0 ) ) == TNULL && !oInstance.SetBindPose();
 }
 
 static TBOOL SubmitBootstrapWave_PSP()
@@ -1529,6 +1557,7 @@ int main()
 	const TBOOL bLocaleReady    = bFileReady && LoadLocaleFile_PSP();
 	const TBOOL bModelReady     = bFileReady && LoadProbeModelFile_PSP();
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
+	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
 	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
 	    "probe.texture",
@@ -1595,7 +1624,8 @@ int main()
 	);
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
-	                              bMeshReady && bModelReady && bSkeletonReady && bCacheReady;
+	                              bMeshReady && bModelReady && bSkeletonReady &&
+	                              bSkeletonPoseReady && bCacheReady;
 	oRenderContext.bBootstrapReady = bBootstrapReady;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
@@ -1629,6 +1659,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] skeleton %s\n", bSkeletonReady ? "probe.pskl" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP animation] bind pose %s\n", bSkeletonPoseReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
@@ -1668,6 +1699,7 @@ int main()
 		bMeshReady,
 		bModelReady,
 		bSkeletonReady,
+		bSkeletonPoseReady,
 		bCacheReady,
 		bSchedulerReady,
 		0,

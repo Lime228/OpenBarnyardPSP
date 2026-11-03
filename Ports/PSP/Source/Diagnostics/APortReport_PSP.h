@@ -32,6 +32,7 @@ struct APortReportData_PSP
 	TBOOL bMeshReady;
 	TBOOL bModelReady;
 	TBOOL bSkeletonReady;
+	TBOOL bSkeletonPoseReady;
 	TBOOL bCacheReady;
 	TBOOL bSchedulerReady;
 	TUINT uiFrameCount;
