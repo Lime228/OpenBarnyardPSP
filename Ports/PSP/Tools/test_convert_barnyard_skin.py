@@ -91,6 +91,7 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
                 "idle/front",
                 20,
                 keep_intermediate=True,
+                runtime_preview=True,
             )
 
             self.assertEqual(summary["vertices"], 3)
@@ -98,9 +99,9 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertEqual(summary["bones"], 2)
             self.assertEqual(summary["frames"], 2)
             self.assertEqual(summary["sample_rate"], 20)
-            self.assertTrue((output / "probe.pmes").is_file())
-            self.assertTrue((output / "probe.pskl").is_file())
-            self.assertTrue((output / "probe_idle_front.panm").is_file())
+            self.assertTrue((output / "barnyard_preview.pmes").is_file())
+            self.assertTrue((output / "barnyard_preview.pskl").is_file())
+            self.assertTrue((output / "barnyard_preview.panm").is_file())
             self.assertTrue((output / "probe_intermediate" / "animation.json").is_file())
 
 
