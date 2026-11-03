@@ -70,6 +70,7 @@ private:
 	TUINT32                    m_uiSampleRate;
 	TFLOAT                     m_fTranslationScale;
 	TUINT32                    m_uiFlags;
+	TSIZE                      m_uiSampleBytes;
 };
 
 TOSHI_NAMESPACE_END

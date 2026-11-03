@@ -24,6 +24,7 @@ private:
 	TSkeletonInstance_PSP  m_BindPose;
 	TVertexPoolResource_PSP m_aVertices[ 2 ];
 	TUINT8                  m_uiActiveBuffer;
+	TUINT16                 m_uiReservedVertices;
 };
 
 TOSHI_NAMESPACE_END

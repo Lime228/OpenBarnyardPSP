@@ -1,5 +1,8 @@
 #include "ToshiPCH.h"
 #include "TSkinningBuffer_PSP.h"
+#include "TAnimationMemory_PSP.h"
+
+#include <pspkernel.h>
 
 TOSHI_NAMESPACE_START
 
@@ -57,6 +60,7 @@ TSkinningBuffer_PSP::TSkinningBuffer_PSP()
     : m_pModel( TNULL )
     , m_pSkeleton( TNULL )
     , m_uiActiveBuffer( 2 )
+	, m_uiReservedVertices( 0 )
 {
 }
 
@@ -89,6 +93,12 @@ TBOOL TSkinningBuffer_PSP::Create( const TModel_PSP* a_pModel, const TSkeleton_P
 			}
 		}
 	}
+	if ( !TAnimationMemory_PSP::ReserveSkinning( rSource.GetNumVertices() ) )
+	{
+		Destroy();
+		return TFALSE;
+	}
+	m_uiReservedVertices = rSource.GetNumVertices();
 
 	if ( !m_aVertices[ 0 ].Create( sizeof( TModelTextureVertex_PSP ), rSource.GetNumVertices() ) ||
 	     !m_aVertices[ 1 ].Create( sizeof( TModelTextureVertex_PSP ), rSource.GetNumVertices() ) )
@@ -107,15 +117,19 @@ void TSkinningBuffer_PSP::Destroy()
 	m_aVertices[ 1 ].Destroy();
 	m_aVertices[ 0 ].Destroy();
 	m_BindPose.Destroy();
+	if ( m_uiReservedVertices != 0 )
+		TAnimationMemory_PSP::ReleaseSkinning( m_uiReservedVertices );
 	m_pModel = TNULL;
 	m_pSkeleton = TNULL;
 	m_uiActiveBuffer = 2;
+	m_uiReservedVertices = 0;
 }
 
 TBOOL TSkinningBuffer_PSP::Skin( const TSkeletonInstance_PSP& a_rInstance )
 {
 	if ( !IsCreated() || a_rInstance.GetSkeleton() != m_pSkeleton )
 		return TFALSE;
+	const TUINT64 uiStartTime = sceKernelGetSystemTimeWide();
 
 	const TUINT8 uiTargetBuffer = m_uiActiveBuffer == 0 ? 1 : 0;
 	TModelTextureVertex_PSP* pOutput = reinterpret_cast<TModelTextureVertex_PSP*>(
@@ -164,6 +178,7 @@ TBOOL TSkinningBuffer_PSP::Skin( const TSkeletonInstance_PSP& a_rInstance )
 	if ( !bValid )
 		return TFALSE;
 	m_uiActiveBuffer = uiTargetBuffer;
+	TAnimationMemory_PSP::RecordSkinTime( sceKernelGetSystemTimeWide() - uiStartTime );
 	return TTRUE;
 }
 

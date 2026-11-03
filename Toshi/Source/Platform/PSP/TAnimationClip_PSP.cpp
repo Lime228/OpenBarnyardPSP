@@ -1,6 +1,7 @@
 #include "ToshiPCH.h"
 #include "TAnimationClip_PSP.h"
 
+#include "TAnimationMemory_PSP.h"
 #include "Toshi/T2Allocator.h"
 
 #include <cstring>
@@ -50,6 +51,7 @@ TAnimationClip_PSP::TAnimationClip_PSP()
     , m_uiSampleRate( 0 )
     , m_fTranslationScale( 0.0f )
     , m_uiFlags( TANIMATIONCLIPFLAGS_PSP_NONE )
+	, m_uiSampleBytes( 0 )
 {
 }
 
@@ -109,9 +111,14 @@ TBOOL TAnimationClip_PSP::Load()
 			return TFALSE;
 	}
 
+	if ( !TAnimationMemory_PSP::ReserveSamples( uiSampleBytes ) )
+		return TFALSE;
 	m_pSamples = static_cast<TAnimationSample_PSP*>( GetGlobalAllocator()->Malloc( uiSampleBytes, 16 ) );
 	if ( m_pSamples == TNULL )
+	{
+		TAnimationMemory_PSP::ReleaseSamples( uiSampleBytes );
 		return TFALSE;
+	}
 
 	std::memcpy( m_pSamples, pSamples, uiSampleBytes );
 	m_uiBoneCount       = pHeader->uiBoneCount;
@@ -119,19 +126,24 @@ TBOOL TAnimationClip_PSP::Load()
 	m_uiSampleRate      = pHeader->uiSampleRate;
 	m_fTranslationScale = pHeader->fTranslationScale;
 	m_uiFlags           = pHeader->uiFlags;
+	m_uiSampleBytes     = uiSampleBytes;
 	return TTRUE;
 }
 
 void TAnimationClip_PSP::Unload()
 {
 	if ( m_pSamples != TNULL )
+	{
 		GetGlobalAllocator()->Free( m_pSamples );
+		TAnimationMemory_PSP::ReleaseSamples( m_uiSampleBytes );
+	}
 	m_pSamples           = TNULL;
 	m_uiBoneCount        = 0;
 	m_uiFrameCount       = 0;
 	m_uiSampleRate       = 0;
 	m_fTranslationScale  = 0.0f;
 	m_uiFlags            = TANIMATIONCLIPFLAGS_PSP_NONE;
+	m_uiSampleBytes      = 0;
 }
 
 const TAnimationSample_PSP* TAnimationClip_PSP::GetSample( TUINT32 a_uiFrame, TUINT32 a_uiBone ) const

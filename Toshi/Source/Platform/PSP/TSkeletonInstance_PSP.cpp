@@ -1,6 +1,9 @@
 #include "ToshiPCH.h"
 #include "TSkeletonInstance_PSP.h"
 #include "TAnimationClip_PSP.h"
+#include "TAnimationMemory_PSP.h"
+
+#include <pspkernel.h>
 
 TOSHI_NAMESPACE_START
 
@@ -53,10 +56,16 @@ TSkeletonInstance_PSP::TSkeletonInstance_PSP()
 {
 }
 
+TSkeletonInstance_PSP::~TSkeletonInstance_PSP()
+{
+	Destroy();
+}
+
 TBOOL TSkeletonInstance_PSP::Create( const TSkeleton_PSP* a_pSkeleton )
 {
 	Destroy();
-	if ( a_pSkeleton == TNULL || !a_pSkeleton->IsLoaded() )
+	if ( a_pSkeleton == TNULL || !a_pSkeleton->IsLoaded() ||
+	     !TAnimationMemory_PSP::ReserveInstance() )
 		return TFALSE;
 
 	m_pSkeleton = a_pSkeleton;
@@ -71,6 +80,8 @@ TBOOL TSkeletonInstance_PSP::Create( const TSkeleton_PSP* a_pSkeleton )
 
 void TSkeletonInstance_PSP::Destroy()
 {
+	if ( m_pSkeleton != TNULL )
+		TAnimationMemory_PSP::ReleaseInstance();
 	m_pSkeleton = TNULL;
 }
 
@@ -113,6 +124,7 @@ TBOOL TSkeletonInstance_PSP::SetAnimationPose( const TAnimationClip_PSP& a_rClip
 	{
 		return TFALSE;
 	}
+	const TUINT64 uiStartTime = sceKernelGetSystemTimeWide();
 
 	for ( TUINT32 i = 0; i < m_pSkeleton->GetBoneCount(); i++ )
 	{
@@ -136,6 +148,7 @@ TBOOL TSkeletonInstance_PSP::SetAnimationPose( const TAnimationClip_PSP& a_rClip
 			rOutput.aTranslation[ component ] = rParent.aTranslation[ component ] + aRotatedTranslation[ component ];
 	}
 
+	TAnimationMemory_PSP::RecordPoseTime( sceKernelGetSystemTimeWide() - uiStartTime );
 	return TTRUE;
 }
 

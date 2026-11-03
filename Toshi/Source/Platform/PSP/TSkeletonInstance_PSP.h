@@ -10,6 +10,7 @@ class TSkeletonInstance_PSP
 {
 public:
 	TSkeletonInstance_PSP();
+	~TSkeletonInstance_PSP();
 
 	TBOOL Create( const TSkeleton_PSP* a_pSkeleton );
 	void  Destroy();
