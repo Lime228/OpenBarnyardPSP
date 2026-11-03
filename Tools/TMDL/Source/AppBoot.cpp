@@ -1,10 +1,12 @@
 #include "pch.h"
 #include "NvTriStrip/NvTriStrip.h"
 #include "World/AWorldVIS.h"
+#include "PSP/TPSPAnimationDump.h"
 #include "PSP/TPSPModelDump.h"
 
 #include <Toshi/Toshi.h>
 #include <Toshi/TPString8.h>
+#include <Toshi/T2String8.h>
 
 #include <Core/TMemoryInitialiser.h>
 
@@ -81,8 +83,29 @@ int main( int argc, char** argv )
 	auto          strOutPath       = commandLine.GetParameterValue( "-o" );
 	auto          strKeyLib        = commandLine.GetParameterValue( "-keylib" );
 	auto          strPSPDumpFile   = commandLine.GetParameterValue( "-psp-dump" );
+	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
+	auto          strSequence      = commandLine.GetParameterValue( "-sequence" );
+	auto          strSampleRate    = commandLine.GetParameterValue( "-sample-rate", "30" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPAnimation )
+	{
+		if ( !strKeyLib || !strSequence || !strOutPath )
+		{
+			TERROR( "-psp-animation requires -keylib, -sequence and -o\n" );
+			return 1;
+		}
+		const TINT iSampleRate = T2String8::StringToInt( strSampleRate.GetString() );
+		if ( !ExportPSPAnimationDump(
+		         strPSPAnimation.GetString(), strKeyLib.GetString(), strSequence.GetString(), iSampleRate, strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP animation dump\n" );
+			return 1;
+		}
+		TINFO( "PSP animation dump written to %s\n", strOutPath.GetString() );
+		return 0;
+	}
 
 	if ( strPSPDumpFile )
 	{
