@@ -86,6 +86,7 @@ def run_pipeline(
     sequence: str | None = None,
     sample_rate: int = 30,
     keep_intermediate: bool = False,
+    runtime_preview: bool = False,
 ) -> dict[str, int]:
     require_file(tmdl, "TMDL executable")
     require_file(model, "model")
@@ -95,13 +96,20 @@ def run_pipeline(
         require_file(key_library, "key library")
     if sample_rate < 1 or sample_rate > 60:
         raise ValueError("sample rate must be between 1 and 60")
+    if runtime_preview and sequence is None:
+        raise ValueError("runtime preview requires a key library and sequence")
 
     output_name = safe_name(output_name)
 
     output_directory.mkdir(parents=True, exist_ok=True)
-    mesh = output_directory / f"{output_name}.pmes"
-    skeleton = output_directory / f"{output_name}.pskl"
-    animation = output_directory / f"{output_name}_{safe_name(sequence)}.panm" if sequence is not None else None
+    asset_name = "barnyard_preview" if runtime_preview else output_name
+    mesh = output_directory / f"{asset_name}.pmes"
+    skeleton = output_directory / f"{asset_name}.pskl"
+    animation = (
+        output_directory / (f"{asset_name}.panm" if runtime_preview else f"{asset_name}_{safe_name(sequence)}.panm")
+        if sequence is not None
+        else None
+    )
 
     with tempfile.TemporaryDirectory(prefix="openbarnyard_psp_") as temporary_name:
         temporary = pathlib.Path(temporary_name)
@@ -154,6 +162,11 @@ def main() -> None:
     parser.add_argument("--sequence")
     parser.add_argument("--sample-rate", type=int, default=30)
     parser.add_argument("--keep-intermediate", action="store_true")
+    parser.add_argument(
+        "--runtime-preview",
+        action="store_true",
+        help="write barnyard_preview.pmes/.pskl/.panm for optional EBOOT loading",
+    )
     args = parser.parse_args()
 
     summary = run_pipeline(
@@ -165,6 +178,7 @@ def main() -> None:
         args.sequence,
         args.sample_rate,
         args.keep_intermediate,
+        args.runtime_preview,
     )
     print(json.dumps(summary, sort_keys=True))
 
