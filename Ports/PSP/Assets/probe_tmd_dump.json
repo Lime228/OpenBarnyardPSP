@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "skeleton": [
+    { "name": "root", "parent": null, "translation": [0.0, 0.0, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] },
+    { "name": "center", "parent": 0, "translation": [0.0, 0.5, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] },
+    { "name": "marker", "parent": 1, "translation": [0.0, 0.5, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] }
+  ],
+  "lods": [
+    {
+      "shader": "skin",
+      "meshes": [
+        {
+          "material": "probe",
+          "submeshes": [
+            {
+              "bone_palette": [0, 1, 2],
+              "vertices": [
+                { "position": [-1.0, 0.0, 0.0], "uv": [0.0, 1.0], "bones": [0, 1, 2, 0], "weights": [5, 20, 220, 10] },
+                { "position": [-1.0, 1.0, 0.0], "uv": [0.0, 0.0], "bones": [0, 1, 2, 0], "weights": [255, 0, 0, 0] },
+                { "position": [1.0, 0.0, 0.0], "uv": [1.0, 1.0], "bones": [0, 1, 2, 0], "weights": [128, 127, 0, 0] },
+                { "position": [1.0, 1.0, 0.0], "uv": [1.0, 0.0], "bones": [0, 1, 2, 0], "weights": [0, 0, 255, 0] }
+              ],
+              "triangle_strip": [0, 1, 2, 3]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
