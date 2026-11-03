@@ -238,9 +238,9 @@ remain largely unstarted.
 - `Ports/PSP/Tools/convert_tmd_dump.py` is the portable second stage. It
   combines duplicate influences, keeps the two strongest global bones,
   renormalizes their byte weights to 255, converts alternating triangle strips
-  to lists while dropping degenerates, and enforces 64-bone and 16-bit element
-  ceilings before producing PSKL and skinned PMES. The checked-in synthetic
-  dump and unit tests keep this contract deterministic without distributing
+  to lists while dropping degenerates, and enforces the 64-bone, 8,192 animated
+  vertex and 16-bit index ceilings before producing PSKL and skinned PMES. The
+  checked-in synthetic dump and unit tests keep this contract deterministic without distributing
   original Barnyard assets.
 - The host animation command takes `-psp-animation <model.tmd>`,
   `-keylib <library.tkl>`, `-sequence <name>`, `-sample-rate <1..60>` and
