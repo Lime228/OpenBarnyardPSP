@@ -1,5 +1,6 @@
 #include "ToshiPCH.h"
 #include "TSkeletonInstance_PSP.h"
+#include "TAnimationClip_PSP.h"
 
 TOSHI_NAMESPACE_START
 
@@ -98,6 +99,39 @@ TBOOL TSkeletonInstance_PSP::SetBindPose()
 		TFLOAT aRotatedTranslation[ 3 ];
 		TSkeletonMultiplyQuaternion_PSP( rOutput.aRotation, rParent.aRotation, pBone->aRotation );
 		TSkeletonRotateVector_PSP( aRotatedTranslation, rParent.aRotation, pBone->aTranslation );
+		for ( TUINT32 component = 0; component < 3; component++ )
+			rOutput.aTranslation[ component ] = rParent.aTranslation[ component ] + aRotatedTranslation[ component ];
+	}
+
+	return TTRUE;
+}
+
+TBOOL TSkeletonInstance_PSP::SetAnimationPose( const TAnimationClip_PSP& a_rClip, TUINT a_uiTimeMilliseconds )
+{
+	if ( m_pSkeleton == TNULL || a_rClip.GetSkeleton() != m_pSkeleton ||
+	     a_rClip.GetBoneCount() != m_pSkeleton->GetBoneCount() )
+	{
+		return TFALSE;
+	}
+
+	for ( TUINT32 i = 0; i < m_pSkeleton->GetBoneCount(); i++ )
+	{
+		const TSkeletonBone_PSP* pBone = m_pSkeleton->GetBone( i );
+		TSkeletonTransform_PSP oLocalTransform;
+		if ( pBone == TNULL || !a_rClip.SampleBone( i, a_uiTimeMilliseconds, oLocalTransform ) )
+			return TFALSE;
+
+		TSkeletonTransform_PSP& rOutput = m_aTransforms[ i ];
+		if ( pBone->iParentBone < 0 )
+		{
+			rOutput = oLocalTransform;
+			continue;
+		}
+
+		const TSkeletonTransform_PSP& rParent = m_aTransforms[ pBone->iParentBone ];
+		TFLOAT aRotatedTranslation[ 3 ];
+		TSkeletonMultiplyQuaternion_PSP( rOutput.aRotation, rParent.aRotation, oLocalTransform.aRotation );
+		TSkeletonRotateVector_PSP( aRotatedTranslation, rParent.aRotation, oLocalTransform.aTranslation );
 		for ( TUINT32 component = 0; component < 3; component++ )
 			rOutput.aTranslation[ component ] = rParent.aTranslation[ component ] + aRotatedTranslation[ component ];
 	}

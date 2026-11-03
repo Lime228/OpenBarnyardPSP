@@ -4,11 +4,7 @@
 
 TOSHI_NAMESPACE_START
 
-struct TSkeletonTransform_PSP
-{
-	TFLOAT aRotation[ 4 ];
-	TFLOAT aTranslation[ 3 ];
-};
+class TAnimationClip_PSP;
 
 class TSkeletonInstance_PSP
 {
@@ -18,6 +14,7 @@ public:
 	TBOOL Create( const TSkeleton_PSP* a_pSkeleton );
 	void  Destroy();
 	TBOOL SetBindPose();
+	TBOOL SetAnimationPose( const TAnimationClip_PSP& a_rClip, TUINT a_uiTimeMilliseconds );
 
 	const TSkeleton_PSP* GetSkeleton() const { return m_pSkeleton; }
 	const TSkeletonTransform_PSP* GetBoneTransform( TUINT32 a_uiBone ) const;

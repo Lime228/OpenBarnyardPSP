@@ -28,6 +28,12 @@ struct TSkeletonBone_PSP
 	TFLOAT aTranslation[ 3 ];
 };
 
+struct TSkeletonTransform_PSP
+{
+	TFLOAT aRotation[ 4 ];
+	TFLOAT aTranslation[ 3 ];
+};
+
 static_assert( sizeof( TSkeletonDataHeader_PSP ) == 16, "Unexpected PSP skeleton header layout" );
 static_assert( sizeof( TSkeletonBone_PSP ) == 64, "Unexpected PSP skeleton bone layout" );
 
