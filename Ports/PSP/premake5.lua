@@ -110,6 +110,7 @@ project "OpenBarnyardPSP"
 		'cp -f "../../Ports/PSP/Assets/probe.ptex" "%{cfg.targetdir}/probe.ptex"',
 		'cp -f "../../Ports/PSP/Assets/probe.pmes" "%{cfg.targetdir}/probe.pmes"',
 		'cp -f "../../Ports/PSP/Assets/probe.pskl" "%{cfg.targetdir}/probe.pskl"',
+		'cp -f "../../Ports/PSP/Assets/probe.panm" "%{cfg.targetdir}/probe.panm"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_font.ptex" "%{cfg.targetdir}/bootstrap_font.ptex"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_font.pfnt" "%{cfg.targetdir}/bootstrap_font.pfnt"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_locale.ploc" "%{cfg.targetdir}/bootstrap_locale.ploc"',

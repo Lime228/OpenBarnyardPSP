@@ -33,6 +33,7 @@ jobs:
           python3 Ports/PSP/Tools/convert_texture.py Ports/PSP/Assets/probe.ppm /tmp/probe.ptex
           python3 Ports/PSP/Tools/convert_mesh.py Ports/PSP/Assets/probe.obj /tmp/probe.pmes
           python3 Ports/PSP/Tools/convert_skeleton.py Ports/PSP/Assets/probe_skeleton.json /tmp/probe.pskl
+          python3 Ports/PSP/Tools/convert_animation.py Ports/PSP/Assets/probe_skeleton.json Ports/PSP/Assets/probe_animation.json /tmp/probe.panm
           python3 Ports/PSP/Tools/generate_bootstrap_font.py Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.pfnt
           python3 Ports/PSP/Tools/convert_texture.py --alpha-mask Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.ptex
           python3 Ports/PSP/Tools/generate_bootstrap_locale.py Ports/PSP/Assets/bootstrap_locale.ploc
@@ -49,6 +50,7 @@ jobs:
           cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
           cmp Ports/PSP/Assets/probe.pskl /tmp/probe.pskl
+          cmp Ports/PSP/Assets/probe.panm /tmp/probe.panm
           cmp Ports/PSP/Assets/bootstrap_audio.pbnk /tmp/bootstrap_audio.pbnk
           cmp Ports/PSP/Assets/ui_menuclick.ppcm /tmp/ui_menuclick.ppcm
           cmp Ports/PSP/Assets/ui_menuclick.ppcm /tmp/ui_menuclick_converted.ppcm
@@ -82,6 +84,7 @@ jobs:
             bin/PSP/Release/probe.ptex
             bin/PSP/Release/probe.pmes
             bin/PSP/Release/probe.pskl
+            bin/PSP/Release/probe.panm
             bin/PSP/Release/bootstrap_font.ptex
             bin/PSP/Release/bootstrap_font.pfnt
             bin/PSP/Release/bootstrap_locale.ploc
