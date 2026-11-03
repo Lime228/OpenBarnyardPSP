@@ -85,7 +85,9 @@ static Toshi::TSkeleton_PSP             g_PreviewSkeleton_PSP;
 static Toshi::TAnimationClip_PSP        g_PreviewAnimation_PSP;
 static Toshi::TSkeletonInstance_PSP     g_PreviewSkeletonInstance_PSP;
 static Toshi::TSkinningBuffer_PSP       g_PreviewSkinningBuffer_PSP;
+static Toshi::T2Texture                 g_PreviewTexture_PSP;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
+static TBOOL                            g_bPreviewTexture_PSP = TFALSE;
 static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
 	TTRUE,
 	Toshi::TRENDERTEXTUREFUNCTION_PSP_MODULATE,
@@ -137,6 +139,8 @@ static void UnloadPreviewModel_PSP()
 	g_PreviewAnimation_PSP.Unload();
 	g_PreviewSkeleton_PSP.Unload();
 	g_PreviewModel_PSP.Unload();
+	g_PreviewTexture_PSP.Unload();
+	g_bPreviewTexture_PSP = TFALSE;
 }
 
 static TBOOL LoadPreviewModel_PSP()
@@ -155,6 +159,11 @@ static TBOOL LoadPreviewModel_PSP()
 	    g_PreviewSkinningBuffer_PSP.Skin( g_PreviewSkeletonInstance_PSP );
 	if ( !bReady )
 		UnloadPreviewModel_PSP();
+	else
+		g_bPreviewTexture_PSP = g_TextureFactory_PSP.CreateTextureFromFile(
+		    g_PreviewTexture_PSP,
+		    "local:barnyard_preview.ptex"
+		);
 	return bReady;
 }
 
@@ -1812,7 +1821,7 @@ int main()
 		&g_RenderInterface,
 		&g_ProbeVertices_PSP,
 		&g_ProbeIndices_PSP,
-		pCachedTexture,
+		bPreviewReady && g_bPreviewTexture_PSP ? &g_PreviewTexture_PSP : pCachedTexture,
 		pCachedFont,
 		&g_LocaleManager_PSP,
 		pCachedModel,
@@ -1879,6 +1888,10 @@ int main()
 	TDebug_FinalPrintf( "[PSP animation] skinning  %s\n", bSkinningReady ? "probe_skinned.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] budgets   %s\n", bAnimationBudgetReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] preview   %s\n", bPreviewReady ? "barnyard_preview" : "inactive" );
+	TDebug_FinalPrintf(
+	    "[PSP render] preview texture %s\n",
+	    bPreviewReady && g_bPreviewTexture_PSP ? "barnyard_preview.ptex" : "probe fallback"
+	);
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
