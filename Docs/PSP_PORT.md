@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-03)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **62%** complete. The second value
+complete playable-game port is approximately **63%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -25,11 +25,11 @@ streaming, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 56% | GU display, depth, indexed static models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 40% | deterministic converters accept textures, meshes, bounded skeleton JSON and PCM16 stereo WAV input and produce PTEX, PMES, PSKL, PFNT, PLOC, resident PPCM, streamed PADP and PBNK assets |
+| Real-game asset pipeline | 44% | deterministic converters accept textures, meshes, bounded skeleton/animation JSON and PCM16 stereo WAV input and produce PTEX, PMES, PSKL, PANM, PFNT, PLOC, resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 5% | a bounded skeleton resource and allocation-free hierarchical bind-pose instance run; animation clips, skinning, rooms and player simulation are not loaded |
+| World, animation and gameplay | 10% | bounded skeletons, sampled clips and hierarchical animated poses run; skinning, rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -218,6 +218,18 @@ remain largely unstarted.
   only 64 fixed world transforms. `SetBindPose` composes parent quaternion and
   translation state in the already validated topological order, so it performs
   no allocation, recursion or per-frame name lookup.
+- `TAnimationClip_PSP` loads versioned `PANM` clips bound to an exact `PSKL`
+  bone count. Each full-pose sample occupies 16 bytes per bone: signed 16-bit
+  quaternion and translation components plus a reserved validation field.
+  Clips are capped at 64 bones, 64 frames and 60 Hz, or 64 KiB of persistent
+  sample data; source file storage is released after the aligned copy.
+- `TSkeletonInstance_PSP::SetAnimationPose` performs shortest-path normalized
+  quaternion interpolation, linear translation interpolation and parent-space
+  composition without recursion or scratch allocation. Non-looping clips clamp
+  at the final frame; the format reserves an explicit bounded loop flag.
+- `Ports/PSP/Tools/convert_animation.py` requires every frame to define every
+  skeleton bone exactly once, normalizes rotations, chooses one bounded clip
+  translation scale and emits deterministic 16-bit samples offline.
 - `TRenderInterface_PSP::DrawModel` supplies the minimal GUM projection, view,
   and model transforms, clears and enables the 16-bit depth buffer for the 3D
   draw, then restores the depth-test state used by the independent 2D probes.
@@ -842,6 +854,15 @@ remain largely unstarted.
   `91cb2c10692afa0d6deac63a8b22a3466d035a1f7e75b572bc4621693dee38f2`,
   bundle `Runtime/PSP/719ce824`, single process PID `21128`. Background D-pad,
   Cross and Circle input remained responsive.
+- Commit `cefcdc24` passed PSP run `41670009263`. CI regenerated and compared
+  the 128-byte `probe.panm`, compiled the bounded clip loader and packaged the
+  asset beside its `PSKL`. The runtime gate sampled the marker hierarchy at
+  `0`, `250`, `500` and clamped `1000 ms`, observing world Y positions `1.0`,
+  `1.25`, `1.5` and `1.5`. PPSSPP reported `animation=OK`, every previous gate
+  `OK` and zero stream underruns; artifact SHA-256
+  `55f2ec62e7de7afa7732b4493b3d1d77434f9a5e0cd6d1a5ef4517522fe9d98c`,
+  bundle `Runtime/PSP/cefcdc24`, single process PID `18848`. Background D-pad,
+  Cross and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -849,9 +870,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, define a compact PSP animation-clip asset keyed by the validated `PSKL`
-bone order, then evaluate one local pose before adding bounded CPU skinning to
-the PMES path. Keep track selection explicitly
+Next, extend `PMES` with bounded bone indices/weights and add a double-buffered
+CPU skinning path that writes directly into a GU-visible vertex pool. Measure
+its cost on the three-bone probe before selecting a character bone/vertex
+budget. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
