@@ -99,12 +99,16 @@ function Start-OpenBarnyardPPSSPP {
 
     $process = Start-Process `
         -FilePath $PPSSPPPath `
-        -ArgumentList @('--graphics=software', '--windowed', '--scale=1', $EbootPath) `
+        -ArgumentList @('--windowed', '--scale=1', $EbootPath) `
         -WorkingDirectory (Split-Path -Parent $PPSSPPPath) `
         -WindowStyle Minimized `
         -PassThru
 
     Set-Content -LiteralPath $pidPath -Value $process.Id -NoNewline
+    if ($process.WaitForExit(2000)) {
+        Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
+        throw "PPSSPP exited during startup with code $($process.ExitCode)."
+    }
     Write-Output "Started PPSSPP in the background (PID $($process.Id))."
 }
 
