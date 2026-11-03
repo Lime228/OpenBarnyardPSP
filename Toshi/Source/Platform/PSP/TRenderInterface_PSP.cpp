@@ -261,7 +261,8 @@ void TRenderInterface_PSP::DrawSkinnedModel(
     const TVertexPoolResource_PSP& a_rVertices,
     TFLOAT a_fRotation,
     const TRenderMaterial_PSP& a_rMaterial,
-    const T2Texture* a_pTexture
+    const T2Texture* a_pTexture,
+    const TRenderModelTransform_PSP& a_rTransform
 )
 {
 	const TIndexPoolResource_PSP& rIndices = a_rModel.GetIndices();
@@ -295,8 +296,16 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 
 	const ScePspFVector3 oTranslation = { 0.0f, 0.0f, -3.25f };
 	const ScePspFVector3 oRotation = { a_fRotation * 0.5f, a_fRotation, 0.0f };
+	const ScePspFVector3 oScale = { a_rTransform.fScale, a_rTransform.fScale, a_rTransform.fScale };
+	const ScePspFVector3 oCenter = {
+		-a_rTransform.aCenter[ 0 ],
+		-a_rTransform.aCenter[ 1 ],
+		-a_rTransform.aCenter[ 2 ],
+	};
 	sceGumTranslate( &oTranslation );
 	sceGumRotateXYZ( &oRotation );
+	sceGumScale( &oScale );
+	sceGumTranslate( &oCenter );
 	sceGumDrawArray(
 	    GU_TRIANGLES,
 	    GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D,

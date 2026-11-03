@@ -86,6 +86,11 @@ static Toshi::TAnimationClip_PSP        g_PreviewAnimation_PSP;
 static Toshi::TSkeletonInstance_PSP     g_PreviewSkeletonInstance_PSP;
 static Toshi::TSkinningBuffer_PSP       g_PreviewSkinningBuffer_PSP;
 static Toshi::T2Texture                 g_PreviewTexture_PSP;
+static const Toshi::TRenderModelTransform_PSP g_IdentityModelTransform_PSP = {
+	1.0f,
+	{ 0.0f, 0.0f, 0.0f },
+};
+static Toshi::TRenderModelTransform_PSP g_PreviewTransform_PSP = g_IdentityModelTransform_PSP;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
 static TBOOL                            g_bPreviewTexture_PSP = TFALSE;
 static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
@@ -168,6 +173,36 @@ static TBOOL TestModelBounds_PSP( const Toshi::TModel_PSP& a_rModel )
 	);
 }
 
+static TBOOL CalculatePreviewTransform_PSP(
+    const Toshi::TModel_PSP& a_rModel,
+    Toshi::TRenderModelTransform_PSP& a_rTransform
+)
+{
+	const Toshi::TModelBounds_PSP& rBounds = a_rModel.GetBounds();
+	const TFLOAT fWidth = rBounds.aMax[ 0 ] - rBounds.aMin[ 0 ];
+	const TFLOAT fHeight = rBounds.aMax[ 1 ] - rBounds.aMin[ 1 ];
+	const TFLOAT fDepth = rBounds.aMax[ 2 ] - rBounds.aMin[ 2 ];
+	const TFLOAT fLargestSize = Toshi::TMath::Max( Toshi::TMath::Max( fWidth, fHeight ), fDepth );
+	if ( !Toshi::TMath::IsFinite( fLargestSize ) || fLargestSize <= Toshi::TMath::TFLOAT_EPSILON )
+		return TFALSE;
+
+	a_rTransform.fScale = 2.0f / fLargestSize;
+	for ( TUINT32 i = 0; i < 3; i++ )
+		a_rTransform.aCenter[ i ] = rBounds.aMin[ i ] +
+		                             ( rBounds.aMax[ i ] - rBounds.aMin[ i ] ) * 0.5f;
+	return Toshi::TMath::IsFinite( a_rTransform.fScale );
+}
+
+static TBOOL TestPreviewTransform_PSP( const Toshi::TModel_PSP& a_rModel )
+{
+	Toshi::TRenderModelTransform_PSP oTransform = {};
+	return CalculatePreviewTransform_PSP( a_rModel, oTransform ) &&
+	       oTransform.fScale == 1.0f &&
+	       oTransform.aCenter[ 0 ] == 0.0f &&
+	       oTransform.aCenter[ 1 ] == 0.0f &&
+	       oTransform.aCenter[ 2 ] == 0.0f;
+}
+
 static void UnloadPreviewModel_PSP()
 {
 	g_PreviewSkinningBuffer_PSP.Destroy();
@@ -176,6 +211,7 @@ static void UnloadPreviewModel_PSP()
 	g_PreviewSkeleton_PSP.Unload();
 	g_PreviewModel_PSP.Unload();
 	g_PreviewTexture_PSP.Unload();
+	g_PreviewTransform_PSP = g_IdentityModelTransform_PSP;
 	g_bPreviewTexture_PSP = TFALSE;
 }
 
@@ -192,7 +228,8 @@ static TBOOL LoadPreviewModel_PSP()
 	    g_PreviewSkeletonInstance_PSP.Create( &g_PreviewSkeleton_PSP ) &&
 	    g_PreviewSkinningBuffer_PSP.Create( &g_PreviewModel_PSP, &g_PreviewSkeleton_PSP ) &&
 	    g_PreviewSkeletonInstance_PSP.SetAnimationPose( g_PreviewAnimation_PSP, 0 ) &&
-	    g_PreviewSkinningBuffer_PSP.Skin( g_PreviewSkeletonInstance_PSP );
+	    g_PreviewSkinningBuffer_PSP.Skin( g_PreviewSkeletonInstance_PSP ) &&
+	    CalculatePreviewTransform_PSP( g_PreviewModel_PSP, g_PreviewTransform_PSP );
 	if ( !bReady )
 		UnloadPreviewModel_PSP();
 	else
@@ -1805,7 +1842,8 @@ int main()
 	const TBOOL bFontReady      = bFontTextureReady && LoadFontFile_PSP();
 	const TBOOL bLocaleReady    = bFileReady && LoadLocaleFile_PSP();
 	const TBOOL bModelReady = bFileReady && LoadProbeModelFile_PSP() &&
-	                          TestModelBounds_PSP( g_ProbeModel_PSP );
+	                          TestModelBounds_PSP( g_ProbeModel_PSP ) &&
+	                          TestPreviewTransform_PSP( g_ProbeModel_PSP );
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
@@ -1868,6 +1906,7 @@ int main()
 		bPreviewReady ? &g_PreviewSkeletonInstance_PSP : ( bSkinningReady ? &g_ProbeSkeletonInstance_PSP : TNULL ),
 		bPreviewReady ? &g_PreviewAnimation_PSP : ( bSkinningReady ? &g_ProbeAnimation_PSP : TNULL ),
 		&g_ProbeMaterial_PSP,
+		bPreviewReady ? g_PreviewTransform_PSP : g_IdentityModelTransform_PSP,
 		TFALSE,
 		bMeshReady,
 	};

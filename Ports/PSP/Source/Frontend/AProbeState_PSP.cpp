@@ -79,7 +79,8 @@ void AProbeState_PSP::OnRender(
 				    *pVertices,
 				    a_rState.fModelRotation,
 				    *a_rContext.pMaterial,
-				    a_rContext.pTexture
+				    a_rContext.pTexture,
+				    a_rContext.oSkinnedModelTransform
 				);
 			}
 		}

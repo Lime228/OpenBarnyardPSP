@@ -45,6 +45,7 @@ struct AFrontendRenderContext_PSP
 	Toshi::TSkeletonInstance_PSP*     pSkeletonInstance;
 	Toshi::TAnimationClip_PSP*        pAnimation;
 	const Toshi::TRenderMaterial_PSP* pMaterial;
+	Toshi::TRenderModelTransform_PSP  oSkinnedModelTransform;
 	TBOOL                             bBootstrapReady;
 	TBOOL                             bMeshReady;
 };
