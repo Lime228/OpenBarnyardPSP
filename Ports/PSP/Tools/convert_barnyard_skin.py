@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import pathlib
+import shutil
+import struct
+import subprocess
+import tempfile
+
+from convert_animation import convert as convert_animation
+from convert_tmd_dump import convert as convert_tmd_dump
+
+
+def require_file(path: pathlib.Path, name: str) -> None:
+    if not path.is_file():
+        raise ValueError(f"{name} does not exist: {path}")
+
+
+def safe_name(value: str) -> str:
+    result = "".join(character if character.isalnum() or character in "-_." else "_" for character in value)
+    if not result or result in {".", ".."}:
+        raise ValueError("sequence name does not produce a safe output filename")
+    return result
+
+
+def write_animation_skeleton(model_dump: pathlib.Path, destination: pathlib.Path) -> None:
+    document = json.loads(model_dump.read_text(encoding="utf-8"))
+    source_bones = document.get("skeleton") if isinstance(document, dict) else None
+    if not isinstance(source_bones, list):
+        raise ValueError("TMD dump does not contain a skeleton")
+
+    bones = []
+    names = []
+    for index, source_bone in enumerate(source_bones):
+        if not isinstance(source_bone, dict) or not isinstance(source_bone.get("name"), str):
+            raise ValueError(f"TMD dump bone {index} is invalid")
+        parent = source_bone.get("parent")
+        if parent is None:
+            parent_name = None
+        elif isinstance(parent, int) and 0 <= parent < index:
+            parent_name = names[parent]
+        else:
+            raise ValueError(f"TMD dump bone {index} has an invalid parent")
+        name = source_bone["name"]
+        names.append(name)
+        bones.append(
+            {
+                "name": name,
+                "parent": parent_name,
+                "translation": source_bone.get("translation", [0.0, 0.0, 0.0]),
+                "rotation": source_bone.get("rotation", [0.0, 0.0, 0.0, 1.0]),
+            }
+        )
+    destination.write_text(json.dumps({"bones": bones}, indent=2) + "\n", encoding="utf-8")
+
+
+def read_summary(mesh: pathlib.Path, skeleton: pathlib.Path, animation: pathlib.Path | None) -> dict[str, int]:
+    mesh_header = struct.unpack("<6I", mesh.read_bytes()[:24])
+    skeleton_header = struct.unpack("<4I", skeleton.read_bytes()[:16])
+    summary = {
+        "vertices": mesh_header[2],
+        "indices": mesh_header[3],
+        "bones": skeleton_header[2],
+        "mesh_bytes": mesh.stat().st_size,
+        "skeleton_bytes": skeleton.stat().st_size,
+    }
+    if animation is not None:
+        animation_header = struct.unpack("<6IfI", animation.read_bytes()[:32])
+        summary.update(
+            {
+                "frames": animation_header[3],
+                "sample_rate": animation_header[4],
+                "animation_bytes": animation.stat().st_size,
+            }
+        )
+    return summary
+
+
+def run_pipeline(
+    tmdl: pathlib.Path,
+    model: pathlib.Path,
+    output_directory: pathlib.Path,
+    output_name: str,
+    key_library: pathlib.Path | None = None,
+    sequence: str | None = None,
+    sample_rate: int = 30,
+    keep_intermediate: bool = False,
+) -> dict[str, int]:
+    require_file(tmdl, "TMDL executable")
+    require_file(model, "model")
+    if (key_library is None) != (sequence is None):
+        raise ValueError("key library and sequence must be supplied together")
+    if key_library is not None:
+        require_file(key_library, "key library")
+    if sample_rate < 1 or sample_rate > 60:
+        raise ValueError("sample rate must be between 1 and 60")
+
+    output_name = safe_name(output_name)
+
+    output_directory.mkdir(parents=True, exist_ok=True)
+    mesh = output_directory / f"{output_name}.pmes"
+    skeleton = output_directory / f"{output_name}.pskl"
+    animation = output_directory / f"{output_name}_{safe_name(sequence)}.panm" if sequence is not None else None
+
+    with tempfile.TemporaryDirectory(prefix="openbarnyard_psp_") as temporary_name:
+        temporary = pathlib.Path(temporary_name)
+        model_dump = temporary / "model.json"
+        subprocess.run([str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)], check=True)
+        convert_tmd_dump(model_dump, mesh, skeleton)
+
+        animation_dump = None
+        animation_skeleton = None
+        if key_library is not None and sequence is not None and animation is not None:
+            animation_dump = temporary / "animation.json"
+            animation_skeleton = temporary / "skeleton.json"
+            subprocess.run(
+                [
+                    str(tmdl),
+                    "-psp-animation",
+                    str(model),
+                    "-keylib",
+                    str(key_library),
+                    "-sequence",
+                    sequence,
+                    "-sample-rate",
+                    str(sample_rate),
+                    "-o",
+                    str(animation_dump),
+                ],
+                check=True,
+            )
+            write_animation_skeleton(model_dump, animation_skeleton)
+            convert_animation(animation_skeleton, animation_dump, animation)
+
+        if keep_intermediate:
+            intermediate = output_directory / f"{output_name}_intermediate"
+            intermediate.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(model_dump, intermediate / "model.json")
+            if animation_dump is not None and animation_skeleton is not None:
+                shutil.copyfile(animation_dump, intermediate / "animation.json")
+                shutil.copyfile(animation_skeleton, intermediate / "skeleton.json")
+
+    return read_summary(mesh, skeleton, animation)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Convert one Barnyard skin model and optional sequence to PSP assets")
+    parser.add_argument("--tmdl", type=pathlib.Path, required=True, help="path to the host TMDL executable")
+    parser.add_argument("--model", type=pathlib.Path, required=True)
+    parser.add_argument("--output", type=pathlib.Path, required=True)
+    parser.add_argument("--name", help="output basename; defaults to the model filename")
+    parser.add_argument("--keylib", type=pathlib.Path)
+    parser.add_argument("--sequence")
+    parser.add_argument("--sample-rate", type=int, default=30)
+    parser.add_argument("--keep-intermediate", action="store_true")
+    args = parser.parse_args()
+
+    summary = run_pipeline(
+        args.tmdl,
+        args.model,
+        args.output,
+        args.name or args.model.stem,
+        args.keylib,
+        args.sequence,
+        args.sample_rate,
+        args.keep_intermediate,
+    )
+    print(json.dumps(summary, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()
