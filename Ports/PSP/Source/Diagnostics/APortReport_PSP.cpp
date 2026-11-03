@@ -46,6 +46,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "model=%s\n", GetReportStatus_PSP( a_rData.bModelReady ) );
 	pFile->CPrintf( "skeleton=%s\n", GetReportStatus_PSP( a_rData.bSkeletonReady ) );
 	pFile->CPrintf( "skeleton_pose=%s\n", GetReportStatus_PSP( a_rData.bSkeletonPoseReady ) );
+	pFile->CPrintf( "animation=%s\n", GetReportStatus_PSP( a_rData.bAnimationReady ) );
 	pFile->CPrintf( "cache=%s\n", GetReportStatus_PSP( a_rData.bCacheReady ) );
 	pFile->CPrintf( "scheduler=%s\n", GetReportStatus_PSP( a_rData.bSchedulerReady ) );
 	pFile->CPrintf( "frames=%u\n", a_rData.uiFrameCount );

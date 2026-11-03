@@ -10,6 +10,7 @@
 #include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Platform/PSP/TSkeletonFactory_PSP.h>
 #include <Platform/PSP/TSkeletonInstance_PSP.h>
+#include <Platform/PSP/TAnimationClipFactory_PSP.h>
 #include <Render/TBackend.h>
 
 #include "Frontend/AApplication_PSP.h"
@@ -68,12 +69,14 @@ static Toshi::TTextureFactory_PSP g_TextureFactory_PSP;
 static Toshi::T2GUIFontFactory_PSP g_FontFactory_PSP;
 static Toshi::TModelFactory_PSP g_ModelFactory_PSP;
 static Toshi::TSkeletonFactory_PSP g_SkeletonFactory_PSP;
+static Toshi::TAnimationClipFactory_PSP g_AnimationFactory_PSP;
 static Toshi::TRenderResourceCache_PSP g_ResourceCache_PSP;
 static Toshi::TRenderInterface_PSP g_RenderInterface;
 static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
 static Toshi::TModel_PSP                g_ProbeModel_PSP;
 static Toshi::TSkeleton_PSP             g_ProbeSkeleton_PSP;
+static Toshi::TAnimationClip_PSP        g_ProbeAnimation_PSP;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
 static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
 	TTRUE,
@@ -195,6 +198,50 @@ static TBOOL TestProbeSkeletonPose_PSP()
 
 	oInstance.Destroy();
 	return oInstance.GetBoneTransform( TUINT32( 0 ) ) == TNULL && !oInstance.SetBindPose();
+}
+
+static TBOOL IsAnimationValueNear_PSP( TFLOAT a_fValue, TFLOAT a_fExpected )
+{
+	const TFLOAT fDifference = a_fValue - a_fExpected;
+	return fDifference >= -0.001f && fDifference <= 0.001f;
+}
+
+static TBOOL TestProbeAnimation_PSP()
+{
+	if ( !g_AnimationFactory_PSP.CreateAnimationFromFile(
+	         g_ProbeAnimation_PSP,
+	         &g_ProbeSkeleton_PSP,
+	         "local:probe.panm"
+	     ) ||
+	     g_ProbeAnimation_PSP.GetSkeleton() != &g_ProbeSkeleton_PSP ||
+	     g_ProbeAnimation_PSP.GetBoneCount() != 3 ||
+	     g_ProbeAnimation_PSP.GetFrameCount() != 2 ||
+	     g_ProbeAnimation_PSP.GetSampleRate() != 2 ||
+	     g_ProbeAnimation_PSP.IsLooping() )
+	{
+		return TFALSE;
+	}
+
+	Toshi::TSkeletonInstance_PSP oInstance;
+	if ( !oInstance.Create( &g_ProbeSkeleton_PSP ) )
+		return TFALSE;
+
+	static const TUINT aTimes[] = { 0, 250, 500, 1000 };
+	static const TFLOAT aExpectedMarkerY[] = { 1.0f, 1.25f, 1.5f, 1.5f };
+	for ( TUINT32 i = 0; i < TARRAYSIZE( aTimes ); i++ )
+	{
+		if ( !oInstance.SetAnimationPose( g_ProbeAnimation_PSP, aTimes[ i ] ) )
+			return TFALSE;
+		const Toshi::TSkeletonTransform_PSP* pMarker = oInstance.GetBoneTransform( "marker" );
+		if ( pMarker == TNULL ||
+		     !IsAnimationValueNear_PSP( pMarker->aTranslation[ 1 ], aExpectedMarkerY[ i ] ) ||
+		     !IsAnimationValueNear_PSP( pMarker->aRotation[ 3 ], 1.0f ) )
+		{
+			return TFALSE;
+		}
+	}
+
+	return TTRUE;
 }
 
 static TBOOL SubmitBootstrapWave_PSP()
@@ -1558,6 +1605,7 @@ int main()
 	const TBOOL bModelReady     = bFileReady && LoadProbeModelFile_PSP();
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
+	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
 	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
 	    "probe.texture",
@@ -1625,7 +1673,7 @@ int main()
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
 	                              bMeshReady && bModelReady && bSkeletonReady &&
-	                              bSkeletonPoseReady && bCacheReady;
+	                              bSkeletonPoseReady && bAnimationReady && bCacheReady;
 	oRenderContext.bBootstrapReady = bBootstrapReady;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] source      %s\n", g_bExternalTexture_PSP ? "probe.ptex" : "embedded fallback" );
@@ -1660,6 +1708,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] skeleton %s\n", bSkeletonReady ? "probe.pskl" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] bind pose %s\n", bSkeletonPoseReady ? "OK" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP animation] clip      %s\n", bAnimationReady ? "probe.panm" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
@@ -1700,6 +1749,7 @@ int main()
 		bModelReady,
 		bSkeletonReady,
 		bSkeletonPoseReady,
+		bAnimationReady,
 		bCacheReady,
 		bSchedulerReady,
 		0,
@@ -1734,6 +1784,7 @@ int main()
 	);
 	g_ResourceCache_PSP.Clear();
 	g_ProbeModel_PSP.Unload();
+	g_ProbeAnimation_PSP.Unload();
 	g_ProbeSkeleton_PSP.Unload();
 	g_Font_PSP.Destroy();
 	g_LocaleManager_PSP.Destroy();
