@@ -80,6 +80,11 @@ static Toshi::TSkeleton_PSP             g_ProbeSkeleton_PSP;
 static Toshi::TAnimationClip_PSP        g_ProbeAnimation_PSP;
 static Toshi::TSkeletonInstance_PSP     g_ProbeSkeletonInstance_PSP;
 static Toshi::TSkinningBuffer_PSP       g_ProbeSkinningBuffer_PSP;
+static Toshi::TModel_PSP                g_PreviewModel_PSP;
+static Toshi::TSkeleton_PSP             g_PreviewSkeleton_PSP;
+static Toshi::TAnimationClip_PSP        g_PreviewAnimation_PSP;
+static Toshi::TSkeletonInstance_PSP     g_PreviewSkeletonInstance_PSP;
+static Toshi::TSkinningBuffer_PSP       g_PreviewSkinningBuffer_PSP;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
 static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
 	TTRUE,
@@ -123,6 +128,34 @@ static TBOOL LoadProbeModelFile_PSP()
 static TBOOL LoadProbeSkinnedModelFile_PSP()
 {
 	return g_ModelFactory_PSP.CreateModelFromFile( g_ProbeSkinnedModel_PSP, "local:probe_skinned.pmes" );
+}
+
+static void UnloadPreviewModel_PSP()
+{
+	g_PreviewSkinningBuffer_PSP.Destroy();
+	g_PreviewSkeletonInstance_PSP.Destroy();
+	g_PreviewAnimation_PSP.Unload();
+	g_PreviewSkeleton_PSP.Unload();
+	g_PreviewModel_PSP.Unload();
+}
+
+static TBOOL LoadPreviewModel_PSP()
+{
+	const TBOOL bReady =
+	    g_ModelFactory_PSP.CreateModelFromFile( g_PreviewModel_PSP, "local:barnyard_preview.pmes" ) &&
+	    g_SkeletonFactory_PSP.CreateSkeletonFromFile( g_PreviewSkeleton_PSP, "local:barnyard_preview.pskl" ) &&
+	    g_AnimationFactory_PSP.CreateAnimationFromFile(
+	        g_PreviewAnimation_PSP,
+	        &g_PreviewSkeleton_PSP,
+	        "local:barnyard_preview.panm"
+	    ) &&
+	    g_PreviewSkeletonInstance_PSP.Create( &g_PreviewSkeleton_PSP ) &&
+	    g_PreviewSkinningBuffer_PSP.Create( &g_PreviewModel_PSP, &g_PreviewSkeleton_PSP ) &&
+	    g_PreviewSkeletonInstance_PSP.SetAnimationPose( g_PreviewAnimation_PSP, 0 ) &&
+	    g_PreviewSkinningBuffer_PSP.Skin( g_PreviewSkeletonInstance_PSP );
+	if ( !bReady )
+		UnloadPreviewModel_PSP();
+	return bReady;
 }
 
 static TBOOL TestProbeSkeletonFile_PSP()
@@ -1732,6 +1765,7 @@ int main()
 	const TBOOL bLoopAnimationReady = bAnimationReady && TestLoopingAnimation_PSP();
 	const TBOOL bSkinningReady = bLoopAnimationReady && TestProbeSkinning_PSP();
 	const TBOOL bAnimationBudgetReady = bSkinningReady && TestAnimationBudgets_PSP();
+	const TBOOL bPreviewReady = bAnimationBudgetReady && LoadPreviewModel_PSP();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
 	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
 	    "probe.texture",
@@ -1782,10 +1816,10 @@ int main()
 		pCachedFont,
 		&g_LocaleManager_PSP,
 		pCachedModel,
-		bSkinningReady ? &g_ProbeSkinnedModel_PSP : TNULL,
-		bSkinningReady ? &g_ProbeSkinningBuffer_PSP : TNULL,
-		bSkinningReady ? &g_ProbeSkeletonInstance_PSP : TNULL,
-		bSkinningReady ? &g_ProbeAnimation_PSP : TNULL,
+		bPreviewReady ? &g_PreviewModel_PSP : ( bSkinningReady ? &g_ProbeSkinnedModel_PSP : TNULL ),
+		bPreviewReady ? &g_PreviewSkinningBuffer_PSP : ( bSkinningReady ? &g_ProbeSkinningBuffer_PSP : TNULL ),
+		bPreviewReady ? &g_PreviewSkeletonInstance_PSP : ( bSkinningReady ? &g_ProbeSkeletonInstance_PSP : TNULL ),
+		bPreviewReady ? &g_PreviewAnimation_PSP : ( bSkinningReady ? &g_ProbeAnimation_PSP : TNULL ),
 		&g_ProbeMaterial_PSP,
 		TFALSE,
 		bMeshReady,
@@ -1844,6 +1878,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP animation] loop      %s\n", bLoopAnimationReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] skinning  %s\n", bSkinningReady ? "probe_skinned.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] budgets   %s\n", bAnimationBudgetReady ? "OK" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP animation] preview   %s\n", bPreviewReady ? "barnyard_preview" : "inactive" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
@@ -1942,6 +1977,7 @@ int main()
 	    g_uiLoadedStreams_PSP
 	);
 	g_ResourceCache_PSP.Clear();
+	UnloadPreviewModel_PSP();
 	g_ProbeSkinningBuffer_PSP.Destroy();
 	g_ProbeSkeletonInstance_PSP.Destroy();
 	g_ProbeSkinnedModel_PSP.Unload();
