@@ -129,9 +129,23 @@ def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
 
     vertices: list[tuple[list[float], list[float], int, tuple[int, int, int, int]]] = []
     indices: list[int] = []
+    material_name: str | None = None
     for mesh_index, mesh in enumerate(lod["meshes"]):
         if not isinstance(mesh, dict) or not isinstance(mesh.get("submeshes"), list):
             raise ValueError(f"mesh {mesh_index} requires submeshes")
+        material = mesh.get("material")
+        if not isinstance(material, str) or not material:
+            raise ValueError(f"mesh {mesh_index} requires a material name")
+        try:
+            material.encode("ascii")
+        except UnicodeEncodeError as error:
+            raise ValueError(f"mesh {mesh_index} material name must be ASCII") from error
+        if material_name is None:
+            material_name = material
+        elif material.casefold() != material_name.casefold():
+            raise ValueError(
+                f"PSP PMES preview supports one material; found {material_name!r} and {material!r}"
+            )
         for submesh_index, submesh in enumerate(mesh["submeshes"]):
             if not isinstance(submesh, dict) or not isinstance(submesh.get("bone_palette"), list) or not isinstance(submesh.get("vertices"), list):
                 raise ValueError(f"mesh {mesh_index} submesh {submesh_index} is incomplete")

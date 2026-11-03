@@ -35,6 +35,7 @@ class TMDPSPBridgeTests(unittest.TestCase):
                     "shader": "skin",
                     "meshes": [
                         {
+                            "material": "probe",
                             "submeshes": [
                                 {
                                     "bone_palette": [0],
