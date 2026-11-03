@@ -2,6 +2,7 @@
 
 #include <Toshi/Typedefs.h>
 #include <Platform/PSP/TRenderMemory_PSP.h>
+#include <Platform/PSP/TAnimationMemory_PSP.h>
 
 struct APortReportData_PSP
 {
@@ -35,10 +36,12 @@ struct APortReportData_PSP
 	TBOOL bSkeletonPoseReady;
 	TBOOL bAnimationReady;
 	TBOOL bSkinningReady;
+	TBOOL bAnimationBudgetReady;
 	TBOOL bCacheReady;
 	TBOOL bSchedulerReady;
 	TUINT uiFrameCount;
 	Toshi::TRenderMemoryStats_PSP oMemory;
+	Toshi::TAnimationMemoryStats_PSP oAnimation;
 };
 
 class APortReport_PSP

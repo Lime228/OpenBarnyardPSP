@@ -278,7 +278,37 @@ static TBOOL TestProbeSkinning_PSP()
 	if ( pSecondBuffer == TNULL || pSecondBuffer == pFirstBuffer )
 		return TFALSE;
 	const auto* pSecondVertices = static_cast<const Toshi::TModelTextureVertex_PSP*>( pSecondBuffer->GetData() );
-	return IsAnimationValueNear_PSP( pSecondVertices[ 0 ].fY, 1.5f );
+	const Toshi::TAnimationMemoryStats_PSP oStats = Toshi::TAnimationMemory_PSP::GetStats();
+	return IsAnimationValueNear_PSP( pSecondVertices[ 0 ].fY, 1.5f ) &&
+	       oStats.uiSampleCurrent == 96 &&
+	       oStats.uiInstanceCount == 2 &&
+	       oStats.uiSkinnedModelCount == 1 &&
+	       oStats.uiAnimatedVertices == 6 &&
+	       oStats.uiProfiledPoseCount >= 6 &&
+	       oStats.uiProfiledSkinCount >= 2;
+}
+
+static TBOOL TestAnimationBudgets_PSP()
+{
+	Toshi::TSkeletonInstance_PSP aInstances[ 7 ];
+	TBOOL bCreated = TTRUE;
+	for ( TUINT32 i = 0; i < 6; i++ )
+		bCreated = aInstances[ i ].Create( &g_ProbeSkeleton_PSP ) && bCreated;
+	const TBOOL bInstanceRejected = !aInstances[ 6 ].Create( &g_ProbeSkeleton_PSP );
+	for ( TUINT32 i = 0; i < 6; i++ )
+		aInstances[ i ].Destroy();
+
+	const TBOOL bSamplesRejected = !Toshi::TAnimationMemory_PSP::ReserveSamples(
+	    Toshi::TAnimationMemory_PSP::SAMPLE_BUDGET
+	);
+	const TBOOL bVerticesRejected = !Toshi::TAnimationMemory_PSP::ReserveSkinning(
+	    Toshi::TAnimationMemory_PSP::ANIMATED_VERTEX_BUDGET
+	);
+	const Toshi::TAnimationMemoryStats_PSP oStats = Toshi::TAnimationMemory_PSP::GetStats();
+	return bCreated && bInstanceRejected && bSamplesRejected && bVerticesRejected &&
+	       oStats.uiInstanceCount == 2 &&
+	       oStats.uiSkinnedModelCount == 1 &&
+	       oStats.uiAnimatedVertices == 6;
 }
 
 static TBOOL SubmitBootstrapWave_PSP()
@@ -1644,6 +1674,7 @@ int main()
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
 	const TBOOL bSkinningReady = bAnimationReady && TestProbeSkinning_PSP();
+	const TBOOL bAnimationBudgetReady = bSkinningReady && TestAnimationBudgets_PSP();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
 	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
 	    "probe.texture",
@@ -1716,6 +1747,7 @@ int main()
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
 	                              bMeshReady && bModelReady && bSkeletonReady &&
 	                              bSkeletonPoseReady && bAnimationReady && bSkinningReady &&
+	                              bAnimationBudgetReady &&
 	                              bCacheReady;
 	oRenderContext.bBootstrapReady = bBootstrapReady;
 	TDebug_FinalPrintf( "[PSP render] texture     %s\n", bTextureReady ? "OK" : "FAILED" );
@@ -1753,9 +1785,11 @@ int main()
 	TDebug_FinalPrintf( "[PSP animation] bind pose %s\n", bSkeletonPoseReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] clip      %s\n", bAnimationReady ? "probe.panm" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] skinning  %s\n", bSkinningReady ? "probe_skinned.pmes" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP animation] budgets   %s\n", bAnimationBudgetReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
+	const Toshi::TAnimationMemoryStats_PSP oAnimationStats = Toshi::TAnimationMemory_PSP::GetStats();
 	TDebug_FinalPrintf(
 	    "[PSP memory] main %u/%u peak %u, edram %u/%u\n",
 	    TUINT( oMemoryStats.uiMainCurrent ),
@@ -1763,6 +1797,25 @@ int main()
 	    TUINT( oMemoryStats.uiMainPeak ),
 	    TUINT( oMemoryStats.uiEDRAMCurrent ),
 	    TUINT( oMemoryStats.uiEDRAMBudget )
+	);
+	TDebug_FinalPrintf(
+	    "[PSP animation] samples %u/%u peak %u, instances %u/%u, skin %u/%u vertices %u/%u\n",
+	    TUINT( oAnimationStats.uiSampleCurrent ),
+	    TUINT( oAnimationStats.uiSampleBudget ),
+	    TUINT( oAnimationStats.uiSamplePeak ),
+	    oAnimationStats.uiInstanceCount,
+	    oAnimationStats.uiInstanceBudget,
+	    oAnimationStats.uiSkinnedModelCount,
+	    oAnimationStats.uiSkinnedModelBudget,
+	    oAnimationStats.uiAnimatedVertices,
+	    oAnimationStats.uiAnimatedVertexBudget
+	);
+	TDebug_FinalPrintf(
+	    "[PSP animation] pose %u us max %u, skin %u us max %u\n",
+	    oAnimationStats.uiLastPoseMicroseconds,
+	    oAnimationStats.uiMaxPoseMicroseconds,
+	    oAnimationStats.uiLastSkinMicroseconds,
+	    oAnimationStats.uiMaxSkinMicroseconds
 	);
 	APortReportData_PSP oPortReport = {
 		"RUNNING",
@@ -1795,10 +1848,12 @@ int main()
 		bSkeletonPoseReady,
 		bAnimationReady,
 		bSkinningReady,
+		bAnimationBudgetReady,
 		bCacheReady,
 		bSchedulerReady,
 		0,
 		oMemoryStats,
+		oAnimationStats,
 	};
 	if ( bFileReady )
 		APortReport_PSP::Write( oPortReport );
@@ -1809,6 +1864,7 @@ int main()
 	oPortReport.uiFrameCount = oApplication.GetFrontendState().uiFrameCount;
 	oPortReport.uiStreamUnderruns = g_BootstrapStream_PSP.GetUnderrunCount();
 	oPortReport.oMemory = Toshi::TRenderMemory_PSP::GetStats();
+	oPortReport.oAnimation = Toshi::TAnimationMemory_PSP::GetStats();
 	if ( bFileReady )
 		APortReport_PSP::Write( oPortReport );
 
