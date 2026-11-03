@@ -113,6 +113,7 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertEqual(summary["bones"], 2)
             self.assertEqual(summary["frames"], 2)
             self.assertEqual(summary["sample_rate"], 20)
+            self.assertEqual(summary["material"], "probe")
             self.assertEqual(summary["texture_width"], 4)
             self.assertEqual(summary["texture_height"], 8)
             self.assertEqual(summary["texture_bytes"], 152)
