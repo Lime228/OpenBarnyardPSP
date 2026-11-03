@@ -32,6 +32,7 @@ jobs:
         run: |
           python3 Ports/PSP/Tools/convert_texture.py Ports/PSP/Assets/probe.ppm /tmp/probe.ptex
           python3 Ports/PSP/Tools/convert_mesh.py Ports/PSP/Assets/probe.obj /tmp/probe.pmes
+          python3 Ports/PSP/Tools/convert_mesh.py Ports/PSP/Assets/probe.obj /tmp/probe_skinned.pmes --skeleton Ports/PSP/Assets/probe_skeleton.json --weights Ports/PSP/Assets/probe_weights.json
           python3 Ports/PSP/Tools/convert_skeleton.py Ports/PSP/Assets/probe_skeleton.json /tmp/probe.pskl
           python3 Ports/PSP/Tools/convert_animation.py Ports/PSP/Assets/probe_skeleton.json Ports/PSP/Assets/probe_animation.json /tmp/probe.panm
           python3 Ports/PSP/Tools/generate_bootstrap_font.py Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.pfnt
@@ -49,6 +50,7 @@ jobs:
           python3 Ports/PSP/Tools/generate_wave_bank.py /tmp/bootstrap_audio.pbnk --wave bootstrap=local:bootstrap_audio.ppcm --wave ui_menuclick=local:ui_menuclick.ppcm --wave ui_menuback=local:ui_menuback.ppcm --wave ui_menuok=local:ui_menuok.ppcm --stream bootstrap_stream=local:bootstrap_stream.padp
           cmp Ports/PSP/Assets/probe.ptex /tmp/probe.ptex
           cmp Ports/PSP/Assets/probe.pmes /tmp/probe.pmes
+          cmp Ports/PSP/Assets/probe_skinned.pmes /tmp/probe_skinned.pmes
           cmp Ports/PSP/Assets/probe.pskl /tmp/probe.pskl
           cmp Ports/PSP/Assets/probe.panm /tmp/probe.panm
           cmp Ports/PSP/Assets/bootstrap_audio.pbnk /tmp/bootstrap_audio.pbnk
@@ -83,6 +85,7 @@ jobs:
             bin/PSP/Release/EBOOT.PBP
             bin/PSP/Release/probe.ptex
             bin/PSP/Release/probe.pmes
+            bin/PSP/Release/probe_skinned.pmes
             bin/PSP/Release/probe.pskl
             bin/PSP/Release/probe.panm
             bin/PSP/Release/bootstrap_font.ptex
