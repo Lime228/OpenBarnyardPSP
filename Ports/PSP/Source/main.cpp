@@ -132,6 +132,42 @@ static TBOOL LoadProbeSkinnedModelFile_PSP()
 	return g_ModelFactory_PSP.CreateModelFromFile( g_ProbeSkinnedModel_PSP, "local:probe_skinned.pmes" );
 }
 
+static TBOOL TestModelBounds_PSP( const Toshi::TModel_PSP& a_rModel )
+{
+	const Toshi::TModelBounds_PSP& rBounds = a_rModel.GetBounds();
+	if ( rBounds.aMin[ 0 ] != -1.0f || rBounds.aMin[ 1 ] != -1.0f || rBounds.aMin[ 2 ] != -1.0f ||
+	     rBounds.aMax[ 0 ] != 1.0f || rBounds.aMax[ 1 ] != 1.0f || rBounds.aMax[ 2 ] != 1.0f )
+	{
+		return TFALSE;
+	}
+
+	struct InvalidModelData_PSP
+	{
+		Toshi::TModelDataHeader_PSP oHeader;
+		Toshi::TModelVertex_PSP     oVertex;
+		Toshi::TIndexType           aIndices[ 3 ];
+	};
+	const InvalidModelData_PSP oInvalidData = {
+		{
+		    Toshi::TModelDataHeader_PSP::MAGIC,
+		    Toshi::TModelDataHeader_PSP::VERSION,
+		    1,
+		    3,
+		    sizeof( Toshi::TModelVertex_PSP ),
+		    Toshi::TMODELFORMAT_PSP_COLOUR_XYZ,
+		},
+		{ 0xffffffff, Toshi::TMath::FLOAT_NAN, 0.0f, 0.0f },
+		{ 0, 0, 0 },
+	};
+	Toshi::TModel_PSP oInvalidModel;
+	return !g_ModelFactory_PSP.CreateModelFromMemory(
+	    oInvalidModel,
+	    &oInvalidData,
+	    sizeof( Toshi::TModelDataHeader_PSP ) + sizeof( Toshi::TModelVertex_PSP ) +
+	        sizeof( oInvalidData.aIndices )
+	);
+}
+
 static void UnloadPreviewModel_PSP()
 {
 	g_PreviewSkinningBuffer_PSP.Destroy();
@@ -353,6 +389,7 @@ static TBOOL TestLoopingAnimation_PSP()
 static TBOOL TestProbeSkinning_PSP()
 {
 	if ( !LoadProbeSkinnedModelFile_PSP() ||
+	     !TestModelBounds_PSP( g_ProbeSkinnedModel_PSP ) ||
 	     !g_ProbeSkeletonInstance_PSP.Create( &g_ProbeSkeleton_PSP ) ||
 	     !g_ProbeSkinningBuffer_PSP.Create( &g_ProbeSkinnedModel_PSP, &g_ProbeSkeleton_PSP ) ||
 	     !g_ProbeSkeletonInstance_PSP.SetAnimationPose( g_ProbeAnimation_PSP, 0 ) ||
@@ -1767,7 +1804,8 @@ int main()
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
 	const TBOOL bFontReady      = bFontTextureReady && LoadFontFile_PSP();
 	const TBOOL bLocaleReady    = bFileReady && LoadLocaleFile_PSP();
-	const TBOOL bModelReady     = bFileReady && LoadProbeModelFile_PSP();
+	const TBOOL bModelReady = bFileReady && LoadProbeModelFile_PSP() &&
+	                          TestModelBounds_PSP( g_ProbeModel_PSP );
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
