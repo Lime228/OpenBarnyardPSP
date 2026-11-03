@@ -1,0 +1,16 @@
+{
+  "sample_rate": 2,
+  "loop": false,
+  "frames": [
+    {
+      "root": { "translation": [0.0, 0.0, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] },
+      "center": { "translation": [0.0, 0.5, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] },
+      "marker": { "translation": [0.0, 0.5, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] }
+    },
+    {
+      "root": { "translation": [0.0, 0.0, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] },
+      "center": { "translation": [0.0, 0.5, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] },
+      "marker": { "translation": [0.0, 1.0, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0] }
+    }
+  ]
+}
