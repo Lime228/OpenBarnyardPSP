@@ -10,6 +10,14 @@ import tempfile
 
 from convert_animation import convert as convert_animation
 from convert_tmd_dump import convert as convert_tmd_dump
+from convert_texture import (
+    PTEX_FORMAT_RGBA8888,
+    PTEX_FORMAT_RGBA8888_SWIZZLED,
+    PTEX_MAGIC,
+    PTEX_VERSION,
+    convert as convert_texture,
+    is_power_of_two,
+)
 
 
 def require_file(path: pathlib.Path, name: str) -> None:
@@ -55,7 +63,39 @@ def write_animation_skeleton(model_dump: pathlib.Path, destination: pathlib.Path
     destination.write_text(json.dumps({"bones": bones}, indent=2) + "\n", encoding="utf-8")
 
 
-def read_summary(mesh: pathlib.Path, skeleton: pathlib.Path, animation: pathlib.Path | None) -> dict[str, int]:
+def stage_texture(source: pathlib.Path, destination: pathlib.Path) -> None:
+    if source.suffix.casefold() == ".ppm":
+        convert_texture(source, destination)
+        return
+    if source.suffix.casefold() != ".ptex":
+        raise ValueError("preview texture must be an ASCII P3 PPM or a converted PTEX")
+
+    payload = source.read_bytes()
+    if len(payload) < 24:
+        raise ValueError("preview PTEX is smaller than its header")
+    magic, version, width, height, buffer_width, texture_format = struct.unpack("<6I", payload[:24])
+    if (
+        magic != PTEX_MAGIC
+        or version != PTEX_VERSION
+        or not is_power_of_two(width)
+        or not is_power_of_two(height)
+        or not is_power_of_two(buffer_width)
+        or width > buffer_width
+        or width > 512
+        or height > 512
+        or texture_format not in {PTEX_FORMAT_RGBA8888, PTEX_FORMAT_RGBA8888_SWIZZLED}
+        or len(payload) != 24 + buffer_width * height * 4
+    ):
+        raise ValueError("preview PTEX header or payload is invalid")
+    destination.write_bytes(payload)
+
+
+def read_summary(
+    mesh: pathlib.Path,
+    skeleton: pathlib.Path,
+    animation: pathlib.Path | None,
+    texture: pathlib.Path | None,
+) -> dict[str, int]:
     mesh_header = struct.unpack("<6I", mesh.read_bytes()[:24])
     skeleton_header = struct.unpack("<4I", skeleton.read_bytes()[:16])
     summary = {
@@ -74,6 +114,15 @@ def read_summary(mesh: pathlib.Path, skeleton: pathlib.Path, animation: pathlib.
                 "animation_bytes": animation.stat().st_size,
             }
         )
+    if texture is not None:
+        texture_header = struct.unpack("<6I", texture.read_bytes()[:24])
+        summary.update(
+            {
+                "texture_width": texture_header[2],
+                "texture_height": texture_header[3],
+                "texture_bytes": texture.stat().st_size,
+            }
+        )
     return summary
 
 
@@ -87,6 +136,7 @@ def run_pipeline(
     sample_rate: int = 30,
     keep_intermediate: bool = False,
     runtime_preview: bool = False,
+    preview_texture: pathlib.Path | None = None,
 ) -> dict[str, int]:
     require_file(tmdl, "TMDL executable")
     require_file(model, "model")
@@ -98,6 +148,8 @@ def run_pipeline(
         raise ValueError("sample rate must be between 1 and 60")
     if runtime_preview and sequence is None:
         raise ValueError("runtime preview requires a key library and sequence")
+    if preview_texture is not None:
+        require_file(preview_texture, "preview texture")
 
     output_name = safe_name(output_name)
 
@@ -110,6 +162,7 @@ def run_pipeline(
         if sequence is not None
         else None
     )
+    texture = output_directory / f"{asset_name}.ptex" if preview_texture is not None else None
 
     with tempfile.TemporaryDirectory(prefix="openbarnyard_psp_") as temporary_name:
         temporary = pathlib.Path(temporary_name)
@@ -141,6 +194,9 @@ def run_pipeline(
             write_animation_skeleton(model_dump, animation_skeleton)
             convert_animation(animation_skeleton, animation_dump, animation)
 
+        if preview_texture is not None and texture is not None:
+            stage_texture(preview_texture, texture)
+
         if keep_intermediate:
             intermediate = output_directory / f"{output_name}_intermediate"
             intermediate.mkdir(parents=True, exist_ok=True)
@@ -149,7 +205,7 @@ def run_pipeline(
                 shutil.copyfile(animation_dump, intermediate / "animation.json")
                 shutil.copyfile(animation_skeleton, intermediate / "skeleton.json")
 
-    return read_summary(mesh, skeleton, animation)
+    return read_summary(mesh, skeleton, animation, texture)
 
 
 def main() -> None:
@@ -160,6 +216,7 @@ def main() -> None:
     parser.add_argument("--name", help="output basename; defaults to the model filename")
     parser.add_argument("--keylib", type=pathlib.Path)
     parser.add_argument("--sequence")
+    parser.add_argument("--texture", type=pathlib.Path, help="ASCII P3 PPM or preconverted PTEX")
     parser.add_argument("--sample-rate", type=int, default=30)
     parser.add_argument("--keep-intermediate", action="store_true")
     parser.add_argument(
@@ -179,6 +236,7 @@ def main() -> None:
         args.sample_rate,
         args.keep_intermediate,
         args.runtime_preview,
+        args.texture,
     )
     print(json.dumps(summary, sort_keys=True))
 
