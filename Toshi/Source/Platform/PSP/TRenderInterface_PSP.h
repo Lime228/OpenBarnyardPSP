@@ -59,6 +59,7 @@ public:
 	void DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices );
 	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture = TNULL );
 	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const TRenderMaterial_PSP& a_rMaterial, const T2Texture* a_pTexture );
+	void DrawSkinnedModel( const TModel_PSP& a_rModel, const TVertexPoolResource_PSP& a_rVertices, TFLOAT a_fRotation, const TRenderMaterial_PSP& a_rMaterial, const T2Texture* a_pTexture );
 	void DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight );
 	void DrawTextureRegion(
 	    const T2Texture& a_rTexture,

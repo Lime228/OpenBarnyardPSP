@@ -13,6 +13,8 @@ static TUINT32 TModelGetVertexSize_PSP( TUINT32 a_uiFormat )
 			return sizeof( TModelVertex_PSP );
 		case TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ:
 			return sizeof( TModelTextureVertex_PSP );
+		case TMODELFORMAT_PSP_SKIN_TEXTURE_COLOUR_XYZ:
+			return sizeof( TModelSkinTextureVertex_PSP );
 		default:
 			return 0;
 	}
@@ -70,6 +72,20 @@ TBOOL TModel_PSP::Load()
 		return TFALSE;
 
 	const auto* pSourceBytes   = static_cast<const TUINT8*>( m_pData );
+	if ( pHeader->uiFormat == TMODELFORMAT_PSP_SKIN_TEXTURE_COLOUR_XYZ )
+	{
+		const auto* pSkinVertices = reinterpret_cast<const TModelSkinTextureVertex_PSP*>(
+		    pSourceBytes + sizeof( TModelDataHeader_PSP )
+		);
+		for ( TUINT32 i = 0; i < pHeader->uiVertexCount; i++ )
+		{
+			if ( pSkinVertices[ i ].uiReserved != 0 ||
+			     TUINT32( pSkinVertices[ i ].aBoneWeights[ 0 ] ) + pSkinVertices[ i ].aBoneWeights[ 1 ] != 255 )
+			{
+				return TFALSE;
+			}
+		}
+	}
 	const auto* pSourceIndices = reinterpret_cast<const TIndexType*>( pSourceBytes + sizeof( TModelDataHeader_PSP ) + uiVertexDataSize );
 	for ( TUINT32 i = 0; i < pHeader->uiIndexCount; i++ )
 	{

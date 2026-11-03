@@ -256,6 +256,61 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 		sceGuDisable( GU_TEXTURE_2D );
 }
 
+void TRenderInterface_PSP::DrawSkinnedModel(
+    const TModel_PSP& a_rModel,
+    const TVertexPoolResource_PSP& a_rVertices,
+    TFLOAT a_fRotation,
+    const TRenderMaterial_PSP& a_rMaterial,
+    const T2Texture* a_pTexture
+)
+{
+	const TIndexPoolResource_PSP& rIndices = a_rModel.GetIndices();
+	if ( !a_rModel.IsLoaded() ||
+	     a_rModel.GetFormat() != TMODELFORMAT_PSP_SKIN_TEXTURE_COLOUR_XYZ ||
+	     a_rVertices.GetVertexSize() != sizeof( TModelTextureVertex_PSP ) ||
+	     a_rVertices.GetNumVertices() != a_rModel.GetVertices().GetNumVertices() ||
+	     rIndices.GetNumIndices() == 0 ||
+	     ( a_rMaterial.bTextureEnabled && ( a_pTexture == TNULL || a_pTexture->GetImageData() == TNULL ) ) )
+	{
+		return;
+	}
+
+	if ( a_rMaterial.bTextureEnabled )
+	{
+		TRenderSetTexture_PSP( *a_pTexture, TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ) );
+		sceGuTexScale( TFLOAT( a_pTexture->GetWidth() ), TFLOAT( a_pTexture->GetHeight() ) );
+	}
+	else
+		sceGuDisable( GU_TEXTURE_2D );
+	TRenderSetCullMode_PSP( a_rMaterial.eCullMode );
+	sceGuEnable( GU_DEPTH_TEST );
+
+	sceGumMatrixMode( GU_PROJECTION );
+	sceGumLoadIdentity();
+	sceGumPerspective( 45.0f, TFLOAT( SCREEN_WIDTH ) / TFLOAT( SCREEN_HEIGHT ), 0.1f, 100.0f );
+	sceGumMatrixMode( GU_VIEW );
+	sceGumLoadIdentity();
+	sceGumMatrixMode( GU_MODEL );
+	sceGumLoadIdentity();
+
+	const ScePspFVector3 oTranslation = { 0.0f, 0.0f, -3.25f };
+	const ScePspFVector3 oRotation = { a_fRotation * 0.5f, a_fRotation, 0.0f };
+	sceGumTranslate( &oTranslation );
+	sceGumRotateXYZ( &oRotation );
+	sceGumDrawArray(
+	    GU_TRIANGLES,
+	    GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D,
+	    rIndices.GetNumIndices(),
+	    rIndices.GetData(),
+	    a_rVertices.GetData()
+	);
+
+	sceGuDisable( GU_DEPTH_TEST );
+	sceGuDisable( GU_CULL_FACE );
+	if ( a_rMaterial.bTextureEnabled )
+		sceGuDisable( GU_TEXTURE_2D );
+}
+
 void TRenderInterface_PSP::DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight )
 {
 	TASSERT( a_rTexture.GetImageData() != TNULL );

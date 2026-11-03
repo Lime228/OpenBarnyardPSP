@@ -8,6 +8,7 @@ enum TModelFormat_PSP : TUINT32
 {
 	TMODELFORMAT_PSP_COLOUR_XYZ         = 0,
 	TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ = 1,
+	TMODELFORMAT_PSP_SKIN_TEXTURE_COLOUR_XYZ = 2,
 };
 
 struct TModelDataHeader_PSP
@@ -41,9 +42,23 @@ struct TModelTextureVertex_PSP
 	TFLOAT  fZ;
 };
 
+struct TModelSkinTextureVertex_PSP
+{
+	TFLOAT  fU;
+	TFLOAT  fV;
+	TUINT32 uiColour;
+	TFLOAT  fX;
+	TFLOAT  fY;
+	TFLOAT  fZ;
+	TUINT8  aBoneIndices[ 2 ];
+	TUINT8  aBoneWeights[ 2 ];
+	TUINT32 uiReserved;
+};
+
 static_assert( sizeof( TModelDataHeader_PSP ) == 24, "Unexpected PSP model header layout" );
 static_assert( sizeof( TModelVertex_PSP ) == 16, "Unexpected PSP model vertex layout" );
 static_assert( sizeof( TModelTextureVertex_PSP ) == 24, "Unexpected PSP textured model vertex layout" );
+static_assert( sizeof( TModelSkinTextureVertex_PSP ) == 32, "Unexpected PSP skinned model vertex layout" );
 
 class TModel_PSP
 {
