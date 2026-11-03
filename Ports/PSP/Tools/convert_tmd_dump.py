@@ -119,20 +119,18 @@ def triangulate_strip(indices: object, vertex_count: int) -> list[int]:
     return triangles
 
 
-def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
+def get_material_name(document: dict[str, object]) -> str:
     lods = document.get("lods")
     if not isinstance(lods, list) or not lods or not isinstance(lods[0], dict):
         raise ValueError("dump requires LOD0")
-    lod = lods[0]
-    if lod.get("shader") != "skin" or not isinstance(lod.get("meshes"), list):
-        raise ValueError("LOD0 must use the skin shader and contain meshes")
+    meshes = lods[0].get("meshes")
+    if not isinstance(meshes, list) or not meshes:
+        raise ValueError("LOD0 requires meshes")
 
-    vertices: list[tuple[list[float], list[float], int, tuple[int, int, int, int]]] = []
-    indices: list[int] = []
     material_name: str | None = None
-    for mesh_index, mesh in enumerate(lod["meshes"]):
-        if not isinstance(mesh, dict) or not isinstance(mesh.get("submeshes"), list):
-            raise ValueError(f"mesh {mesh_index} requires submeshes")
+    for mesh_index, mesh in enumerate(meshes):
+        if not isinstance(mesh, dict):
+            raise ValueError(f"mesh {mesh_index} must be an object")
         material = mesh.get("material")
         if not isinstance(material, str) or not material:
             raise ValueError(f"mesh {mesh_index} requires a material name")
@@ -146,6 +144,25 @@ def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
             raise ValueError(
                 f"PSP PMES preview supports one material; found {material_name!r} and {material!r}"
             )
+    if material_name is None:
+        raise ValueError("LOD0 requires meshes")
+    return material_name
+
+
+def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
+    lods = document.get("lods")
+    if not isinstance(lods, list) or not lods or not isinstance(lods[0], dict):
+        raise ValueError("dump requires LOD0")
+    lod = lods[0]
+    if lod.get("shader") != "skin" or not isinstance(lod.get("meshes"), list):
+        raise ValueError("LOD0 must use the skin shader and contain meshes")
+    get_material_name(document)
+
+    vertices: list[tuple[list[float], list[float], int, tuple[int, int, int, int]]] = []
+    indices: list[int] = []
+    for mesh_index, mesh in enumerate(lod["meshes"]):
+        if not isinstance(mesh, dict) or not isinstance(mesh.get("submeshes"), list):
+            raise ValueError(f"mesh {mesh_index} requires submeshes")
         for submesh_index, submesh in enumerate(mesh["submeshes"]):
             if not isinstance(submesh, dict) or not isinstance(submesh.get("bone_palette"), list) or not isinstance(submesh.get("vertices"), list):
                 raise ValueError(f"mesh {mesh_index} submesh {submesh_index} is incomplete")

@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 
 from convert_animation import convert as convert_animation
-from convert_tmd_dump import convert as convert_tmd_dump
+from convert_tmd_dump import convert as convert_tmd_dump, get_material_name
 from convert_texture import (
     PTEX_FORMAT_RGBA8888,
     PTEX_FORMAT_RGBA8888_SWIZZLED,
@@ -95,7 +95,7 @@ def read_summary(
     skeleton: pathlib.Path,
     animation: pathlib.Path | None,
     texture: pathlib.Path | None,
-) -> dict[str, int]:
+) -> dict[str, int | str]:
     mesh_header = struct.unpack("<6I", mesh.read_bytes()[:24])
     skeleton_header = struct.unpack("<4I", skeleton.read_bytes()[:16])
     summary = {
@@ -137,7 +137,7 @@ def run_pipeline(
     keep_intermediate: bool = False,
     runtime_preview: bool = False,
     preview_texture: pathlib.Path | None = None,
-) -> dict[str, int]:
+) -> dict[str, int | str]:
     require_file(tmdl, "TMDL executable")
     require_file(model, "model")
     if (key_library is None) != (sequence is None):
@@ -169,6 +169,10 @@ def run_pipeline(
         model_dump = temporary / "model.json"
         subprocess.run([str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)], check=True)
         convert_tmd_dump(model_dump, mesh, skeleton)
+        model_document = json.loads(model_dump.read_text(encoding="utf-8"))
+        if not isinstance(model_document, dict):
+            raise ValueError("TMD dump root must be an object")
+        material_name = get_material_name(model_document)
 
         animation_dump = None
         animation_skeleton = None
@@ -205,7 +209,9 @@ def run_pipeline(
                 shutil.copyfile(animation_dump, intermediate / "animation.json")
                 shutil.copyfile(animation_skeleton, intermediate / "skeleton.json")
 
-    return read_summary(mesh, skeleton, animation, texture)
+    summary = read_summary(mesh, skeleton, animation, texture)
+    summary["material"] = material_name
+    return summary
 
 
 def main() -> None:
