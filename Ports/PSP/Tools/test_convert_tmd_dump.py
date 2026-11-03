@@ -22,6 +22,32 @@ class TMDPSPBridgeTests(unittest.TestCase):
         self.assertEqual(triangulate_strip([0, 1, 2, 3], 4), [0, 1, 2, 2, 1, 3])
         self.assertEqual(triangulate_strip([0, 1, 1, 2, 3], 4), [1, 2, 3])
 
+    def test_rejects_multiple_materials_in_single_preview(self) -> None:
+        vertex = {
+            "position": [0.0, 0.0, 0.0],
+            "uv": [0.0, 0.0],
+            "bones": [0, 0, 0, 0],
+            "weights": [255, 0, 0, 0],
+        }
+        submesh = {
+            "bone_palette": [0],
+            "vertices": [vertex, vertex, vertex],
+            "triangle_strip": [0, 1, 2],
+        }
+        document = {
+            "lods": [
+                {
+                    "shader": "skin",
+                    "meshes": [
+                        {"material": "body", "submeshes": [submesh]},
+                        {"material": "eyes", "submeshes": [submesh]},
+                    ],
+                }
+            ]
+        }
+        with self.assertRaisesRegex(ValueError, "supports one material.*body.*eyes"):
+            build_mesh(document, 1)
+
     def test_rejects_mesh_above_runtime_skinning_budget(self) -> None:
         vertex = {
             "position": [0.0, 0.0, 0.0],
