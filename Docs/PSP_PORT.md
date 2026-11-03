@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-03)
 
 The PSP platform/render bring-up is approximately **89%** complete, while the
-complete playable-game port is approximately **65%** complete. The second value
+complete playable-game port is approximately **66%** complete. The second value
 is intentionally much lower: a compiling probe does not yet include the real
 game states, Barnyard asset conversion, animation, complete audio, UI, world
 streaming, or gameplay validation on hardware.
@@ -24,12 +24,12 @@ streaming, or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 61% | GU display, depth, indexed static/skinned models, textures, materials, alpha-blended atlas fonts, budgets and bounded factories build for PSP |
+| PSP renderer foundation | 62% | GU display, depth, indexed static/skinned models, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
 | Real-game asset pipeline | 48% | deterministic converters accept textures, static/skinned meshes, bounded skeleton/animation JSON and PCM16 stereo WAV input and produce PTEX, PMES, PSKL, PANM, PFNT, PLOC, resident PPCM, streamed PADP and PBNK assets |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 15% | bounded skeletons, sampled clips, hierarchical poses and two-weight CPU skinning run; rooms and player simulation are not loaded |
+| World, animation and gameplay | 17% | bounded skeletons, sampled clips, hierarchical poses and budgeted/profiled two-weight CPU skinning run; rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -243,6 +243,14 @@ remain largely unstarted.
 - The animated frontend probe replaces the static octahedron when all animation
   gates pass. Its top vertex follows the `marker` bone from Y `1.0` to `1.5`
   and back, while the remaining vertices stay bound to `root`.
+- `TAnimationMemory_PSP` enforces independent ceilings of 2 MiB of persistent
+  clip samples, eight skeleton instances, four active skinned models and 8,192
+  animated vertices. Reservation failures occur before allocation, partial
+  creates roll back their counters and every owner releases its exact amount.
+- Successful pose and skin passes record last/max microseconds using the PSP
+  system clock. The report also publishes current/peak sample bytes, active
+  instance/model counts, animated vertices and profiled sample counts, keeping
+  emulator measurements visibly separate from future real-hardware numbers.
 - `TRenderInterface_PSP::DrawModel` supplies the minimal GUM projection, view,
   and model transforms, clears and enables the 16-bit depth buffer for the 3D
   draw, then restores the depth-test state used by the independent 2D probes.
@@ -886,6 +894,15 @@ remain largely unstarted.
   `33bafcd77bdb46074466cf15dac91ace0577962d4e72884aea9bac6f4ec6293b`,
   bundle `Runtime/PSP/51dfabfe`, single process PID `13592`. The animated probe
   remained responsive to background D-pad, Cross and Circle input.
+- Commit `e983bc37` passed PSP run `41672008108`. The runtime gate filled all
+  remaining skeleton-instance slots, verified the ninth reservation failed,
+  rejected over-budget sample and vertex requests, then returned exactly to
+  two instances, one skinned model and six animated vertices. PPSSPP reported
+  `animation_budget=OK`, pose last/max `12/13 us`, skin last/max `7/7 us`,
+  96 bytes of resident clip samples and every previous gate `OK`; artifact
+  SHA-256 `a273f7debb9b18240612b9b717f34582ebc11856b361ac701c2358d4080edb16`,
+  bundle `Runtime/PSP/e983bc37`, single process PID `23260`. A three-second
+  animated frontend pass and background navigation remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -893,10 +910,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, instrument CPU pose/skinning time and set explicit active-character,
-animated-vertex and animation-resource budgets before loading a larger test
-character. Then begin an offline bridge from the original TMD skeleton/mesh
-content into PSKL/PANM/PMES rather than expanding the runtime parser. Keep track selection explicitly
+Next, begin a host-only bridge from the existing `TTMDWin::Vertex` and TRB mesh
+metadata into PSKL/PANM/PMES, initially exporting one LOD and reducing four PC
+influences to the two strongest normalized PSP weights. Do not add the relocatable
+desktop TMD/TRB parser to the EBOOT. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
 independent stream state has a measured PSP memory budget. Continue bridging the bounded
