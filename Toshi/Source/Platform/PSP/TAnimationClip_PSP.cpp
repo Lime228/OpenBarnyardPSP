@@ -158,15 +158,24 @@ TBOOL TAnimationClip_PSP::SampleBone( TUINT32 a_uiBone, TUINT a_uiTimeMillisecon
 	if ( m_pSamples == TNULL || a_uiBone >= m_uiBoneCount )
 		return TFALSE;
 
-	const TUINT64 uiLastFramePosition = TUINT64( m_uiFrameCount - 1 ) * 1000;
 	TUINT64 uiFramePosition = TUINT64( a_uiTimeMilliseconds ) * m_uiSampleRate;
-	if ( IsLooping() && uiLastFramePosition != 0 )
-		uiFramePosition %= uiLastFramePosition;
-	else if ( uiFramePosition > uiLastFramePosition )
-		uiFramePosition = uiLastFramePosition;
-
-	const TUINT32 uiFrame = TUINT32( uiFramePosition / 1000 );
-	const TUINT32 uiNextFrame = uiFrame + 1 < m_uiFrameCount ? uiFrame + 1 : uiFrame;
+	TUINT32 uiFrame;
+	TUINT32 uiNextFrame;
+	if ( IsLooping() )
+	{
+		const TUINT64 uiLoopFramePosition = TUINT64( m_uiFrameCount ) * 1000;
+		uiFramePosition %= uiLoopFramePosition;
+		uiFrame = TUINT32( uiFramePosition / 1000 );
+		uiNextFrame = uiFrame + 1 < m_uiFrameCount ? uiFrame + 1 : 0;
+	}
+	else
+	{
+		const TUINT64 uiLastFramePosition = TUINT64( m_uiFrameCount - 1 ) * 1000;
+		if ( uiFramePosition > uiLastFramePosition )
+			uiFramePosition = uiLastFramePosition;
+		uiFrame = TUINT32( uiFramePosition / 1000 );
+		uiNextFrame = uiFrame + 1 < m_uiFrameCount ? uiFrame + 1 : uiFrame;
+	}
 	const TFLOAT fProgress = TFLOAT( uiFramePosition % 1000 ) * 0.001f;
 	const TAnimationSample_PSP* pFrom = GetSample( uiFrame, a_uiBone );
 	const TAnimationSample_PSP* pTo = GetSample( uiNextFrame, a_uiBone );
