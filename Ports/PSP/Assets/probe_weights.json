@@ -1,0 +1,6 @@
+{
+  "weights": {
+    "default": [["root", 1.0]],
+    "1": [["marker", 1.0]]
+  }
+}

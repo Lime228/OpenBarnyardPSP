@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import pathlib
 import struct
+
+from convert_skeleton import read_bones
 
 
 PMES_MAGIC = 0x53454D50
 PMES_VERSION = 1
 PMES_FORMAT_COLOUR_XYZ = 0
 PMES_FORMAT_TEXTURE_COLOUR_XYZ = 1
+PMES_FORMAT_SKIN_TEXTURE_COLOUR_XYZ = 2
 PMES_COLOUR_VERTEX_SIZE = 16
 PMES_TEXTURE_VERTEX_SIZE = 24
+PMES_SKIN_TEXTURE_VERTEX_SIZE = 32
 MAX_ELEMENT_COUNT = 0xFFFF
 
 COLOURS = (
@@ -47,7 +52,7 @@ def parse_vertex_reference(token: str, position_count: int, texture_count: int) 
     return position, texture
 
 
-def read_obj(path: pathlib.Path) -> tuple[list[tuple[float, ...]], list[int], bool]:
+def read_obj(path: pathlib.Path) -> tuple[list[tuple[float, ...]], list[int], bool, list[int]]:
     positions: list[tuple[float, float, float]] = []
     textures: list[tuple[float, float]] = []
     faces: list[tuple[int, list[str]]] = []
@@ -83,6 +88,7 @@ def read_obj(path: pathlib.Path) -> tuple[list[tuple[float, ...]], list[int], bo
         raise ValueError("OBJ cannot mix textured and untextured face vertices")
 
     indices: list[int] = []
+    vertex_positions: list[int] = []
     if has_texture:
         vertices: list[tuple[float, ...]] = []
         vertex_lookup: dict[tuple[int, int | None], int] = {}
@@ -96,11 +102,13 @@ def read_obj(path: pathlib.Path) -> tuple[list[tuple[float, ...]], list[int], bo
                     u, v = textures[texture_index]
                     vertex_lookup[reference] = len(vertices)
                     vertices.append((u, v, x, y, z))
+                    vertex_positions.append(position_index)
                 converted_face.append(vertex_lookup[reference])
             for offset in range(1, len(converted_face) - 1):
                 indices.extend((converted_face[0], converted_face[offset], converted_face[offset + 1]))
     else:
         vertices = list(positions)
+        vertex_positions = list(range(len(positions)))
         for face in references:
             converted_face = [position for position, _ in face]
             for offset in range(1, len(converted_face) - 1):
@@ -108,13 +116,59 @@ def read_obj(path: pathlib.Path) -> tuple[list[tuple[float, ...]], list[int], bo
 
     if len(vertices) > MAX_ELEMENT_COUNT or len(indices) > MAX_ELEMENT_COUNT:
         raise ValueError("PSP mesh exceeds the 16-bit vertex/index limit")
-    return vertices, indices, has_texture
+    return vertices, indices, has_texture, vertex_positions
 
 
-def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
-    vertices, indices, has_texture = read_obj(source)
-    vertex_size = PMES_TEXTURE_VERTEX_SIZE if has_texture else PMES_COLOUR_VERTEX_SIZE
-    mesh_format = PMES_FORMAT_TEXTURE_COLOUR_XYZ if has_texture else PMES_FORMAT_COLOUR_XYZ
+def read_skin(
+    skeleton_path: pathlib.Path,
+    weights_path: pathlib.Path,
+    vertex_positions: list[int],
+) -> list[tuple[int, int, int, int]]:
+    bone_names = [bone[0] for bone in read_bones(skeleton_path)]
+    bone_indices = {name.casefold(): index for index, name in enumerate(bone_names)}
+    document = json.loads(weights_path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict) or not isinstance(document.get("weights"), dict):
+        raise ValueError("skin file requires a weights object")
+    source_weights = document["weights"]
+    default = source_weights.get("default")
+
+    result: list[tuple[int, int, int, int]] = []
+    for position in vertex_positions:
+        influences = source_weights.get(str(position + 1), default)
+        if not isinstance(influences, list) or not 1 <= len(influences) <= 2:
+            raise ValueError(f"OBJ position {position + 1} requires one or two influences")
+        parsed: list[tuple[int, float]] = []
+        for influence in influences:
+            if not isinstance(influence, list) or len(influence) != 2 or not isinstance(influence[0], str):
+                raise ValueError(f"invalid influence for OBJ position {position + 1}")
+            bone = bone_indices.get(influence[0].casefold())
+            weight = float(influence[1])
+            if bone is None or weight <= 0.0:
+                raise ValueError(f"invalid bone or weight for OBJ position {position + 1}")
+            parsed.append((bone, weight))
+        total = sum(weight for _, weight in parsed)
+        if total <= 0.0:
+            raise ValueError(f"zero total weight for OBJ position {position + 1}")
+        first_weight = round(parsed[0][1] * 255.0 / total) if len(parsed) == 2 else 255
+        first_weight = max(0, min(255, first_weight))
+        second_bone = parsed[1][0] if len(parsed) == 2 else 0
+        result.append((parsed[0][0], second_bone, first_weight, 255 - first_weight))
+    return result
+
+
+def convert(
+    source: pathlib.Path,
+    destination: pathlib.Path,
+    skeleton_path: pathlib.Path | None = None,
+    weights_path: pathlib.Path | None = None,
+) -> None:
+    vertices, indices, has_texture, vertex_positions = read_obj(source)
+    has_skin = skeleton_path is not None or weights_path is not None
+    if has_skin and (skeleton_path is None or weights_path is None or not has_texture):
+        raise ValueError("skinned conversion requires a textured OBJ, skeleton, and weights")
+    skin = read_skin(skeleton_path, weights_path, vertex_positions) if has_skin else []
+    vertex_size = PMES_SKIN_TEXTURE_VERTEX_SIZE if has_skin else PMES_TEXTURE_VERTEX_SIZE if has_texture else PMES_COLOUR_VERTEX_SIZE
+    mesh_format = PMES_FORMAT_SKIN_TEXTURE_COLOUR_XYZ if has_skin else PMES_FORMAT_TEXTURE_COLOUR_XYZ if has_texture else PMES_FORMAT_COLOUR_XYZ
     header = struct.pack(
         "<6I",
         PMES_MAGIC,
@@ -130,7 +184,11 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
         colour = COLOURS[index % len(COLOURS)]
         if has_texture:
             u, v, x, y, z = vertex
-            payload.extend(struct.pack("<ffIfff", u, v, colour, x, y, z))
+            if has_skin:
+                bone0, bone1, weight0, weight1 = skin[index]
+                payload.extend(struct.pack("<ffIfff4BI", u, v, colour, x, y, z, bone0, bone1, weight0, weight1, 0))
+            else:
+                payload.extend(struct.pack("<ffIfff", u, v, colour, x, y, z))
         else:
             x, y, z = vertex
             payload.extend(struct.pack("<Ifff", colour, x, y, z))
@@ -144,8 +202,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Convert a static OBJ mesh to OpenBarnyard PSP PMES")
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
+    parser.add_argument("--skeleton", type=pathlib.Path)
+    parser.add_argument("--weights", type=pathlib.Path)
     args = parser.parse_args()
-    convert(args.source, args.destination)
+    convert(args.source, args.destination, args.skeleton, args.weights)
 
 
 if __name__ == "__main__":
