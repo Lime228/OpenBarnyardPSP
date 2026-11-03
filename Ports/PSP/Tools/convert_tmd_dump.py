@@ -16,6 +16,7 @@ PSKL_VERSION = 1
 PSKL_BONE_SIZE = 64
 MAX_BONE_COUNT = 64
 MAX_ELEMENT_COUNT = 0xFFFF
+MAX_ANIMATED_VERTEX_COUNT = 8192
 MAX_NAME_LENGTH = 31
 
 
@@ -140,6 +141,10 @@ def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
             source_vertices = submesh["vertices"]
             base_vertex = len(vertices)
             for vertex_index, vertex in enumerate(source_vertices):
+                if len(vertices) >= MAX_ANIMATED_VERTEX_COUNT:
+                    raise ValueError(
+                        f"converted TMD LOD exceeds the PSP {MAX_ANIMATED_VERTEX_COUNT}-vertex skinning budget"
+                    )
                 if not isinstance(vertex, dict):
                     raise ValueError(f"vertex {vertex_index} must be an object")
                 position = vector(vertex.get("position"), 3, f"vertex {vertex_index} position")
@@ -152,7 +157,7 @@ def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
             local_indices = triangulate_strip(submesh.get("triangle_strip"), len(source_vertices))
             indices.extend(base_vertex + index for index in local_indices)
 
-    if not vertices or len(vertices) > MAX_ELEMENT_COUNT or len(indices) > MAX_ELEMENT_COUNT:
+    if not vertices or len(indices) > MAX_ELEMENT_COUNT:
         raise ValueError("converted TMD LOD exceeds PSP 16-bit element limits")
     payload = bytearray(
         struct.pack(
