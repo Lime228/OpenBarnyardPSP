@@ -29,7 +29,7 @@ streaming, or gameplay validation on hardware.
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 40% | `AApplication_PSP` owns explicit frame phases, cached font/locale resources and a bounded `AGUIAudioContext_PSP` bridge with navigation, confirm and cancel cues routed through the sound manager |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 3% | a bounded bind-pose skeleton resource loads and validates; animation clips, skinning, rooms and player simulation are not loaded |
+| World, animation and gameplay | 5% | a bounded skeleton resource and allocation-free hierarchical bind-pose instance run; animation clips, skinning, rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -214,6 +214,10 @@ remain largely unstarted.
   to `PSKL`, resolves parents by name, normalizes quaternions offline and rejects
   forward parent references. `TSkeletonFactory_PSP` bounds transient input to
   4,112 bytes and releases the source blob immediately after validation.
+- `TSkeletonInstance_PSP` mirrors the original instance naming while retaining
+  only 64 fixed world transforms. `SetBindPose` composes parent quaternion and
+  translation state in the already validated topological order, so it performs
+  no allocation, recursion or per-frame name lookup.
 - `TRenderInterface_PSP::DrawModel` supplies the minimal GUM projection, view,
   and model transforms, clears and enables the 16-bit depth buffer for the 3D
   draw, then restores the depth-test state used by the independent 2D probes.
@@ -829,6 +833,14 @@ remain largely unstarted.
   artifact SHA-256
   `aa09322ccf8a26f1c2ef3760825120299c54b56cd683edbcf8cb6029326d3fe7`,
   bundle `Runtime/PSP/4aa317b4`, single process PID `888`. Background D-pad,
+  Cross and Circle input remained responsive.
+- Commit `719ce824` passed PSP run `41669064743`. The runtime gate created a
+  `TSkeletonInstance_PSP`, accumulated the probe hierarchy to exact Y positions
+  `0.0`, `0.5` and `1.0`, validated indexed and named lookup, then destroyed the
+  instance without allocation. PPSSPP reported `skeleton_pose=OK`, every
+  previous gate `OK` and zero stream underruns; artifact SHA-256
+  `91cb2c10692afa0d6deac63a8b22a3466d035a1f7e75b572bc4621693dee38f2`,
+  bundle `Runtime/PSP/719ce824`, single process PID `21128`. Background D-pad,
   Cross and Circle input remained responsive.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
