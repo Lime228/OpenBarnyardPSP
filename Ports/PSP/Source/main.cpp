@@ -252,6 +252,62 @@ static TBOOL TestProbeAnimation_PSP()
 	return TTRUE;
 }
 
+struct LoopAnimationData_PSP
+{
+	Toshi::TAnimationClipDataHeader_PSP oHeader;
+	Toshi::TAnimationSample_PSP        aSamples[ 2 * 3 ];
+};
+
+static void SetLoopAnimationSample_PSP( Toshi::TAnimationSample_PSP& a_rSample, TINT16 a_iTranslationY )
+{
+	a_rSample.aRotation[ 3 ]    = 32767;
+	a_rSample.aTranslation[ 1 ] = a_iTranslationY;
+}
+
+static TBOOL TestLoopingAnimation_PSP()
+{
+	LoopAnimationData_PSP oData = {};
+	oData.oHeader = {
+		Toshi::TAnimationClipDataHeader_PSP::MAGIC,
+		Toshi::TAnimationClipDataHeader_PSP::VERSION,
+		3,
+		2,
+		2,
+		sizeof( Toshi::TAnimationSample_PSP ),
+		1.0f,
+		Toshi::TANIMATIONCLIPFLAGS_PSP_LOOP,
+	};
+	for ( TUINT32 frame = 0; frame < 2; frame++ )
+	{
+		SetLoopAnimationSample_PSP( oData.aSamples[ frame * 3 ], 0 );
+		SetLoopAnimationSample_PSP( oData.aSamples[ frame * 3 + 1 ], 16384 );
+	}
+	SetLoopAnimationSample_PSP( oData.aSamples[ 2 ], 16384 );
+	SetLoopAnimationSample_PSP( oData.aSamples[ 5 ], 32767 );
+
+	Toshi::TAnimationClip_PSP oClip;
+	Toshi::TSkeletonInstance_PSP oInstance;
+	TBOOL bReady = g_AnimationFactory_PSP.CreateAnimationFromMemory(
+	    oClip,
+	    &g_ProbeSkeleton_PSP,
+	    &oData,
+	    sizeof( oData )
+	) && oInstance.Create( &g_ProbeSkeleton_PSP );
+	static const TUINT aTimes[] = { 0, 250, 500, 750, 1000 };
+	static const TFLOAT aExpectedMarkerY[] = { 1.0f, 1.25f, 1.5f, 1.25f, 1.0f };
+	for ( TUINT32 i = 0; bReady && i < TARRAYSIZE( aTimes ); i++ )
+	{
+		bReady = oInstance.SetAnimationPose( oClip, aTimes[ i ] );
+		const Toshi::TSkeletonTransform_PSP* pMarker = oInstance.GetBoneTransform( "marker" );
+		bReady = bReady && pMarker != TNULL &&
+		         IsAnimationValueNear_PSP( pMarker->aTranslation[ 1 ], aExpectedMarkerY[ i ] );
+	}
+
+	oInstance.Destroy();
+	oClip.Unload();
+	return bReady;
+}
+
 static TBOOL TestProbeSkinning_PSP()
 {
 	if ( !LoadProbeSkinnedModelFile_PSP() ||
@@ -1673,7 +1729,8 @@ int main()
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
-	const TBOOL bSkinningReady = bAnimationReady && TestProbeSkinning_PSP();
+	const TBOOL bLoopAnimationReady = bAnimationReady && TestLoopingAnimation_PSP();
+	const TBOOL bSkinningReady = bLoopAnimationReady && TestProbeSkinning_PSP();
 	const TBOOL bAnimationBudgetReady = bSkinningReady && TestAnimationBudgets_PSP();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
 	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
@@ -1746,7 +1803,7 @@ int main()
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
 	                              bMeshReady && bModelReady && bSkeletonReady &&
-	                              bSkeletonPoseReady && bAnimationReady && bSkinningReady &&
+	                              bSkeletonPoseReady && bAnimationReady && bLoopAnimationReady && bSkinningReady &&
 	                              bAnimationBudgetReady &&
 	                              bCacheReady;
 	oRenderContext.bBootstrapReady = bBootstrapReady;
@@ -1784,6 +1841,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP animation] skeleton %s\n", bSkeletonReady ? "probe.pskl" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] bind pose %s\n", bSkeletonPoseReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] clip      %s\n", bAnimationReady ? "probe.panm" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP animation] loop      %s\n", bLoopAnimationReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] skinning  %s\n", bSkinningReady ? "probe_skinned.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] budgets   %s\n", bAnimationBudgetReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
