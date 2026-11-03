@@ -44,6 +44,34 @@ void AProbeState_PSP::OnRender(
 		a_rContext.pRenderInterface->DrawIndexedColourTriangles( *a_rContext.pVertices, *a_rContext.pIndices );
 	if ( a_rContext.pTexture != TNULL )
 		a_rContext.pRenderInterface->DrawTextureSprite( *a_rContext.pTexture, 176.0f + a_rState.fXOffset, 72.0f, 128.0f, 128.0f );
-	if ( a_rContext.pModel != TNULL && a_rContext.pTexture != TNULL && a_rContext.pMaterial != TNULL )
+	if ( a_rContext.pSkinnedModel != TNULL &&
+	     a_rContext.pSkinningBuffer != TNULL &&
+	     a_rContext.pSkeletonInstance != TNULL &&
+	     a_rContext.pAnimation != TNULL &&
+	     a_rContext.pTexture != TNULL &&
+	     a_rContext.pMaterial != TNULL )
+	{
+		TUINT uiAnimationTime = TUINT( a_rState.fStateTime * 1000.0f ) % 1000;
+		if ( uiAnimationTime > 500 )
+			uiAnimationTime = 1000 - uiAnimationTime;
+		if ( a_rContext.pSkeletonInstance->SetAnimationPose( *a_rContext.pAnimation, uiAnimationTime ) &&
+		     a_rContext.pSkinningBuffer->Skin( *a_rContext.pSkeletonInstance ) )
+		{
+			const Toshi::TVertexPoolResource_PSP* pVertices = a_rContext.pSkinningBuffer->GetVertices();
+			if ( pVertices != TNULL )
+			{
+				a_rContext.pRenderInterface->DrawSkinnedModel(
+				    *a_rContext.pSkinnedModel,
+				    *pVertices,
+				    a_rState.fModelRotation,
+				    *a_rContext.pMaterial,
+				    a_rContext.pTexture
+				);
+			}
+		}
+	}
+	else if ( a_rContext.pModel != TNULL && a_rContext.pTexture != TNULL && a_rContext.pMaterial != TNULL )
+	{
 		a_rContext.pRenderInterface->DrawModel( *a_rContext.pModel, a_rState.fModelRotation, *a_rContext.pMaterial, a_rContext.pTexture );
+	}
 }
