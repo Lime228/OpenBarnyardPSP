@@ -219,6 +219,21 @@ int main( int argc, char** argv )
 				TINFO( "    %s:\n", pBone->GetName() );
 				TINFO( "      Position: (%f; %f; %f)\n", pBone->GetPosition().x, pBone->GetPosition().y, pBone->GetPosition().z );
 			}
+
+			TINFO( "  Sequence Count: %i\n", pInSkeleton->GetSequenceCount() );
+			for ( TINT i = 0; i < pInSkeleton->GetSequenceCount(); i++ )
+			{
+				const TSkeletonSequence* pSequence = pInSkeleton->GetSequence( i );
+				TINFO(
+				    "    %.*s: duration=%f mode=%s type=%s used_bones=%i\n",
+				    TINT( pSequence->GetNameLength() ),
+				    pSequence->GetName(),
+				    pSequence->GetDuration(),
+				    pSequence->GetMode() == TSkeletonSequence::MODE_LOOPED ? "loop" : "clamp",
+				    pSequence->IsOverlay() ? "overlay" : "base",
+				    pSequence->m_iNumUsedBones
+				);
+			}
 		}
 
 		TINFO( "  Materials Size: %u\n", pInMaterials->uiSectionSize );
