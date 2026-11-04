@@ -37,6 +37,10 @@ struct APortReportData_PSP
 	TBOOL bAnimationReady;
 	TBOOL bSkinningReady;
 	TBOOL bAnimationBudgetReady;
+	TBOOL bPreviewReady;
+	TBOOL bPreviewTextureReady;
+	TFLOAT fPreviewScale;
+	TFLOAT aPreviewCenter[ 3 ];
 	TBOOL bCacheReady;
 	TBOOL bSchedulerReady;
 	TUINT uiFrameCount;

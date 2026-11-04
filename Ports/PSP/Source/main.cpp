@@ -1969,6 +1969,13 @@ int main()
 	    "[PSP render] preview texture %s\n",
 	    bPreviewReady && g_bPreviewTexture_PSP ? "barnyard_preview.ptex" : "probe fallback"
 	);
+	TDebug_FinalPrintf(
+	    "[PSP render] preview fit %.6f @ %.6f,%.6f,%.6f\n",
+	    bPreviewReady ? g_PreviewTransform_PSP.fScale : g_IdentityModelTransform_PSP.fScale,
+	    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 0 ] : g_IdentityModelTransform_PSP.aCenter[ 0 ],
+	    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 1 ] : g_IdentityModelTransform_PSP.aCenter[ 1 ],
+	    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ]
+	);
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
@@ -2032,6 +2039,14 @@ int main()
 		bAnimationReady,
 		bSkinningReady,
 		bAnimationBudgetReady,
+		bPreviewReady,
+		bPreviewReady && g_bPreviewTexture_PSP,
+		bPreviewReady ? g_PreviewTransform_PSP.fScale : g_IdentityModelTransform_PSP.fScale,
+		{
+		    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 0 ] : g_IdentityModelTransform_PSP.aCenter[ 0 ],
+		    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 1 ] : g_IdentityModelTransform_PSP.aCenter[ 1 ],
+		    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ],
+		},
 		bCacheReady,
 		bSchedulerReady,
 		0,

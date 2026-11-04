@@ -49,6 +49,18 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "animation=%s\n", GetReportStatus_PSP( a_rData.bAnimationReady ) );
 	pFile->CPrintf( "skinning=%s\n", GetReportStatus_PSP( a_rData.bSkinningReady ) );
 	pFile->CPrintf( "animation_budget=%s\n", GetReportStatus_PSP( a_rData.bAnimationBudgetReady ) );
+	pFile->CPrintf( "preview=%s\n", a_rData.bPreviewReady ? "ACTIVE" : "INACTIVE" );
+	pFile->CPrintf(
+	    "preview_texture=%s\n",
+	    a_rData.bPreviewReady && a_rData.bPreviewTextureReady ? "barnyard_preview.ptex" : "probe.ptex"
+	);
+	pFile->CPrintf( "preview_scale=%.6f\n", a_rData.fPreviewScale );
+	pFile->CPrintf(
+	    "preview_center=%.6f,%.6f,%.6f\n",
+	    a_rData.aPreviewCenter[ 0 ],
+	    a_rData.aPreviewCenter[ 1 ],
+	    a_rData.aPreviewCenter[ 2 ]
+	);
 	pFile->CPrintf( "cache=%s\n", GetReportStatus_PSP( a_rData.bCacheReady ) );
 	pFile->CPrintf( "scheduler=%s\n", GetReportStatus_PSP( a_rData.bSchedulerReady ) );
 	pFile->CPrintf( "frames=%u\n", a_rData.uiFrameCount );
