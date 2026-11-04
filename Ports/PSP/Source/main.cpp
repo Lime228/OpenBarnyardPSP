@@ -33,6 +33,19 @@ PSP_HEAP_SIZE_KB( -1024 );
 
 static volatile TBOOL g_Running = TTRUE;
 
+enum APreviewLoadStage_PSP
+{
+	APreviewLoadStage_PSP_Model,
+	APreviewLoadStage_PSP_Skeleton,
+	APreviewLoadStage_PSP_Animation,
+	APreviewLoadStage_PSP_Instance,
+	APreviewLoadStage_PSP_SkinningBuffer,
+	APreviewLoadStage_PSP_Pose,
+	APreviewLoadStage_PSP_Skin,
+	APreviewLoadStage_PSP_Transform,
+	APreviewLoadStage_PSP_Ready,
+};
+
 struct ProbeTextureData_PSP
 {
 	Toshi::T2TextureDataHeader_PSP oHeader;
@@ -91,6 +104,7 @@ static const Toshi::TRenderModelTransform_PSP g_IdentityModelTransform_PSP = {
 	{ 0.0f, 0.0f, 0.0f },
 };
 static Toshi::TRenderModelTransform_PSP g_PreviewTransform_PSP = g_IdentityModelTransform_PSP;
+static APreviewLoadStage_PSP            g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Model;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
 static TBOOL                            g_bPreviewTexture_PSP = TFALSE;
 static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
@@ -203,6 +217,23 @@ static TBOOL TestPreviewTransform_PSP( const Toshi::TModel_PSP& a_rModel )
 	       oTransform.aCenter[ 2 ] == 0.0f;
 }
 
+static const TCHAR* GetPreviewLoadStageName_PSP()
+{
+	switch ( g_ePreviewLoadStage_PSP )
+	{
+		case APreviewLoadStage_PSP_Model: return "model";
+		case APreviewLoadStage_PSP_Skeleton: return "skeleton";
+		case APreviewLoadStage_PSP_Animation: return "animation";
+		case APreviewLoadStage_PSP_Instance: return "instance";
+		case APreviewLoadStage_PSP_SkinningBuffer: return "skinning_buffer";
+		case APreviewLoadStage_PSP_Pose: return "pose";
+		case APreviewLoadStage_PSP_Skin: return "skin";
+		case APreviewLoadStage_PSP_Transform: return "transform";
+		case APreviewLoadStage_PSP_Ready: return "ready";
+		default: return "unknown";
+	}
+}
+
 static void UnloadPreviewModel_PSP()
 {
 	g_PreviewSkinningBuffer_PSP.Destroy();
@@ -217,27 +248,63 @@ static void UnloadPreviewModel_PSP()
 
 static TBOOL LoadPreviewModel_PSP()
 {
-	const TBOOL bReady =
-	    g_ModelFactory_PSP.CreateModelFromFile( g_PreviewModel_PSP, "local:barnyard_preview.pmes" ) &&
-	    g_SkeletonFactory_PSP.CreateSkeletonFromFile( g_PreviewSkeleton_PSP, "local:barnyard_preview.pskl" ) &&
-	    g_AnimationFactory_PSP.CreateAnimationFromFile(
-	        g_PreviewAnimation_PSP,
-	        &g_PreviewSkeleton_PSP,
-	        "local:barnyard_preview.panm"
-	    ) &&
-	    g_PreviewSkeletonInstance_PSP.Create( &g_PreviewSkeleton_PSP ) &&
-	    g_PreviewSkinningBuffer_PSP.Create( &g_PreviewModel_PSP, &g_PreviewSkeleton_PSP ) &&
-	    g_PreviewSkeletonInstance_PSP.SetAnimationPose( g_PreviewAnimation_PSP, 0 ) &&
-	    g_PreviewSkinningBuffer_PSP.Skin( g_PreviewSkeletonInstance_PSP ) &&
-	    CalculatePreviewTransform_PSP( g_PreviewModel_PSP, g_PreviewTransform_PSP );
-	if ( !bReady )
+	UnloadPreviewModel_PSP();
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Model;
+	if ( !g_ModelFactory_PSP.CreateModelFromFile( g_PreviewModel_PSP, "local:barnyard_preview.pmes" ) )
+		return TFALSE;
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Skeleton;
+	if ( !g_SkeletonFactory_PSP.CreateSkeletonFromFile( g_PreviewSkeleton_PSP, "local:barnyard_preview.pskl" ) )
+	{
 		UnloadPreviewModel_PSP();
-	else
-		g_bPreviewTexture_PSP = g_TextureFactory_PSP.CreateTextureFromFile(
-		    g_PreviewTexture_PSP,
-		    "local:barnyard_preview.ptex"
-		);
-	return bReady;
+		return TFALSE;
+	}
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Animation;
+	if ( !g_AnimationFactory_PSP.CreateAnimationFromFile(
+	         g_PreviewAnimation_PSP,
+	         &g_PreviewSkeleton_PSP,
+	         "local:barnyard_preview.panm"
+	     ) )
+	{
+		UnloadPreviewModel_PSP();
+		return TFALSE;
+	}
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Instance;
+	if ( !g_PreviewSkeletonInstance_PSP.Create( &g_PreviewSkeleton_PSP ) )
+	{
+		UnloadPreviewModel_PSP();
+		return TFALSE;
+	}
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_SkinningBuffer;
+	if ( !g_PreviewSkinningBuffer_PSP.Create( &g_PreviewModel_PSP, &g_PreviewSkeleton_PSP ) )
+	{
+		UnloadPreviewModel_PSP();
+		return TFALSE;
+	}
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Pose;
+	if ( !g_PreviewSkeletonInstance_PSP.SetAnimationPose( g_PreviewAnimation_PSP, 0 ) )
+	{
+		UnloadPreviewModel_PSP();
+		return TFALSE;
+	}
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Skin;
+	if ( !g_PreviewSkinningBuffer_PSP.Skin( g_PreviewSkeletonInstance_PSP ) )
+	{
+		UnloadPreviewModel_PSP();
+		return TFALSE;
+	}
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Transform;
+	if ( !CalculatePreviewTransform_PSP( g_PreviewModel_PSP, g_PreviewTransform_PSP ) )
+	{
+		UnloadPreviewModel_PSP();
+		return TFALSE;
+	}
+
+	g_bPreviewTexture_PSP = g_TextureFactory_PSP.CreateTextureFromFile(
+	    g_PreviewTexture_PSP,
+	    "local:barnyard_preview.ptex"
+	);
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Ready;
+	return TTRUE;
 }
 
 static TBOOL TestProbeSkeletonFile_PSP()
@@ -1964,7 +2031,11 @@ int main()
 	TDebug_FinalPrintf( "[PSP animation] loop      %s\n", bLoopAnimationReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] skinning  %s\n", bSkinningReady ? "probe_skinned.pmes" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] budgets   %s\n", bAnimationBudgetReady ? "OK" : "FAILED" );
-	TDebug_FinalPrintf( "[PSP animation] preview   %s\n", bPreviewReady ? "barnyard_preview" : "inactive" );
+	TDebug_FinalPrintf(
+	    "[PSP animation] preview   %s (%s)\n",
+	    bPreviewReady ? "barnyard_preview" : "inactive",
+	    GetPreviewLoadStageName_PSP()
+	);
 	TDebug_FinalPrintf(
 	    "[PSP render] preview texture %s\n",
 	    bPreviewReady && g_bPreviewTexture_PSP ? "barnyard_preview.ptex" : "probe fallback"
