@@ -7,7 +7,7 @@ import pathlib
 import tempfile
 import unittest
 
-from convert_barnyard_skin import read_summary, run_pipeline, safe_name, stage_texture
+from convert_barnyard_skin import publish_outputs, read_summary, run_pipeline, safe_name, stage_texture
 from convert_tmd_dump import build_mesh, build_skeleton
 
 
@@ -84,6 +84,38 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             skeleton.write_bytes(build_skeleton(document))
             with self.assertRaisesRegex(ValueError, "bounds are degenerate"):
                 read_summary(mesh, skeleton, None, None)
+
+    def test_publish_failure_rolls_back_complete_preview_set(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            staging = temporary / "staging"
+            output = temporary / "output"
+            staging.mkdir()
+            output.mkdir()
+            staged_outputs = []
+            for name in ("probe.pmes", "probe.ptex", "probe.panm"):
+                staged = staging / name
+                staged.write_bytes(f"new {name}".encode("ascii"))
+                staged_outputs.append((staged, output / name))
+            (output / "probe.pmes").write_bytes(b"old mesh")
+            (output / "probe.panm").write_bytes(b"old animation")
+
+            failed = False
+
+            def replace_with_failure(source, destination) -> None:
+                nonlocal failed
+                source = pathlib.Path(source)
+                destination = pathlib.Path(destination)
+                if not failed and source == staging / "probe.panm":
+                    failed = True
+                    raise OSError("simulated publish failure")
+                os.replace(source, destination)
+
+            with self.assertRaisesRegex(OSError, "simulated publish failure"):
+                publish_outputs(staged_outputs, replace_with_failure)
+            self.assertEqual((output / "probe.pmes").read_bytes(), b"old mesh")
+            self.assertEqual((output / "probe.panm").read_bytes(), b"old animation")
+            self.assertFalse((output / "probe.ptex").exists())
 
     @unittest.skipIf(os.name == "nt", "temporary shebang executable is a POSIX test fixture")
     def test_failed_late_stage_preserves_existing_outputs(self) -> None:
