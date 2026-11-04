@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import pathlib
 import shutil
 import struct
@@ -25,6 +26,31 @@ TFLOAT_EPSILON = 1.1920929e-7
 def require_file(path: pathlib.Path, name: str) -> None:
     if not path.is_file():
         raise ValueError(f"{name} does not exist: {path}")
+
+
+def publish_outputs(staged_outputs: list[tuple[pathlib.Path, pathlib.Path]], replace_file=os.replace) -> None:
+    transactions: list[tuple[pathlib.Path, pathlib.Path | None, bool]] = []
+    try:
+        for index, (staged, destination) in enumerate(staged_outputs):
+            backup = staged.parent / f".{index}.{destination.name}.backup" if destination.exists() else None
+            if backup is not None:
+                replace_file(destination, backup)
+            transactions.append((destination, backup, False))
+            replace_file(staged, destination)
+            transactions[-1] = (destination, backup, True)
+    except Exception:
+        rollback_error: Exception | None = None
+        for destination, backup, published in reversed(transactions):
+            try:
+                if published and destination.exists():
+                    destination.unlink()
+                if backup is not None and backup.exists():
+                    replace_file(backup, destination)
+            except Exception as error:
+                rollback_error = error
+        if rollback_error is not None:
+            raise RuntimeError("PSP preview publish failed and rollback was incomplete") from rollback_error
+        raise
 
 
 def safe_name(value: str) -> str:
@@ -248,8 +274,7 @@ def run_pipeline(
             staged_outputs.append((animation, animation_destination))
         if texture is not None and texture_destination is not None:
             staged_outputs.append((texture, texture_destination))
-        for staged, destination in staged_outputs:
-            staged.replace(destination)
+        publish_outputs(staged_outputs)
 
     return summary
 
