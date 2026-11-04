@@ -146,6 +146,7 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
                 keep_intermediate=True,
                 runtime_preview=True,
                 preview_texture=texture,
+                preview_material="PROBE",
             )
 
             self.assertEqual(summary["vertices"], 3)
