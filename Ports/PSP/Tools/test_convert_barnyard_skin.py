@@ -70,6 +70,46 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
                 stage_texture(source, temporary / "output.ptex")
 
     @unittest.skipIf(os.name == "nt", "temporary shebang executable is a POSIX test fixture")
+    def test_failed_late_stage_preserves_existing_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            model = temporary / "model.tmd"
+            model.touch()
+            invalid_texture = temporary / "invalid.ptex"
+            invalid_texture.write_bytes(b"not a texture")
+            exporter = temporary / "fake_tmdl.py"
+            exporter.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json, pathlib, sys\n"
+                f"model = {MODEL_DUMP!r}\n"
+                "output = pathlib.Path(sys.argv[sys.argv.index('-o') + 1])\n"
+                "output.write_text(json.dumps(model), encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            exporter.chmod(0o755)
+
+            output = temporary / "output"
+            output.mkdir()
+            sentinels = {
+                output / "probe.pmes": b"old mesh",
+                output / "probe.pskl": b"old skeleton",
+                output / "probe.ptex": b"old texture",
+            }
+            for path, payload in sentinels.items():
+                path.write_bytes(payload)
+
+            with self.assertRaisesRegex(ValueError, "smaller than its header"):
+                run_pipeline(
+                    exporter,
+                    model,
+                    output,
+                    "probe",
+                    preview_texture=invalid_texture,
+                )
+            for path, payload in sentinels.items():
+                self.assertEqual(path.read_bytes(), payload)
+
+    @unittest.skipIf(os.name == "nt", "temporary shebang executable is a POSIX test fixture")
     def test_runs_model_and_animation_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_name:
             temporary = pathlib.Path(temporary_name)
