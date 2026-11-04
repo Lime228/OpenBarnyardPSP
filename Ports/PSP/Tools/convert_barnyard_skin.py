@@ -155,18 +155,22 @@ def run_pipeline(
 
     output_directory.mkdir(parents=True, exist_ok=True)
     asset_name = "barnyard_preview" if runtime_preview else output_name
-    mesh = output_directory / f"{asset_name}.pmes"
-    skeleton = output_directory / f"{asset_name}.pskl"
-    animation = (
+    mesh_destination = output_directory / f"{asset_name}.pmes"
+    skeleton_destination = output_directory / f"{asset_name}.pskl"
+    animation_destination = (
         output_directory / (f"{asset_name}.panm" if runtime_preview else f"{asset_name}_{safe_name(sequence)}.panm")
         if sequence is not None
         else None
     )
-    texture = output_directory / f"{asset_name}.ptex" if preview_texture is not None else None
+    texture_destination = output_directory / f"{asset_name}.ptex" if preview_texture is not None else None
 
-    with tempfile.TemporaryDirectory(prefix="openbarnyard_psp_") as temporary_name:
+    with tempfile.TemporaryDirectory(prefix=".openbarnyard_psp_", dir=output_directory) as temporary_name:
         temporary = pathlib.Path(temporary_name)
         model_dump = temporary / "model.json"
+        mesh = temporary / mesh_destination.name
+        skeleton = temporary / skeleton_destination.name
+        animation = temporary / animation_destination.name if animation_destination is not None else None
+        texture = temporary / texture_destination.name if texture_destination is not None else None
         subprocess.run([str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)], check=True)
         convert_tmd_dump(model_dump, mesh, skeleton)
         model_document = json.loads(model_dump.read_text(encoding="utf-8"))
@@ -209,8 +213,19 @@ def run_pipeline(
                 shutil.copyfile(animation_dump, intermediate / "animation.json")
                 shutil.copyfile(animation_skeleton, intermediate / "skeleton.json")
 
-    summary = read_summary(mesh, skeleton, animation, texture)
-    summary["material"] = material_name
+        summary = read_summary(mesh, skeleton, animation, texture)
+        summary["material"] = material_name
+        staged_outputs = [
+            (mesh, mesh_destination),
+            (skeleton, skeleton_destination),
+        ]
+        if animation is not None and animation_destination is not None:
+            staged_outputs.append((animation, animation_destination))
+        if texture is not None and texture_destination is not None:
+            staged_outputs.append((texture, texture_destination))
+        for staged, destination in staged_outputs:
+            staged.replace(destination)
+
     return summary
 
 
