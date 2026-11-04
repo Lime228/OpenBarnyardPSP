@@ -137,6 +137,7 @@ def run_pipeline(
     keep_intermediate: bool = False,
     runtime_preview: bool = False,
     preview_texture: pathlib.Path | None = None,
+    preview_material: str | None = None,
 ) -> dict[str, int | str]:
     require_file(tmdl, "TMDL executable")
     require_file(model, "model")
@@ -172,11 +173,11 @@ def run_pipeline(
         animation = temporary / animation_destination.name if animation_destination is not None else None
         texture = temporary / texture_destination.name if texture_destination is not None else None
         subprocess.run([str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)], check=True)
-        convert_tmd_dump(model_dump, mesh, skeleton)
+        convert_tmd_dump(model_dump, mesh, skeleton, preview_material)
         model_document = json.loads(model_dump.read_text(encoding="utf-8"))
         if not isinstance(model_document, dict):
             raise ValueError("TMD dump root must be an object")
-        material_name = get_material_name(model_document)
+        material_name = get_material_name(model_document, preview_material)
 
         animation_dump = None
         animation_skeleton = None
@@ -237,6 +238,7 @@ def main() -> None:
     parser.add_argument("--name", help="output basename; defaults to the model filename")
     parser.add_argument("--keylib", type=pathlib.Path)
     parser.add_argument("--sequence")
+    parser.add_argument("--material", help="select one material from a multi-material model")
     parser.add_argument("--texture", type=pathlib.Path, help="ASCII P3 PPM or preconverted PTEX")
     parser.add_argument("--sample-rate", type=int, default=30)
     parser.add_argument("--keep-intermediate", action="store_true")
@@ -258,6 +260,7 @@ def main() -> None:
         args.keep_intermediate,
         args.runtime_preview,
         args.texture,
+        args.material,
     )
     print(json.dumps(summary, sort_keys=True))
 

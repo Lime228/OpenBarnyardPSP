@@ -119,7 +119,7 @@ def triangulate_strip(indices: object, vertex_count: int) -> list[int]:
     return triangles
 
 
-def get_material_name(document: dict[str, object]) -> str:
+def get_material_name(document: dict[str, object], requested_material: str | None = None) -> str:
     lods = document.get("lods")
     if not isinstance(lods, list) or not lods or not isinstance(lods[0], dict):
         raise ValueError("dump requires LOD0")
@@ -127,7 +127,7 @@ def get_material_name(document: dict[str, object]) -> str:
     if not isinstance(meshes, list) or not meshes:
         raise ValueError("LOD0 requires meshes")
 
-    material_name: str | None = None
+    material_names: dict[str, str] = {}
     for mesh_index, mesh in enumerate(meshes):
         if not isinstance(mesh, dict):
             raise ValueError(f"mesh {mesh_index} must be an object")
@@ -138,31 +138,41 @@ def get_material_name(document: dict[str, object]) -> str:
             material.encode("ascii")
         except UnicodeEncodeError as error:
             raise ValueError(f"mesh {mesh_index} material name must be ASCII") from error
-        if material_name is None:
-            material_name = material
-        elif material.casefold() != material_name.casefold():
-            raise ValueError(
-                f"PSP PMES preview supports one material; found {material_name!r} and {material!r}"
-            )
-    if material_name is None:
+        material_names.setdefault(material.casefold(), material)
+    if not material_names:
         raise ValueError("LOD0 requires meshes")
-    return material_name
+    if requested_material is not None:
+        selected = material_names.get(requested_material.casefold())
+        if selected is None:
+            available = ", ".join(sorted(material_names.values(), key=str.casefold))
+            raise ValueError(f"material {requested_material!r} was not found; available: {available}")
+        return selected
+    if len(material_names) != 1:
+        available = ", ".join(sorted(material_names.values(), key=str.casefold))
+        raise ValueError(f"PSP PMES preview supports one material; found: {available}")
+    return next(iter(material_names.values()))
 
 
-def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
+def build_mesh(
+    document: dict[str, object],
+    bone_count: int,
+    requested_material: str | None = None,
+) -> bytes:
     lods = document.get("lods")
     if not isinstance(lods, list) or not lods or not isinstance(lods[0], dict):
         raise ValueError("dump requires LOD0")
     lod = lods[0]
     if lod.get("shader") != "skin" or not isinstance(lod.get("meshes"), list):
         raise ValueError("LOD0 must use the skin shader and contain meshes")
-    get_material_name(document)
+    material_name = get_material_name(document, requested_material)
 
     vertices: list[tuple[list[float], list[float], int, tuple[int, int, int, int]]] = []
     indices: list[int] = []
     for mesh_index, mesh in enumerate(lod["meshes"]):
         if not isinstance(mesh, dict) or not isinstance(mesh.get("submeshes"), list):
             raise ValueError(f"mesh {mesh_index} requires submeshes")
+        if mesh["material"].casefold() != material_name.casefold():
+            continue
         for submesh_index, submesh in enumerate(mesh["submeshes"]):
             if not isinstance(submesh, dict) or not isinstance(submesh.get("bone_palette"), list) or not isinstance(submesh.get("vertices"), list):
                 raise ValueError(f"mesh {mesh_index} submesh {submesh_index} is incomplete")
@@ -208,13 +218,18 @@ def build_mesh(document: dict[str, object], bone_count: int) -> bytes:
     return bytes(payload)
 
 
-def convert(source: pathlib.Path, mesh_destination: pathlib.Path, skeleton_destination: pathlib.Path) -> None:
+def convert(
+    source: pathlib.Path,
+    mesh_destination: pathlib.Path,
+    skeleton_destination: pathlib.Path,
+    requested_material: str | None = None,
+) -> None:
     document = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(document, dict) or document.get("version") != 1:
         raise ValueError("unsupported TMD dump contract version")
     skeleton = build_skeleton(document)
     bone_count = struct.unpack_from("<I", skeleton, 8)[0]
-    mesh = build_mesh(document, bone_count)
+    mesh = build_mesh(document, bone_count, requested_material)
     mesh_destination.parent.mkdir(parents=True, exist_ok=True)
     skeleton_destination.parent.mkdir(parents=True, exist_ok=True)
     mesh_destination.write_bytes(mesh)
@@ -226,8 +241,9 @@ def main() -> None:
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("mesh", type=pathlib.Path)
     parser.add_argument("skeleton", type=pathlib.Path)
+    parser.add_argument("--material", help="select one material from a multi-material LOD0")
     args = parser.parse_args()
-    convert(args.source, args.mesh, args.skeleton)
+    convert(args.source, args.mesh, args.skeleton, args.material)
 
 
 if __name__ == "__main__":
