@@ -39,6 +39,7 @@ struct APortReportData_PSP
 	TBOOL bAnimationBudgetReady;
 	TBOOL bPreviewReady;
 	TBOOL bPreviewTextureReady;
+	const TCHAR* pPreviewLoadStage;
 	TFLOAT fPreviewScale;
 	TFLOAT aPreviewCenter[ 3 ];
 	TBOOL bCacheReady;

@@ -2112,6 +2112,7 @@ int main()
 		bAnimationBudgetReady,
 		bPreviewReady,
 		bPreviewReady && g_bPreviewTexture_PSP,
+		GetPreviewLoadStageName_PSP(),
 		bPreviewReady ? g_PreviewTransform_PSP.fScale : g_IdentityModelTransform_PSP.fScale,
 		{
 		    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 0 ] : g_IdentityModelTransform_PSP.aCenter[ 0 ],

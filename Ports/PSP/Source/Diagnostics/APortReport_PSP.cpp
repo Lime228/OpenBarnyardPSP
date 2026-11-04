@@ -51,6 +51,10 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "animation_budget=%s\n", GetReportStatus_PSP( a_rData.bAnimationBudgetReady ) );
 	pFile->CPrintf( "preview=%s\n", a_rData.bPreviewReady ? "ACTIVE" : "INACTIVE" );
 	pFile->CPrintf(
+	    "preview_stage=%s\n",
+	    a_rData.pPreviewLoadStage != TNULL ? a_rData.pPreviewLoadStage : "unknown"
+	);
+	pFile->CPrintf(
 	    "preview_texture=%s\n",
 	    a_rData.bPreviewReady && a_rData.bPreviewTextureReady ? "barnyard_preview.ptex" : "probe.ptex"
 	);
