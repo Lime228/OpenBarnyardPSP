@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
+import copy
 import json
 import os
 import pathlib
 import tempfile
 import unittest
 
-from convert_barnyard_skin import run_pipeline, safe_name, stage_texture
+from convert_barnyard_skin import read_summary, run_pipeline, safe_name, stage_texture
+from convert_tmd_dump import build_mesh, build_skeleton
 
 
 MODEL_DUMP = {
@@ -68,6 +70,20 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             source.write_bytes(b"not a texture")
             with self.assertRaisesRegex(ValueError, "smaller than its header"):
                 stage_texture(source, temporary / "output.ptex")
+
+    def test_rejects_degenerate_preview_bounds(self) -> None:
+        document = copy.deepcopy(MODEL_DUMP)
+        vertices = document["lods"][0]["meshes"][0]["submeshes"][0]["vertices"]
+        for vertex in vertices:
+            vertex["position"] = [0.0, 0.0, 0.0]
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            mesh = temporary / "probe.pmes"
+            skeleton = temporary / "probe.pskl"
+            mesh.write_bytes(build_mesh(document, 2))
+            skeleton.write_bytes(build_skeleton(document))
+            with self.assertRaisesRegex(ValueError, "bounds are degenerate"):
+                read_summary(mesh, skeleton, None, None)
 
     @unittest.skipIf(os.name == "nt", "temporary shebang executable is a POSIX test fixture")
     def test_failed_late_stage_preserves_existing_outputs(self) -> None:
@@ -155,6 +171,10 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertEqual(summary["frames"], 2)
             self.assertEqual(summary["sample_rate"], 20)
             self.assertEqual(summary["material"], "probe")
+            self.assertEqual(summary["bounds_min"], [0.0, 0.0, 0.0])
+            self.assertEqual(summary["bounds_max"], [1.0, 1.0, 0.0])
+            self.assertEqual(summary["preview_center"], [0.5, 0.5, 0.0])
+            self.assertEqual(summary["preview_scale"], 2.0)
             self.assertEqual(summary["texture_width"], 4)
             self.assertEqual(summary["texture_height"], 8)
             self.assertEqual(summary["texture_bytes"], 152)
