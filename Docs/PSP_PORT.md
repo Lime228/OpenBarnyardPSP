@@ -25,7 +25,7 @@ movies, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 64% | GU display, depth, indexed static/skinned models, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 62% | one host command now relocates a single-material skin LOD and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports the PSP footprint/material and safely stages the optional runtime preview layout; multi-material models and the remaining asset families need explicit handling |
+| Real-game asset pipeline | 63% | one host command now relocates one selected skin material and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports the PSP footprint/material and safely stages the optional runtime preview layout; complete multi-material models and the remaining asset families need explicit handling |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 46% | `AApplication_PSP` owns explicit frame phases and can select, centre, auto-fit and diagnose an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
@@ -262,15 +262,16 @@ remain largely unstarted.
   beside `EBOOT.PBP` to select the real preview without replacing or committing
   the deterministic probe assets. `--keep-intermediate` retains the JSON only
   when a real-format issue needs inspection.
-- PMES v1 has one draw/material slot. The bridge accepts repeated meshes only
-  when their material names match case-insensitively, reports that original
-  material name for texture lookup, and rejects multi-material LOD0 input
-  instead of silently merging it under one texture. A future batched format
-  must add explicit draw ranges and bounded texture ownership before relaxing
-  this rule.
+- PMES v1 has one draw/material slot. Without `--material`, the bridge accepts
+  repeated meshes only when their material names match case-insensitively and
+  rejects multi-material LOD0 input instead of silently merging it under one
+  texture. `--material <name>` explicitly selects one matching material and
+  omits the others for a focused preview; the summary reports its canonical
+  source name for texture lookup. A future batched format must add explicit
+  draw ranges and bounded texture ownership before exporting the complete model.
 
   ```powershell
-  py Ports/PSP/Tools/convert_barnyard_skin.py --tmdl <TMDL.exe> --model <model.tmd> --keylib <library.tkl> --sequence <base-sequence> --sample-rate 30 --output <EBOOT-directory> --runtime-preview
+  py Ports/PSP/Tools/convert_barnyard_skin.py --tmdl <TMDL.exe> --model <model.tmd> --keylib <library.tkl> --sequence <base-sequence> --material <material-name> --texture <texture.ppm-or-ptex> --sample-rate 30 --output <EBOOT-directory> --runtime-preview
   ```
 
 - The frontend treats missing or invalid preview files as an optional inactive
@@ -1013,6 +1014,10 @@ remain largely unstarted.
   `preview=INACTIVE`, `preview_stage=model`, probe texture fallback and the
   identity transform. D-pad Down, Cross and Circle remained responsive through
   the background runner without creating another emulator instance.
+- Commit `2db76cbb` passed PSP run `41794459516`. Host tests require explicit
+  selection for multi-material input, accept case-insensitive material names,
+  emit only the selected meshes and preserve the canonical material in the
+  pipeline summary.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1024,8 +1029,9 @@ Next, exercise both host TMD/TKL bridge commands against one user-owned
 Barnyard skin model and one explicitly selected base sequence, record their
 converted vertex/index/bone/frame footprint and correct real-format edge cases
 without checking source assets into Git. Keep animation selection explicit and
-all quantization offline. Keep multi-material conversion rejected until PMES
-has bounded draw ranges and matching texture ownership. Do not add the
+all quantization offline. Keep complete multi-material conversion rejected
+until PMES has bounded draw ranges and matching texture ownership; use explicit
+single-material selection for previews. Do not add the
 relocatable desktop TMD/TRB parser to
 the EBOOT. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one

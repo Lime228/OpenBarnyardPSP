@@ -52,9 +52,34 @@ instances or taking focus on every check:
 The runner only stops the PPSSPP process whose PID it created and stored under
 the ignored `Runtime/PPSSPP` directory. Other emulator sessions are untouched.
 Background input uses window messages and does not activate the emulator window
-or take keyboard and mouse focus from the current application. Automated runs
-force PPSSPP's software backend for that process only, avoiding driver fallback
-dialogs without changing the user's saved graphics backend.
+or take keyboard and mouse focus from the current application. The runner keeps
+the user's configured PPSSPP graphics backend and reports an immediate startup
+failure instead of launching fallback instances.
+
+## Optional Barnyard skin preview
+
+Build the Windows `TMDL` host tool, then convert one user-owned skin model and
+one explicitly selected base animation directly into an EBOOT directory:
+
+```powershell
+py .\Ports\PSP\Tools\convert_barnyard_skin.py `
+  --tmdl <TMDL.exe> `
+  --model <model.tmd> `
+  --keylib <library.tkl> `
+  --sequence <base-sequence> `
+  --material <material-name> `
+  --texture <texture.ppm-or-ptex> `
+  --sample-rate 30 `
+  --output <EBOOT-directory> `
+  --runtime-preview
+```
+
+The command stages `barnyard_preview.pmes`, `.pskl`, `.panm` and optional
+`.ptex` only after all selected conversions succeed. `--material` is optional
+for a single-material LOD0 and required when the model contains several
+materials; the JSON summary reports the canonical source material name. PMES
+v1 intentionally previews only one material at a time. Original game data must
+remain outside the repository.
 
 ## Audio conversion
 
