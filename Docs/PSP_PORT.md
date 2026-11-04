@@ -1003,7 +1003,16 @@ remain largely unstarted.
 - Commit `d1f0ef6c` passed PSP run `41793920031`. Preview loading now reports
   the exact `model`, `skeleton`, `animation`, `instance`, `skinning_buffer`,
   `pose`, `skin`, `transform` or `ready` stage while preserving complete rollback
-  and the optional texture fallback.
+  and the optional texture fallback. The artifact was then runtime-validated in
+  one background PPSSPP 1.20.4 process, PID `1660`, and stored under
+  `Runtime/PSP/d1f0ef6c`; EBOOT SHA-256 is
+  `e5188002b359bb5fc4349e34eb80969534a2eb9df6c617b2d16672a88ba6d454`.
+  Report v2 retained every required gate at `OK`, zero stream underruns,
+  18,204 bytes of tracked main memory and the normal 96/192-byte current/peak
+  animation samples. With no retail set present it recorded
+  `preview=INACTIVE`, `preview_stage=model`, probe texture fallback and the
+  identity transform. D-pad Down, Cross and Circle remained responsive through
+  the background runner without creating another emulator instance.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
