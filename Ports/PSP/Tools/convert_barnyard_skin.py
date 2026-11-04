@@ -19,6 +19,8 @@ from convert_texture import (
     is_power_of_two,
 )
 
+TFLOAT_EPSILON = 1.1920929e-7
+
 
 def require_file(path: pathlib.Path, name: str) -> None:
     if not path.is_file():
@@ -95,15 +97,37 @@ def read_summary(
     skeleton: pathlib.Path,
     animation: pathlib.Path | None,
     texture: pathlib.Path | None,
-) -> dict[str, int | str]:
-    mesh_header = struct.unpack("<6I", mesh.read_bytes()[:24])
+) -> dict[str, object]:
+    mesh_payload = mesh.read_bytes()
+    mesh_header = struct.unpack("<6I", mesh_payload[:24])
     skeleton_header = struct.unpack("<4I", skeleton.read_bytes()[:16])
+    vertex_count = mesh_header[2]
+    vertex_size = mesh_header[4]
+    mesh_format = mesh_header[5]
+    position_offset = 4 if mesh_format == 0 else 12
+    positions = [
+        struct.unpack_from("<3f", mesh_payload, 24 + index * vertex_size + position_offset)
+        for index in range(vertex_count)
+    ]
+    bounds_min = [min(position[axis] for position in positions) for axis in range(3)]
+    bounds_max = [max(position[axis] for position in positions) for axis in range(3)]
+    preview_center = [
+        bounds_min[axis] + (bounds_max[axis] - bounds_min[axis]) * 0.5
+        for axis in range(3)
+    ]
+    largest_size = max(bounds_max[axis] - bounds_min[axis] for axis in range(3))
+    if largest_size <= TFLOAT_EPSILON:
+        raise ValueError("preview model bounds are degenerate")
     summary = {
-        "vertices": mesh_header[2],
+        "vertices": vertex_count,
         "indices": mesh_header[3],
         "bones": skeleton_header[2],
         "mesh_bytes": mesh.stat().st_size,
         "skeleton_bytes": skeleton.stat().st_size,
+        "bounds_min": bounds_min,
+        "bounds_max": bounds_max,
+        "preview_center": preview_center,
+        "preview_scale": 2.0 / largest_size,
     }
     if animation is not None:
         animation_header = struct.unpack("<6IfI", animation.read_bytes()[:32])
@@ -138,7 +162,7 @@ def run_pipeline(
     runtime_preview: bool = False,
     preview_texture: pathlib.Path | None = None,
     preview_material: str | None = None,
-) -> dict[str, int | str]:
+) -> dict[str, object]:
     require_file(tmdl, "TMDL executable")
     require_file(model, "model")
     if (key_library is None) != (sequence is None):
