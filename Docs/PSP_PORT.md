@@ -27,7 +27,7 @@ movies, or gameplay validation on hardware.
 | PSP renderer foundation | 64% | GU display, depth, indexed static/skinned models, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
 | Real-game asset pipeline | 62% | one host command now relocates a single-material skin LOD and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports the PSP footprint/material and safely stages the optional runtime preview layout; multi-material models and the remaining asset families need explicit handling |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
-| Game bootstrap and frontend | 45% | `AApplication_PSP` owns explicit frame phases and can select, centre and auto-fit an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
+| Game bootstrap and frontend | 46% | `AApplication_PSP` owns explicit frame phases and can select, centre, auto-fit and diagnose an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
 | World, animation and gameplay | 19% | bounded skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning run; rooms and player simulation are not loaded |
 
@@ -476,10 +476,12 @@ remain largely unstarted.
 - Commit `3ef30fdc` passed PSP run `41218936337`. The resulting bundle carries
   the 290-byte PLOC table with memory labels and is stored under
   `Runtime/PSP/3ef30fdc`.
-- `APortReport_PSP` writes `openbarnyard_psp.log` beside the EBOOT at bootstrap
-  and clean exit. The bounded report records every readiness gate, frame count,
-  main-memory current/peak/budget and eDRAM current/budget through the existing
-  PSP `TFile` implementation.
+- `APortReport_PSP` writes the version-2 `openbarnyard_psp.log` beside the EBOOT
+  at bootstrap and clean exit. The bounded report records every readiness gate,
+  frame count, main-memory current/peak/budget and eDRAM current/budget through
+  the existing PSP `TFile` implementation. Optional preview diagnostics also
+  retain the exact failed/ready load stage, selected texture source and the
+  precomputed auto-fit scale/centre.
 - Commit `5c3a11ac` passed PSP run `41219161474` and was launched through the
   single-instance background runner. Its `RUNNING` report recorded every gate
   as `OK`, 17,676 bytes of tracked main render memory against 16 MiB, and
@@ -995,6 +997,13 @@ remain largely unstarted.
   kept pre-existing PMES, PSKL and PTEX sentinels byte-identical after invalid
   texture validation failed, proving conversion errors do not publish a mixed
   preview set.
+- Commits through `fef55be3` passed PSP runs `41793667049` and `41793742480`.
+  PSP GCC compiled the version-2 report fields for optional preview state,
+  texture source and auto-fit transform.
+- Commit `d1f0ef6c` passed PSP run `41793920031`. Preview loading now reports
+  the exact `model`, `skeleton`, `animation`, `instance`, `skinning_buffer`,
+  `pose`, `skin`, `transform` or `ready` stage while preserving complete rollback
+  and the optional texture fallback.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1006,7 +1015,9 @@ Next, exercise both host TMD/TKL bridge commands against one user-owned
 Barnyard skin model and one explicitly selected base sequence, record their
 converted vertex/index/bone/frame footprint and correct real-format edge cases
 without checking source assets into Git. Keep animation selection explicit and
-all quantization offline. Do not add the relocatable desktop TMD/TRB parser to
+all quantization offline. Keep multi-material conversion rejected until PMES
+has bounded draw ranges and matching texture ownership. Do not add the
+relocatable desktop TMD/TRB parser to
 the EBOOT. Keep track selection explicitly
 unsupported until multi-track PBNK ownership semantics are implemented. Keep one
 music stream cursor and resident SFX until
