@@ -28,16 +28,23 @@ def require_file(path: pathlib.Path, name: str) -> None:
         raise ValueError(f"{name} does not exist: {path}")
 
 
-def publish_outputs(staged_outputs: list[tuple[pathlib.Path, pathlib.Path]], replace_file=os.replace) -> None:
+def publish_outputs(
+    staged_outputs: list[tuple[pathlib.Path | None, pathlib.Path]],
+    replace_file=os.replace,
+) -> None:
+    backup_root = next((staged.parent for staged, _ in staged_outputs if staged is not None), None)
+    if backup_root is None:
+        raise ValueError("preview publication requires at least one staged output")
     transactions: list[tuple[pathlib.Path, pathlib.Path | None, bool]] = []
     try:
         for index, (staged, destination) in enumerate(staged_outputs):
-            backup = staged.parent / f".{index}.{destination.name}.backup" if destination.exists() else None
+            backup = backup_root / f".{index}.{destination.name}.backup" if destination.exists() else None
             if backup is not None:
                 replace_file(destination, backup)
             transactions.append((destination, backup, False))
-            replace_file(staged, destination)
-            transactions[-1] = (destination, backup, True)
+            if staged is not None:
+                replace_file(staged, destination)
+                transactions[-1] = (destination, backup, True)
     except Exception:
         rollback_error: Exception | None = None
         for destination, backup, published in reversed(transactions):
@@ -213,7 +220,11 @@ def run_pipeline(
         if sequence is not None
         else None
     )
-    texture_destination = output_directory / f"{asset_name}.ptex" if preview_texture is not None else None
+    texture_destination = (
+        output_directory / f"{asset_name}.ptex"
+        if preview_texture is not None or runtime_preview
+        else None
+    )
 
     with tempfile.TemporaryDirectory(prefix=".openbarnyard_psp_", dir=output_directory) as temporary_name:
         temporary = pathlib.Path(temporary_name)
@@ -221,7 +232,11 @@ def run_pipeline(
         mesh = temporary / mesh_destination.name
         skeleton = temporary / skeleton_destination.name
         animation = temporary / animation_destination.name if animation_destination is not None else None
-        texture = temporary / texture_destination.name if texture_destination is not None else None
+        texture = (
+            temporary / texture_destination.name
+            if preview_texture is not None and texture_destination is not None
+            else None
+        )
         subprocess.run([str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)], check=True)
         convert_tmd_dump(model_dump, mesh, skeleton, preview_material)
         model_document = json.loads(model_dump.read_text(encoding="utf-8"))
@@ -266,13 +281,14 @@ def run_pipeline(
 
         summary = read_summary(mesh, skeleton, animation, texture)
         summary["material"] = material_name
+        summary["texture_source"] = "barnyard_preview.ptex" if texture is not None else "probe fallback"
         staged_outputs = [
             (mesh, mesh_destination),
             (skeleton, skeleton_destination),
         ]
         if animation is not None and animation_destination is not None:
             staged_outputs.append((animation, animation_destination))
-        if texture is not None and texture_destination is not None:
+        if texture_destination is not None:
             staged_outputs.append((texture, texture_destination))
         publish_outputs(staged_outputs)
 
