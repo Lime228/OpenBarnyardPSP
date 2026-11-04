@@ -74,8 +74,9 @@ py .\Ports\PSP\Tools\convert_barnyard_skin.py `
   --runtime-preview
 ```
 
-The command stages `barnyard_preview.pmes`, `.pskl`, `.panm` and optional
-`.ptex` only after all selected conversions succeed. `--material` is optional
+The command transactionally publishes `barnyard_preview.pmes`, `.pskl`, `.panm`
+and optional `.ptex` only after all selected conversions succeed. Existing
+files are restored if a replacement fails partway through. `--material` is optional
 for a single-material LOD0 and required when the model contains several
 materials; the JSON summary reports the canonical source material name. PMES
 v1 intentionally previews only one material at a time. The same summary reports

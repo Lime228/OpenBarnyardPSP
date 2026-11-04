@@ -25,7 +25,7 @@ movies, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 64% | GU display, depth, indexed static/skinned models, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 64% | one host command now relocates one selected skin material and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports footprint/material/bounds and safely stages the optional runtime preview layout; complete multi-material models and the remaining asset families need explicit handling |
+| Real-game asset pipeline | 65% | one host command now relocates one selected skin material and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports footprint/material/bounds and transactionally publishes the optional runtime preview layout; complete multi-material models and the remaining asset families need explicit handling |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 46% | `AApplication_PSP` owns explicit frame phases and can select, centre, auto-fit and diagnose an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
@@ -255,8 +255,10 @@ remain largely unstarted.
   default and prints material, vertex, index, bone, frame and byte counts. It
   writes converted outputs into a same-volume temporary directory and replaces
   the requested files only after every selected model, animation and texture
-  stage succeeds, so a late failure cannot mix a new PMES with an older runtime
-  set. Supplying
+  stage succeeds. Existing destinations move to temporary backups during
+  publication; if any replacement fails, already published files are removed
+  and all backups are restored in reverse order. This prevents both conversion
+  and mid-publication failures from mixing generations. Supplying
   `--runtime-preview` writes `barnyard_preview.pmes`,
   `barnyard_preview.pskl` and `barnyard_preview.panm`; place those three files
   beside `EBOOT.PBP` to select the real preview without replacing or committing
@@ -1025,6 +1027,9 @@ remain largely unstarted.
 - Commit `e9c57f26` passed PSP run `41794795491`. The end-to-end host fixture
   verified PMES bounds `[0,0,0]` to `[1,1,0]`, centre `[0.5,0.5,0]` and scale
   `2.0`, while a degenerate model was rejected before publication.
+- Commit `80cb5dbf` passed PSP run `41801620960`. Its injected mid-publication
+  failure occurred after PMES replacement and creation of a new PTEX; rollback
+  restored the old PMES/PANM bytes and removed the newly published PTEX.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
