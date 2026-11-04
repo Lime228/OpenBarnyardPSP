@@ -25,7 +25,7 @@ movies, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 64% | GU display, depth, indexed static/skinned models, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 60% | one host command now relocates a skin LOD and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports the PSP footprint and can stage the optional runtime preview layout; PTEX, PFNT, PLOC, PPCM, PADP and PBNK remain separate deterministic stages |
+| Real-game asset pipeline | 62% | one host command now relocates a single-material skin LOD and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports the PSP footprint/material and safely stages the optional runtime preview layout; multi-material models and the remaining asset families need explicit handling |
 | Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
 | Game bootstrap and frontend | 45% | `AApplication_PSP` owns explicit frame phases and can select, centre and auto-fit an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
@@ -252,12 +252,22 @@ remain largely unstarted.
   the final normalization and fixed-point quantization offline.
 - `convert_barnyard_skin.py` orchestrates both host dumps and portable
   conversion stages, keeps intermediate JSON in a temporary directory by
-  default and prints vertex, index, bone, frame and byte counts. Supplying
+  default and prints material, vertex, index, bone, frame and byte counts. It
+  writes converted outputs into a same-volume temporary directory and replaces
+  the requested files only after every selected model, animation and texture
+  stage succeeds, so a late failure cannot mix a new PMES with an older runtime
+  set. Supplying
   `--runtime-preview` writes `barnyard_preview.pmes`,
   `barnyard_preview.pskl` and `barnyard_preview.panm`; place those three files
   beside `EBOOT.PBP` to select the real preview without replacing or committing
   the deterministic probe assets. `--keep-intermediate` retains the JSON only
   when a real-format issue needs inspection.
+- PMES v1 has one draw/material slot. The bridge accepts repeated meshes only
+  when their material names match case-insensitively, reports that original
+  material name for texture lookup, and rejects multi-material LOD0 input
+  instead of silently merging it under one texture. A future batched format
+  must add explicit draw ranges and bounded texture ownership before relaxing
+  this rule.
 
   ```powershell
   py Ports/PSP/Tools/convert_barnyard_skin.py --tmdl <TMDL.exe> --model <model.tmd> --keylib <library.tkl> --sequence <base-sequence> --sample-rate 30 --output <EBOOT-directory> --runtime-preview
@@ -978,6 +988,13 @@ remain largely unstarted.
   bounds validation, the non-finite-position rejection gate and one-time preview
   auto-fit through the Premake workspace. This CI-only slice did not claim
   visual validation because no retail preview set was available.
+- Commits through `10090dda` passed PSP runs `41723346842` and `41793261831`.
+  Host tests reject multi-material LOD0 input and verify the successful pipeline
+  reports its single source material for matching the preview texture.
+- Commit `1bfdb3c2` passed PSP run `41793398946`. Its late-failure regression
+  kept pre-existing PMES, PSKL and PTEX sentinels byte-identical after invalid
+  texture validation failed, proving conversion errors do not publish a mixed
+  preview set.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
