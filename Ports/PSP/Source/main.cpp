@@ -60,6 +60,7 @@ struct ProbeWorldData_PSP
 	AWorldDataHeader_PSP   oHeader;
 	AWorldInstance_PSP     aInstances[ 3 ];
 	AWorldResourceData_PSP aResources[ 1 ];
+	AWorldCellData_PSP     aCells[ 1 ];
 };
 
 alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
@@ -133,6 +134,8 @@ static const ProbeWorldData_PSP g_ProbeWorldData_PSP = {
 	    sizeof( AWorldInstance_PSP ),
 	    1,
 	    sizeof( AWorldResourceData_PSP ),
+	    1,
+	    sizeof( AWorldCellData_PSP ),
 	},
 	{
 	    { { -1.35f, -0.65f, -5.0f }, { 0.0f, 0.25f, 0.0f }, 0.45f, 0 },
@@ -141,6 +144,9 @@ static const ProbeWorldData_PSP g_ProbeWorldData_PSP = {
 	},
 	{
 	    { "probe.model", "probe.texture" },
+	},
+	{
+	    { { 0.0f, -0.7f, -5.75f }, 3.0f, 0, 3 },
 	},
 };
 
@@ -183,10 +189,13 @@ static TBOOL TestProbeWorld_PSP()
 	if ( !g_ProbeWorld_PSP.LoadFromMemory( &g_ProbeWorldData_PSP, sizeof( g_ProbeWorldData_PSP ) ) ||
 	     g_ProbeWorld_PSP.GetInstanceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aInstances ) ||
 	     g_ProbeWorld_PSP.GetResourceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aResources ) ||
+	     g_ProbeWorld_PSP.GetCellCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aCells ) ||
 	     g_ProbeWorld_PSP.GetInstance( 0 ) == TNULL ||
 	     g_ProbeWorld_PSP.GetInstance( 3 ) != TNULL ||
 	     g_ProbeWorld_PSP.GetResourceData( 0 ) == TNULL ||
 	     g_ProbeWorld_PSP.GetResourceData( 1 ) != TNULL ||
+	     g_ProbeWorld_PSP.GetCell( 0 ) == TNULL ||
+	     g_ProbeWorld_PSP.GetCell( 1 ) != TNULL ||
 	     g_ProbeWorld_PSP.ValidateResources() )
 	{
 		return TFALSE;
@@ -217,7 +226,12 @@ static TBOOL TestProbeWorld_PSP()
 
 	ProbeWorldData_PSP oInvalidModel = g_ProbeWorldData_PSP;
 	oInvalidModel.aInstances[ 1 ].uiModelIndex = AWorld_PSP::MAX_MODEL_RESOURCES;
-	return !oInvalidWorld.LoadFromMemory( &oInvalidModel, sizeof( oInvalidModel ) );
+	if ( oInvalidWorld.LoadFromMemory( &oInvalidModel, sizeof( oInvalidModel ) ) )
+		return TFALSE;
+
+	ProbeWorldData_PSP oInvalidCell = g_ProbeWorldData_PSP;
+	oInvalidCell.aCells[ 0 ].fRadius = 0.1f;
+	return !oInvalidWorld.LoadFromMemory( &oInvalidCell, sizeof( oInvalidCell ) );
 }
 
 static TBOOL LoadProbeSkinnedModelFile_PSP()
@@ -2132,6 +2146,11 @@ int main()
 	    g_ProbeWorld_PSP.GetResourceCount(),
 	    AWorld_PSP::MAX_MODEL_RESOURCES
 	);
+	TDebug_FinalPrintf(
+	    "[PSP world] cells        %u/%u bounded\n",
+	    g_ProbeWorld_PSP.GetCellCount(),
+	    AWorld_PSP::MAX_CELLS
+	);
 	TDebug_FinalPrintf( "[PSP animation] skeleton %s\n", bSkeletonReady ? "probe.pskl" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] bind pose %s\n", bSkeletonPoseReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] clip      %s\n", bAnimationReady ? "probe.panm" : "FAILED" );
@@ -2216,6 +2235,7 @@ int main()
 		g_ProbeWorld_PSP.GetInstanceCount(),
 		g_uiProbeWorldVisible_PSP,
 		g_ProbeWorld_PSP.GetResourceCount(),
+		g_ProbeWorld_PSP.GetCellCount(),
 		bSkeletonReady,
 		bSkeletonPoseReady,
 		bAnimationReady,
