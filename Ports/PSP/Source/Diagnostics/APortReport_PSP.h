@@ -35,6 +35,7 @@ struct APortReportData_PSP
 	TBOOL bWorldReady;
 	TUINT uiWorldInstances;
 	TUINT uiWorldVisibleInstances;
+	TUINT uiWorldResources;
 	TBOOL bSkeletonReady;
 	TBOOL bSkeletonPoseReady;
 	TBOOL bAnimationReady;

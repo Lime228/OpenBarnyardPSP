@@ -57,8 +57,9 @@ struct ProbeTextureData_PSP
 
 struct ProbeWorldData_PSP
 {
-	AWorldDataHeader_PSP oHeader;
-	AWorldInstance_PSP   aInstances[ 3 ];
+	AWorldDataHeader_PSP   oHeader;
+	AWorldInstance_PSP     aInstances[ 3 ];
+	AWorldResourceData_PSP aResources[ 1 ];
 };
 
 alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
@@ -130,11 +131,16 @@ static const ProbeWorldData_PSP g_ProbeWorldData_PSP = {
 	    AWorldDataHeader_PSP::VERSION,
 	    3,
 	    sizeof( AWorldInstance_PSP ),
+	    1,
+	    sizeof( AWorldResourceData_PSP ),
 	},
 	{
 	    { { -1.35f, -0.65f, -5.0f }, { 0.0f, 0.25f, 0.0f }, 0.45f, 0 },
 	    { { 0.0f, -0.85f, -6.5f }, { 0.0f, 0.0f, 0.0f }, 0.70f, 0 },
 	    { { 1.4f, -0.55f, -5.4f }, { 0.0f, -0.35f, 0.0f }, 0.50f, 0 },
+	},
+	{
+	    { "probe.model", "probe.texture" },
 	},
 };
 
@@ -176,16 +182,12 @@ static TBOOL TestProbeWorld_PSP()
 	g_uiProbeWorldVisible_PSP = 0;
 	if ( !g_ProbeWorld_PSP.LoadFromMemory( &g_ProbeWorldData_PSP, sizeof( g_ProbeWorldData_PSP ) ) ||
 	     g_ProbeWorld_PSP.GetInstanceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aInstances ) ||
+	     g_ProbeWorld_PSP.GetResourceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aResources ) ||
 	     g_ProbeWorld_PSP.GetInstance( 0 ) == TNULL ||
 	     g_ProbeWorld_PSP.GetInstance( 3 ) != TNULL ||
-	     g_ProbeWorld_PSP.ValidateResources() ||
-	     !g_ProbeWorld_PSP.BindModelResource(
-	         0,
-	         &g_ProbeModel_PSP,
-	         &g_ProbeTexture,
-	         &g_ProbeMaterial_PSP
-	     ) ||
-	     !g_ProbeWorld_PSP.ValidateResources() )
+	     g_ProbeWorld_PSP.GetResourceData( 0 ) == TNULL ||
+	     g_ProbeWorld_PSP.GetResourceData( 1 ) != TNULL ||
+	     g_ProbeWorld_PSP.ValidateResources() )
 	{
 		return TFALSE;
 	}
@@ -1991,7 +1993,7 @@ int main()
 	const TBOOL bModelReady = bFileReady && LoadProbeModelFile_PSP() &&
 	                          TestModelBounds_PSP( g_ProbeModel_PSP ) &&
 	                          TestPreviewTransform_PSP( g_ProbeModel_PSP );
-	const TBOOL bWorldReady = bModelReady && bTextureReady && TestProbeWorld_PSP();
+	const TBOOL bWorldLayoutReady = bModelReady && bTextureReady && TestProbeWorld_PSP();
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
@@ -2041,6 +2043,11 @@ int main()
 	                          pCachedModel == &g_ProbeModel_PSP &&
 	                          pCachedFontTexture == &g_FontTexture_PSP &&
 	                          pCachedFont == &g_Font_PSP;
+	const TBOOL bWorldReady = bWorldLayoutReady && bCacheReady &&
+	                          g_ProbeWorld_PSP.ResolveModelResources(
+	                              g_ResourceCache_PSP,
+	                              &g_ProbeMaterial_PSP
+	                          );
 	AFrontendRenderContext_PSP oRenderContext = {
 		&g_RenderInterface,
 		&g_ProbeVertices_PSP,
@@ -2118,6 +2125,11 @@ int main()
 	    "[PSP world] visible      %u/%u, resources %u\n",
 	    g_uiProbeWorldVisible_PSP,
 	    g_ProbeWorld_PSP.GetInstanceCount(),
+	    AWorld_PSP::MAX_MODEL_RESOURCES
+	);
+	TDebug_FinalPrintf(
+	    "[PSP world] resources    %u/%u resolved\n",
+	    g_ProbeWorld_PSP.GetResourceCount(),
 	    AWorld_PSP::MAX_MODEL_RESOURCES
 	);
 	TDebug_FinalPrintf( "[PSP animation] skeleton %s\n", bSkeletonReady ? "probe.pskl" : "FAILED" );
@@ -2203,6 +2215,7 @@ int main()
 		bWorldReady,
 		g_ProbeWorld_PSP.GetInstanceCount(),
 		g_uiProbeWorldVisible_PSP,
+		g_ProbeWorld_PSP.GetResourceCount(),
 		bSkeletonReady,
 		bSkeletonPoseReady,
 		bAnimationReady,
