@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-05)
 
 The PSP platform/render bring-up is approximately **90%** complete, while the
-complete playable-game port is approximately **71%** complete. The second value
+complete playable-game port is approximately **72%** complete. The second value
 is intentionally much lower: the compiling probe does not yet include the real
 game states, converted Barnyard content, rooms, player simulation, complete UI,
 movies, or gameplay validation on hardware.
@@ -24,12 +24,12 @@ movies, or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 68% | GU display, depth, indexed static/skinned models, per-instance scene transforms and visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 73% | host tools now relocate one selected skin material and TKL sequence, emit bounded PSKL/PMES/PANM/PWLD with four named model/texture pairs, report footprint/material/bounds and transactionally publish a CRC-bound optional runtime preview set including texture fallback; complete multi-material models and the remaining asset families need explicit handling |
+| PSP renderer foundation | 69% | GU display, depth, indexed static/skinned models, per-instance and cell-level visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
+| Real-game asset pipeline | 74% | host tools now relocate one selected skin material and TKL sequence, emit bounded PSKL/PMES/PANM/PWLD with four named model/texture pairs and eight spatial cells, report footprint/material/bounds and transactionally publish a CRC-bound optional runtime preview set including texture fallback; complete multi-material models and the remaining asset families need explicit handling |
 | Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
 | Game bootstrap and frontend | 46% | `AApplication_PSP` owns explicit frame phases and can select, centre, auto-fit and diagnose an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 31% | bounded PWLD instance layouts resolve four offline model/texture names through the PSP cache, sphere/frustum visibility and analogue view movement run alongside skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning; retail rooms and player simulation are not loaded |
+| World, animation and gameplay | 34% | bounded PWLD instance layouts resolve four offline model/texture names through the PSP cache and broad-phase eight validated spatial cells before per-instance culling; analogue view movement runs alongside skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning; retail rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -294,23 +294,27 @@ remain largely unstarted.
   skinning buffer, so partial loads roll back without changing the working
   probe. Clip playback derives timing from the PANM frame count, sample rate and
   loop flag instead of assuming the two-frame 500 ms diagnostic animation.
-- `AWorld_PSP` introduces PWLD v2 as a fixed-width scene-layout boundary. Its
-  24-byte header selects up to 16 fixed 32-byte instances and four fixed 48-byte
-  model/texture name pairs, so a fully populated layout occupies only 728 bytes
-  and loads through a stack buffer without heap growth. Position, rotation and
+- `AWorld_PSP` introduces PWLD v3 as a fixed-width scene-layout boundary. Its
+  32-byte header selects up to 16 fixed 32-byte instances, four fixed 48-byte
+  model/texture name pairs and eight fixed 24-byte spatial cells, so a fully
+  populated layout occupies only 928 bytes and loads through a stack buffer
+  without heap growth. Position, rotation and
   scale must be finite; positions are limited to 1,000 units and scale to
   `[0.001,100]`. Model indices address the bounded resource table; loading
   validates ASCII cache names offline and resolves them transactionally through
   `TRenderResourceCache_PSP`. The world rejects a ready state while any
-  referenced model, texture or material is absent. The
+  referenced model, texture or material is absent. Cell ranges must cover every
+  instance exactly once and each sphere is checked to contain its complete
+  instance range before it can participate in broad-phase culling. The
   bootstrap renders three validated instances through per-instance GU
   transforms and exposes two-axis analogue view movement while preserving the
   existing animated preview path. A bounded visible-index array performs cheap
   near/far and horizontal/vertical sphere tests before issuing GU draws.
-- `convert_world.py` converts a versioned JSON layout to the exact PWLD v2
+- `convert_world.py` converts a versioned JSON layout to the exact PWLD v3
   contract offline. It applies the same instance-count, resource-count,
   cache-name, finite-transform, position, scale and model-slot limits as the
-  EBOOT and reports the final byte count. CI regenerates the deterministic
+  EBOOT, groups instances deterministically into no more than eight fixed-grid
+  cells, and reports the final byte count. CI regenerates the deterministic
   three-instance fixture and separately tests overflow, non-finite transforms,
   unsafe resource names and unsupported model slots.
 - `TModel_PSP` rejects non-finite positions and records the bind-pose AABB while
@@ -1087,6 +1091,13 @@ remain largely unstarted.
   `world_resources=1`; every other gate remained `OK`, stream underruns stayed
   at zero and main usage stayed at 18,204 bytes. Four-direction analogue input
   and Circle were delivered without starting another emulator instance.
+- Commit `e32bfbc8` passed PSP run `42107939287`. Host tests regenerated PWLD
+  v3, validated deterministic cell records and rejected a ninth spatial cell.
+  Artifact `Runtime/PSP/e32bfbc8` produced report v6 in one background PPSSPP
+  process with `world=OK`, `world_instances=3`, `world_visible=3`,
+  `world_resources=1` and `world_cells=1`. Every other gate stayed `OK`, stream
+  underruns remained zero and main usage remained 18,204 bytes. Four-direction
+  analogue input and Circle succeeded in PID `21760`, which was then stopped.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1094,8 +1105,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, partition PWLD instances into bounded cells before attempting retail
-terrain streaming. Also exercise both
+Next, package the generated PWLD fixture beside the EBOOT and load it through
+the bounded file path before attempting retail terrain streaming. Also exercise both
 host TMD/TKL bridge commands against one user-owned
 Barnyard skin model and one explicitly selected base sequence, record their
 converted vertex/index/bone/frame footprint and correct real-format edge cases

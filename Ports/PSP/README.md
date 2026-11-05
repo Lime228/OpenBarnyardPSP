@@ -92,16 +92,18 @@ game data must remain outside the repository.
 
 ## Bounded world layout
 
-`AWorld_PSP` accepts PWLD v2 layouts containing at most 16 fixed-size model
-instances and four fixed model/texture resource-name pairs. The complete file
-is capped at 728 bytes and is read through a stack buffer. Every transform and
-ASCII cache name is validated before the layout becomes visible. Instance model
+`AWorld_PSP` accepts PWLD v3 layouts containing at most 16 fixed-size model
+instances, four fixed model/texture resource-name pairs and eight fixed spatial
+cells. The complete file is capped at 928 bytes and is read through a stack
+buffer. Every transform, ASCII cache name, cell range and cell sphere is
+validated before the layout becomes visible. Instance model
 indices address the bounded resource table, which resolves transactionally
 through `TRenderResourceCache_PSP`; all referenced models, textures and
 materials must exist before rendering. The current bootstrap uses resource zero
-and three deterministic instances, culls them against the PSP projection with a
-fixed visible-index array, and moves the view on two analogue axes. Retail
-terrain still needs bounded cells before it can replace this probe.
+and three deterministic instances, rejects cells before testing their instances
+against the PSP projection with a fixed visible-index array, and moves the view
+on two analogue axes. The generated fixture still needs to be packaged and
+loaded through the bounded file path before retail terrain replaces this probe.
 
 Convert a bounded JSON layout offline with:
 
@@ -109,11 +111,12 @@ Convert a bounded JSON layout offline with:
 python3 Ports/PSP/Tools/convert_world.py world.json world.pwld
 ```
 
-The source contains `version: 2`, a `resources` array and an `instances` array.
+The source contains `version: 3`, a `resources` array and an `instances` array.
 Each resource supplies safe `model` and `texture` cache names of at most 23 ASCII
 characters. Each instance supplies three-component `position` and `rotation`, a
-scalar `scale`, and `model` indexing the resource array. The converter mirrors
-all runtime limits before writing anything.
+scalar `scale`, and `model` indexing the resource array. Optional `cell_size`
+controls deterministic X/Z partitioning and is limited to 1–256 units. The
+converter mirrors all runtime limits before writing anything.
 
 ## Audio conversion
 
