@@ -90,6 +90,16 @@ same summary reports bind-pose bounds plus the centre and uniform scale that the
 EBOOT will use, so unit or pivot problems can be caught before PPSSPP. Original
 game data must remain outside the repository.
 
+## Bounded world layout
+
+`AWorld_PSP` accepts PWLD v1 layouts containing at most 16 fixed-size model
+instances. The complete file is capped at 528 bytes and is read through a stack
+buffer. Every transform is checked for finite, bounded position and scale before
+the layout becomes visible. The current bootstrap uses one model resource slot
+and three deterministic instances; the analogue stick moves the view on two
+axes. Retail terrain still needs an offline PWLD bridge, a bounded model table
+and cell visibility before it can replace this probe.
+
 ## Audio conversion
 
 Resident GUI and gameplay effects use bounded PPCM files. The source must be an

@@ -12,10 +12,10 @@ console backend.
 the toolchain, portable core, input, and PSP GU rendering path independently
 from the Windows executable.
 
-## Progress snapshot (2026-11-04)
+## Progress snapshot (2026-11-05)
 
 The PSP platform/render bring-up is approximately **90%** complete, while the
-complete playable-game port is approximately **68%** complete. The second value
+complete playable-game port is approximately **69%** complete. The second value
 is intentionally much lower: the compiling probe does not yet include the real
 game states, converted Barnyard content, rooms, player simulation, complete UI,
 movies, or gameplay validation on hardware.
@@ -24,12 +24,12 @@ movies, or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 64% | GU display, depth, indexed static/skinned models, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
+| PSP renderer foundation | 66% | GU display, depth, indexed static/skinned models, per-instance scene transforms, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
 | Real-game asset pipeline | 68% | one host command now relocates one selected skin material and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports footprint/material/bounds and transactionally publishes a CRC-bound optional runtime preview set including texture fallback; complete multi-material models and the remaining asset families need explicit handling |
-| Input integration | 58% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and movement actions |
+| Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
 | Game bootstrap and frontend | 46% | `AApplication_PSP` owns explicit frame phases and can select, centre, auto-fit and diagnose an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 19% | bounded skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning run; rooms and player simulation are not loaded |
+| World, animation and gameplay | 24% | bounded PWLD instance layouts, analogue view movement, skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning run; retail rooms, visibility and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -294,6 +294,14 @@ remain largely unstarted.
   skinning buffer, so partial loads roll back without changing the working
   probe. Clip playback derives timing from the PANM frame count, sample rate and
   loop flag instead of assuming the two-frame 500 ms diagnostic animation.
+- `AWorld_PSP` introduces PWLD v1 as a fixed-width scene-layout boundary. Its
+  16-byte header selects up to 16 fixed 32-byte instances, so a fully populated
+  layout occupies only 528 bytes and loads through a stack buffer without heap
+  growth. Position, rotation and scale must be finite; positions are limited to
+  1,000 units, scale to `[0.001,100]`, and v1 accepts only model slot zero until
+  bounded resource ownership is added. The bootstrap renders three validated
+  instances through per-instance GU transforms and exposes two-axis analogue
+  view movement while preserving the existing animated preview path.
 - `TModel_PSP` rejects non-finite positions and records the bind-pose AABB while
   it validates PMES input, before allocating either GU-visible pool. The
   optional preview derives its centre and uniform scale once from those bounds;
@@ -1047,6 +1055,12 @@ remain largely unstarted.
   underruns stayed at zero, main memory stayed at 18,204 bytes, and a missing
   retail PSET cleanly reported `preview=INACTIVE` with
   `preview_stage=manifest`. D-pad Down, Cross and Circle remained responsive.
+- Commit `7a904bc9` passed PSP run `42102507481`. One background PPSSPP instance
+  produced report v3 with `world=OK`, `world_instances=3`, every bootstrap gate
+  `OK`, zero stream underruns and unchanged 18,204-byte main usage. Cross opened
+  the probe, all four analogue directions were delivered, Circle returned to
+  the menu, and the same emulator process remained alive until the runner
+  stopped it.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1054,7 +1068,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, exercise both host TMD/TKL bridge commands against one user-owned
+Next, add an offline PWLD converter, a bounded model-resource table and simple
+cell visibility before attempting retail terrain streaming. Also exercise both
+host TMD/TKL bridge commands against one user-owned
 Barnyard skin model and one explicitly selected base sequence, record their
 converted vertex/index/bone/frame footprint and correct real-format edge cases
 without checking source assets into Git. Keep animation selection explicit and
