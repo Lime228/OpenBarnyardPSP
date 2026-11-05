@@ -1,5 +1,6 @@
 #include "APreviewSet_PSP.h"
 
+#include <Toshi/TDebug.h>
 #include <File/TFile.h>
 
 static constexpr TSIZE s_uiPreviewCRCBufferSize_PSP = 1024;
