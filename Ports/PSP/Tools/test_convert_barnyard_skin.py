@@ -93,11 +93,14 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             staging.mkdir()
             output.mkdir()
             staged_outputs = []
-            for name in ("probe.pmes", "probe.ptex", "probe.panm"):
+            for name in ("probe.pmes", "probe.panm"):
                 staged = staging / name
                 staged.write_bytes(f"new {name}".encode("ascii"))
+                if name == "probe.panm":
+                    staged_outputs.append((None, output / "probe.ptex"))
                 staged_outputs.append((staged, output / name))
             (output / "probe.pmes").write_bytes(b"old mesh")
+            (output / "probe.ptex").write_bytes(b"old texture")
             (output / "probe.panm").write_bytes(b"old animation")
 
             failed = False
@@ -114,8 +117,21 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(OSError, "simulated publish failure"):
                 publish_outputs(staged_outputs, replace_with_failure)
             self.assertEqual((output / "probe.pmes").read_bytes(), b"old mesh")
+            self.assertEqual((output / "probe.ptex").read_bytes(), b"old texture")
             self.assertEqual((output / "probe.panm").read_bytes(), b"old animation")
-            self.assertFalse((output / "probe.ptex").exists())
+
+    def test_publish_tombstone_removes_stale_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            staged = temporary / "new.pmes"
+            mesh = temporary / "probe.pmes"
+            texture = temporary / "probe.ptex"
+            staged.write_bytes(b"new mesh")
+            mesh.write_bytes(b"old mesh")
+            texture.write_bytes(b"stale texture")
+            publish_outputs([(staged, mesh), (None, texture)])
+            self.assertEqual(mesh.read_bytes(), b"new mesh")
+            self.assertFalse(texture.exists())
 
     @unittest.skipIf(os.name == "nt", "temporary shebang executable is a POSIX test fixture")
     def test_failed_late_stage_preserves_existing_outputs(self) -> None:
@@ -207,6 +223,7 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertEqual(summary["bounds_max"], [1.0, 1.0, 0.0])
             self.assertEqual(summary["preview_center"], [0.5, 0.5, 0.0])
             self.assertEqual(summary["preview_scale"], 2.0)
+            self.assertEqual(summary["texture_source"], "barnyard_preview.ptex")
             self.assertEqual(summary["texture_width"], 4)
             self.assertEqual(summary["texture_height"], 8)
             self.assertEqual(summary["texture_bytes"], 152)
@@ -215,6 +232,20 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertTrue((output / "barnyard_preview.panm").is_file())
             self.assertTrue((output / "barnyard_preview.ptex").is_file())
             self.assertTrue((output / "probe_intermediate" / "animation.json").is_file())
+
+            fallback_summary = run_pipeline(
+                exporter,
+                model,
+                output,
+                "probe",
+                key_library,
+                "idle/front",
+                20,
+                runtime_preview=True,
+                preview_material="PROBE",
+            )
+            self.assertEqual(fallback_summary["texture_source"], "probe fallback")
+            self.assertFalse((output / "barnyard_preview.ptex").exists())
 
 
 if __name__ == "__main__":
