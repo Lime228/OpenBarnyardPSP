@@ -76,13 +76,16 @@ py .\Ports\PSP\Tools\convert_barnyard_skin.py `
 
 The command transactionally publishes `barnyard_preview.pmes`, `.pskl`, `.panm`
 and optional `.ptex` only after all selected conversions succeed. Existing
-files are restored if a replacement fails partway through. `--material` is optional
-for a single-material LOD0 and required when the model contains several
-materials; the JSON summary reports the canonical source material name. PMES
-v1 intentionally previews only one material at a time. The same summary reports
-bind-pose bounds plus the centre and uniform scale that the EBOOT will use, so
-unit or pivot problems can be caught before PPSSPP. Original game data must
-remain outside the repository.
+files are restored if a replacement fails partway through. When
+`--runtime-preview` is used without `--texture`, a stale
+`barnyard_preview.ptex` is removed in the same transaction so the runtime uses
+its probe texture fallback instead of pairing a new model with an old texture.
+`--material` is optional for a single-material LOD0 and required when the model
+contains several materials; the JSON summary reports the canonical source
+material name. PMES v1 intentionally previews only one material at a time. The
+same summary reports bind-pose bounds plus the centre and uniform scale that the
+EBOOT will use, so unit or pivot problems can be caught before PPSSPP. Original
+game data must remain outside the repository.
 
 ## Audio conversion
 
