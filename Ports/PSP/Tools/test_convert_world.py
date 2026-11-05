@@ -9,7 +9,9 @@ import unittest
 
 from convert_world import (
     MAX_INSTANCE_COUNT,
+    MAX_CELL_COUNT,
     MAX_MODEL_RESOURCES,
+    PWLD_CELL_SIZE,
     PWLD_HEADER_SIZE,
     PWLD_INSTANCE_SIZE,
     PWLD_MAGIC,
@@ -20,7 +22,8 @@ from convert_world import (
 
 
 WORLD = {
-    "version": 2,
+    "version": 3,
+    "cell_size": 16.0,
     "resources": [
         {"model": "probe.model", "texture": "probe.texture"},
     ],
@@ -55,15 +58,15 @@ class WorldConverterTests(unittest.TestCase):
         summary, payload = self.convert_document(WORLD)
         self.assertEqual(
             summary,
-            {"instances": 2, "bytes": 136, "model_slots": 1, "resources": 1},
+            {"instances": 2, "bytes": 168, "model_slots": 1, "resources": 1, "cells": 1},
         )
         self.assertEqual(
             len(payload),
-            PWLD_HEADER_SIZE + 2 * PWLD_INSTANCE_SIZE + PWLD_RESOURCE_SIZE,
+            PWLD_HEADER_SIZE + 2 * PWLD_INSTANCE_SIZE + PWLD_RESOURCE_SIZE + PWLD_CELL_SIZE,
         )
         self.assertEqual(
-            struct.unpack_from("<6I", payload),
-            (PWLD_MAGIC, PWLD_VERSION, 2, PWLD_INSTANCE_SIZE, 1, PWLD_RESOURCE_SIZE),
+            struct.unpack_from("<8I", payload),
+            (PWLD_MAGIC, PWLD_VERSION, 2, PWLD_INSTANCE_SIZE, 1, PWLD_RESOURCE_SIZE, 1, PWLD_CELL_SIZE),
         )
         first = struct.unpack_from("<7fI", payload, PWLD_HEADER_SIZE)
         self.assertEqual(first[:3], (-1.0, 0.5, -4.0))
@@ -76,6 +79,13 @@ class WorldConverterTests(unittest.TestCase):
         )
         self.assertEqual(resource[0].rstrip(b"\0"), b"probe.model")
         self.assertEqual(resource[1].rstrip(b"\0"), b"probe.texture")
+        cell = struct.unpack_from(
+            "<4f2I",
+            payload,
+            PWLD_HEADER_SIZE + 2 * PWLD_INSTANCE_SIZE + PWLD_RESOURCE_SIZE,
+        )
+        self.assertEqual(cell[4:], (0, 2))
+        self.assertGreater(cell[3], 0.0)
 
     def test_rejects_unbounded_instance_count(self) -> None:
         document = {
@@ -126,6 +136,21 @@ class WorldConverterTests(unittest.TestCase):
             document["resources"][0][field] = value
             with self.subTest(field=field, value=value), self.assertRaisesRegex(ValueError, message):
                 self.convert_document(document)
+
+    def test_partitions_and_rejects_unbounded_cells(self) -> None:
+        document = json.loads(json.dumps(WORLD))
+        document["cell_size"] = 1.0
+        document["instances"] = [
+            {
+                "position": [float(index * 2), 0.0, -4.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": 0.5,
+                "model": 0,
+            }
+            for index in range(MAX_CELL_COUNT + 1)
+        ]
+        with self.assertRaisesRegex(ValueError, "cell limit"):
+            self.convert_document(document)
 
 
 if __name__ == "__main__":
