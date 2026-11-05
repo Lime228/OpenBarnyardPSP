@@ -12,6 +12,7 @@ PWLD_VERSION = 1
 PWLD_HEADER_SIZE = 16
 PWLD_INSTANCE_SIZE = 32
 MAX_INSTANCE_COUNT = 16
+MAX_MODEL_RESOURCES = 4
 MAX_POSITION = 1000.0
 MIN_SCALE = 0.001
 MAX_SCALE = 100.0
@@ -54,8 +55,8 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
         if not math.isfinite(scale) or scale < MIN_SCALE or scale > MAX_SCALE:
             raise ValueError(f"instance {index} scale exceeds the PSP world limit")
         model = instance.get("model", 0)
-        if not isinstance(model, int) or model != 0:
-            raise ValueError(f"instance {index} requires PSP model slot zero")
+        if not isinstance(model, int) or isinstance(model, bool) or not 0 <= model < MAX_MODEL_RESOURCES:
+            raise ValueError(f"instance {index} model slot exceeds the PSP world limit")
         payload.extend(struct.pack("<7fI", *position, *rotation, scale, model))
 
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -63,7 +64,7 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
     return {
         "instances": len(instances),
         "bytes": len(payload),
-        "model_slots": 1,
+        "model_slots": len({instance.get("model", 0) for instance in instances}),
     }
 
 
