@@ -158,7 +158,7 @@ function Send-OpenBarnyardPPSSPPKey {
     }
 
     $window = $Process.MainWindowHandle
-    $virtualKey = [UIntPtr] $virtualKeys[$Button]
+    $virtualKey = [UIntPtr]::new([uint32] $virtualKeys[$Button])
     for ($index = 0; $index -lt $Count; $index++) {
         if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0100, $virtualKey, [IntPtr]::Zero)) {
             throw "Could not send $Button to PPSSPP process $($Process.Id)."
