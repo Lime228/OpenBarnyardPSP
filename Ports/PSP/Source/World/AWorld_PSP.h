@@ -15,7 +15,7 @@ struct AWorldDataHeader_PSP
 	enum : TUINT32
 	{
 		MAGIC = 0x444C5750,
-		VERSION = 2,
+		VERSION = 3,
 	};
 
 	TUINT32 uiMagic;
@@ -24,6 +24,8 @@ struct AWorldDataHeader_PSP
 	TUINT32 uiInstanceSize;
 	TUINT32 uiResourceCount;
 	TUINT32 uiResourceSize;
+	TUINT32 uiCellCount;
+	TUINT32 uiCellSize;
 };
 
 struct AWorldResourceData_PSP
@@ -40,6 +42,14 @@ struct AWorldInstance_PSP
 	TUINT32 uiModelIndex;
 };
 
+struct AWorldCellData_PSP
+{
+	TFLOAT  aCenter[ 3 ];
+	TFLOAT  fRadius;
+	TUINT32 uiFirstInstance;
+	TUINT32 uiInstanceCount;
+};
+
 struct AWorldModelResource_PSP
 {
 	const Toshi::TModel_PSP*          pModel;
@@ -52,6 +62,7 @@ class AWorld_PSP
 public:
 	static constexpr TUINT MAX_INSTANCES = 16;
 	static constexpr TUINT MAX_MODEL_RESOURCES = 4;
+	static constexpr TUINT MAX_CELLS = 8;
 
 public:
 	AWorld_PSP();
@@ -63,8 +74,10 @@ public:
 	TBOOL IsLoaded() const { return m_bLoaded; }
 	TUINT GetInstanceCount() const { return m_uiInstanceCount; }
 	TUINT GetResourceCount() const { return m_uiResourceCount; }
+	TUINT GetCellCount() const { return m_uiCellCount; }
 	const AWorldInstance_PSP* GetInstance( TUINT a_uiIndex ) const;
 	const AWorldResourceData_PSP* GetResourceData( TUINT a_uiIndex ) const;
+	const AWorldCellData_PSP* GetCell( TUINT a_uiIndex ) const;
 	TBOOL BindModelResource(
 	    TUINT a_uiIndex,
 	    const Toshi::TModel_PSP* a_pModel,
@@ -87,6 +100,15 @@ public:
 private:
 	TBOOL IsValidInstance( const AWorldInstance_PSP& a_rInstance ) const;
 	TBOOL IsValidResourceName( const TCHAR* a_pName ) const;
+	TBOOL IsValidCell( const AWorldCellData_PSP& a_rCell, TUINT a_uiExpectedFirst ) const;
+	TBOOL IsSphereVisible(
+	    TFLOAT a_fX,
+	    TFLOAT a_fY,
+	    TFLOAT a_fZ,
+	    TFLOAT a_fRadius,
+	    TFLOAT a_fViewX,
+	    TFLOAT a_fViewZ
+	) const;
 	TBOOL IsInstanceVisible(
 	    const AWorldInstance_PSP& a_rInstance,
 	    TFLOAT a_fViewX,
@@ -96,12 +118,15 @@ private:
 private:
 	AWorldInstance_PSP      m_aInstances[ MAX_INSTANCES ];
 	AWorldResourceData_PSP  m_aResourceData[ MAX_MODEL_RESOURCES ];
+	AWorldCellData_PSP      m_aCells[ MAX_CELLS ];
 	AWorldModelResource_PSP m_aModelResources[ MAX_MODEL_RESOURCES ];
 	TUINT                   m_uiInstanceCount;
 	TUINT                   m_uiResourceCount;
+	TUINT                   m_uiCellCount;
 	TBOOL                   m_bLoaded;
 };
 
-static_assert( sizeof( AWorldDataHeader_PSP ) == 24, "PWLD header must stay fixed-width" );
+static_assert( sizeof( AWorldDataHeader_PSP ) == 32, "PWLD header must stay fixed-width" );
 static_assert( sizeof( AWorldResourceData_PSP ) == 48, "PWLD resource must stay fixed-width" );
 static_assert( sizeof( AWorldInstance_PSP ) == 32, "PWLD instance must stay fixed-width" );
+static_assert( sizeof( AWorldCellData_PSP ) == 24, "PWLD cell must stay fixed-width" );

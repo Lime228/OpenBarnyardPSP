@@ -13,7 +13,8 @@
 static constexpr TSIZE s_uiMaximumWorldFileSize_PSP =
     sizeof( AWorldDataHeader_PSP ) +
     AWorld_PSP::MAX_INSTANCES * sizeof( AWorldInstance_PSP ) +
-    AWorld_PSP::MAX_MODEL_RESOURCES * sizeof( AWorldResourceData_PSP );
+    AWorld_PSP::MAX_MODEL_RESOURCES * sizeof( AWorldResourceData_PSP ) +
+    AWorld_PSP::MAX_CELLS * sizeof( AWorldCellData_PSP );
 static constexpr TFLOAT s_fWorldNearPlane_PSP = 0.1f;
 static constexpr TFLOAT s_fWorldFarPlane_PSP = 100.0f;
 static constexpr TFLOAT s_fWorldHalfVerticalTangent_PSP = 0.41421356f;
@@ -24,11 +25,32 @@ static constexpr TFLOAT s_fWorldAspectRatio_PSP =
 AWorld_PSP::AWorld_PSP()
     : m_aInstances{}
     , m_aResourceData{}
+    , m_aCells{}
     , m_aModelResources{}
     , m_uiInstanceCount( 0 )
     , m_uiResourceCount( 0 )
+    , m_uiCellCount( 0 )
     , m_bLoaded( TFALSE )
 {
+}
+
+TBOOL AWorld_PSP::IsValidCell(
+    const AWorldCellData_PSP& a_rCell,
+    TUINT a_uiExpectedFirst
+) const
+{
+	return Toshi::TMath::IsFinite( a_rCell.aCenter[ 0 ] ) &&
+	       Toshi::TMath::IsFinite( a_rCell.aCenter[ 1 ] ) &&
+	       Toshi::TMath::IsFinite( a_rCell.aCenter[ 2 ] ) &&
+	       Toshi::TMath::Abs( a_rCell.aCenter[ 0 ] ) <= 1000.0f &&
+	       Toshi::TMath::Abs( a_rCell.aCenter[ 1 ] ) <= 1000.0f &&
+	       Toshi::TMath::Abs( a_rCell.aCenter[ 2 ] ) <= 1000.0f &&
+	       Toshi::TMath::IsFinite( a_rCell.fRadius ) &&
+	       a_rCell.fRadius >= 0.001f &&
+	       a_rCell.fRadius <= 2000.0f &&
+	       a_rCell.uiFirstInstance == a_uiExpectedFirst &&
+	       a_rCell.uiInstanceCount > 0 &&
+	       a_rCell.uiInstanceCount <= MAX_INSTANCES - a_uiExpectedFirst;
 }
 
 TBOOL AWorld_PSP::IsValidResourceName( const TCHAR* a_pName ) const
@@ -107,9 +129,13 @@ TBOOL AWorld_PSP::LoadFromMemory( const void* a_pData, TSIZE a_uiDataSize )
 	     oHeader.uiResourceCount == 0 ||
 	     oHeader.uiResourceCount > MAX_MODEL_RESOURCES ||
 	     oHeader.uiResourceSize != sizeof( AWorldResourceData_PSP ) ||
+	     oHeader.uiCellCount == 0 ||
+	     oHeader.uiCellCount > MAX_CELLS ||
+	     oHeader.uiCellSize != sizeof( AWorldCellData_PSP ) ||
 	     a_uiDataSize != sizeof( AWorldDataHeader_PSP ) +
 	                         oHeader.uiInstanceCount * sizeof( AWorldInstance_PSP ) +
-	                         oHeader.uiResourceCount * sizeof( AWorldResourceData_PSP ) )
+	                         oHeader.uiResourceCount * sizeof( AWorldResourceData_PSP ) +
+	                         oHeader.uiCellCount * sizeof( AWorldCellData_PSP ) )
 	{
 		return TFALSE;
 	}
@@ -147,9 +173,50 @@ TBOOL AWorld_PSP::LoadFromMemory( const void* a_pData, TSIZE a_uiDataSize )
 		}
 		m_aResourceData[ i ] = oResource;
 	}
+	const TUINT8* pCells = pResources + oHeader.uiResourceCount * sizeof( AWorldResourceData_PSP );
+	TUINT uiExpectedFirst = 0;
+	for ( TUINT i = 0; i < oHeader.uiCellCount; i++ )
+	{
+		AWorldCellData_PSP oCell;
+		std::memcpy(
+		    &oCell,
+		    pCells + i * sizeof( AWorldCellData_PSP ),
+		    sizeof( oCell )
+		);
+		if ( !IsValidCell( oCell, uiExpectedFirst ) )
+		{
+			Unload();
+			return TFALSE;
+		}
+		const TUINT uiCellEnd = uiExpectedFirst + oCell.uiInstanceCount;
+		for ( TUINT j = uiExpectedFirst; j < uiCellEnd; j++ )
+		{
+			const AWorldInstance_PSP& rInstance = m_aInstances[ j ];
+			const TFLOAT fInstanceRadius = rInstance.fScale * 1.75f;
+			const TFLOAT fAvailableRadius = oCell.fRadius - fInstanceRadius;
+			const TFLOAT fDeltaX = rInstance.aPosition[ 0 ] - oCell.aCenter[ 0 ];
+			const TFLOAT fDeltaY = rInstance.aPosition[ 1 ] - oCell.aCenter[ 1 ];
+			const TFLOAT fDeltaZ = rInstance.aPosition[ 2 ] - oCell.aCenter[ 2 ];
+			if ( fAvailableRadius < 0.0f ||
+			     fDeltaX * fDeltaX + fDeltaY * fDeltaY + fDeltaZ * fDeltaZ >
+			         fAvailableRadius * fAvailableRadius )
+			{
+				Unload();
+				return TFALSE;
+			}
+		}
+		m_aCells[ i ] = oCell;
+		uiExpectedFirst += oCell.uiInstanceCount;
+	}
+	if ( uiExpectedFirst != oHeader.uiInstanceCount )
+	{
+		Unload();
+		return TFALSE;
+	}
 
 	m_uiInstanceCount = oHeader.uiInstanceCount;
 	m_uiResourceCount = oHeader.uiResourceCount;
+	m_uiCellCount = oHeader.uiCellCount;
 	m_bLoaded = TTRUE;
 	return TTRUE;
 }
@@ -161,9 +228,17 @@ void AWorld_PSP::Unload()
 		m_aResourceData[ i ] = {};
 		m_aModelResources[ i ] = {};
 	}
+	for ( TUINT i = 0; i < MAX_CELLS; i++ )
+		m_aCells[ i ] = {};
 	m_uiInstanceCount = 0;
 	m_uiResourceCount = 0;
+	m_uiCellCount = 0;
 	m_bLoaded = TFALSE;
+}
+
+const AWorldCellData_PSP* AWorld_PSP::GetCell( TUINT a_uiIndex ) const
+{
+	return m_bLoaded && a_uiIndex < m_uiCellCount ? &m_aCells[ a_uiIndex ] : TNULL;
 }
 
 const AWorldResourceData_PSP* AWorld_PSP::GetResourceData( TUINT a_uiIndex ) const
@@ -257,10 +332,29 @@ TBOOL AWorld_PSP::IsInstanceVisible(
     TFLOAT a_fViewZ
 ) const
 {
-	const TFLOAT fX = a_rInstance.aPosition[ 0 ] + a_fViewX;
-	const TFLOAT fY = a_rInstance.aPosition[ 1 ];
-	const TFLOAT fDepth = -( a_rInstance.aPosition[ 2 ] + a_fViewZ );
-	const TFLOAT fRadius = a_rInstance.fScale * 1.75f;
+	return IsSphereVisible(
+	    a_rInstance.aPosition[ 0 ],
+	    a_rInstance.aPosition[ 1 ],
+	    a_rInstance.aPosition[ 2 ],
+	    a_rInstance.fScale * 1.75f,
+	    a_fViewX,
+	    a_fViewZ
+	);
+}
+
+TBOOL AWorld_PSP::IsSphereVisible(
+    TFLOAT a_fX,
+    TFLOAT a_fY,
+    TFLOAT a_fZ,
+    TFLOAT a_fRadius,
+    TFLOAT a_fViewX,
+    TFLOAT a_fViewZ
+) const
+{
+	const TFLOAT fX = a_fX + a_fViewX;
+	const TFLOAT fY = a_fY;
+	const TFLOAT fDepth = -( a_fZ + a_fViewZ );
+	const TFLOAT fRadius = a_fRadius;
 	if ( fDepth + fRadius < s_fWorldNearPlane_PSP ||
 	     fDepth - fRadius > s_fWorldFarPlane_PSP )
 	{
@@ -288,10 +382,26 @@ TUINT AWorld_PSP::CollectVisibleInstances(
 	}
 
 	TUINT uiVisibleCount = 0;
-	for ( TUINT i = 0; i < m_uiInstanceCount && uiVisibleCount < a_uiCapacity; i++ )
+	for ( TUINT i = 0; i < m_uiCellCount && uiVisibleCount < a_uiCapacity; i++ )
 	{
-		if ( IsInstanceVisible( m_aInstances[ i ], a_fViewX, a_fViewZ ) )
-			a_pOutIndices[ uiVisibleCount++ ] = TUINT16( i );
+		const AWorldCellData_PSP& rCell = m_aCells[ i ];
+		if ( !IsSphereVisible(
+		         rCell.aCenter[ 0 ],
+		         rCell.aCenter[ 1 ],
+		         rCell.aCenter[ 2 ],
+		         rCell.fRadius,
+		         a_fViewX,
+		         a_fViewZ
+		     ) )
+		{
+			continue;
+		}
+		const TUINT uiEnd = rCell.uiFirstInstance + rCell.uiInstanceCount;
+		for ( TUINT j = rCell.uiFirstInstance; j < uiEnd && uiVisibleCount < a_uiCapacity; j++ )
+		{
+			if ( IsInstanceVisible( m_aInstances[ j ], a_fViewX, a_fViewZ ) )
+				a_pOutIndices[ uiVisibleCount++ ] = TUINT16( j );
+		}
 	}
 	return uiVisibleCount;
 }
