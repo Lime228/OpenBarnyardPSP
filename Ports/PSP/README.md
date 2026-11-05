@@ -92,15 +92,16 @@ game data must remain outside the repository.
 
 ## Bounded world layout
 
-`AWorld_PSP` accepts PWLD v1 layouts containing at most 16 fixed-size model
-instances. The complete file is capped at 528 bytes and is read through a stack
-buffer. Every transform is checked for finite, bounded position and scale before
-the layout becomes visible. PWLD v1 addresses four fixed model-resource slots;
-all referenced models, textures and materials must be bound before rendering.
-The current bootstrap uses slot zero and three deterministic instances, culls
-them against the PSP projection with a fixed visible-index array, and moves the
-view on two analogue axes. Retail terrain still needs offline resource-name
-resolution and bounded cells before it can replace this probe.
+`AWorld_PSP` accepts PWLD v2 layouts containing at most 16 fixed-size model
+instances and four fixed model/texture resource-name pairs. The complete file
+is capped at 728 bytes and is read through a stack buffer. Every transform and
+ASCII cache name is validated before the layout becomes visible. Instance model
+indices address the bounded resource table, which resolves transactionally
+through `TRenderResourceCache_PSP`; all referenced models, textures and
+materials must exist before rendering. The current bootstrap uses resource zero
+and three deterministic instances, culls them against the PSP projection with a
+fixed visible-index array, and moves the view on two analogue axes. Retail
+terrain still needs bounded cells before it can replace this probe.
 
 Convert a bounded JSON layout offline with:
 
@@ -108,9 +109,11 @@ Convert a bounded JSON layout offline with:
 python3 Ports/PSP/Tools/convert_world.py world.json world.pwld
 ```
 
-The source contains `version: 1` and an `instances` array. Each instance supplies
-three-component `position` and `rotation`, a scalar `scale`, and `model` in the
-range 0–3. The converter mirrors all runtime limits before writing anything.
+The source contains `version: 2`, a `resources` array and an `instances` array.
+Each resource supplies safe `model` and `texture` cache names of at most 23 ASCII
+characters. Each instance supplies three-component `position` and `rotation`, a
+scalar `scale`, and `model` indexing the resource array. The converter mirrors
+all runtime limits before writing anything.
 
 ## Audio conversion
 
