@@ -1,5 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
+  "resources": [
+    {
+      "model": "probe.model",
+      "texture": "probe.texture"
+    }
+  ],
   "instances": [
     {
       "position": [-1.35, -0.65, -5.0],

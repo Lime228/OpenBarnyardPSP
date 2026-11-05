@@ -8,11 +8,13 @@ import struct
 
 
 PWLD_MAGIC = 0x444C5750
-PWLD_VERSION = 1
-PWLD_HEADER_SIZE = 16
+PWLD_VERSION = 2
+PWLD_HEADER_SIZE = 24
 PWLD_INSTANCE_SIZE = 32
+PWLD_RESOURCE_SIZE = 48
 MAX_INSTANCE_COUNT = 16
 MAX_MODEL_RESOURCES = 4
+MAX_RESOURCE_NAME_LENGTH = 23
 MAX_POSITION = 1000.0
 MIN_SCALE = 0.001
 MAX_SCALE = 100.0
@@ -27,6 +29,29 @@ def vector(value: object, size: int, name: str) -> list[float]:
     return result
 
 
+def is_resource_name_character(character: int) -> bool:
+    return (
+        character in {45, 46, 95}
+        or 48 <= character <= 57
+        or 65 <= character <= 90
+        or 97 <= character <= 122
+    )
+
+
+def resource_name(value: object, name: str) -> bytes:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{name} must be a non-empty string")
+    try:
+        encoded = value.encode("ascii")
+    except UnicodeEncodeError as error:
+        raise ValueError(f"{name} must be ASCII") from error
+    if len(encoded) > MAX_RESOURCE_NAME_LENGTH or not all(
+        is_resource_name_character(character) for character in encoded
+    ):
+        raise ValueError(f"{name} is not a valid PSP resource name")
+    return encoded
+
+
 def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
     document = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(document, dict) or document.get("version") != PWLD_VERSION:
@@ -34,14 +59,30 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
     instances = document.get("instances")
     if not isinstance(instances, list) or not 1 <= len(instances) <= MAX_INSTANCE_COUNT:
         raise ValueError("world must contain between 1 and 16 instances")
+    resources = document.get("resources")
+    if not isinstance(resources, list) or not 1 <= len(resources) <= MAX_MODEL_RESOURCES:
+        raise ValueError("world must contain between 1 and 4 resources")
+
+    parsed_resources = []
+    for index, resource in enumerate(resources):
+        if not isinstance(resource, dict):
+            raise ValueError(f"resource {index} must be an object")
+        parsed_resources.append(
+            (
+                resource_name(resource.get("model"), f"resource {index} model"),
+                resource_name(resource.get("texture"), f"resource {index} texture"),
+            )
+        )
 
     payload = bytearray(
         struct.pack(
-            "<4I",
+            "<6I",
             PWLD_MAGIC,
             PWLD_VERSION,
             len(instances),
             PWLD_INSTANCE_SIZE,
+            len(resources),
+            PWLD_RESOURCE_SIZE,
         )
     )
     for index, instance in enumerate(instances):
@@ -55,9 +96,11 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
         if not math.isfinite(scale) or scale < MIN_SCALE or scale > MAX_SCALE:
             raise ValueError(f"instance {index} scale exceeds the PSP world limit")
         model = instance.get("model", 0)
-        if not isinstance(model, int) or isinstance(model, bool) or not 0 <= model < MAX_MODEL_RESOURCES:
+        if not isinstance(model, int) or isinstance(model, bool) or not 0 <= model < len(resources):
             raise ValueError(f"instance {index} model slot exceeds the PSP world limit")
         payload.extend(struct.pack("<7fI", *position, *rotation, scale, model))
+    for model, texture in parsed_resources:
+        payload.extend(struct.pack("<24s24s", model, texture))
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(payload)
@@ -65,6 +108,7 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
         "instances": len(instances),
         "bytes": len(payload),
         "model_slots": len({instance.get("model", 0) for instance in instances}),
+        "resources": len(resources),
     }
 
 
