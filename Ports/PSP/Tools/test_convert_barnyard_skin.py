@@ -4,10 +4,22 @@ import copy
 import json
 import os
 import pathlib
+import struct
 import tempfile
 import unittest
+import zlib
 
-from convert_barnyard_skin import publish_outputs, read_summary, run_pipeline, safe_name, stage_texture
+from convert_barnyard_skin import (
+    PSET_FLAG_TEXTURE,
+    PSET_HEADER_SIZE,
+    PSET_MAGIC,
+    PSET_VERSION,
+    publish_outputs,
+    read_summary,
+    run_pipeline,
+    safe_name,
+    stage_texture,
+)
 from convert_tmd_dump import build_mesh, build_skeleton
 
 
@@ -227,10 +239,20 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertEqual(summary["texture_width"], 4)
             self.assertEqual(summary["texture_height"], 8)
             self.assertEqual(summary["texture_bytes"], 152)
+            self.assertEqual(summary["preview_set_bytes"], PSET_HEADER_SIZE)
             self.assertTrue((output / "barnyard_preview.pmes").is_file())
             self.assertTrue((output / "barnyard_preview.pskl").is_file())
             self.assertTrue((output / "barnyard_preview.panm").is_file())
             self.assertTrue((output / "barnyard_preview.ptex").is_file())
+            preview_set = struct.unpack("<12I", (output / "barnyard_preview.pset").read_bytes())
+            self.assertEqual(
+                preview_set[:4],
+                (PSET_MAGIC, PSET_VERSION, PSET_FLAG_TEXTURE, PSET_HEADER_SIZE),
+            )
+            for index, name in enumerate(("pmes", "pskl", "panm", "ptex")):
+                payload = (output / f"barnyard_preview.{name}").read_bytes()
+                self.assertEqual(preview_set[4 + index * 2], len(payload))
+                self.assertEqual(preview_set[5 + index * 2], zlib.crc32(payload) & 0xFFFFFFFF)
             self.assertTrue((output / "probe_intermediate" / "animation.json").is_file())
 
             fallback_summary = run_pipeline(
@@ -246,6 +268,9 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             )
             self.assertEqual(fallback_summary["texture_source"], "probe fallback")
             self.assertFalse((output / "barnyard_preview.ptex").exists())
+            fallback_set = struct.unpack("<12I", (output / "barnyard_preview.pset").read_bytes())
+            self.assertEqual(fallback_set[2], 0)
+            self.assertEqual(fallback_set[10:], (0, 0))
 
 
 if __name__ == "__main__":
