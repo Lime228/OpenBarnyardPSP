@@ -4,7 +4,7 @@ param(
     [string] $EbootPath = '',
     [string] $PPSSPPPath = '',
 
-    [ValidateSet('Cross', 'Circle', 'DpadUp', 'DpadDown', 'AnalogLeft', 'AnalogRight')]
+    [ValidateSet('Cross', 'Circle', 'DpadUp', 'DpadDown', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight')]
     [string] $Key = 'Cross',
 
     [ValidateRange(1, 60)]
@@ -138,6 +138,8 @@ function Send-OpenBarnyardPPSSPPKey {
         Circle = 0x58
         DpadUp = 0x26
         DpadDown = 0x28
+        AnalogUp = 0x49
+        AnalogDown = 0x4B
         AnalogLeft = 0x4A
         AnalogRight = 0x4C
     }
