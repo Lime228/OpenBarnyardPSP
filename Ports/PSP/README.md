@@ -100,6 +100,16 @@ and three deterministic instances; the analogue stick moves the view on two
 axes. Retail terrain still needs an offline PWLD bridge, a bounded model table
 and cell visibility before it can replace this probe.
 
+Convert a bounded JSON layout offline with:
+
+```sh
+python3 Ports/PSP/Tools/convert_world.py world.json world.pwld
+```
+
+The source contains `version: 1` and an `instances` array. Each instance supplies
+three-component `position` and `rotation`, a scalar `scale`, and currently
+`model: 0`. The converter mirrors all runtime limits before writing anything.
+
 ## Audio conversion
 
 Resident GUI and gameplay effects use bounded PPCM files. The source must be an

@@ -25,7 +25,7 @@ movies, or gameplay validation on hardware.
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 66% | GU display, depth, indexed static/skinned models, per-instance scene transforms, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 68% | one host command now relocates one selected skin material and explicitly selected TKL sequence, emits bounded PSKL/PMES/PANM, reports footprint/material/bounds and transactionally publishes a CRC-bound optional runtime preview set including texture fallback; complete multi-material models and the remaining asset families need explicit handling |
+| Real-game asset pipeline | 70% | host tools now relocate one selected skin material and TKL sequence, emit bounded PSKL/PMES/PANM/PWLD, report footprint/material/bounds and transactionally publish a CRC-bound optional runtime preview set including texture fallback; complete multi-material models and the remaining asset families need explicit handling |
 | Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
 | Game bootstrap and frontend | 46% | `AApplication_PSP` owns explicit frame phases and can select, centre, auto-fit and diagnose an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
@@ -302,6 +302,11 @@ remain largely unstarted.
   bounded resource ownership is added. The bootstrap renders three validated
   instances through per-instance GU transforms and exposes two-axis analogue
   view movement while preserving the existing animated preview path.
+- `convert_world.py` converts a versioned JSON layout to the exact PWLD v1
+  contract offline. It applies the same instance-count, finite-transform,
+  position, scale and model-slot limits as the EBOOT and reports the final byte
+  count. CI regenerates the deterministic three-instance fixture and separately
+  tests overflow, non-finite transforms and unsupported model slots.
 - `TModel_PSP` rejects non-finite positions and records the bind-pose AABB while
   it validates PMES input, before allocating either GU-visible pool. The
   optional preview derives its centre and uniform scale once from those bounds;
@@ -1061,6 +1066,9 @@ remain largely unstarted.
   the probe, all four analogue directions were delivered, Circle returned to
   the menu, and the same emulator process remained alive until the runner
   stopped it.
+- Commit `ca4b986c` passed PSP run `42103204268`. Host tests validated the PWLD
+  header and instance bytes and rejected excessive instance counts, non-finite
+  transforms, out-of-range position/scale and unsupported model slots.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1068,8 +1076,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, add an offline PWLD converter, a bounded model-resource table and simple
-cell visibility before attempting retail terrain streaming. Also exercise both
+Next, add a bounded PWLD model-resource table and simple cell visibility before
+attempting retail terrain streaming. Also exercise both
 host TMD/TKL bridge commands against one user-owned
 Barnyard skin model and one explicitly selected base sequence, record their
 converted vertex/index/bone/frame footprint and correct real-format edge cases
