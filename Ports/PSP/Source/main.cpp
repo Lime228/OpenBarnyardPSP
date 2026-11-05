@@ -13,6 +13,7 @@
 #include <Platform/PSP/TAnimationClipFactory_PSP.h>
 #include <Render/TBackend.h>
 
+#include "Assets/APreviewSet_PSP.h"
 #include "Frontend/AApplication_PSP.h"
 #include "GUI/AGUIAudioContext_PSP.h"
 #include "Frontend/AFrontendLocale_PSP.h"
@@ -35,6 +36,7 @@ static volatile TBOOL g_Running = TTRUE;
 
 enum APreviewLoadStage_PSP
 {
+	APreviewLoadStage_PSP_Manifest,
 	APreviewLoadStage_PSP_Model,
 	APreviewLoadStage_PSP_Skeleton,
 	APreviewLoadStage_PSP_Animation,
@@ -104,7 +106,7 @@ static const Toshi::TRenderModelTransform_PSP g_IdentityModelTransform_PSP = {
 	{ 0.0f, 0.0f, 0.0f },
 };
 static Toshi::TRenderModelTransform_PSP g_PreviewTransform_PSP = g_IdentityModelTransform_PSP;
-static APreviewLoadStage_PSP            g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Model;
+static APreviewLoadStage_PSP            g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Manifest;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
 static TBOOL                            g_bPreviewTexture_PSP = TFALSE;
 static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
@@ -221,6 +223,7 @@ static const TCHAR* GetPreviewLoadStageName_PSP()
 {
 	switch ( g_ePreviewLoadStage_PSP )
 	{
+		case APreviewLoadStage_PSP_Manifest: return "manifest";
 		case APreviewLoadStage_PSP_Model: return "model";
 		case APreviewLoadStage_PSP_Skeleton: return "skeleton";
 		case APreviewLoadStage_PSP_Animation: return "animation";
@@ -249,6 +252,10 @@ static void UnloadPreviewModel_PSP()
 static TBOOL LoadPreviewModel_PSP()
 {
 	UnloadPreviewModel_PSP();
+	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Manifest;
+	TBOOL bHasPreviewTexture = TFALSE;
+	if ( !APreviewSet_PSP::Validate( bHasPreviewTexture ) )
+		return TFALSE;
 	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Model;
 	if ( !g_ModelFactory_PSP.CreateModelFromFile( g_PreviewModel_PSP, "local:barnyard_preview.pmes" ) )
 		return TFALSE;
@@ -299,10 +306,13 @@ static TBOOL LoadPreviewModel_PSP()
 		return TFALSE;
 	}
 
-	g_bPreviewTexture_PSP = g_TextureFactory_PSP.CreateTextureFromFile(
-	    g_PreviewTexture_PSP,
-	    "local:barnyard_preview.ptex"
-	);
+	if ( bHasPreviewTexture )
+	{
+		g_bPreviewTexture_PSP = g_TextureFactory_PSP.CreateTextureFromFile(
+		    g_PreviewTexture_PSP,
+		    "local:barnyard_preview.ptex"
+		);
+	}
 	g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Ready;
 	return TTRUE;
 }
