@@ -74,9 +74,12 @@ py .\Ports\PSP\Tools\convert_barnyard_skin.py `
   --runtime-preview
 ```
 
-The command transactionally publishes `barnyard_preview.pmes`, `.pskl`, `.panm`
-and optional `.ptex` only after all selected conversions succeed. Existing
-files are restored if a replacement fails partway through. When
+The command transactionally publishes `barnyard_preview.pmes`, `.pskl`, `.panm`,
+optional `.ptex`, and a required `.pset` manifest only after all selected
+conversions succeed. The manifest binds each selected file to its exact size
+and CRC32; the EBOOT rejects incomplete or mixed preview generations before
+allocating model resources. Existing files are restored if a replacement fails
+partway through. When
 `--runtime-preview` is used without `--texture`, a stale
 `barnyard_preview.ptex` is removed in the same transaction so the runtime uses
 its probe texture fallback instead of pairing a new model with an old texture.
