@@ -6,6 +6,7 @@ namespace Toshi
 {
 class T2Texture;
 class TModel_PSP;
+class TRenderResourceCache_PSP;
 struct TRenderMaterial_PSP;
 }
 
@@ -14,13 +15,21 @@ struct AWorldDataHeader_PSP
 	enum : TUINT32
 	{
 		MAGIC = 0x444C5750,
-		VERSION = 1,
+		VERSION = 2,
 	};
 
 	TUINT32 uiMagic;
 	TUINT32 uiVersion;
 	TUINT32 uiInstanceCount;
 	TUINT32 uiInstanceSize;
+	TUINT32 uiResourceCount;
+	TUINT32 uiResourceSize;
+};
+
+struct AWorldResourceData_PSP
+{
+	TCHAR szModel[ 24 ];
+	TCHAR szTexture[ 24 ];
 };
 
 struct AWorldInstance_PSP
@@ -53,7 +62,9 @@ public:
 
 	TBOOL IsLoaded() const { return m_bLoaded; }
 	TUINT GetInstanceCount() const { return m_uiInstanceCount; }
+	TUINT GetResourceCount() const { return m_uiResourceCount; }
 	const AWorldInstance_PSP* GetInstance( TUINT a_uiIndex ) const;
+	const AWorldResourceData_PSP* GetResourceData( TUINT a_uiIndex ) const;
 	TBOOL BindModelResource(
 	    TUINT a_uiIndex,
 	    const Toshi::TModel_PSP* a_pModel,
@@ -61,6 +72,10 @@ public:
 	    const Toshi::TRenderMaterial_PSP* a_pMaterial
 	);
 	const AWorldModelResource_PSP* GetModelResource( TUINT a_uiIndex ) const;
+	TBOOL ResolveModelResources(
+	    const Toshi::TRenderResourceCache_PSP& a_rResourceCache,
+	    const Toshi::TRenderMaterial_PSP* a_pMaterial
+	);
 	TBOOL ValidateResources() const;
 	TUINT CollectVisibleInstances(
 	    TFLOAT a_fViewX,
@@ -71,6 +86,7 @@ public:
 
 private:
 	TBOOL IsValidInstance( const AWorldInstance_PSP& a_rInstance ) const;
+	TBOOL IsValidResourceName( const TCHAR* a_pName ) const;
 	TBOOL IsInstanceVisible(
 	    const AWorldInstance_PSP& a_rInstance,
 	    TFLOAT a_fViewX,
@@ -79,10 +95,13 @@ private:
 
 private:
 	AWorldInstance_PSP      m_aInstances[ MAX_INSTANCES ];
+	AWorldResourceData_PSP  m_aResourceData[ MAX_MODEL_RESOURCES ];
 	AWorldModelResource_PSP m_aModelResources[ MAX_MODEL_RESOURCES ];
 	TUINT                   m_uiInstanceCount;
+	TUINT                   m_uiResourceCount;
 	TBOOL                   m_bLoaded;
 };
 
-static_assert( sizeof( AWorldDataHeader_PSP ) == 16, "PWLD header must stay fixed-width" );
+static_assert( sizeof( AWorldDataHeader_PSP ) == 24, "PWLD header must stay fixed-width" );
+static_assert( sizeof( AWorldResourceData_PSP ) == 48, "PWLD resource must stay fixed-width" );
 static_assert( sizeof( AWorldInstance_PSP ) == 32, "PWLD instance must stay fixed-width" );
