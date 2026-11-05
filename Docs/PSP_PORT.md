@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-05)
 
 The PSP platform/render bring-up is approximately **90%** complete, while the
-complete playable-game port is approximately **69%** complete. The second value
+complete playable-game port is approximately **70%** complete. The second value
 is intentionally much lower: the compiling probe does not yet include the real
 game states, converted Barnyard content, rooms, player simulation, complete UI,
 movies, or gameplay validation on hardware.
@@ -24,12 +24,12 @@ movies, or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 95% | Premake, EBOOT, deterministic assets, CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 66% | GU display, depth, indexed static/skinned models, per-instance scene transforms, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 70% | host tools now relocate one selected skin material and TKL sequence, emit bounded PSKL/PMES/PANM/PWLD, report footprint/material/bounds and transactionally publish a CRC-bound optional runtime preview set including texture fallback; complete multi-material models and the remaining asset families need explicit handling |
+| PSP renderer foundation | 68% | GU display, depth, indexed static/skinned models, per-instance scene transforms and visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
+| Real-game asset pipeline | 71% | host tools now relocate one selected skin material and TKL sequence, emit bounded PSKL/PMES/PANM/PWLD with four model slots, report footprint/material/bounds and transactionally publish a CRC-bound optional runtime preview set including texture fallback; complete multi-material models and the remaining asset families need explicit handling |
 | Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
 | Game bootstrap and frontend | 46% | `AApplication_PSP` owns explicit frame phases and can select, centre, auto-fit and diagnose an optional bounded Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 24% | bounded PWLD instance layouts, analogue view movement, skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning run; retail rooms, visibility and player simulation are not loaded |
+| World, animation and gameplay | 28% | bounded PWLD instance layouts and model-resource table, sphere/frustum visibility, analogue view movement, skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning run; retail rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -298,10 +298,13 @@ remain largely unstarted.
   16-byte header selects up to 16 fixed 32-byte instances, so a fully populated
   layout occupies only 528 bytes and loads through a stack buffer without heap
   growth. Position, rotation and scale must be finite; positions are limited to
-  1,000 units, scale to `[0.001,100]`, and v1 accepts only model slot zero until
-  bounded resource ownership is added. The bootstrap renders three validated
-  instances through per-instance GU transforms and exposes two-axis analogue
-  view movement while preserving the existing animated preview path.
+  1,000 units and scale to `[0.001,100]`. Model indices address four fixed
+  resource slots; loading remains separate from binding, and the world rejects
+  a ready state while any referenced model, texture or material is absent. The
+  bootstrap renders three validated instances through per-instance GU
+  transforms and exposes two-axis analogue view movement while preserving the
+  existing animated preview path. A bounded visible-index array performs cheap
+  near/far and horizontal/vertical sphere tests before issuing GU draws.
 - `convert_world.py` converts a versioned JSON layout to the exact PWLD v1
   contract offline. It applies the same instance-count, finite-transform,
   position, scale and model-slot limits as the EBOOT and reports the final byte
@@ -1069,6 +1072,11 @@ remain largely unstarted.
 - Commit `ca4b986c` passed PSP run `42103204268`. Host tests validated the PWLD
   header and instance bytes and rejected excessive instance counts, non-finite
   transforms, out-of-range position/scale and unsupported model slots.
+- Commit `2ac5c588` passed PSP run `42104077947`. Its report v4 recorded
+  `world=OK`, `world_instances=3` and `world_visible=3` with every bootstrap
+  gate `OK`, zero underruns and unchanged 18,204-byte main usage. The same
+  background PPSSPP process survived four-direction analogue movement and a
+  menu return before the runner stopped it.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1076,8 +1084,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, add a bounded PWLD model-resource table and simple cell visibility before
-attempting retail terrain streaming. Also exercise both
+Next, add offline resource-name resolution and partition PWLD instances into
+bounded cells before attempting retail terrain streaming. Also exercise both
 host TMD/TKL bridge commands against one user-owned
 Barnyard skin model and one explicitly selected base sequence, record their
 converted vertex/index/bone/frame footprint and correct real-format edge cases

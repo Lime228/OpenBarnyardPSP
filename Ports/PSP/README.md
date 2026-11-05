@@ -95,10 +95,12 @@ game data must remain outside the repository.
 `AWorld_PSP` accepts PWLD v1 layouts containing at most 16 fixed-size model
 instances. The complete file is capped at 528 bytes and is read through a stack
 buffer. Every transform is checked for finite, bounded position and scale before
-the layout becomes visible. The current bootstrap uses one model resource slot
-and three deterministic instances; the analogue stick moves the view on two
-axes. Retail terrain still needs an offline PWLD bridge, a bounded model table
-and cell visibility before it can replace this probe.
+the layout becomes visible. PWLD v1 addresses four fixed model-resource slots;
+all referenced models, textures and materials must be bound before rendering.
+The current bootstrap uses slot zero and three deterministic instances, culls
+them against the PSP projection with a fixed visible-index array, and moves the
+view on two analogue axes. Retail terrain still needs offline resource-name
+resolution and bounded cells before it can replace this probe.
 
 Convert a bounded JSON layout offline with:
 
@@ -107,8 +109,8 @@ python3 Ports/PSP/Tools/convert_world.py world.json world.pwld
 ```
 
 The source contains `version: 1` and an `instances` array. Each instance supplies
-three-component `position` and `rotation`, a scalar `scale`, and currently
-`model: 0`. The converter mirrors all runtime limits before writing anything.
+three-component `position` and `rotation`, a scalar `scale`, and `model` in the
+range 0–3. The converter mirrors all runtime limits before writing anything.
 
 ## Audio conversion
 
