@@ -54,15 +54,22 @@ void AProbeState_PSP::OnRender(
 	if ( a_rContext.pTexture != TNULL )
 		a_rContext.pRenderInterface->DrawTextureSprite( *a_rContext.pTexture, 176.0f + a_rState.fXOffset, 72.0f, 128.0f, 128.0f );
 	if ( a_rContext.pWorld != TNULL &&
-	     a_rContext.pWorld->IsLoaded() &&
-	     a_rContext.pModel != TNULL &&
-	     a_rContext.pTexture != TNULL &&
-	     a_rContext.pMaterial != TNULL )
+	     a_rContext.pWorld->IsLoaded() )
 	{
-		for ( TUINT i = 0; i < a_rContext.pWorld->GetInstanceCount(); i++ )
+		TUINT16 aVisibleInstances[ AWorld_PSP::MAX_INSTANCES ];
+		const TUINT uiVisibleCount = a_rContext.pWorld->CollectVisibleInstances(
+		    a_rState.fWorldViewX,
+		    a_rState.fWorldViewZ,
+		    aVisibleInstances,
+		    TARRAYSIZE( aVisibleInstances )
+		);
+		for ( TUINT i = 0; i < uiVisibleCount; i++ )
 		{
-			const AWorldInstance_PSP* pInstance = a_rContext.pWorld->GetInstance( i );
-			if ( pInstance == TNULL )
+			const AWorldInstance_PSP* pInstance = a_rContext.pWorld->GetInstance( aVisibleInstances[ i ] );
+			const AWorldModelResource_PSP* pResource = pInstance != TNULL
+			    ? a_rContext.pWorld->GetModelResource( pInstance->uiModelIndex )
+			    : TNULL;
+			if ( pInstance == TNULL || pResource == TNULL )
 				continue;
 			const Toshi::TRenderSceneTransform_PSP oTransform = {
 				{
@@ -78,10 +85,10 @@ void AProbeState_PSP::OnRender(
 				pInstance->fScale,
 			};
 			a_rContext.pRenderInterface->DrawModel(
-			    *a_rContext.pModel,
+			    *pResource->pModel,
 			    oTransform,
-			    *a_rContext.pMaterial,
-			    a_rContext.pTexture
+			    *pResource->pMaterial,
+			    pResource->pTexture
 			);
 		}
 	}

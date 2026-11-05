@@ -98,6 +98,7 @@ static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
 static Toshi::TModel_PSP                g_ProbeModel_PSP;
 static AWorld_PSP                       g_ProbeWorld_PSP;
+static TUINT                            g_uiProbeWorldVisible_PSP = 0;
 static Toshi::TModel_PSP                g_ProbeSkinnedModel_PSP;
 static Toshi::TSkeleton_PSP             g_ProbeSkeleton_PSP;
 static Toshi::TAnimationClip_PSP        g_ProbeAnimation_PSP;
@@ -172,18 +173,49 @@ static TBOOL LoadProbeModelFile_PSP()
 
 static TBOOL TestProbeWorld_PSP()
 {
+	g_uiProbeWorldVisible_PSP = 0;
 	if ( !g_ProbeWorld_PSP.LoadFromMemory( &g_ProbeWorldData_PSP, sizeof( g_ProbeWorldData_PSP ) ) ||
 	     g_ProbeWorld_PSP.GetInstanceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aInstances ) ||
 	     g_ProbeWorld_PSP.GetInstance( 0 ) == TNULL ||
-	     g_ProbeWorld_PSP.GetInstance( 3 ) != TNULL )
+	     g_ProbeWorld_PSP.GetInstance( 3 ) != TNULL ||
+	     g_ProbeWorld_PSP.ValidateResources() ||
+	     !g_ProbeWorld_PSP.BindModelResource(
+	         0,
+	         &g_ProbeModel_PSP,
+	         &g_ProbeTexture,
+	         &g_ProbeMaterial_PSP
+	     ) ||
+	     !g_ProbeWorld_PSP.ValidateResources() )
+	{
+		return TFALSE;
+	}
+	TUINT16 aVisibleInstances[ AWorld_PSP::MAX_INSTANCES ];
+	g_uiProbeWorldVisible_PSP = g_ProbeWorld_PSP.CollectVisibleInstances(
+	    0.0f,
+	    0.0f,
+	    aVisibleInstances,
+	    TARRAYSIZE( aVisibleInstances )
+	);
+	if ( g_uiProbeWorldVisible_PSP != g_ProbeWorld_PSP.GetInstanceCount() ||
+	     g_ProbeWorld_PSP.CollectVisibleInstances(
+	         1000.0f,
+	         0.0f,
+	         aVisibleInstances,
+	         TARRAYSIZE( aVisibleInstances )
+	     ) != 0 )
 	{
 		return TFALSE;
 	}
 
-	ProbeWorldData_PSP oInvalidData = g_ProbeWorldData_PSP;
-	oInvalidData.aInstances[ 1 ].aPosition[ 0 ] = Toshi::TMath::FLOAT_NAN;
+	ProbeWorldData_PSP oInvalidTransform = g_ProbeWorldData_PSP;
+	oInvalidTransform.aInstances[ 1 ].aPosition[ 0 ] = Toshi::TMath::FLOAT_NAN;
 	AWorld_PSP oInvalidWorld;
-	return !oInvalidWorld.LoadFromMemory( &oInvalidData, sizeof( oInvalidData ) );
+	if ( oInvalidWorld.LoadFromMemory( &oInvalidTransform, sizeof( oInvalidTransform ) ) )
+		return TFALSE;
+
+	ProbeWorldData_PSP oInvalidModel = g_ProbeWorldData_PSP;
+	oInvalidModel.aInstances[ 1 ].uiModelIndex = AWorld_PSP::MAX_MODEL_RESOURCES;
+	return !oInvalidWorld.LoadFromMemory( &oInvalidModel, sizeof( oInvalidModel ) );
 }
 
 static TBOOL LoadProbeSkinnedModelFile_PSP()
@@ -1959,7 +1991,7 @@ int main()
 	const TBOOL bModelReady = bFileReady && LoadProbeModelFile_PSP() &&
 	                          TestModelBounds_PSP( g_ProbeModel_PSP ) &&
 	                          TestPreviewTransform_PSP( g_ProbeModel_PSP );
-	const TBOOL bWorldReady = bModelReady && TestProbeWorld_PSP();
+	const TBOOL bWorldReady = bModelReady && bTextureReady && TestProbeWorld_PSP();
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
@@ -2082,6 +2114,12 @@ int main()
 	    g_ProbeWorld_PSP.GetInstanceCount(),
 	    AWorld_PSP::MAX_INSTANCES
 	);
+	TDebug_FinalPrintf(
+	    "[PSP world] visible      %u/%u, resources %u\n",
+	    g_uiProbeWorldVisible_PSP,
+	    g_ProbeWorld_PSP.GetInstanceCount(),
+	    AWorld_PSP::MAX_MODEL_RESOURCES
+	);
 	TDebug_FinalPrintf( "[PSP animation] skeleton %s\n", bSkeletonReady ? "probe.pskl" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] bind pose %s\n", bSkeletonPoseReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] clip      %s\n", bAnimationReady ? "probe.panm" : "FAILED" );
@@ -2164,6 +2202,7 @@ int main()
 		bModelReady,
 		bWorldReady,
 		g_ProbeWorld_PSP.GetInstanceCount(),
+		g_uiProbeWorldVisible_PSP,
 		bSkeletonReady,
 		bSkeletonPoseReady,
 		bAnimationReady,
