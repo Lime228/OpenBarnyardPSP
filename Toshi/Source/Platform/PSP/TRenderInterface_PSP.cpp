@@ -205,6 +205,21 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 
 void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const TRenderMaterial_PSP& a_rMaterial, const T2Texture* a_pTexture )
 {
+	const TRenderSceneTransform_PSP oTransform = {
+		{ 0.0f, 0.0f, -3.25f },
+		{ a_fRotation * 0.5f, a_fRotation, 0.0f },
+		1.0f,
+	};
+	DrawModel( a_rModel, oTransform, a_rMaterial, a_pTexture );
+}
+
+void TRenderInterface_PSP::DrawModel(
+    const TModel_PSP& a_rModel,
+    const TRenderSceneTransform_PSP& a_rTransform,
+    const TRenderMaterial_PSP& a_rMaterial,
+    const T2Texture* a_pTexture
+)
+{
 	const auto& rVertices = a_rModel.GetVertices();
 	const auto& rIndices  = a_rModel.GetIndices();
 	const TBOOL bHasTextureCoordinates = a_rModel.GetFormat() == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ;
@@ -236,10 +251,24 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 	sceGumMatrixMode( GU_MODEL );
 	sceGumLoadIdentity();
 
-	const ScePspFVector3 oTranslation = { 0.0f, 0.0f, -3.25f };
-	const ScePspFVector3 oRotation    = { a_fRotation * 0.5f, a_fRotation, 0.0f };
+	const ScePspFVector3 oTranslation = {
+		a_rTransform.aTranslation[ 0 ],
+		a_rTransform.aTranslation[ 1 ],
+		a_rTransform.aTranslation[ 2 ],
+	};
+	const ScePspFVector3 oRotation = {
+		a_rTransform.aRotation[ 0 ],
+		a_rTransform.aRotation[ 1 ],
+		a_rTransform.aRotation[ 2 ],
+	};
+	const ScePspFVector3 oScale = {
+		a_rTransform.fScale,
+		a_rTransform.fScale,
+		a_rTransform.fScale,
+	};
 	sceGumTranslate( &oTranslation );
 	sceGumRotateXYZ( &oRotation );
+	sceGumScale( &oScale );
 	const TINT iVertexFormat = GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D |
 	                           ( bHasTextureCoordinates ? GU_TEXTURE_32BITF : 0 );
 	sceGumDrawArray(

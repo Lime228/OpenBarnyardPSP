@@ -42,6 +42,13 @@ struct TRenderModelTransform_PSP
 	TFLOAT aCenter[ 3 ];
 };
 
+struct TRenderSceneTransform_PSP
+{
+	TFLOAT aTranslation[ 3 ];
+	TFLOAT aRotation[ 3 ];
+	TFLOAT fScale;
+};
+
 class TRenderInterface_PSP
 {
 public:
@@ -65,6 +72,12 @@ public:
 	void DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices );
 	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture = TNULL );
 	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const TRenderMaterial_PSP& a_rMaterial, const T2Texture* a_pTexture );
+	void DrawModel(
+	    const TModel_PSP& a_rModel,
+	    const TRenderSceneTransform_PSP& a_rTransform,
+	    const TRenderMaterial_PSP& a_rMaterial,
+	    const T2Texture* a_pTexture
+	);
 	void DrawSkinnedModel(
 	    const TModel_PSP& a_rModel,
 	    const TVertexPoolResource_PSP& a_rVertices,
