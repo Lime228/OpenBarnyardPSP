@@ -8,6 +8,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+import zlib
 
 from convert_animation import convert as convert_animation
 from convert_tmd_dump import convert as convert_tmd_dump, get_material_name
@@ -21,6 +22,10 @@ from convert_texture import (
 )
 
 TFLOAT_EPSILON = 1.1920929e-7
+PSET_MAGIC = 0x54455350
+PSET_VERSION = 1
+PSET_FLAG_TEXTURE = 1
+PSET_HEADER_SIZE = 48
 
 
 def require_file(path: pathlib.Path, name: str) -> None:
@@ -125,6 +130,34 @@ def stage_texture(source: pathlib.Path, destination: pathlib.Path) -> None:
     destination.write_bytes(payload)
 
 
+def write_preview_set(
+    destination: pathlib.Path,
+    mesh: pathlib.Path,
+    skeleton: pathlib.Path,
+    animation: pathlib.Path,
+    texture: pathlib.Path | None,
+) -> None:
+    assets = (mesh, skeleton, animation, texture)
+    values = []
+    for asset in assets:
+        if asset is None:
+            values.extend((0, 0))
+            continue
+        payload = asset.read_bytes()
+        values.extend((len(payload), zlib.crc32(payload) & 0xFFFFFFFF))
+    flags = PSET_FLAG_TEXTURE if texture is not None else 0
+    destination.write_bytes(
+        struct.pack(
+            "<12I",
+            PSET_MAGIC,
+            PSET_VERSION,
+            flags,
+            PSET_HEADER_SIZE,
+            *values,
+        )
+    )
+
+
 def read_summary(
     mesh: pathlib.Path,
     skeleton: pathlib.Path,
@@ -225,6 +258,7 @@ def run_pipeline(
         if preview_texture is not None or runtime_preview
         else None
     )
+    preview_set_destination = output_directory / f"{asset_name}.pset" if runtime_preview else None
 
     with tempfile.TemporaryDirectory(prefix=".openbarnyard_psp_", dir=output_directory) as temporary_name:
         temporary = pathlib.Path(temporary_name)
@@ -237,6 +271,7 @@ def run_pipeline(
             if preview_texture is not None and texture_destination is not None
             else None
         )
+        preview_set = temporary / preview_set_destination.name if preview_set_destination is not None else None
         subprocess.run([str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)], check=True)
         convert_tmd_dump(model_dump, mesh, skeleton, preview_material)
         model_document = json.loads(model_dump.read_text(encoding="utf-8"))
@@ -270,6 +305,8 @@ def run_pipeline(
 
         if preview_texture is not None and texture is not None:
             stage_texture(preview_texture, texture)
+        if preview_set is not None and animation is not None:
+            write_preview_set(preview_set, mesh, skeleton, animation, texture)
 
         if keep_intermediate:
             intermediate = output_directory / f"{output_name}_intermediate"
@@ -282,6 +319,8 @@ def run_pipeline(
         summary = read_summary(mesh, skeleton, animation, texture)
         summary["material"] = material_name
         summary["texture_source"] = "barnyard_preview.ptex" if texture is not None else "probe fallback"
+        if preview_set is not None:
+            summary["preview_set_bytes"] = preview_set.stat().st_size
         staged_outputs = [
             (mesh, mesh_destination),
             (skeleton, skeleton_destination),
@@ -290,6 +329,8 @@ def run_pipeline(
             staged_outputs.append((animation, animation_destination))
         if texture_destination is not None:
             staged_outputs.append((texture, texture_destination))
+        if preview_set is not None and preview_set_destination is not None:
+            staged_outputs.append((preview_set, preview_set_destination))
         publish_outputs(staged_outputs)
 
     return summary
