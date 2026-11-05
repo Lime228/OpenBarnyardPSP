@@ -1,9 +1,10 @@
 #include "AWorld_PSP.h"
 
 #include <Toshi/TDebug.h>
-#include <Toshi/TUtil.h>
 #include <File/TFile.h>
 #include <Math/TMathInline.h>
+
+#include <cstring>
 
 static constexpr TSIZE s_uiMaximumWorldFileSize_PSP =
     sizeof( AWorldDataHeader_PSP ) +
@@ -63,7 +64,7 @@ TBOOL AWorld_PSP::LoadFromMemory( const void* a_pData, TSIZE a_uiDataSize )
 		return TFALSE;
 
 	AWorldDataHeader_PSP oHeader;
-	Toshi::TUtil::MemCopy( &oHeader, a_pData, sizeof( oHeader ) );
+	std::memcpy( &oHeader, a_pData, sizeof( oHeader ) );
 	if ( oHeader.uiMagic != AWorldDataHeader_PSP::MAGIC ||
 	     oHeader.uiVersion != AWorldDataHeader_PSP::VERSION ||
 	     oHeader.uiInstanceCount == 0 ||
@@ -79,7 +80,7 @@ TBOOL AWorld_PSP::LoadFromMemory( const void* a_pData, TSIZE a_uiDataSize )
 	for ( TUINT i = 0; i < oHeader.uiInstanceCount; i++ )
 	{
 		AWorldInstance_PSP oInstance;
-		Toshi::TUtil::MemCopy(
+		std::memcpy(
 		    &oInstance,
 		    pInstances + i * sizeof( AWorldInstance_PSP ),
 		    sizeof( oInstance )
