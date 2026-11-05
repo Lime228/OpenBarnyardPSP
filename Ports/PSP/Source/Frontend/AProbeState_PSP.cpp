@@ -1,11 +1,14 @@
 #include "AProbeState_PSP.h"
 #include "../GUI/AGUIAudioContext_PSP.h"
 #include "../Input/AInputHandler_PSP.h"
+#include "../World/AWorld_PSP.h"
 
 void AProbeState_PSP::OnInsertion( AFrontendBootstrapState_PSP& a_rState )
 {
 	a_rState.fXOffset = 0.0f;
 	a_rState.fModelRotation = 0.0f;
+	a_rState.fWorldViewX = 0.0f;
+	a_rState.fWorldViewZ = 0.0f;
 }
 
 AFrontendState_PSP AProbeState_PSP::OnUpdate(
@@ -18,6 +21,12 @@ AFrontendState_PSP AProbeState_PSP::OnUpdate(
 	a_rState.fXOffset += a_rInputHandler.GetMoveX() * 120.0f * a_fDeltaTime;
 	if ( a_rState.fXOffset < -100.0f ) a_rState.fXOffset = -100.0f;
 	if ( a_rState.fXOffset > 100.0f ) a_rState.fXOffset = 100.0f;
+	a_rState.fWorldViewX -= a_rInputHandler.GetMoveX() * 1.5f * a_fDeltaTime;
+	a_rState.fWorldViewZ += a_rInputHandler.GetMoveY() * 1.5f * a_fDeltaTime;
+	if ( a_rState.fWorldViewX < -2.0f ) a_rState.fWorldViewX = -2.0f;
+	if ( a_rState.fWorldViewX > 2.0f ) a_rState.fWorldViewX = 2.0f;
+	if ( a_rState.fWorldViewZ < -1.5f ) a_rState.fWorldViewZ = -1.5f;
+	if ( a_rState.fWorldViewZ > 1.5f ) a_rState.fWorldViewZ = 1.5f;
 
 	a_rState.fModelRotation += 0.9f * a_fDeltaTime;
 	a_rState.uiFrameCount += 1;
@@ -44,6 +53,38 @@ void AProbeState_PSP::OnRender(
 		a_rContext.pRenderInterface->DrawIndexedColourTriangles( *a_rContext.pVertices, *a_rContext.pIndices );
 	if ( a_rContext.pTexture != TNULL )
 		a_rContext.pRenderInterface->DrawTextureSprite( *a_rContext.pTexture, 176.0f + a_rState.fXOffset, 72.0f, 128.0f, 128.0f );
+	if ( a_rContext.pWorld != TNULL &&
+	     a_rContext.pWorld->IsLoaded() &&
+	     a_rContext.pModel != TNULL &&
+	     a_rContext.pTexture != TNULL &&
+	     a_rContext.pMaterial != TNULL )
+	{
+		for ( TUINT i = 0; i < a_rContext.pWorld->GetInstanceCount(); i++ )
+		{
+			const AWorldInstance_PSP* pInstance = a_rContext.pWorld->GetInstance( i );
+			if ( pInstance == TNULL )
+				continue;
+			const Toshi::TRenderSceneTransform_PSP oTransform = {
+				{
+				    pInstance->aPosition[ 0 ] + a_rState.fWorldViewX,
+				    pInstance->aPosition[ 1 ],
+				    pInstance->aPosition[ 2 ] + a_rState.fWorldViewZ,
+				},
+				{
+				    pInstance->aRotation[ 0 ],
+				    pInstance->aRotation[ 1 ] + a_rState.fModelRotation,
+				    pInstance->aRotation[ 2 ],
+				},
+				pInstance->fScale,
+			};
+			a_rContext.pRenderInterface->DrawModel(
+			    *a_rContext.pModel,
+			    oTransform,
+			    *a_rContext.pMaterial,
+			    a_rContext.pTexture
+			);
+		}
+	}
 	if ( a_rContext.pSkinnedModel != TNULL &&
 	     a_rContext.pSkinningBuffer != TNULL &&
 	     a_rContext.pSkeletonInstance != TNULL &&

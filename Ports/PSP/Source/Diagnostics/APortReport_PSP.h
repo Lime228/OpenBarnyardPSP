@@ -32,6 +32,8 @@ struct APortReportData_PSP
 	TBOOL bLocaleReady;
 	TBOOL bMeshReady;
 	TBOOL bModelReady;
+	TBOOL bWorldReady;
+	TUINT uiWorldInstances;
 	TBOOL bSkeletonReady;
 	TBOOL bSkeletonPoseReady;
 	TBOOL bAnimationReady;

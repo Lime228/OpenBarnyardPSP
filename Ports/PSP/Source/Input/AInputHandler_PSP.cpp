@@ -8,6 +8,7 @@ AInputHandler_PSP::AInputHandler_PSP()
     : m_uiActionsDown( 0 )
     , m_uiActionsPressed( 0 )
     , m_fMoveX( 0.0f )
+    , m_fMoveY( 0.0f )
 {
 }
 
@@ -16,6 +17,7 @@ TBOOL AInputHandler_PSP::OnCreate()
 	m_uiActionsDown = 0;
 	m_uiActionsPressed = 0;
 	m_fMoveX = 0.0f;
+	m_fMoveY = 0.0f;
 	return Toshi::TInputInterface::GetSingleton() != TNULL;
 }
 
@@ -43,5 +45,6 @@ TBOOL AInputHandler_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 
 	m_uiActionsPressed = m_uiActionsDown & ~uiPreviousActions;
 	m_fMoveX = rController.GetAxisFloat( Toshi::TInputDeviceController::STICK_LEFT, 0 );
+	m_fMoveY = rController.GetAxisFloat( Toshi::TInputDeviceController::STICK_LEFT, 1 );
 	return TTRUE;
 }

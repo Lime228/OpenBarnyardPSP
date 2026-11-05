@@ -7,6 +7,7 @@
 
 class AGameState_PSP;
 class AGUIAudioContext_PSP;
+class AWorld_PSP;
 
 enum AFrontendState_PSP
 {
@@ -21,6 +22,8 @@ struct AFrontendBootstrapState_PSP
 {
 	TFLOAT fXOffset;
 	TFLOAT fModelRotation;
+	TFLOAT fWorldViewX;
+	TFLOAT fWorldViewZ;
 	TFLOAT fStateTime;
 	TBOOL  bConfirmDown;
 	TUINT  uiFrameCount;
@@ -46,6 +49,7 @@ struct AFrontendRenderContext_PSP
 	Toshi::TAnimationClip_PSP*        pAnimation;
 	const Toshi::TRenderMaterial_PSP* pMaterial;
 	Toshi::TRenderModelTransform_PSP  oSkinnedModelTransform;
+	AWorld_PSP*                       pWorld;
 	TBOOL                             bBootstrapReady;
 	TBOOL                             bMeshReady;
 };

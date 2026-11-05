@@ -17,7 +17,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	if ( pFile == TNULL )
 		return TFALSE;
 
-	pFile->CPrintf( "OpenBarnyard PSP port report v2\n" );
+	pFile->CPrintf( "OpenBarnyard PSP port report v3\n" );
 	pFile->CPrintf( "stage=%s\n", a_rData.pStage != TNULL ? a_rData.pStage : "UNKNOWN" );
 	pFile->CPrintf( "bootstrap=%s\n", GetReportStatus_PSP( a_rData.bBootstrapReady ) );
 	pFile->CPrintf( "input=%s\n", GetReportStatus_PSP( a_rData.bInputReady ) );
@@ -44,6 +44,8 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "locale=%s\n", GetReportStatus_PSP( a_rData.bLocaleReady ) );
 	pFile->CPrintf( "mesh=%s\n", GetReportStatus_PSP( a_rData.bMeshReady ) );
 	pFile->CPrintf( "model=%s\n", GetReportStatus_PSP( a_rData.bModelReady ) );
+	pFile->CPrintf( "world=%s\n", GetReportStatus_PSP( a_rData.bWorldReady ) );
+	pFile->CPrintf( "world_instances=%u\n", a_rData.uiWorldInstances );
 	pFile->CPrintf( "skeleton=%s\n", GetReportStatus_PSP( a_rData.bSkeletonReady ) );
 	pFile->CPrintf( "skeleton_pose=%s\n", GetReportStatus_PSP( a_rData.bSkeletonPoseReady ) );
 	pFile->CPrintf( "animation=%s\n", GetReportStatus_PSP( a_rData.bAnimationReady ) );

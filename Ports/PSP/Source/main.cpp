@@ -27,6 +27,7 @@
 #include "Sound/AWaveBankLoader_PSP.h"
 #include "Sound/AStreamWave_PSP.h"
 #include "ToshiSmoke.h"
+#include "World/AWorld_PSP.h"
 
 PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
 PSP_MAIN_THREAD_ATTR( PSP_THREAD_ATTR_USER );
@@ -52,6 +53,12 @@ struct ProbeTextureData_PSP
 {
 	Toshi::T2TextureDataHeader_PSP oHeader;
 	TUINT32                        aPixels[ 16 * 16 ];
+};
+
+struct ProbeWorldData_PSP
+{
+	AWorldDataHeader_PSP oHeader;
+	AWorldInstance_PSP   aInstances[ 3 ];
 };
 
 alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
@@ -90,6 +97,7 @@ static Toshi::TRenderInterface_PSP g_RenderInterface;
 static Toshi::TVertexPoolResource_PSP g_ProbeVertices_PSP;
 static Toshi::TIndexPoolResource_PSP  g_ProbeIndices_PSP;
 static Toshi::TModel_PSP                g_ProbeModel_PSP;
+static AWorld_PSP                       g_ProbeWorld_PSP;
 static Toshi::TModel_PSP                g_ProbeSkinnedModel_PSP;
 static Toshi::TSkeleton_PSP             g_ProbeSkeleton_PSP;
 static Toshi::TAnimationClip_PSP        g_ProbeAnimation_PSP;
@@ -113,6 +121,20 @@ static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
 	TTRUE,
 	Toshi::TRENDERTEXTUREFUNCTION_PSP_MODULATE,
 	Toshi::TRENDERCULLMODE_PSP_BACK,
+};
+
+static const ProbeWorldData_PSP g_ProbeWorldData_PSP = {
+	{
+	    AWorldDataHeader_PSP::MAGIC,
+	    AWorldDataHeader_PSP::VERSION,
+	    3,
+	    sizeof( AWorldInstance_PSP ),
+	},
+	{
+	    { { -1.35f, -0.65f, -5.0f }, { 0.0f, 0.25f, 0.0f }, 0.45f, 0 },
+	    { { 0.0f, -0.85f, -6.5f }, { 0.0f, 0.0f, 0.0f }, 0.70f, 0 },
+	    { { 1.4f, -0.55f, -5.4f }, { 0.0f, -0.35f, 0.0f }, 0.50f, 0 },
+	},
 };
 
 static_assert( sizeof( void* ) == 4, "The PSP port requires a 32-bit ABI" );
@@ -146,6 +168,22 @@ static TBOOL LoadLocaleFile_PSP()
 static TBOOL LoadProbeModelFile_PSP()
 {
 	return g_ModelFactory_PSP.CreateModelFromFile( g_ProbeModel_PSP, "local:probe.pmes" );
+}
+
+static TBOOL TestProbeWorld_PSP()
+{
+	if ( !g_ProbeWorld_PSP.LoadFromMemory( &g_ProbeWorldData_PSP, sizeof( g_ProbeWorldData_PSP ) ) ||
+	     g_ProbeWorld_PSP.GetInstanceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aInstances ) ||
+	     g_ProbeWorld_PSP.GetInstance( 0 ) == TNULL ||
+	     g_ProbeWorld_PSP.GetInstance( 3 ) != TNULL )
+	{
+		return TFALSE;
+	}
+
+	ProbeWorldData_PSP oInvalidData = g_ProbeWorldData_PSP;
+	oInvalidData.aInstances[ 1 ].aPosition[ 0 ] = Toshi::TMath::FLOAT_NAN;
+	AWorld_PSP oInvalidWorld;
+	return !oInvalidWorld.LoadFromMemory( &oInvalidData, sizeof( oInvalidData ) );
 }
 
 static TBOOL LoadProbeSkinnedModelFile_PSP()
@@ -1921,6 +1959,7 @@ int main()
 	const TBOOL bModelReady = bFileReady && LoadProbeModelFile_PSP() &&
 	                          TestModelBounds_PSP( g_ProbeModel_PSP ) &&
 	                          TestPreviewTransform_PSP( g_ProbeModel_PSP );
+	const TBOOL bWorldReady = bModelReady && TestProbeWorld_PSP();
 	const TBOOL bSkeletonReady  = bFileReady && TestProbeSkeletonFile_PSP();
 	const TBOOL bSkeletonPoseReady = bSkeletonReady && TestProbeSkeletonPose_PSP();
 	const TBOOL bAnimationReady = bSkeletonPoseReady && TestProbeAnimation_PSP();
@@ -1984,6 +2023,7 @@ int main()
 		bPreviewReady ? &g_PreviewAnimation_PSP : ( bSkinningReady ? &g_ProbeAnimation_PSP : TNULL ),
 		&g_ProbeMaterial_PSP,
 		bPreviewReady ? g_PreviewTransform_PSP : g_IdentityModelTransform_PSP,
+		bWorldReady ? &g_ProbeWorld_PSP : TNULL,
 		TFALSE,
 		bMeshReady,
 	};
@@ -2000,6 +2040,7 @@ int main()
 	const TBOOL bBootstrapReady = bInputReady && bSchedulerReady && bToshiReady &&
 	                              bAudioReady && bTextureReady && bFontReady && bLocaleReady &&
 	                              bMeshReady && bModelReady && bSkeletonReady &&
+	                              bWorldReady &&
 	                              bSkeletonPoseReady && bAnimationReady && bLoopAnimationReady && bSkinningReady &&
 	                              bAnimationBudgetReady &&
 	                              bCacheReady;
@@ -2035,6 +2076,12 @@ int main()
 	TDebug_FinalPrintf( "[PSP sound] stream cues   %s\n", bManagedStreamReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
+	TDebug_FinalPrintf(
+	    "[PSP world] instances    %s (%u/%u)\n",
+	    bWorldReady ? "OK" : "FAILED",
+	    g_ProbeWorld_PSP.GetInstanceCount(),
+	    AWorld_PSP::MAX_INSTANCES
+	);
 	TDebug_FinalPrintf( "[PSP animation] skeleton %s\n", bSkeletonReady ? "probe.pskl" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] bind pose %s\n", bSkeletonPoseReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP animation] clip      %s\n", bAnimationReady ? "probe.panm" : "FAILED" );
@@ -2115,6 +2162,8 @@ int main()
 		bLocaleReady,
 		bMeshReady,
 		bModelReady,
+		bWorldReady,
+		g_ProbeWorld_PSP.GetInstanceCount(),
 		bSkeletonReady,
 		bSkeletonPoseReady,
 		bAnimationReady,
@@ -2169,6 +2218,7 @@ int main()
 	g_ProbeSkeletonInstance_PSP.Destroy();
 	g_ProbeSkinnedModel_PSP.Unload();
 	g_ProbeModel_PSP.Unload();
+	g_ProbeWorld_PSP.Unload();
 	g_ProbeAnimation_PSP.Unload();
 	g_ProbeSkeleton_PSP.Unload();
 	g_Font_PSP.Destroy();

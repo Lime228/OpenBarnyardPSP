@@ -27,9 +27,11 @@ public:
 	TBOOL  IsActionDown( AInputAction_PSP a_eAction ) const { return ( m_uiActionsDown & a_eAction ) != 0; }
 	TBOOL  IsActionPressed( AInputAction_PSP a_eAction ) const { return ( m_uiActionsPressed & a_eAction ) != 0; }
 	TFLOAT GetMoveX() const { return m_fMoveX; }
+	TFLOAT GetMoveY() const { return m_fMoveY; }
 
 private:
 	TUINT32 m_uiActionsDown;
 	TUINT32 m_uiActionsPressed;
 	TFLOAT  m_fMoveX;
+	TFLOAT  m_fMoveY;
 };
