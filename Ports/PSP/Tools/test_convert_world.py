@@ -9,6 +9,7 @@ import unittest
 
 from convert_world import (
     MAX_INSTANCE_COUNT,
+    MAX_MODEL_RESOURCES,
     PWLD_HEADER_SIZE,
     PWLD_INSTANCE_SIZE,
     PWLD_MAGIC,
@@ -67,6 +68,14 @@ class WorldConverterTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "between 1 and 16"):
             self.convert_document(document)
 
+    def test_accepts_bounded_model_slots(self) -> None:
+        document = json.loads(json.dumps(WORLD))
+        document["instances"][1]["model"] = MAX_MODEL_RESOURCES - 1
+        summary, payload = self.convert_document(document)
+        self.assertEqual(summary["model_slots"], 2)
+        second = struct.unpack_from("<7fI", payload, PWLD_HEADER_SIZE + PWLD_INSTANCE_SIZE)
+        self.assertEqual(second[7], MAX_MODEL_RESOURCES - 1)
+
     def test_rejects_non_finite_transform(self) -> None:
         document = json.loads(json.dumps(WORLD))
         document["instances"][0]["rotation"][1] = math.inf
@@ -77,7 +86,7 @@ class WorldConverterTests(unittest.TestCase):
         for field, value, message in (
             ("position", [1001.0, 0.0, 0.0], "position exceeds"),
             ("scale", 0.0, "scale exceeds"),
-            ("model", 1, "model slot zero"),
+            ("model", MAX_MODEL_RESOURCES, "model slot exceeds"),
         ):
             document = json.loads(json.dumps(WORLD))
             document["instances"][0][field] = value
