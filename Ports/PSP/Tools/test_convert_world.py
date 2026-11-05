@@ -13,13 +13,17 @@ from convert_world import (
     PWLD_HEADER_SIZE,
     PWLD_INSTANCE_SIZE,
     PWLD_MAGIC,
+    PWLD_RESOURCE_SIZE,
     PWLD_VERSION,
     convert,
 )
 
 
 WORLD = {
-    "version": 1,
+    "version": 2,
+    "resources": [
+        {"model": "probe.model", "texture": "probe.texture"},
+    ],
     "instances": [
         {
             "position": [-1.0, 0.5, -4.0],
@@ -49,20 +53,34 @@ class WorldConverterTests(unittest.TestCase):
 
     def test_writes_fixed_world_layout(self) -> None:
         summary, payload = self.convert_document(WORLD)
-        self.assertEqual(summary, {"instances": 2, "bytes": 80, "model_slots": 1})
-        self.assertEqual(len(payload), PWLD_HEADER_SIZE + 2 * PWLD_INSTANCE_SIZE)
         self.assertEqual(
-            struct.unpack_from("<4I", payload),
-            (PWLD_MAGIC, PWLD_VERSION, 2, PWLD_INSTANCE_SIZE),
+            summary,
+            {"instances": 2, "bytes": 136, "model_slots": 1, "resources": 1},
+        )
+        self.assertEqual(
+            len(payload),
+            PWLD_HEADER_SIZE + 2 * PWLD_INSTANCE_SIZE + PWLD_RESOURCE_SIZE,
+        )
+        self.assertEqual(
+            struct.unpack_from("<6I", payload),
+            (PWLD_MAGIC, PWLD_VERSION, 2, PWLD_INSTANCE_SIZE, 1, PWLD_RESOURCE_SIZE),
         )
         first = struct.unpack_from("<7fI", payload, PWLD_HEADER_SIZE)
         self.assertEqual(first[:3], (-1.0, 0.5, -4.0))
         self.assertEqual(first[3:6], (0.0, 0.25, 0.0))
         self.assertEqual(first[6:], (0.5, 0))
+        resource = struct.unpack_from(
+            "<24s24s",
+            payload,
+            PWLD_HEADER_SIZE + 2 * PWLD_INSTANCE_SIZE,
+        )
+        self.assertEqual(resource[0].rstrip(b"\0"), b"probe.model")
+        self.assertEqual(resource[1].rstrip(b"\0"), b"probe.texture")
 
     def test_rejects_unbounded_instance_count(self) -> None:
         document = {
-            "version": 1,
+            "version": PWLD_VERSION,
+            "resources": WORLD["resources"],
             "instances": [WORLD["instances"][0]] * (MAX_INSTANCE_COUNT + 1),
         }
         with self.assertRaisesRegex(ValueError, "between 1 and 16"):
@@ -70,9 +88,14 @@ class WorldConverterTests(unittest.TestCase):
 
     def test_accepts_bounded_model_slots(self) -> None:
         document = json.loads(json.dumps(WORLD))
+        document["resources"] = [
+            {"model": f"model.{index}", "texture": f"texture.{index}"}
+            for index in range(MAX_MODEL_RESOURCES)
+        ]
         document["instances"][1]["model"] = MAX_MODEL_RESOURCES - 1
         summary, payload = self.convert_document(document)
         self.assertEqual(summary["model_slots"], 2)
+        self.assertEqual(summary["resources"], MAX_MODEL_RESOURCES)
         second = struct.unpack_from("<7fI", payload, PWLD_HEADER_SIZE + PWLD_INSTANCE_SIZE)
         self.assertEqual(second[7], MAX_MODEL_RESOURCES - 1)
 
@@ -91,6 +114,17 @@ class WorldConverterTests(unittest.TestCase):
             document = json.loads(json.dumps(WORLD))
             document["instances"][0][field] = value
             with self.subTest(field=field), self.assertRaisesRegex(ValueError, message):
+                self.convert_document(document)
+
+    def test_rejects_invalid_resource_names(self) -> None:
+        for field, value, message in (
+            ("model", "invalid/name", "valid PSP resource name"),
+            ("texture", "текстура", "must be ASCII"),
+            ("model", "x" * 24, "valid PSP resource name"),
+        ):
+            document = json.loads(json.dumps(WORLD))
+            document["resources"][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaisesRegex(ValueError, message):
                 self.convert_document(document)
 
 
