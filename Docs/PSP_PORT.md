@@ -285,7 +285,7 @@ remain largely unstarted.
   existing preview set.
 
   ```powershell
-  py Ports/PSP/Tools/convert_barnyard_skin.py --tmdl <TMDL.exe> --model <model.tmd> --keylib <library.tkl> --sequence <base-sequence> --material <material-name> --texture <texture.ppm-or-ptex> --sample-rate 30 --output <EBOOT-directory> --runtime-preview
+  py Ports/PSP/Tools/convert_barnyard_skin.py --tmdl <TMDL.exe> --model <model.trb> --keylib <library.tkl> --sequence <base-sequence> --material <material-name> --texture <texture.ppm-or-ptex> --sample-rate 30 --output <EBOOT-directory> --runtime-preview
   ```
 
 - The frontend treats missing or invalid preview files as an optional inactive
@@ -1125,3 +1125,7 @@ dependency-ordered source list; do not add the full
 `OpenBarnyard/Source` glob. Keep the bounded factories/cache as the resource
 seam until a real game caller requires a specific part of the full
 `TTextureFactory`/`TResource` graph.
+
+The local retail-data handoff is defined in `Docs/PSP_ASSET_INTAKE.md`. Original
+files, host dumps and converted test output live under the ignored
+`Game/BarnyardPC` tree and must never enter a commit or CI artifact.

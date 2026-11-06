@@ -64,7 +64,7 @@ one explicitly selected base animation directly into an EBOOT directory:
 ```powershell
 py .\Ports\PSP\Tools\convert_barnyard_skin.py `
   --tmdl <TMDL.exe> `
-  --model <model.tmd> `
+  --model <model.trb> `
   --keylib <library.tkl> `
   --sequence <base-sequence> `
   --material <material-name> `
@@ -89,6 +89,12 @@ material name. PMES v1 intentionally previews only one material at a time. The
 same summary reports bind-pose bounds plus the centre and uniform scale that the
 EBOOT will use, so unit or pivot problems can be caught before PPSSPP. Original
 game data must remain outside the repository.
+
+Use [`Docs/PSP_ASSET_INTAKE.md`](../../Docs/PSP_ASSET_INTAKE.md) for the local
+`Game/BarnyardPC` directory layout and the exact first-asset checklist. The
+complete PC install and every selected retail source stay under the already
+ignored `Game/` tree; only converters, synthetic fixtures and documentation are
+versioned.
 
 ## Bounded world layout
 
