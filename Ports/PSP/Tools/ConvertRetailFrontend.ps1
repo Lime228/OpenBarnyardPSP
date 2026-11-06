@@ -53,13 +53,6 @@ New-Item -ItemType Directory -Force -Path $outputPath,$dumpPath,(Join-Path (Spli
 $items = @(
     @{ Library = 'Install\Data\Matlibs\gui_FrontEnd.ttl'; Texture = 'Dialogs\barnyard_logo.tga'; Output = 'barnyard_logo' }
 )
-foreach ($index in 1..6) {
-    $items += @{
-        Library = 'Install\Data\Matlibs\bkg_E3_TITLE16.ttl'
-        Texture = "bkg_E3_TITLE_$index.tga"
-        Output = "barnyard_title_$($index - 1)"
-    }
-}
 
 foreach ($item in $items) {
     $library = [System.IO.Path]::GetFullPath((Join-Path $assetRoot $item.Library))
@@ -83,9 +76,8 @@ foreach ($item in $items) {
 if ($RuntimeDirectory) {
     $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
     New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
-    Get-ChildItem $runtimePath -Filter 'barnyard_title_*.ptex' -File -ErrorAction SilentlyContinue | Remove-Item -Force
     Remove-Item -LiteralPath (Join-Path $runtimePath 'barnyard_logo.ptex') -Force -ErrorAction SilentlyContinue
-    Get-ChildItem $outputPath -Filter 'barnyard_*.ptex' -File | Copy-Item -Destination $runtimePath -Force
+    Copy-Item -LiteralPath (Join-Path $outputPath 'barnyard_logo.ptex') -Destination $runtimePath -Force
     Write-Output "Published retail frontend to $runtimePath"
 }
 
