@@ -186,7 +186,7 @@ static TBOOL LoadProbeModelFile_PSP()
 static TBOOL TestProbeWorld_PSP()
 {
 	g_uiProbeWorldVisible_PSP = 0;
-	if ( !g_ProbeWorld_PSP.LoadFromMemory( &g_ProbeWorldData_PSP, sizeof( g_ProbeWorldData_PSP ) ) ||
+	if ( !g_ProbeWorld_PSP.LoadFromFile( "local:probe.pwld" ) ||
 	     g_ProbeWorld_PSP.GetInstanceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aInstances ) ||
 	     g_ProbeWorld_PSP.GetResourceCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aResources ) ||
 	     g_ProbeWorld_PSP.GetCellCount() != TARRAYSIZE( g_ProbeWorldData_PSP.aCells ) ||
@@ -231,7 +231,14 @@ static TBOOL TestProbeWorld_PSP()
 
 	ProbeWorldData_PSP oInvalidCell = g_ProbeWorldData_PSP;
 	oInvalidCell.aCells[ 0 ].fRadius = 0.1f;
-	return !oInvalidWorld.LoadFromMemory( &oInvalidCell, sizeof( oInvalidCell ) );
+	if ( oInvalidWorld.LoadFromMemory( &oInvalidCell, sizeof( oInvalidCell ) ) )
+		return TFALSE;
+
+	AWorld_PSP oEmbeddedFixture;
+	return oEmbeddedFixture.LoadFromMemory(
+	    &g_ProbeWorldData_PSP,
+	    sizeof( g_ProbeWorldData_PSP )
+	);
 }
 
 static TBOOL LoadProbeSkinnedModelFile_PSP()
@@ -2130,7 +2137,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] index mesh  %s\n", bMeshReady ? "OK" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] model       %s\n", bModelReady ? "probe.pmes" : "FAILED" );
 	TDebug_FinalPrintf(
-	    "[PSP world] instances    %s (%u/%u)\n",
+	    "[PSP world] instances    %s (%u/%u, probe.pwld)\n",
 	    bWorldReady ? "OK" : "FAILED",
 	    g_ProbeWorld_PSP.GetInstanceCount(),
 	    AWorld_PSP::MAX_INSTANCES
