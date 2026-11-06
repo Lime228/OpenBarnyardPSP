@@ -96,6 +96,7 @@ jobs:
           cmp Ports/PSP/Assets/probe_skinned.pmes /tmp/probe_skinned.pmes
           cmp Ports/PSP/Assets/probe.pskl /tmp/probe.pskl
           cmp Ports/PSP/Assets/probe.panm /tmp/probe.panm
+          cmp Ports/PSP/Assets/probe.pwld /tmp/probe.pwld
           cmp Ports/PSP/Assets/probe_tmd_bridge.pmes /tmp/probe_tmd_bridge.pmes
           cmp Ports/PSP/Assets/probe_tmd_bridge.pskl /tmp/probe_tmd_bridge.pskl
           cmp Ports/PSP/Assets/bootstrap_audio.pbnk /tmp/bootstrap_audio.pbnk

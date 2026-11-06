@@ -101,11 +101,6 @@ project "OpenBarnyardPSP"
 		"pspnet_apctl"
 	}
 
-	prebuildcommands
-	{
-		'python3 "../../Ports/PSP/Tools/convert_world.py" "../../Ports/PSP/Assets/probe_world.json" "%{cfg.targetdir}/probe.pwld"'
-	}
-
 	postbuildcommands
 	{
 		'psp-fixup-imports "%{cfg.buildtarget.abspath}"',
@@ -117,6 +112,7 @@ project "OpenBarnyardPSP"
 		'cp -f "../../Ports/PSP/Assets/probe_skinned.pmes" "%{cfg.targetdir}/probe_skinned.pmes"',
 		'cp -f "../../Ports/PSP/Assets/probe.pskl" "%{cfg.targetdir}/probe.pskl"',
 		'cp -f "../../Ports/PSP/Assets/probe.panm" "%{cfg.targetdir}/probe.panm"',
+		'cp -f "../../Ports/PSP/Assets/probe.pwld" "%{cfg.targetdir}/probe.pwld"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_font.ptex" "%{cfg.targetdir}/bootstrap_font.ptex"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_font.pfnt" "%{cfg.targetdir}/bootstrap_font.pfnt"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_locale.ploc" "%{cfg.targetdir}/bootstrap_locale.ploc"',
