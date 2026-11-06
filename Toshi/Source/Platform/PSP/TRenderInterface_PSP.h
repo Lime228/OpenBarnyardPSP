@@ -78,6 +78,13 @@ public:
 	    const TRenderMaterial_PSP& a_rMaterial,
 	    const T2Texture* a_pTexture
 	);
+	void DrawModel(
+	    const TModel_PSP& a_rModel,
+	    const TRenderSceneTransform_PSP& a_rTransform,
+	    const TRenderMaterial_PSP& a_rMaterial,
+	    const T2Texture* a_pTexture,
+	    const TRenderModelTransform_PSP& a_rModelTransform
+	);
 	void DrawSkinnedModel(
 	    const TModel_PSP& a_rModel,
 	    const TVertexPoolResource_PSP& a_rVertices,
