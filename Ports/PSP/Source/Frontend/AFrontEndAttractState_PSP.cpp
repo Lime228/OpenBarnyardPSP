@@ -51,6 +51,28 @@ void AFrontEndAttractState_PSP::OnRender(
 )
 {
 	(void)a_rState;
+	if ( a_rContext.pTerrainModels != TNULL &&
+	     a_rContext.pTerrainTextures != TNULL &&
+	     a_rContext.uiTerrainModelCount != 0 &&
+	     a_rContext.pMaterial != TNULL )
+	{
+		const Toshi::TRenderSceneTransform_PSP oFrontendTerrainTransform = {
+			{ 0.0f, -0.45f, -4.8f },
+			{ 0.0f, 0.0f, 0.0f },
+			0.85f,
+		};
+		for ( TUINT i = 0; i < a_rContext.uiTerrainModelCount; i++ )
+		{
+			a_rContext.pRenderInterface->DrawModel(
+			    a_rContext.pTerrainModels[ i ],
+			    oFrontendTerrainTransform,
+			    *a_rContext.pMaterial,
+			    &a_rContext.pTerrainTextures[ i ],
+			    a_rContext.oTerrainModelTransform
+			);
+		}
+	}
+
 	if ( a_rContext.pFrontendLogo != TNULL )
 	{
 		a_rContext.pRenderInterface->DrawTextureRegion(
