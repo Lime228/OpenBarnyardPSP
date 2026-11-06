@@ -211,6 +211,8 @@ if ($texturesRequired.Count -gt 0) {
 if ($RuntimeDirectory) {
     $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
     New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
+    Get-ChildItem $runtimePath -Filter 'barnyard_terrain*' -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force
     Get-ChildItem $outputPath -Filter 'barnyard_terrain*' -File |
         Copy-Item -Destination $runtimePath -Force
     Write-Output "Published retail terrain to $runtimePath"
