@@ -112,11 +112,14 @@ static Toshi::TAnimationClip_PSP        g_PreviewAnimation_PSP;
 static Toshi::TSkeletonInstance_PSP     g_PreviewSkeletonInstance_PSP;
 static Toshi::TSkinningBuffer_PSP       g_PreviewSkinningBuffer_PSP;
 static Toshi::T2Texture                 g_PreviewTexture_PSP;
+static Toshi::TModel_PSP                g_TerrainModel_PSP;
+static Toshi::T2Texture                 g_TerrainTexture_PSP;
 static const Toshi::TRenderModelTransform_PSP g_IdentityModelTransform_PSP = {
 	1.0f,
 	{ 0.0f, 0.0f, 0.0f },
 };
 static Toshi::TRenderModelTransform_PSP g_PreviewTransform_PSP = g_IdentityModelTransform_PSP;
+static Toshi::TRenderModelTransform_PSP g_TerrainTransform_PSP = g_IdentityModelTransform_PSP;
 static APreviewLoadStage_PSP            g_ePreviewLoadStage_PSP = APreviewLoadStage_PSP_Manifest;
 static TBOOL                            g_bExternalTexture_PSP = TFALSE;
 static TBOOL                            g_bPreviewTexture_PSP = TFALSE;
@@ -310,6 +313,26 @@ static TBOOL TestPreviewTransform_PSP( const Toshi::TModel_PSP& a_rModel )
 	       oTransform.aCenter[ 0 ] == 0.0f &&
 	       oTransform.aCenter[ 1 ] == 0.0f &&
 	       oTransform.aCenter[ 2 ] == 0.0f;
+}
+
+static void UnloadTerrainModel_PSP()
+{
+	g_TerrainTexture_PSP.Unload();
+	g_TerrainModel_PSP.Unload();
+	g_TerrainTransform_PSP = g_IdentityModelTransform_PSP;
+}
+
+static TBOOL LoadTerrainModel_PSP()
+{
+	UnloadTerrainModel_PSP();
+	if ( !g_ModelFactory_PSP.CreateModelFromFile( g_TerrainModel_PSP, "local:barnyard_terrain.pmes" ) ||
+	     !CalculatePreviewTransform_PSP( g_TerrainModel_PSP, g_TerrainTransform_PSP ) ||
+	     !g_TextureFactory_PSP.CreateTextureFromFile( g_TerrainTexture_PSP, "local:barnyard_terrain.ptex" ) )
+	{
+		UnloadTerrainModel_PSP();
+		return TFALSE;
+	}
+	return TTRUE;
 }
 
 static const TCHAR* GetPreviewLoadStageName_PSP()
@@ -2022,6 +2045,7 @@ int main()
 	const TBOOL bSkinningReady = bLoopAnimationReady && TestProbeSkinning_PSP();
 	const TBOOL bAnimationBudgetReady = bSkinningReady && TestAnimationBudgets_PSP();
 	const TBOOL bPreviewReady = bAnimationBudgetReady && LoadPreviewModel_PSP();
+	const TBOOL bTerrainReady = bFileReady && LoadTerrainModel_PSP();
 	const TBOOL bMeshReady      = InitialiseProbeMesh_PSP();
 	const TBOOL bTextureCached  = bTextureReady && g_ResourceCache_PSP.Register(
 	    "probe.texture",
@@ -2077,11 +2101,14 @@ int main()
 		pCachedFont,
 		&g_LocaleManager_PSP,
 		pCachedModel,
+		bTerrainReady ? &g_TerrainModel_PSP : TNULL,
+		bTerrainReady ? &g_TerrainTexture_PSP : TNULL,
 		bPreviewReady ? &g_PreviewModel_PSP : ( bSkinningReady ? &g_ProbeSkinnedModel_PSP : TNULL ),
 		bPreviewReady ? &g_PreviewSkinningBuffer_PSP : ( bSkinningReady ? &g_ProbeSkinningBuffer_PSP : TNULL ),
 		bPreviewReady ? &g_PreviewSkeletonInstance_PSP : ( bSkinningReady ? &g_ProbeSkeletonInstance_PSP : TNULL ),
 		bPreviewReady ? &g_PreviewAnimation_PSP : ( bSkinningReady ? &g_ProbeAnimation_PSP : TNULL ),
 		&g_ProbeMaterial_PSP,
+		bTerrainReady ? g_TerrainTransform_PSP : g_IdentityModelTransform_PSP,
 		bPreviewReady ? g_PreviewTransform_PSP : g_IdentityModelTransform_PSP,
 		bWorldReady ? &g_ProbeWorld_PSP : TNULL,
 		TFALSE,
@@ -2180,6 +2207,14 @@ int main()
 	    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 1 ] : g_IdentityModelTransform_PSP.aCenter[ 1 ],
 	    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ]
 	);
+	TDebug_FinalPrintf(
+	    "[PSP world] terrain      %s %.6f @ %.6f,%.6f,%.6f\n",
+	    bTerrainReady ? "barnyard_terrain" : "inactive",
+	    bTerrainReady ? g_TerrainTransform_PSP.fScale : g_IdentityModelTransform_PSP.fScale,
+	    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 0 ] : g_IdentityModelTransform_PSP.aCenter[ 0 ],
+	    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 1 ] : g_IdentityModelTransform_PSP.aCenter[ 1 ],
+	    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ]
+	);
 	TDebug_FinalPrintf( "[PSP render] cache       %s (%u/%u)\n", bCacheReady ? "OK" : "FAILED", g_ResourceCache_PSP.GetCount(), g_ResourceCache_PSP.GetCapacity() );
 	TDebug_FinalPrintf( "[PSP frontend] scheduler %s\n", bSchedulerReady ? "OK" : "FAILED" );
 	const Toshi::TRenderMemoryStats_PSP oMemoryStats = Toshi::TRenderMemory_PSP::GetStats();
@@ -2257,6 +2292,13 @@ int main()
 		    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 1 ] : g_IdentityModelTransform_PSP.aCenter[ 1 ],
 		    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ],
 		},
+		bTerrainReady,
+		bTerrainReady ? g_TerrainTransform_PSP.fScale : g_IdentityModelTransform_PSP.fScale,
+		{
+		    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 0 ] : g_IdentityModelTransform_PSP.aCenter[ 0 ],
+		    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 1 ] : g_IdentityModelTransform_PSP.aCenter[ 1 ],
+		    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ],
+		},
 		bCacheReady,
 		bSchedulerReady,
 		0,
@@ -2292,6 +2334,7 @@ int main()
 	    g_uiLoadedStreams_PSP
 	);
 	g_ResourceCache_PSP.Clear();
+	UnloadTerrainModel_PSP();
 	UnloadPreviewModel_PSP();
 	g_ProbeSkinningBuffer_PSP.Destroy();
 	g_ProbeSkeletonInstance_PSP.Destroy();

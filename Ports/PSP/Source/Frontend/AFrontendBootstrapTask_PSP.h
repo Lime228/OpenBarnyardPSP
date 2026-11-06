@@ -43,11 +43,14 @@ struct AFrontendRenderContext_PSP
 	Toshi::T2GUIFont_PSP*             pFont;
 	ALocaleManager_PSP*               pLocale;
 	Toshi::TModel_PSP*                pModel;
+	Toshi::TModel_PSP*                pTerrainModel;
+	Toshi::T2Texture*                 pTerrainTexture;
 	Toshi::TModel_PSP*                pSkinnedModel;
 	Toshi::TSkinningBuffer_PSP*       pSkinningBuffer;
 	Toshi::TSkeletonInstance_PSP*     pSkeletonInstance;
 	Toshi::TAnimationClip_PSP*        pAnimation;
 	const Toshi::TRenderMaterial_PSP* pMaterial;
+	Toshi::TRenderModelTransform_PSP  oTerrainModelTransform;
 	Toshi::TRenderModelTransform_PSP  oSkinnedModelTransform;
 	AWorld_PSP*                       pWorld;
 	TBOOL                             bBootstrapReady;

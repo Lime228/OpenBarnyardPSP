@@ -47,6 +47,9 @@ struct APortReportData_PSP
 	const TCHAR* pPreviewLoadStage;
 	TFLOAT fPreviewScale;
 	TFLOAT aPreviewCenter[ 3 ];
+	TBOOL bTerrainReady;
+	TFLOAT fTerrainScale;
+	TFLOAT aTerrainCenter[ 3 ];
 	TBOOL bCacheReady;
 	TBOOL bSchedulerReady;
 	TUINT uiFrameCount;

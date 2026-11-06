@@ -92,6 +92,23 @@ void AProbeState_PSP::OnRender(
 			);
 		}
 	}
+	if ( a_rContext.pTerrainModel != TNULL &&
+	     a_rContext.pTerrainTexture != TNULL &&
+	     a_rContext.pMaterial != TNULL )
+	{
+		const Toshi::TRenderSceneTransform_PSP oTerrainTransform = {
+			{ -1.35f, -0.35f, -4.5f },
+			{ 0.0f, a_rState.fModelRotation * 0.35f, 0.0f },
+			0.65f,
+		};
+		a_rContext.pRenderInterface->DrawModel(
+		    *a_rContext.pTerrainModel,
+		    oTerrainTransform,
+		    *a_rContext.pMaterial,
+		    a_rContext.pTerrainTexture,
+		    a_rContext.oTerrainModelTransform
+		);
+	}
 	if ( a_rContext.pSkinnedModel != TNULL &&
 	     a_rContext.pSkinningBuffer != TNULL &&
 	     a_rContext.pSkeletonInstance != TNULL &&
