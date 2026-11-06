@@ -58,6 +58,7 @@ terrain=Install\Data\Terrain\ss01\xroad_L0Mod2.trb
 world=0
 cell=0
 mesh=0
+all_meshes=true
 texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain\ss01\ss01_Common.ttl
 ```
 
@@ -70,9 +71,9 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
 | `Tools/TMDL -psp-animation` | Samples one explicitly named retail TKL sequence without adding the relocatable parser to the EBOOT. |
 | `Tools/TMDL -psp-texture` | Relocates one retail TTL on the host and extracts an explicitly named embedded DDS. |
-| `Tools/TMDL -psp-terrain` | Relocates one terrain TRB, selects a bounded world/cell/mesh and resolves its material to the exact retail texture name. |
-| `convert_terrain_dump.py` | Triangulates one bounded terrain strip, preserves vertex colours/UVs and emits a static textured PMES. |
-| `Tools/ConvertRetailTerrain.ps1` | Repeats terrain export, searches the declared TTLs for the resolved texture, converts PMES/PTEX and can publish both runtime files. |
+| `Tools/TMDL -psp-terrain` / `-psp-terrain-cell` | Relocates one terrain TRB, selects one mesh or up to four meshes in a cell and resolves every material to its exact retail texture name. |
+| `convert_terrain_dump.py` / `convert_terrain_cell.py` | Triangulates bounded terrain strips, preserves vertex colours/UVs and emits static textured PMES files with shared cell bounds. |
+| `Tools/ConvertRetailTerrain.ps1` | Repeats terrain export, searches declared TTLs, deduplicates repeated source textures, converts PMES/PTEX sets and publishes only the complete generated set into a runtime directory. |
 | `convert_animation.py` | Quantizes the sampled clip into a maximum of 64 bounded PANM frames. |
 | `convert_dds.py` | Decodes bounded DXT1/DXT3/DXT5 top mips into swizzled RGBA8888 PTEX data. |
 | `convert_texture.py` | Converts P3 PPM into a power-of-two, optionally swizzled PTEX payload. |

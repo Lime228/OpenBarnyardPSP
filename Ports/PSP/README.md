@@ -119,9 +119,10 @@ binds it into the transactional preview set.
 exports one explicitly selected retail world/cell/mesh, resolves its material
 to the original texture name and emits `barnyard_terrain.pmes` plus
 `barnyard_terrain.ptex`. Use `-RuntimeDirectory <EBOOT-directory>` to publish
-the pair beside the EBOOT. The runtime loads this pair independently from the
-animated `barnyard_preview.*` set, centres the retail world-space vertices once
-and records `terrain=ACTIVE` in report v7.
+the set beside the EBOOT. With `all_meshes=true`, up to four numbered
+`barnyard_terrain_N.pmes/.ptex` pairs retain one shared cell transform. The
+runtime loads them independently from the animated `barnyard_preview.*` set and
+records `terrain=ACTIVE` plus `terrain_meshes=N` in report v8.
 
 ## Bounded world layout
 
