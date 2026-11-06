@@ -92,8 +92,25 @@ $world = if ($manifest.world) { [int] $manifest.world } else { 0 }
 $cell = if ($manifest.cell) { [int] $manifest.cell } else { 0 }
 $mesh = if ($manifest.mesh) { [int] $manifest.mesh } else { 0 }
 $allMeshes = $manifest.all_meshes -match '^(1|true|yes)$'
+$selectedMeshes = @()
+if ($manifest.meshes) {
+    $selectedMeshes = @(($manifest.meshes -split '[;,]') |
+        Where-Object { $_.Trim() } |
+        ForEach-Object { [int] $_.Trim() })
+}
+if ($allMeshes -and $selectedMeshes.Count -gt 0) {
+    throw 'all_meshes and meshes are mutually exclusive'
+}
+if ($selectedMeshes.Count -gt 4 -or @($selectedMeshes | Select-Object -Unique).Count -ne $selectedMeshes.Count) {
+    throw 'meshes must contain between one and four unique indices'
+}
+$multiMeshes = $allMeshes -or $selectedMeshes.Count -gt 0
+$textureMaxWidth = if ($manifest.texture_max_width) { [int] $manifest.texture_max_width } else { 0 }
 if ($world -lt 0 -or $cell -lt 0 -or $mesh -lt 0) {
     throw 'world, cell, and mesh must be non-negative'
+}
+if (@($selectedMeshes | Where-Object { $_ -lt 0 }).Count -gt 0 -or $textureMaxWidth -lt 0) {
+    throw 'mesh indices and texture_max_width must be non-negative'
 }
 
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
@@ -105,6 +122,19 @@ Push-Location (Split-Path -Parent $TMDLPath)
 try {
     if ($allMeshes) {
         & $TMDLPath -psp-terrain-cell $terrain -world $world -cell $cell -o $dumpPath
+    }
+    elseif ($selectedMeshes.Count -gt 0) {
+        $selectedDumpPaths = @()
+        foreach ($selectedMesh in $selectedMeshes) {
+            $selectedDump = Join-Path (Split-Path -Parent $dumpPath) "barnyard_terrain_mesh_$selectedMesh.json"
+            & $TMDLPath -psp-terrain $terrain -world $world -cell $cell -mesh $selectedMesh -o $selectedDump
+            if ($LASTEXITCODE -ne 0) {
+                throw "Retail terrain mesh $selectedMesh export failed with exit code $LASTEXITCODE"
+            }
+            $selectedDumpPaths += $selectedDump
+        }
+        & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'merge_terrain_dumps.py') `
+            --world $world --cell $cell --output $dumpPath @selectedDumpPaths
     }
     else {
         & $TMDLPath -psp-terrain $terrain -world $world -cell $cell -mesh $mesh -o $dumpPath
@@ -118,7 +148,7 @@ finally {
 }
 
 $textureSelections = @()
-if ($allMeshes) {
+if ($multiMeshes) {
     & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_terrain_cell.py') $dumpPath $outputPath
     if ($LASTEXITCODE -ne 0) {
         throw "Retail terrain cell conversion failed with exit code $LASTEXITCODE"
@@ -200,7 +230,9 @@ if ($texturesRequired.Count -gt 0) {
         if (-not $textureFound) {
             throw "Texture '$($selection.Source)' was not found in: $($libraries -join ', ')"
         }
-        & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') $selection.DDS $selection.Output
+        $ddsArguments = @()
+        if ($textureMaxWidth -gt 0) { $ddsArguments = @('--max-width', $textureMaxWidth) }
+        & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') @ddsArguments $selection.DDS $selection.Output
         if ($LASTEXITCODE -ne 0) {
             throw "Retail terrain texture conversion failed with exit code $LASTEXITCODE"
         }
@@ -220,5 +252,10 @@ if ($RuntimeDirectory) {
 
 if (-not $KeepIntermediate) {
     Remove-Item -LiteralPath $dumpPath -Force -ErrorAction SilentlyContinue
+    if ($selectedMeshes.Count -gt 0) {
+        $selectedMeshes | ForEach-Object {
+            Remove-Item -LiteralPath (Join-Path (Split-Path -Parent $dumpPath) "barnyard_terrain_mesh_$_.json") -Force -ErrorAction SilentlyContinue
+        }
+    }
     $textureSelections | ForEach-Object { Remove-Item -LiteralPath $_.DDS -Force -ErrorAction SilentlyContinue }
 }
