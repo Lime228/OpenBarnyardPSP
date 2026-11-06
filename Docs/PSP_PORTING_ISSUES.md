@@ -1,0 +1,22 @@
+# PSP port issue log
+
+This log records reproducible porting failures, their root causes and the check
+that closed each issue. Local retail paths and game data are deliberately not
+committed.
+
+| Area | Symptom | Root cause | Fix | Verification |
+| --- | --- | --- | --- | --- |
+| PPSSPP input | Background button injection intermittently failed on 64-bit Windows. | `PostMessage` received a signed pointer-sized value instead of the unsigned virtual-key payload. | Send the key through `UIntPtr` in `RunPPSSPP.ps1` (`bed276a1`). | Analog directions and Circle reached one background PPSSPP instance. |
+| PWLD build | PSP CI stopped at `python3: not found` before compilation in run `42185795052`. | The intentionally small PSPDEV Docker image has no host Python runtime. | Generate and byte-compare `probe.pwld` on the Ubuntu runner; Premake copies the verified bounded fixture into the target directory (`589137c9`). | PSP run `42186116583` and later runs build successfully; runtime reports `world=OK`. |
+| Host build | `PTRB.h` failed when compiled directly by TMDL because `T2StringView` was undeclared. | The header relied on a transitive include. | Include `Toshi/T2String.h` directly (`14e128e6`). | Windows `host-tools` job builds TMDL on VS2022. |
+| Local host build | VS2026 linked with `LNK1101 incorrect version MSPDB140.DLL`. | The local MSVC/PDB installation is internally mismatched; source compilation itself completed. | Build the host-only TMDL target in a clean VS2022 GitHub Actions job (`8046f887`) instead of changing game code for a machine-specific toolchain fault. | `OpenBarnyard-PSP-host-tools` is published by every PSP workflow run. |
+| TMDL logging | A downloaded TMDL printed `Failed to create file Logs\\...`. | Toshi expects a `Logs` directory relative to the tool working directory. | The retail orchestration creates `TMDL.exe`'s `Logs` directory and executes the exporter with that directory as `cwd`. | Repeated conversions no longer depend on the caller's working directory. |
+| Retail skinning | `SS_Sbird2` was rejected at vertex 6 with `bone=6`, even though the model has five bones. | Retail `TTMDWin::Vertex::Bones` stores DX8 matrix registers (`0, 3, 6, 9...`), not palette indices. | Validate register divisibility and export `register / 3` (`1ae85789`). | Model JSON exports 114 vertices; bounded PMES conversion produces 114 vertices and 372 triangle indices. |
+| Retail animation | Rotation-only `SS01_GUI_idle` was rejected before sampling. | The exporter required a translation pointer even when the model declares zero translation keys. | Require key arrays only for non-zero ranges and keep a null translation base for rotation-only clips (`bde0f91c`). | The selected idle exports successfully with five bones. |
+| Host JSON output | Export created a zero-byte JSON file and returned failure. | An output-only `std::ostringstream` was copied through `rdbuf()`, which sets `failbit` on MSVC without transferring characters. | Write `oOutput.str()` in both PSP exporters (`faf3a924`). | Model and animation JSON files contain 20,100 and 50,228 bytes. |
+| Animation budget | A 3-second clip at 30 Hz requires 91 clamp frames, exceeding the 64-frame PSP PANM limit. | Sampling rate was selected without applying the bounded frame count. | Select 20 Hz for this preview (61 frames) and record `sample_rate` in the local manifest. | PANM is 4,912 bytes and reports 61 frames at 20 Hz. |
+| PSP package | Earlier builds appeared in tools and PPSSPP as `OpenBarnyard PSP Probe` and had no XMB artwork. | The bootstrap `PARAM.SFO` and PBP optional slots still used development defaults. | Package `ICON0.PNG` (144x80) and `PIC1.PNG` (480x272), rename the module/title, and validate dimensions and file budgets (`d9bc802a`). | PBP section hashes match the source PNGs and the embedded SFO contains `OpenBarnyard PSP`; run `42186116583` is green. |
+
+When a new recurring failure is found, add it here only after the root cause is
+confirmed. Include the validation signal (test, CI run or PSP report), not just
+the attempted change.

@@ -40,13 +40,30 @@ Record the first selection in
 `Game/BarnyardPC/Manifests/first_skin.txt` with these fields:
 
 ```text
-model=<relative path under Selected/Models>
-keylib=<relative path under Selected/Animations>
+model=<path relative to Game/BarnyardPC, under Install/ or Selected/Models>
+keylib=<path relative to Game/BarnyardPC, under Install/ or Selected/Animations>
 sequence=<exact animation sequence name>
+sample_rate=<bounded sampling rate, normally 20 or 30>
 material=<exact material name, if the model has more than one>
 texture=<relative path under Selected/Textures>
 source_room=<optional relative path under Selected/Worlds>
 ```
+
+## Repeatable conversion tools
+
+| Tool | Repeatable bounded operation |
+| --- | --- |
+| `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
+| `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
+| `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
+| `Tools/TMDL -psp-animation` | Samples one explicitly named retail TKL sequence without adding the relocatable parser to the EBOOT. |
+| `convert_animation.py` | Quantizes the sampled clip into a maximum of 64 bounded PANM frames. |
+| `convert_texture.py` | Converts P3 PPM into a power-of-two, optionally swizzled PTEX payload. |
+| `convert_world.py` | Builds bounded PWLD instances/resources and deterministic X/Z cells. |
+
+Keep orchestration in the PowerShell entry point and format transformations in
+the focused Python/C++ tools. Add tests beside a converter whenever a new
+reduction rule or retail edge case becomes deterministic.
 
 ## Generated data
 
@@ -74,4 +91,15 @@ PPSSPP or hardware validation.
 - If available, include the room/container that references the selected model.
 - Tell Codex when the copy is complete; the next step is a read-only inventory,
   then a bounded conversion into `Workspace/Converted/`.
+
+After the manifest is filled, the repeatable Windows entry point is:
+
+```powershell
+.\Ports\PSP\Tools\ConvertRetailPreview.ps1 -KeepIntermediate
+```
+
+Pass `-RuntimeDirectory <EBOOT-directory>` to publish the generated
+`barnyard_preview.*` set into a local PSP runtime bundle. The script keeps all
+retail input, dumps and converted output below the ignored `Game/BarnyardPC`
+tree.
 

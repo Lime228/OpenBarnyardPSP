@@ -102,6 +102,11 @@ complete PC install and every selected retail source stay under the already
 ignored `Game/` tree; only converters, synthetic fixtures and documentation are
 versioned.
 
+Use `Tools/ConvertRetailPreview.ps1` to repeat the manifest-driven retail
+conversion and optionally publish it into a local runtime bundle. Confirmed
+porting failures and their fixes are tracked in
+[`Docs/PSP_PORTING_ISSUES.md`](../../Docs/PSP_PORTING_ISSUES.md).
+
 ## Bounded world layout
 
 `AWorld_PSP` accepts PWLD v3 layouts containing at most 16 fixed-size model
