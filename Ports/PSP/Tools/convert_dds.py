@@ -163,8 +163,38 @@ def read_dds(path: pathlib.Path) -> tuple[int, int, bytes]:
     return width, height, bytes(pixels)
 
 
-def convert(source: pathlib.Path, destination: pathlib.Path, linear: bool = False) -> None:
+def downsample_rgba_2x(pixels: bytes, width: int, height: int) -> tuple[int, int, bytes]:
+    if width < 2 or height < 2 or width % 2 != 0 or height % 2 != 0:
+        raise ValueError("2x PSP texture reduction requires even dimensions of at least 2x2")
+    output_width = width // 2
+    output_height = height // 2
+    output = bytearray(output_width * output_height * 4)
+    for y in range(output_height):
+        for x in range(output_width):
+            source_offsets = (
+                ((y * 2) * width + x * 2) * 4,
+                ((y * 2) * width + x * 2 + 1) * 4,
+                (((y * 2) + 1) * width + x * 2) * 4,
+                (((y * 2) + 1) * width + x * 2 + 1) * 4,
+            )
+            destination = (y * output_width + x) * 4
+            for channel in range(4):
+                output[destination + channel] = sum(pixels[offset + channel] for offset in source_offsets) // 4
+    return output_width, output_height, bytes(output)
+
+
+def convert(
+    source: pathlib.Path,
+    destination: pathlib.Path,
+    linear: bool = False,
+    max_width: int | None = None,
+) -> None:
     width, height, pixels = read_dds(source)
+    if max_width is not None:
+        if not is_power_of_two(max_width) or max_width > 512:
+            raise ValueError("PSP maximum width must be a power of two no larger than 512")
+        while width > max_width:
+            width, height, pixels = downsample_rgba_2x(pixels, width, height)
     texture_format = PTEX_FORMAT_RGBA8888
     if not linear:
         pixels = swizzle_rgba8888(pixels, width, height)
@@ -177,10 +207,11 @@ def convert(source: pathlib.Path, destination: pathlib.Path, linear: bool = Fals
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert a bounded DXT DDS texture to OpenBarnyard PSP PTEX")
     parser.add_argument("--linear", action="store_true", help="store linear pixels instead of PSP-swizzled blocks")
+    parser.add_argument("--max-width", type=int, help="reduce by 2x box filters until this PSP-safe width is reached")
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
     args = parser.parse_args()
-    convert(args.source, args.destination, args.linear)
+    convert(args.source, args.destination, args.linear, args.max_width)
 
 
 if __name__ == "__main__":

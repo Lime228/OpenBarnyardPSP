@@ -172,8 +172,8 @@ static TBOOL LoadFontTextureFile_PSP()
 static TBOOL LoadFrontendLogoFile_PSP()
 {
 	return g_TextureFactory_PSP.CreateTextureFromFile( g_FrontendLogo_PSP, "local:barnyard_logo.ptex" ) &&
-	       g_FrontendLogo_PSP.GetWidth() == 512 &&
-	       g_FrontendLogo_PSP.GetHeight() == 128;
+	       g_FrontendLogo_PSP.GetWidth() == 256 &&
+	       g_FrontendLogo_PSP.GetHeight() == 64;
 }
 
 static TBOOL LoadFontFile_PSP()

@@ -5,7 +5,7 @@ import struct
 import tempfile
 import unittest
 
-from convert_dds import convert, decode_dxt_block
+from convert_dds import convert, decode_dxt_block, downsample_rgba_2x
 
 
 def dds_header(width: int, height: int, fourcc: bytes, data_size: int) -> bytes:
@@ -21,6 +21,15 @@ def dds_header(width: int, height: int, fourcc: bytes, data_size: int) -> bytes:
 
 
 class DDSConversionTests(unittest.TestCase):
+    def test_downsamples_rgba_with_box_filter(self) -> None:
+        pixels = bytes(
+            (0, 0, 0, 0, 4, 8, 12, 16, 20, 24, 28, 32, 24, 32, 40, 48,
+             8, 16, 24, 32, 12, 24, 36, 48, 28, 40, 52, 64, 32, 48, 64, 80)
+        )
+        width, height, reduced = downsample_rgba_2x(pixels, 4, 2)
+        self.assertEqual((width, height), (2, 1))
+        self.assertEqual(reduced, bytes((6, 12, 18, 24, 26, 36, 46, 56)))
+
     def test_decodes_dxt3_colour_and_alpha(self) -> None:
         alpha = sum((pixel & 0xF) << (pixel * 4) for pixel in range(16)).to_bytes(8, "little")
         colour = struct.pack("<HHI", 0xF800, 0x07E0, 0)

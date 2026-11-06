@@ -69,7 +69,7 @@ foreach ($item in $items) {
     finally {
         Pop-Location
     }
-    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') $ddsPath $ptexPath
+    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') --max-width 256 $ddsPath $ptexPath
     if ($LASTEXITCODE -ne 0) { throw "Frontend conversion failed for '$($item.Texture)'" }
 }
 
