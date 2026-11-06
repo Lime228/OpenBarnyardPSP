@@ -38,9 +38,12 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
     if not isinstance(document, dict) or document.get("version") != 1:
         raise ValueError("unsupported terrain dump contract version")
     material = document.get("material")
+    texture = document.get("texture", "")
     vertices = document.get("vertices")
     if not isinstance(material, str) or not material or not isinstance(vertices, list):
         raise ValueError("terrain dump requires a material and vertices")
+    if not isinstance(texture, str):
+        raise ValueError("terrain dump texture must be a string")
     if not 3 <= len(vertices) <= MAX_TERRAIN_VERTEX_COUNT:
         raise ValueError(f"terrain selection must contain between 3 and {MAX_TERRAIN_VERTEX_COUNT} vertices")
 
@@ -77,6 +80,7 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
     destination.write_bytes(payload)
     return {
         "material": material,
+        "texture": texture,
         "vertices": len(parsed_vertices),
         "indices": len(indices),
         "bytes": len(payload),

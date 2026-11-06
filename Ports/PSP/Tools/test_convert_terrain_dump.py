@@ -14,6 +14,7 @@ class TerrainDumpConversionTests(unittest.TestCase):
         document = {
             "version": 1,
             "material": "ground",
+            "texture": "Terrain\\ground.tga",
             "vertices": [
                 {"position": [0, 0, 0], "uv": [0, 0], "colour": [1, 0, 0]},
                 {"position": [1, 0, 0], "uv": [1, 0], "colour": [0, 1, 0]},
@@ -29,7 +30,16 @@ class TerrainDumpConversionTests(unittest.TestCase):
             source.write_text(json.dumps(document), encoding="utf-8")
             summary = convert(source, destination)
             payload = destination.read_bytes()
-            self.assertEqual(summary, {"material": "ground", "vertices": 4, "indices": 6, "bytes": 132})
+            self.assertEqual(
+                summary,
+                {
+                    "material": "ground",
+                    "texture": "Terrain\\ground.tga",
+                    "vertices": 4,
+                    "indices": 6,
+                    "bytes": 132,
+                },
+            )
             self.assertEqual(struct.unpack_from("<6I", payload), (0x53454D50, 1, 4, 6, 24, 1))
             self.assertEqual(struct.unpack_from("<I", payload, 32)[0], 0xFF0000FF)
 

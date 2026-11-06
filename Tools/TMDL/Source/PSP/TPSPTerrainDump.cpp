@@ -4,6 +4,7 @@
 #include "World/AWorld.h"
 
 #include <Plugins/PTRB.h>
+#include <Render/TTMDBase.h>
 
 #include <cmath>
 #include <fstream>
@@ -26,6 +27,25 @@ static void WriteJSONString_PSPTerrain( std::ostream& a_rOutput, const TCHAR* a_
 	a_rOutput << '"';
 }
 
+static const TCHAR* FindTexture_PSPTerrain(
+	TTMDBase::MaterialsHeader* a_pMaterials,
+	const TCHAR*                a_pMaterialName
+)
+{
+	if ( a_pMaterials == TNULL || a_pMaterialName == TNULL ||
+	     a_pMaterials->iNumMaterials < 0 || a_pMaterials->iNumMaterials > 4096 )
+		return TNULL;
+
+	for ( TINT i = 0; i < a_pMaterials->iNumMaterials; i++ )
+	{
+		TTMDBase::Material* pMaterial = a_pMaterials->GetMaterial( i );
+		if ( TStringManager::String8CompareNoCase( pMaterial->szMatName, a_pMaterialName ) == 0 )
+			return pMaterial->szTextureFile;
+	}
+
+	return TNULL;
+}
+
 TBOOL ExportPSPTerrainDump(
     const TCHAR* a_pInputPath,
     TINT         a_iWorld,
@@ -41,6 +61,7 @@ TBOOL ExportPSPTerrainDump(
 	if ( !oTRB.ReadFromFile( a_pInputPath ) )
 		return TFALSE;
 	auto oDatabase = oTRB.GetSymbols()->Find<WorldDatabase>( oTRB.GetSections(), "Database" );
+	auto oMaterials = oTRB.GetSymbols()->Find<TTMDBase::MaterialsHeader>( oTRB.GetSections(), "Materials" );
 	if ( !oDatabase || oDatabase.get()->m_uiNumWorlds == 0 || oDatabase.get()->m_uiNumWorlds > 64 ||
 	     oDatabase.get()->m_ppWorlds == TNULL || TUINT( a_iWorld ) >= oDatabase.get()->m_uiNumWorlds )
 	{
@@ -81,6 +102,8 @@ TBOOL ExportPSPTerrainDump(
 	oOutput << std::setprecision( 9 );
 	oOutput << "{\n  \"version\": 1,\n  \"material\": ";
 	WriteJSONString_PSPTerrain( oOutput, pMesh->szMaterialName );
+	oOutput << ",\n  \"texture\": ";
+	WriteJSONString_PSPTerrain( oOutput, FindTexture_PSPTerrain( oMaterials.get(), pMesh->szMaterialName ) );
 	const TVector4& rSphere = pMeshSphere->m_BoundingSphere.AsVector4();
 	oOutput << ",\n  \"sphere\": [" << rSphere.x << ", " << rSphere.y << ", " << rSphere.z << ", " << rSphere.w
 	        << "],\n  \"vertices\": [\n";
