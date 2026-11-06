@@ -2,6 +2,7 @@
 
 #include "AFrontendBootstrapTask_PSP.h"
 #include "AFrontEndMainMenuState2_PSP.h"
+#include "AFrontEndAttractState_PSP.h"
 #include "AFrontendInfoState_PSP.h"
 #include "AProbeState_PSP.h"
 
@@ -26,6 +27,7 @@ private:
 private:
 	AFrontendBootstrapState_PSP*      m_pState;
 	const AFrontendRenderContext_PSP* m_pContext;
+	AFrontEndAttractState_PSP          m_AttractState;
 	AFrontEndMainMenuState2_PSP       m_MainMenuState;
 	AProbeState_PSP                   m_ProbeState;
 	AFrontendInfoState_PSP            m_InfoState;

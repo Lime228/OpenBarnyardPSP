@@ -5,6 +5,7 @@
 enum AFrontendLocaleString_PSP : TUINT
 {
 	AFrontendLocaleString_PSP_Title,
+	AFrontendLocaleString_PSP_PressStart,
 	AFrontendLocaleString_PSP_StartProbe,
 	AFrontendLocaleString_PSP_PortStatus,
 	AFrontendLocaleString_PSP_StatusTitle,

@@ -12,6 +12,7 @@ class AWorld_PSP;
 enum AFrontendState_PSP
 {
 	AFrontendState_PSP_Boot,
+	AFrontendState_PSP_Attract,
 	AFrontendState_PSP_Menu,
 	AFrontendState_PSP_Probe,
 	AFrontendState_PSP_Info,
@@ -40,6 +41,7 @@ struct AFrontendRenderContext_PSP
 	Toshi::TVertexPoolResource_PSP*   pVertices;
 	Toshi::TIndexPoolResource_PSP*    pIndices;
 	Toshi::T2Texture*                 pTexture;
+	Toshi::T2Texture*                 pFrontendLogo;
 	Toshi::T2GUIFont_PSP*             pFont;
 	ALocaleManager_PSP*               pLocale;
 	Toshi::TModel_PSP*                pModel;
@@ -55,6 +57,7 @@ struct AFrontendRenderContext_PSP
 	Toshi::TRenderModelTransform_PSP  oSkinnedModelTransform;
 	AWorld_PSP*                       pWorld;
 	TBOOL                             bBootstrapReady;
+	TBOOL                             bFrontendReady;
 	TBOOL                             bMeshReady;
 };
 

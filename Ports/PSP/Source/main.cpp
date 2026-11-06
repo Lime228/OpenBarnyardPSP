@@ -76,6 +76,7 @@ alignas( 16 ) static ProbeTextureData_PSP g_ProbeTextureData = {
 	{}
 };
 static Toshi::T2Texture g_ProbeTexture;
+static Toshi::T2Texture g_FrontendLogo_PSP;
 static Toshi::T2Texture g_FontTexture_PSP;
 static Toshi::T2GUIFont_PSP g_Font_PSP;
 static ALocaleManager_PSP g_LocaleManager_PSP;
@@ -166,6 +167,13 @@ static TBOOL LoadProbeTextureFile_PSP()
 static TBOOL LoadFontTextureFile_PSP()
 {
 	return g_TextureFactory_PSP.CreateTextureFromFile( g_FontTexture_PSP, "local:bootstrap_font.ptex" );
+}
+
+static TBOOL LoadFrontendLogoFile_PSP()
+{
+	return g_TextureFactory_PSP.CreateTextureFromFile( g_FrontendLogo_PSP, "local:barnyard_logo.ptex" ) &&
+	       g_FrontendLogo_PSP.GetWidth() == 512 &&
+	       g_FrontendLogo_PSP.GetHeight() == 128;
 }
 
 static TBOOL LoadFontFile_PSP()
@@ -2096,6 +2104,7 @@ int main()
 	const TBOOL bFontTextureReady = bFileReady && LoadFontTextureFile_PSP();
 	const TBOOL bFontReady      = bFontTextureReady && LoadFontFile_PSP();
 	const TBOOL bLocaleReady    = bFileReady && LoadLocaleFile_PSP();
+	const TBOOL bFrontendReady  = bFileReady && LoadFrontendLogoFile_PSP();
 	const TBOOL bModelReady = bFileReady && LoadProbeModelFile_PSP() &&
 	                          TestModelBounds_PSP( g_ProbeModel_PSP ) &&
 	                          TestPreviewTransform_PSP( g_ProbeModel_PSP );
@@ -2160,6 +2169,7 @@ int main()
 		&g_ProbeVertices_PSP,
 		&g_ProbeIndices_PSP,
 		bPreviewReady && g_bPreviewTexture_PSP ? &g_PreviewTexture_PSP : pCachedTexture,
+		bFrontendReady ? &g_FrontendLogo_PSP : TNULL,
 		pCachedFont,
 		&g_LocaleManager_PSP,
 		pCachedModel,
@@ -2175,6 +2185,7 @@ int main()
 		bPreviewReady ? g_PreviewTransform_PSP : g_IdentityModelTransform_PSP,
 		bWorldReady ? &g_ProbeWorld_PSP : TNULL,
 		TFALSE,
+		bFrontendReady,
 		bMeshReady,
 	};
 
@@ -2201,6 +2212,7 @@ int main()
 	TDebug_FinalPrintf( "[PSP render] font atlas  %s\n", bFontTextureReady ? "bootstrap_font.ptex" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP render] font data   %s\n", bFontReady ? "bootstrap_font.pfnt" : "FAILED" );
 	TDebug_FinalPrintf( "[PSP frontend] locale    %s\n", bLocaleReady ? "bootstrap_locale.ploc" : "FAILED" );
+	TDebug_FinalPrintf( "[PSP frontend] original  %s\n", bFrontendReady ? "barnyard_logo.ptex" : "fallback menu" );
 	TDebug_FinalPrintf(
 	    "[PSP sound] audio        %s (bootstrap_audio.pbnk, channel %d)\n",
 	    bAudioReady ? "OK" : "FAILED",
@@ -2335,6 +2347,7 @@ int main()
 		bTextureReady,
 		bFontReady,
 		bLocaleReady,
+		bFrontendReady,
 		bMeshReady,
 		bModelReady,
 		bWorldReady,
@@ -2410,6 +2423,7 @@ int main()
 	g_ProbeSkeleton_PSP.Unload();
 	g_Font_PSP.Destroy();
 	g_LocaleManager_PSP.Destroy();
+	g_FrontendLogo_PSP.Unload();
 	g_FontTexture_PSP.Unload();
 	g_ProbeTexture.Unload();
 	g_ProbeIndices_PSP.Destroy();

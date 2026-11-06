@@ -26,7 +26,7 @@ TBOOL AGameStateController_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	{
 		EnterState(
 		    m_pContext->bBootstrapReady
-		        ? AFrontendState_PSP_Menu
+		        ? ( m_pContext->bFrontendReady ? AFrontendState_PSP_Attract : AFrontendState_PSP_Menu )
 		        : AFrontendState_PSP_Error
 		);
 	}
@@ -66,6 +66,7 @@ AGameState_PSP* AGameStateController_PSP::GetState( AFrontendState_PSP a_eState 
 {
 	switch ( a_eState )
 	{
+		case AFrontendState_PSP_Attract: return &m_AttractState;
 		case AFrontendState_PSP_Menu: return &m_MainMenuState;
 		case AFrontendState_PSP_Probe: return &m_ProbeState;
 		case AFrontendState_PSP_Info: return &m_InfoState;

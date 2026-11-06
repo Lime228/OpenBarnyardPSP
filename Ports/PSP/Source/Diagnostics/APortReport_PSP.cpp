@@ -17,7 +17,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	if ( pFile == TNULL )
 		return TFALSE;
 
-	pFile->CPrintf( "OpenBarnyard PSP port report v8\n" );
+	pFile->CPrintf( "OpenBarnyard PSP port report v9\n" );
 	pFile->CPrintf( "stage=%s\n", a_rData.pStage != TNULL ? a_rData.pStage : "UNKNOWN" );
 	pFile->CPrintf( "bootstrap=%s\n", GetReportStatus_PSP( a_rData.bBootstrapReady ) );
 	pFile->CPrintf( "input=%s\n", GetReportStatus_PSP( a_rData.bInputReady ) );
@@ -42,6 +42,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	pFile->CPrintf( "texture=%s\n", GetReportStatus_PSP( a_rData.bTextureReady ) );
 	pFile->CPrintf( "font=%s\n", GetReportStatus_PSP( a_rData.bFontReady ) );
 	pFile->CPrintf( "locale=%s\n", GetReportStatus_PSP( a_rData.bLocaleReady ) );
+	pFile->CPrintf( "frontend=%s\n", a_rData.bFrontendReady ? "ORIGINAL_LOGO" : "FALLBACK" );
 	pFile->CPrintf( "mesh=%s\n", GetReportStatus_PSP( a_rData.bMeshReady ) );
 	pFile->CPrintf( "model=%s\n", GetReportStatus_PSP( a_rData.bModelReady ) );
 	pFile->CPrintf( "world=%s\n", GetReportStatus_PSP( a_rData.bWorldReady ) );

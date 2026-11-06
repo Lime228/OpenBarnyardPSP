@@ -30,6 +30,7 @@ struct APortReportData_PSP
 	TBOOL bTextureReady;
 	TBOOL bFontReady;
 	TBOOL bLocaleReady;
+	TBOOL bFrontendReady;
 	TBOOL bMeshReady;
 	TBOOL bModelReady;
 	TBOOL bWorldReady;
