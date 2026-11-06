@@ -4,6 +4,7 @@
 #include "PSP/TPSPAnimationDump.h"
 #include "PSP/TPSPModelDump.h"
 #include "PSP/TPSPTextureDump.h"
+#include "PSP/TPSPSymbolDump.h"
 
 #include <Toshi/Toshi.h>
 #include <Toshi/TPString8.h>
@@ -87,10 +88,26 @@ int main( int argc, char** argv )
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
 	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
+	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
 	auto          strSequence      = commandLine.GetParameterValue( "-sequence" );
 	auto          strSampleRate    = commandLine.GetParameterValue( "-sample-rate", "30" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPSymbols )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-symbols requires -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPSymbolDump( strPSPSymbols.GetString(), strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP symbol inventory\n" );
+			return 1;
+		}
+		return 0;
+	}
 
 	if ( strPSPTexture )
 	{
