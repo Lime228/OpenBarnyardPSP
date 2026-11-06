@@ -19,7 +19,7 @@ project "OpenBarnyardPSP"
 	cppdialect "C++20"
 	toolset "gcc"
 	gccprefix "psp-"
-	targetname "openbarnyard_psp_probe"
+	targetname "openbarnyard_psp"
 	targetextension ".elf"
 
 	targetdir ( "../../bin/PSP/%{cfg.buildcfg}" )
@@ -109,9 +109,9 @@ project "OpenBarnyardPSP"
 	postbuildcommands
 	{
 		'psp-fixup-imports "%{cfg.buildtarget.abspath}"',
-		'psp-strip "%{cfg.buildtarget.abspath}" -o "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"',
-		'mksfoex -d MEMSIZE=2 "OpenBarnyard PSP Probe" "%{cfg.targetdir}/PARAM.SFO"',
-		'pack-pbp "%{cfg.targetdir}/EBOOT.PBP" "%{cfg.targetdir}/PARAM.SFO" NULL NULL NULL NULL NULL "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf" NULL',
+		'psp-strip "%{cfg.buildtarget.abspath}" -o "%{cfg.targetdir}/openbarnyard_psp_strip.elf"',
+		'mksfoex -d MEMSIZE=2 "OpenBarnyard PSP" "%{cfg.targetdir}/PARAM.SFO"',
+		'pack-pbp "%{cfg.targetdir}/EBOOT.PBP" "%{cfg.targetdir}/PARAM.SFO" "../../Ports/PSP/Assets/ICON0.PNG" NULL NULL "../../Ports/PSP/Assets/PIC1.PNG" NULL "%{cfg.targetdir}/openbarnyard_psp_strip.elf" NULL',
 		'cp -f "../../Ports/PSP/Assets/probe.ptex" "%{cfg.targetdir}/probe.ptex"',
 		'cp -f "../../Ports/PSP/Assets/probe.pmes" "%{cfg.targetdir}/probe.pmes"',
 		'cp -f "../../Ports/PSP/Assets/probe_skinned.pmes" "%{cfg.targetdir}/probe_skinned.pmes"',
@@ -127,7 +127,7 @@ project "OpenBarnyardPSP"
 		'cp -f "../../Ports/PSP/Assets/ui_menuok.ppcm" "%{cfg.targetdir}/ui_menuok.ppcm"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_stream.ppcm" "%{cfg.targetdir}/bootstrap_stream.ppcm"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_stream.padp" "%{cfg.targetdir}/bootstrap_stream.padp"',
-		'rm -f "%{cfg.targetdir}/openbarnyard_psp_probe_strip.elf"'
+		'rm -f "%{cfg.targetdir}/openbarnyard_psp_strip.elf"'
 	}
 
 	filter "configurations:Debug"

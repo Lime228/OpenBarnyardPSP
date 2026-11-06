@@ -1,5 +1,11 @@
 # OpenBarnyard PSP bootstrap
 
+The generated `EBOOT.PBP` is presented as **OpenBarnyard PSP** and embeds the
+native PSP package artwork from `Assets/ICON0.PNG` (144x80) and
+`Assets/PIC1.PNG` (480x272). Keep those exact dimensions and the bounded file
+budgets enforced by `Tools/test_package_assets.py`; Premake passes both images
+directly to `pack-pbp`.
+
 This target is the first executable milestone for the PSP port. It deliberately
 does not compile the game yet. It validates the PSPDEV toolchain, 32-bit C++ ABI,
 controller input, double buffering, and a basic GU draw call before Toshi is

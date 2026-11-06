@@ -29,7 +29,7 @@
 #include "ToshiSmoke.h"
 #include "World/AWorld_PSP.h"
 
-PSP_MODULE_INFO( "OpenBarnyard PSP Probe", PSP_MODULE_USER, 0, 1 );
+PSP_MODULE_INFO( "OpenBarnyard PSP", PSP_MODULE_USER, 0, 1 );
 PSP_MAIN_THREAD_ATTR( PSP_THREAD_ATTR_USER );
 PSP_HEAP_SIZE_KB( -1024 );
 

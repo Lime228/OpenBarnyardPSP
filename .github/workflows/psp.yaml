@@ -67,6 +67,7 @@ jobs:
 
       - name: Verify converted PSP assets
         run: |
+          python3 Ports/PSP/Tools/test_package_assets.py
           python3 Ports/PSP/Tools/convert_texture.py Ports/PSP/Assets/probe.ppm /tmp/probe.ptex
           python3 Ports/PSP/Tools/convert_mesh.py Ports/PSP/Assets/probe.obj /tmp/probe.pmes
           python3 Ports/PSP/Tools/convert_mesh.py Ports/PSP/Assets/probe.obj /tmp/probe_skinned.pmes --skeleton Ports/PSP/Assets/probe_skeleton.json --weights Ports/PSP/Assets/probe_weights.json
