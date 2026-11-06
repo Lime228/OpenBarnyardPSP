@@ -15,6 +15,42 @@ on:
   workflow_dispatch:
 
 jobs:
+  host-tools:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Premake
+        uses: abel0b/setup-premake@v2.3
+        with:
+          version: "5.0.0"
+
+      - name: Generate host tools project
+        run: premake5 vs2022 --arch=x86 --renderer=DX8
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build PSP asset host tools
+        run: >-
+          msbuild Tools/TMDL/TMDL.vcxproj
+          /m
+          /p:Configuration=Release
+          /p:Platform=Win32
+
+      - name: Publish PSP asset host tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenBarnyard-PSP-host-tools
+          path: |
+            bin/Release_Win32_x86_DX8/TMDL/TMDL.exe
+            bin/Release_Win32_x86_DX8/TMDL/assimp-vc143-mt.dll
+          if-no-files-found: error
+
   bootstrap:
     runs-on: ubuntu-latest
 
