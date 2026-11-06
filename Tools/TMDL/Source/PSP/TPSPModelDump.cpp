@@ -113,14 +113,15 @@ static TBOOL ValidateSubMesh_PSP( const TTMDWin::SubMesh& a_rSubMesh, TINT a_iBo
 	{
 		for ( TUINT32 influence = 0; influence < 4; influence++ )
 		{
+			const TUINT8 uiBoneRegister = a_rSubMesh.m_pVertices[ i ].Bones[ influence ];
 			if ( a_rSubMesh.m_pVertices[ i ].Weights[ influence ] != 0 &&
-			     a_rSubMesh.m_pVertices[ i ].Bones[ influence ] >= a_rSubMesh.m_uiNumBones )
+			     ( uiBoneRegister % 3 != 0 || uiBoneRegister / 3 >= a_rSubMesh.m_uiNumBones ) )
 			{
 				TERROR(
-				    "PSP model dump rejected vertex %u influence %u (bone=%u weight=%u palette=%u)\n",
+				    "PSP model dump rejected vertex %u influence %u (register=%u weight=%u palette=%u)\n",
 				    i,
 				    influence,
-				    TUINT( a_rSubMesh.m_pVertices[ i ].Bones[ influence ] ),
+				    TUINT( uiBoneRegister ),
 				    TUINT( a_rSubMesh.m_pVertices[ i ].Weights[ influence ] ),
 				    a_rSubMesh.m_uiNumBones
 				);
@@ -215,10 +216,10 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 			for ( TUINT32 vertex = 0; vertex < rSubMesh.m_uiNumVertices1; vertex++ )
 			{
 				const TTMDWin::Vertex& rVertex = rSubMesh.m_pVertices[ vertex ];
-				oOutput << "          { \"position\": [" << rVertex.Position.x << ", " << rVertex.Position.y << ", " << rVertex.Position.z
+			oOutput << "          { \"position\": [" << rVertex.Position.x << ", " << rVertex.Position.y << ", " << rVertex.Position.z
 				        << "], \"uv\": [" << rVertex.UV.x << ", " << rVertex.UV.y << "], \"bones\": ["
-				        << TUINT( rVertex.Bones[ 0 ] ) << ", " << TUINT( rVertex.Bones[ 1 ] ) << ", "
-				        << TUINT( rVertex.Bones[ 2 ] ) << ", " << TUINT( rVertex.Bones[ 3 ] ) << "], \"weights\": ["
+			        << TUINT( rVertex.Bones[ 0 ] / 3 ) << ", " << TUINT( rVertex.Bones[ 1 ] / 3 ) << ", "
+			        << TUINT( rVertex.Bones[ 2 ] / 3 ) << ", " << TUINT( rVertex.Bones[ 3 ] / 3 ) << "], \"weights\": ["
 				        << TUINT( rVertex.Weights[ 0 ] ) << ", " << TUINT( rVertex.Weights[ 1 ] ) << ", "
 				        << TUINT( rVertex.Weights[ 2 ] ) << ", " << TUINT( rVertex.Weights[ 3 ] ) << "] }";
 				if ( vertex + 1 != rSubMesh.m_uiNumVertices1 ) oOutput << ',';
