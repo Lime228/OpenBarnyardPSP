@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-06)
 
 The PSP platform/render bring-up is approximately **90%** complete, while the
-complete playable-game port is approximately **76%** complete. The second value
+complete playable-game port is approximately **77%** complete. The second value
 is intentionally much lower: the compiling probe does not yet include the real
 game states, converted Barnyard content, rooms, player simulation, complete UI,
 movies, or gameplay validation on hardware.
@@ -24,10 +24,10 @@ movies, or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 98% | Premake, branded EBOOT/PARAM.SFO/ICON0/PIC1, deterministic assets, separate PSP/host-tool CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 71% | GU display, depth, indexed static/skinned models, model-space centring, per-instance and cell-level visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 89% | host tools relocate the retail `SS_Sbird2` set and export up to four meshes from a selected terrain cell with exact material-to-texture resolution; bounded offline conversion emits shared-transform PMES/PTEX sets and deduplicates repeated source textures, while complete rooms and the remaining asset families still need handling |
+| PSP renderer foundation | 72% | GU display, depth, indexed static/skinned models, model-space centring, per-instance and cell-level visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP; the original logo is reduced below the GU maximum-width edge case |
+| Real-game asset pipeline | 90% | host tools relocate the retail `SS_Sbird2` set, export up to four meshes from a selected terrain cell and extract the shipping frontend logo; bounded offline conversion handles DXT and masked DDS, shared transforms, repeated textures and power-of-two reduction, while complete rooms and the remaining asset families still need handling |
 | Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
-| Game bootstrap and frontend | 52% | `AApplication_PSP` owns explicit frame phases and loads, centres, auto-fits and animates the first retail Barnyard skin plus an optional four-mesh retail terrain set without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
+| Game bootstrap and frontend | 57% | `AApplication_PSP` owns explicit frame phases; original-named `AFrontEndAttractState_PSP` loads the shipping logo, blinks `PRESS START` and transitions on PSP Start into `AFrontEndMainMenuState2_PSP`; the retail skin/terrain previews, cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
 | World, animation and gameplay | 42% | bounded PWLD layouts resolve four offline model/texture names and eight validated spatial cells; a real two-mesh `xroad` cell preserves shared world-space placement and retail textures through the PSP bridge, while analogue view movement, sampled clips and budgeted/profiled two-weight CPU skinning remain active; full rooms and player simulation are not loaded |
 
@@ -1114,6 +1114,17 @@ remain largely unstarted.
   underruns and the active animated bird while recording `terrain_meshes=2`.
   The fixed runner stopped PID `5616`, launched exactly one replacement PID
   `11364`, and delivered Cross to open the probe without creating a duplicate.
+- Commits through `d9580680` passed the PSPDEV `bootstrap` job in run
+  `42289434039`. Runtime bundle `Runtime/PSP/d9580680` adds the shipping
+  `Dialogs\\barnyard_logo.tga` through the bounded frontend converter and starts
+  in `AFrontEndAttractState_PSP`. A direct 512x128 conversion reproduced a
+  first-frame PPSSPP exit; the deterministic 256x64 reducer lowered the PTEX
+  from 262,168 to 65,560 bytes and kept the same original artwork active.
+  Report v9 records `frontend=ORIGINAL_LOGO`, every bootstrap gate `OK`, zero
+  underruns, active retail preview/two-mesh terrain, 119,632 bytes of main
+  render memory and 1,392,640 bytes of EDRAM. Exactly one background PPSSPP
+  process, PID `8504`, remained alive after the runner delivered PSP Start and
+  transitioned toward the menu without taking desktop focus.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1121,9 +1132,11 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, expand the validated single retail terrain mesh into one bounded multi-mesh
-cell and connect it to the existing PWLD resource/cell layout before attempting
-terrain streaming.
+Next, convert the actual `Terrain/frontend` scene, `barnsign`/windmill models
+and their camera animation so `AFrontEndAttractState_PSP` renders the shipping
+3D title environment instead of only its original logo layer. Then replace the
+two diagnostic menu choices with the six original main-menu actions and their
+`frontend1.tga` sections while keeping unsupported game paths visibly disabled.
 Keep animation selection explicit and
 all quantization offline. Keep complete multi-material conversion rejected
 until PMES has bounded draw ranges and matching texture ownership; use explicit

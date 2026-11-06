@@ -66,6 +66,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 
 | Tool | Repeatable bounded operation |
 | --- | --- |
+| `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
@@ -75,7 +76,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `convert_terrain_dump.py` / `convert_terrain_cell.py` | Triangulates bounded terrain strips, preserves vertex colours/UVs and emits static textured PMES files with shared cell bounds. |
 | `Tools/ConvertRetailTerrain.ps1` | Repeats terrain export, searches declared TTLs, deduplicates repeated source textures, converts PMES/PTEX sets and publishes only the complete generated set into a runtime directory. |
 | `convert_animation.py` | Quantizes the sampled clip into a maximum of 64 bounded PANM frames. |
-| `convert_dds.py` | Decodes bounded DXT1/DXT3/DXT5 top mips into swizzled RGBA8888 PTEX data. |
+| `convert_dds.py` | Decodes bounded DXT1/DXT3/DXT5 or explicitly masked 16/32-bit top mips, optionally applies power-of-two 2x box reduction, and emits swizzled RGBA8888 PTEX data. |
 | `convert_texture.py` | Converts P3 PPM into a power-of-two, optionally swizzled PTEX payload. |
 | `convert_world.py` | Builds bounded PWLD instances/resources and deterministic X/Z cells. |
 
