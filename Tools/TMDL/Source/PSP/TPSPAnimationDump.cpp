@@ -140,8 +140,18 @@ TBOOL ExportPSPAnimationDump(
 	TKeyframeLibrary::TRBHeader& rKeyLibrary = *oKeyLibrary.get();
 	if ( !IsKeyRangeValid_PSPAnimation( rSkeletonHeader.m_iTBaseIndex, rSkeletonHeader.m_iTKeyCount, rKeyLibrary.m_iNumTranslations ) ||
 	     !IsKeyRangeValid_PSPAnimation( rSkeletonHeader.m_iQBaseIndex, rSkeletonHeader.m_iQKeyCount, rKeyLibrary.m_iNumQuaternions ) ||
-	     rKeyLibrary.m_pTranslations == TNULL || rKeyLibrary.m_pQuaternions == TNULL )
+	     ( rSkeletonHeader.m_iTKeyCount != 0 && rKeyLibrary.m_pTranslations == TNULL ) ||
+	     ( rSkeletonHeader.m_iQKeyCount != 0 && rKeyLibrary.m_pQuaternions == TNULL ) )
 	{
+		TERROR(
+		    "PSP animation dump rejected key ranges (translations=%d+%d/%d quaternions=%d+%d/%d)\n",
+		    rSkeletonHeader.m_iTBaseIndex,
+		    rSkeletonHeader.m_iTKeyCount,
+		    rKeyLibrary.m_iNumTranslations,
+		    rSkeletonHeader.m_iQBaseIndex,
+		    rSkeletonHeader.m_iQKeyCount,
+		    rKeyLibrary.m_iNumQuaternions
+		);
 		return TFALSE;
 	}
 
@@ -193,7 +203,9 @@ TBOOL ExportPSPAnimationDump(
 	if ( iFrameCount <= 0 || iFrameCount > 64 )
 		return TFALSE;
 
-	TAnimVector* pTranslations = rKeyLibrary.m_pTranslations + rSkeletonHeader.m_iTBaseIndex;
+	TAnimVector* pTranslations = rKeyLibrary.m_pTranslations != TNULL
+	    ? rKeyLibrary.m_pTranslations + rSkeletonHeader.m_iTBaseIndex
+	    : TNULL;
 	TAnimQuaternion* pQuaternions = rKeyLibrary.m_pQuaternions + rSkeletonHeader.m_iQBaseIndex;
 	std::ostringstream oOutput;
 	oOutput.imbue( std::locale::classic() );
