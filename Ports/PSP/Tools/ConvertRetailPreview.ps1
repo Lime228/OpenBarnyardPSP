@@ -102,6 +102,44 @@ if ($sampleRate -lt 1 -or $sampleRate -gt 60) {
     throw "sample_rate must be between 1 and 60, got $sampleRate"
 }
 
+$texturePath = $null
+if ($manifest.ContainsKey('texture') -and $manifest.texture) {
+    $texturePath = Resolve-AssetPath $manifest.texture
+}
+else {
+    $hasTextureLibrary = $manifest.ContainsKey('texture_library') -and $manifest.texture_library
+    $hasTextureName = $manifest.ContainsKey('texture_name') -and $manifest.texture_name
+    if ($hasTextureLibrary -ne $hasTextureName) {
+        throw "texture_library and texture_name must be supplied together"
+    }
+    if ($hasTextureLibrary) {
+        $textureLibrary = Resolve-AssetPath $manifest.texture_library
+        if (-not (Test-Path -LiteralPath $textureLibrary -PathType Leaf)) {
+            throw "Retail texture library was not found: $textureLibrary"
+        }
+        $safeTextureName = [System.IO.Path]::GetFileNameWithoutExtension($manifest.texture_name) -replace '[^A-Za-z0-9_.-]', '_'
+        $dumpDirectory = Join-Path $assetRoot 'Workspace\Dumps'
+        New-Item -ItemType Directory -Force -Path $dumpDirectory | Out-Null
+        New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetFullPath($OutputDirectory)) | Out-Null
+        $ddsPath = Join-Path $dumpDirectory "$safeTextureName.dds"
+        $texturePath = Join-Path ([System.IO.Path]::GetFullPath($OutputDirectory)) "$safeTextureName.ptex"
+        Push-Location (Split-Path -Parent $TMDLPath)
+        try {
+            & $TMDLPath -psp-texture $textureLibrary -texture $manifest.texture_name -o $ddsPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "Retail TTL extraction failed with exit code $LASTEXITCODE"
+            }
+        }
+        finally {
+            Pop-Location
+        }
+        & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') $ddsPath $texturePath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Retail DDS conversion failed with exit code $LASTEXITCODE"
+        }
+    }
+}
+
 $arguments = @(
     (Join-Path $PSScriptRoot 'convert_barnyard_skin.py'),
     '--tmdl', $TMDLPath,
@@ -115,8 +153,8 @@ $arguments = @(
 if ($manifest.ContainsKey('material') -and $manifest.material) {
     $arguments += @('--material', $manifest.material)
 }
-if ($manifest.ContainsKey('texture') -and $manifest.texture) {
-    $arguments += @('--texture', (Resolve-AssetPath $manifest.texture))
+if ($texturePath) {
+    $arguments += @('--texture', $texturePath)
 }
 if ($KeepIntermediate) {
     $arguments += '--keep-intermediate'
