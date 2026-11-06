@@ -33,8 +33,7 @@ def pack_colour(colour: list[float]) -> int:
     return 0xFF000000 | channels[2] << 16 | channels[1] << 8 | channels[0]
 
 
-def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
-    document = json.loads(source.read_text(encoding="utf-8"))
+def convert_document(document: object, destination: pathlib.Path) -> dict[str, object]:
     if not isinstance(document, dict) or document.get("version") != 1:
         raise ValueError("unsupported terrain dump contract version")
     material = document.get("material")
@@ -85,6 +84,10 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
         "indices": len(indices),
         "bytes": len(payload),
     }
+
+
+def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
+    return convert_document(json.loads(source.read_text(encoding="utf-8")), destination)
 
 
 def main() -> None:
