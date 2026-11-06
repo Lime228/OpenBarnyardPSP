@@ -45,31 +45,55 @@ if (-not $EbootPath) {
 $PPSSPPPath = [System.IO.Path]::GetFullPath($PPSSPPPath)
 $EbootPath = [System.IO.Path]::GetFullPath($EbootPath)
 
+function Get-ManagedPPSSPPProcesses {
+    $processName = [System.IO.Path]::GetFileNameWithoutExtension($PPSSPPPath)
+    return @(Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object {
+        try {
+            [System.IO.Path]::GetFullPath($_.Path) -ieq $PPSSPPPath
+        }
+        catch {
+            $false
+        }
+    })
+}
+
 function Get-OpenBarnyardPPSSPPProcess {
-    if (-not (Test-Path -LiteralPath $pidPath)) {
-        return $null
-    }
-
-    $savedPID = (Get-Content -LiteralPath $pidPath -Raw).Trim()
-    if ($savedPID -notmatch '^\d+$') {
-        return $null
-    }
-
-    $process = Get-Process -Id ([int] $savedPID) -ErrorAction SilentlyContinue
-    if (-not $process) {
-        return $null
-    }
-
-    try {
-        if ([System.IO.Path]::GetFullPath($process.Path) -ne $PPSSPPPath) {
-            return $null
+    if (Test-Path -LiteralPath $pidPath) {
+        $savedPID = (Get-Content -LiteralPath $pidPath -Raw).Trim()
+        if ($savedPID -match '^\d+$') {
+            $process = Get-Process -Id ([int] $savedPID) -ErrorAction SilentlyContinue
+            if ($process) {
+                try {
+                    if ([System.IO.Path]::GetFullPath($process.Path) -ieq $PPSSPPPath) {
+                        return $process
+                    }
+                }
+                catch {}
+            }
         }
     }
-    catch {
+
+    $managedProcesses = @(Get-ManagedPPSSPPProcesses | Sort-Object StartTime -Descending)
+    if ($managedProcesses.Count -eq 0) {
         return $null
     }
 
+    $process = $managedProcesses[0]
+    New-Item -ItemType Directory -Path $runnerRoot -Force | Out-Null
+    Set-Content -LiteralPath $pidPath -Value $process.Id -NoNewline
     return $process
+}
+
+function Remove-DuplicatePPSSPPProcesses([System.Diagnostics.Process] $KeepProcess) {
+    foreach ($process in Get-ManagedPPSSPPProcesses) {
+        if ($KeepProcess -and $process.Id -eq $KeepProcess.Id) {
+            continue
+        }
+        Stop-Process -Id $process.Id
+        $process.WaitForExit()
+        $label = if ($KeepProcess) { 'duplicate PPSSPP' } else { 'PPSSPP' }
+        Write-Output "Stopped $label (PID $($process.Id))."
+    }
 }
 
 function Remove-StalePIDFile {
@@ -81,6 +105,7 @@ function Remove-StalePIDFile {
 function Start-OpenBarnyardPPSSPP {
     $process = Get-OpenBarnyardPPSSPPProcess
     if ($process) {
+        Remove-DuplicatePPSSPPProcesses $process
         Write-Output "PPSSPP is already running (PID $($process.Id))."
         return
     }
@@ -120,10 +145,8 @@ function Stop-OpenBarnyardPPSSPP {
         return
     }
 
-    Stop-Process -Id $process.Id
-    $process.WaitForExit()
+    Remove-DuplicatePPSSPPProcesses $null
     Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
-    Write-Output "Stopped PPSSPP (PID $($process.Id))."
 }
 
 function Send-OpenBarnyardPPSSPPKey {
@@ -195,6 +218,7 @@ switch ($Action) {
             throw 'PPSSPP is not running. Start it before sending background input.'
         }
 
+        Remove-DuplicatePPSSPPProcesses $process
         Send-OpenBarnyardPPSSPPKey -Process $process -Button $Key -Count $Repeat
     }
 }
