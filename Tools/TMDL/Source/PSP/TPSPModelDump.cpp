@@ -250,6 +250,11 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 		TERROR( "PSP model dump could not create %s\n", a_pOutputPath );
 		return TFALSE;
 	}
-	oFile << oOutput.rdbuf();
-	return oFile.good();
+	oFile << oOutput.str();
+	if ( !oFile.good() )
+	{
+		TERROR( "PSP model dump could not write %s\n", a_pOutputPath );
+		return TFALSE;
+	}
+	return TTRUE;
 }

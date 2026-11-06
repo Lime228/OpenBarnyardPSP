@@ -263,6 +263,6 @@ TBOOL ExportPSPAnimationDump(
 	std::ofstream oFile( a_pOutputPath, std::ios::out | std::ios::trunc );
 	if ( !oFile )
 		return TFALSE;
-	oFile << oOutput.rdbuf();
+	oFile << oOutput.str();
 	return oFile.good();
 }
