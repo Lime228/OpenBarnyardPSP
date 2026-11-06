@@ -106,6 +106,9 @@ Use `Tools/ConvertRetailPreview.ps1` to repeat the manifest-driven retail
 conversion and optionally publish it into a local runtime bundle. Confirmed
 porting failures and their fixes are tracked in
 [`Docs/PSP_PORTING_ISSUES.md`](../../Docs/PSP_PORTING_ISSUES.md).
+When a manifest supplies `texture_library` and `texture_name`, the same command
+extracts the embedded DDS through TMDL, converts its bounded top mip to PTEX and
+binds it into the transactional preview set.
 
 ## Bounded world layout
 

@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-06)
 
 The PSP platform/render bring-up is approximately **90%** complete, while the
-complete playable-game port is approximately **73%** complete. The second value
+complete playable-game port is approximately **74%** complete. The second value
 is intentionally much lower: the compiling probe does not yet include the real
 game states, converted Barnyard content, rooms, player simulation, complete UI,
 movies, or gameplay validation on hardware.
@@ -25,7 +25,7 @@ movies, or gameplay validation on hardware.
 | PSP toolchain and packaging | 98% | Premake, branded EBOOT/PARAM.SFO/ICON0/PIC1, deterministic assets, separate PSP/host-tool CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
 | PSP renderer foundation | 69% | GU display, depth, indexed static/skinned models, per-instance and cell-level visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 80% | host tools now relocate the retail `SS_Sbird2.trb`, decode DX8 bone registers, sample its rotation-only TKL idle and emit a runtime-validated 114-vertex/5-bone/61-frame PSKL/PMES/PANM preview; bounded PWLD, footprint/material/bounds reporting and transactional PSET publication work, while TTL extraction, complete multi-material models and the remaining asset families still need explicit handling |
+| Real-game asset pipeline | 84% | host tools now relocate the retail `SS_Sbird2.trb`, decode DX8 bone registers, sample its rotation-only TKL idle, extract the named DXT3 texture from `SS_Sbird2.ttl` and emit a runtime-validated textured PSKL/PMES/PANM/PTEX preview; bounded PWLD and transactional PSET publication work, while complete multi-material models, retail rooms and the remaining asset families still need explicit handling |
 | Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
 | Game bootstrap and frontend | 49% | `AApplication_PSP` owns explicit frame phases and now loads, centres, auto-fits and animates the first retail Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
@@ -1105,9 +1105,7 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, extract the selected `bird_01` texture from its retail TTL through an
-offline host tool, keep it within the 512x512 PTEX budget and replace the probe
-fallback in the retail preview. Then connect one retail room reference to the
+Next, connect one retail room reference to the
 already bounded PWLD resource/cell layout before attempting terrain streaming.
 Keep animation selection explicit and
 all quantization offline. Keep complete multi-material conversion rejected
@@ -1132,8 +1130,10 @@ files, host dumps and converted test output live under the ignored
 The first local retail validation used `SS_Sbird2.trb`, `SS_Sbird2.tkl` and
 `SS01_GUI_idle` at 20 Hz. The bounded output contains 114 vertices, 372 triangle
 indices, five bones and 61 frames (PMES 4,416 bytes, PSKL 336 bytes, PANM 4,912
-bytes, PSET 48 bytes). PPSSPP reported `preview=ACTIVE`,
+bytes, PTEX 16,408 bytes, PSET 48 bytes). The original
+`Char\\SmallBird.tga` was extracted from `SS_Sbird2.ttl` as DXT3 64x64 and
+converted offline to swizzled RGBA8888. PPSSPP reported `preview=ACTIVE`,
 `preview_stage=ready`, `animated_vertices=120`, main heap 28,068 bytes and
 skinning time 138 microseconds while every synthetic bootstrap gate remained
-`OK`. The retail texture is not decoded yet, so the preview intentionally uses
-`probe.ptex`.
+`OK`. With the retail texture loaded, main heap usage is 44,452 bytes and the
+report selects `barnyard_preview.ptex` instead of the synthetic fallback.

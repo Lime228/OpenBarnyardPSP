@@ -46,6 +46,8 @@ sequence=<exact animation sequence name>
 sample_rate=<bounded sampling rate, normally 20 or 30>
 material=<exact material name, if the model has more than one>
 texture=<relative path under Selected/Textures>
+texture_library=<retail TTL path relative to Game/BarnyardPC>
+texture_name=<exact texture name stored inside the TTL>
 source_room=<optional relative path under Selected/Worlds>
 ```
 
@@ -57,7 +59,9 @@ source_room=<optional relative path under Selected/Worlds>
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
 | `Tools/TMDL -psp-animation` | Samples one explicitly named retail TKL sequence without adding the relocatable parser to the EBOOT. |
+| `Tools/TMDL -psp-texture` | Relocates one retail TTL on the host and extracts an explicitly named embedded DDS. |
 | `convert_animation.py` | Quantizes the sampled clip into a maximum of 64 bounded PANM frames. |
+| `convert_dds.py` | Decodes bounded DXT1/DXT3/DXT5 top mips into swizzled RGBA8888 PTEX data. |
 | `convert_texture.py` | Converts P3 PPM into a power-of-two, optionally swizzled PTEX payload. |
 | `convert_world.py` | Builds bounded PWLD instances/resources and deterministic X/Z cells. |
 
