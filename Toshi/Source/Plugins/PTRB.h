@@ -7,6 +7,7 @@
 //-----------------------------------------------------------------------------
 
 #include <File/TTSF.h>
+#include <Toshi/T2String.h>
 #include <Toshi/TString8.h>
 #include <Toshi/T2String8.h>
 #include <Math/TVector2.h>
