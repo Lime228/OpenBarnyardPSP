@@ -30,11 +30,10 @@ Game/BarnyardPC/Manifests/             selection notes; never binary game data
 Game/BarnyardPC/Tools/                 a working Windows `TMDL.exe` host exporter
 ```
 
-The current end-to-end bridge can consume one model TRB, one matching `.tkl`, one
-named animation sequence, one selected material and one preview texture. It does
-not yet decode the retail texture container in the PSP EBOOT. If the original
-texture is not already PPM, preserve the original under `Install/` and put only
-an exported P3 PPM copy under `Selected/Textures/`.
+The current end-to-end bridges can consume one model TRB with a matching `.tkl`
+and one selected terrain world/cell/mesh. Retail TTL/DDS decoding stays offline:
+the host tool extracts a named texture and the bounded converter emits PSP PTEX,
+so the relocatable desktop parser never enters the EBOOT.
 
 Record the first selection in
 `Game/BarnyardPC/Manifests/first_skin.txt` with these fields:
@@ -51,6 +50,17 @@ texture_name=<exact texture name stored inside the TTL>
 source_room=<optional relative path under Selected/Worlds>
 ```
 
+Record the first terrain selection in
+`Game/BarnyardPC/Manifests/first_terrain.txt`:
+
+```text
+terrain=Install\Data\Terrain\ss01\xroad_L0Mod2.trb
+world=0
+cell=0
+mesh=0
+texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain\ss01\ss01_Common.ttl
+```
+
 ## Repeatable conversion tools
 
 | Tool | Repeatable bounded operation |
@@ -60,6 +70,9 @@ source_room=<optional relative path under Selected/Worlds>
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
 | `Tools/TMDL -psp-animation` | Samples one explicitly named retail TKL sequence without adding the relocatable parser to the EBOOT. |
 | `Tools/TMDL -psp-texture` | Relocates one retail TTL on the host and extracts an explicitly named embedded DDS. |
+| `Tools/TMDL -psp-terrain` | Relocates one terrain TRB, selects a bounded world/cell/mesh and resolves its material to the exact retail texture name. |
+| `convert_terrain_dump.py` | Triangulates one bounded terrain strip, preserves vertex colours/UVs and emits a static textured PMES. |
+| `Tools/ConvertRetailTerrain.ps1` | Repeats terrain export, searches the declared TTLs for the resolved texture, converts PMES/PTEX and can publish both runtime files. |
 | `convert_animation.py` | Quantizes the sampled clip into a maximum of 64 bounded PANM frames. |
 | `convert_dds.py` | Decodes bounded DXT1/DXT3/DXT5 top mips into swizzled RGBA8888 PTEX data. |
 | `convert_texture.py` | Converts P3 PPM into a power-of-two, optionally swizzled PTEX payload. |
@@ -106,4 +119,15 @@ Pass `-RuntimeDirectory <EBOOT-directory>` to publish the generated
 `barnyard_preview.*` set into a local PSP runtime bundle. The script keeps all
 retail input, dumps and converted output below the ignored `Game/BarnyardPC`
 tree.
+
+The matching terrain command is:
+
+```powershell
+.\Ports\PSP\Tools\ConvertRetailTerrain.ps1 -KeepIntermediate
+```
+
+Pass the same `-RuntimeDirectory <EBOOT-directory>` option to publish
+`barnyard_terrain.pmes` and `barnyard_terrain.ptex`. If `texture_libraries` is
+omitted, the script tries the model-specific `*Mat.ttl` and local
+`*_Common.ttl`; explicit manifest order is preferred for repeatability.
 

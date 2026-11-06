@@ -15,7 +15,7 @@ from the Windows executable.
 ## Progress snapshot (2026-11-06)
 
 The PSP platform/render bring-up is approximately **90%** complete, while the
-complete playable-game port is approximately **74%** complete. The second value
+complete playable-game port is approximately **75%** complete. The second value
 is intentionally much lower: the compiling probe does not yet include the real
 game states, converted Barnyard content, rooms, player simulation, complete UI,
 movies, or gameplay validation on hardware.
@@ -24,12 +24,12 @@ movies, or gameplay validation on hardware.
 | --- | ---: | --- |
 | PSP toolchain and packaging | 98% | Premake, branded EBOOT/PARAM.SFO/ICON0/PIC1, deterministic assets, separate PSP/host-tool CI artifacts and a PPSSPP bundle work |
 | Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 69% | GU display, depth, indexed static/skinned models, per-instance and cell-level visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
-| Real-game asset pipeline | 84% | host tools now relocate the retail `SS_Sbird2.trb`, decode DX8 bone registers, sample its rotation-only TKL idle, extract the named DXT3 texture from `SS_Sbird2.ttl` and emit a runtime-validated textured PSKL/PMES/PANM/PTEX preview; bounded PWLD and transactional PSET publication work, while complete multi-material models, retail rooms and the remaining asset families still need explicit handling |
+| PSP renderer foundation | 71% | GU display, depth, indexed static/skinned models, model-space centring, per-instance and cell-level visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP |
+| Real-game asset pipeline | 87% | host tools relocate the retail `SS_Sbird2` skin/animation/texture set and now export a selected terrain world/cell/mesh with exact material-to-texture resolution; bounded offline conversion emits runtime PMES/PTEX, while complete multi-material cells, retail rooms and the remaining asset families still need explicit handling |
 | Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
-| Game bootstrap and frontend | 49% | `AApplication_PSP` owns explicit frame phases and now loads, centres, auto-fits and animates the first retail Barnyard skin preview without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
+| Game bootstrap and frontend | 51% | `AApplication_PSP` owns explicit frame phases and loads, centres, auto-fits and animates the first retail Barnyard skin plus an optional static retail terrain slice without weakening the synthetic bootstrap gates; cached font/locale resources and GUI audio remain active |
 | Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 34% | bounded PWLD instance layouts resolve four offline model/texture names through the PSP cache and broad-phase eight validated spatial cells before per-instance culling; analogue view movement runs alongside skeletons, sampled clips, hierarchical poses, correct loop-boundary interpolation and budgeted/profiled two-weight CPU skinning; retail rooms and player simulation are not loaded |
+| World, animation and gameplay | 38% | bounded PWLD layouts resolve four offline model/texture names and eight validated spatial cells; a real `xroad` world mesh and its retail texture now pass the bounded terrain bridge, while analogue view movement, sampled clips and budgeted/profiled two-weight CPU skinning remain active; full retail rooms and player simulation are not loaded |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -1098,6 +1098,16 @@ remain largely unstarted.
   `world_resources=1` and `world_cells=1`. Every other gate stayed `OK`, stream
   underruns remained zero and main usage remained 18,204 bytes. Four-direction
   analogue input and Circle succeeded in PID `21760`, which was then stopped.
+- Commits through `d35e4758` passed PSP run `42224643822`. The local runtime
+  bundle added the user-owned `SS_Sbird2` preview and the converted
+  `xroad_L0Mod2` terrain pair without placing retail data in Git. Report v7
+  retained every bootstrap gate at `OK`, zero stream underruns and
+  `preview=ACTIVE`; it also recorded `terrain=ACTIVE`,
+  `terrain_texture=barnyard_terrain.ptex`, scale `0.642447` and centre
+  `(69.584244,-56.813332,2.086575)`. Tracked main memory rose only to 48,764
+  bytes and EDRAM remained 1,392,640 bytes. After identifying stale runner
+  processes, validation continued with exactly one background PPSSPP instance,
+  PID `5616`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1105,8 +1115,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, connect one retail room reference to the
-already bounded PWLD resource/cell layout before attempting terrain streaming.
+Next, expand the validated single retail terrain mesh into one bounded multi-mesh
+cell and connect it to the existing PWLD resource/cell layout before attempting
+terrain streaming.
 Keep animation selection explicit and
 all quantization offline. Keep complete multi-material conversion rejected
 until PMES has bounded draw ranges and matching texture ownership; use explicit
@@ -1137,3 +1148,11 @@ converted offline to swizzled RGBA8888. PPSSPP reported `preview=ACTIVE`,
 skinning time 138 microseconds while every synthetic bootstrap gate remained
 `OK`. With the retail texture loaded, main heap usage is 44,452 bytes and the
 report selects `barnyard_preview.ptex` instead of the synthetic fallback.
+
+The first terrain validation used world/cell/mesh `0/0/0` from
+`Terrain/ss01/xroad_L0Mod2.trb`. TMDL resolved material `lightcone_inner` to
+`World\\nightlight.tga`; the repeatable terrain command found it in
+`ss01_Common.ttl` after checking the model-specific library. The bounded output
+contains eight vertices and twelve triangle indices (PMES 240 bytes) plus a
+4,120-byte PTEX. The runtime treats both files as optional and reports their
+load state separately from the synthetic bootstrap and animated skin preview.

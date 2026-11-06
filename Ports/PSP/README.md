@@ -110,6 +110,16 @@ When a manifest supplies `texture_library` and `texture_name`, the same command
 extracts the embedded DDS through TMDL, converts its bounded top mip to PTEX and
 binds it into the transactional preview set.
 
+## Optional Barnyard terrain preview
+
+`Tools/ConvertRetailTerrain.ps1` reads the ignored `first_terrain.txt` manifest,
+exports one explicitly selected retail world/cell/mesh, resolves its material
+to the original texture name and emits `barnyard_terrain.pmes` plus
+`barnyard_terrain.ptex`. Use `-RuntimeDirectory <EBOOT-directory>` to publish
+the pair beside the EBOOT. The runtime loads this pair independently from the
+animated `barnyard_preview.*` set, centres the retail world-space vertices once
+and records `terrain=ACTIVE` in report v7.
+
 ## Bounded world layout
 
 `AWorld_PSP` accepts PWLD v3 layouts containing at most 16 fixed-size model
