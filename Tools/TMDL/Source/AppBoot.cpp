@@ -5,6 +5,7 @@
 #include "PSP/TPSPModelDump.h"
 #include "PSP/TPSPTextureDump.h"
 #include "PSP/TPSPSymbolDump.h"
+#include "PSP/TPSPTerrainDump.h"
 
 #include <Toshi/Toshi.h>
 #include <Toshi/TPString8.h>
@@ -89,10 +90,35 @@ int main( int argc, char** argv )
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
 	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
 	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
+	auto          strPSPTerrain    = commandLine.GetParameterValue( "-psp-terrain" );
+	auto          strWorldIndex    = commandLine.GetParameterValue( "-world", "0" );
+	auto          strCellIndex     = commandLine.GetParameterValue( "-cell", "0" );
+	auto          strMeshIndex     = commandLine.GetParameterValue( "-mesh", "0" );
 	auto          strSequence      = commandLine.GetParameterValue( "-sequence" );
 	auto          strSampleRate    = commandLine.GetParameterValue( "-sample-rate", "30" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPTerrain )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-terrain requires -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPTerrainDump(
+		         strPSPTerrain.GetString(),
+		         T2String8::StringToInt( strWorldIndex.GetString() ),
+		         T2String8::StringToInt( strCellIndex.GetString() ),
+		         T2String8::StringToInt( strMeshIndex.GetString() ),
+		         strOutPath.GetString()
+		     ) )
+		{
+			TERROR( "Unable to export PSP terrain selection\n" );
+			return 1;
+		}
+		return 0;
+	}
 
 	if ( strPSPSymbols )
 	{
