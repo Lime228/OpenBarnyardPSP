@@ -42,7 +42,10 @@ static TBOOL ValidateSkeleton_PSP( TSkeleton& a_rSkeleton )
 {
 	const TINT iBoneCount = a_rSkeleton.GetBoneCount();
 	if ( iBoneCount <= 0 || iBoneCount > 64 )
+	{
+		TERROR( "PSP model dump rejected skeleton bone count %d\n", iBoneCount );
 		return TFALSE;
+	}
 
 	for ( TINT i = 0; i < iBoneCount; i++ )
 	{
@@ -54,6 +57,13 @@ static TBOOL ValidateSkeleton_PSP( TSkeleton& a_rSkeleton )
 		     ( i != 0 && ( iParentBone < 0 || iParentBone >= i ) ) ||
 		     a_rSkeleton.GetBoneID( pBone->GetName(), uiNameLength ) != i )
 		{
+			TERROR(
+			    "PSP model dump rejected bone %d (name=%u parent=%d lookup=%d)\n",
+			    i,
+			    TUINT( uiNameLength ),
+			    iParentBone,
+			    a_rSkeleton.GetBoneID( pBone->GetName(), uiNameLength )
+			);
 			return TFALSE;
 		}
 	}
@@ -73,18 +83,31 @@ static TBOOL ValidateSubMesh_PSP( const TTMDWin::SubMesh& a_rSubMesh, TINT a_iBo
 	     a_rSubMesh.m_pVertices == TNULL ||
 	     a_rSubMesh.m_pIndices == TNULL )
 	{
+		TERROR(
+		    "PSP model dump rejected submesh layout (vertices=%u/%u indices=%u bones=%u)\n",
+		    a_rSubMesh.m_uiNumVertices1,
+		    a_rSubMesh.m_uiNumVertices2,
+		    a_rSubMesh.m_uiNumIndices,
+		    a_rSubMesh.m_uiNumBones
+		);
 		return TFALSE;
 	}
 
 	for ( TUINT32 i = 0; i < a_rSubMesh.m_uiNumBones; i++ )
 	{
 		if ( a_rSubMesh.m_pBones[ i ] >= TUINT32( a_iBoneCount ) )
+		{
+			TERROR( "PSP model dump rejected bone palette entry %u (%u)\n", i, a_rSubMesh.m_pBones[ i ] );
 			return TFALSE;
+		}
 	}
 	for ( TUINT32 i = 0; i < a_rSubMesh.m_uiNumIndices; i++ )
 	{
 		if ( a_rSubMesh.m_pIndices[ i ] >= a_rSubMesh.m_uiNumVertices1 )
+		{
+			TERROR( "PSP model dump rejected index %u (%u)\n", i, a_rSubMesh.m_pIndices[ i ] );
 			return TFALSE;
+		}
 	}
 	for ( TUINT32 i = 0; i < a_rSubMesh.m_uiNumVertices1; i++ )
 	{
@@ -93,6 +116,14 @@ static TBOOL ValidateSubMesh_PSP( const TTMDWin::SubMesh& a_rSubMesh, TINT a_iBo
 			if ( a_rSubMesh.m_pVertices[ i ].Weights[ influence ] != 0 &&
 			     a_rSubMesh.m_pVertices[ i ].Bones[ influence ] >= a_rSubMesh.m_uiNumBones )
 			{
+				TERROR(
+				    "PSP model dump rejected vertex %u influence %u (bone=%u weight=%u palette=%u)\n",
+				    i,
+				    influence,
+				    TUINT( a_rSubMesh.m_pVertices[ i ].Bones[ influence ] ),
+				    TUINT( a_rSubMesh.m_pVertices[ i ].Weights[ influence ] ),
+				    a_rSubMesh.m_uiNumBones
+				);
 				return TFALSE;
 			}
 		}
@@ -107,7 +138,10 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 
 	PTRB oTRB;
 	if ( !oTRB.ReadFromFile( a_pInputPath ) )
+	{
+		TERROR( "PSP model dump could not read %s\n", a_pInputPath );
 		return TFALSE;
+	}
 	PTRBSections* pSections = oTRB.GetSections();
 	PTRBSymbols* pSymbols = oTRB.GetSymbols();
 	auto oFileHeader = pSymbols->Find<TTMDBase::FileHeader>( pSections, "FileHeader" );
@@ -118,13 +152,17 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 	     oHeader.get()->m_iNumLODs <= 0 ||
 	     !ValidateSkeleton_PSP( *oSkeleton.get() ) )
 	{
+		TERROR( "PSP model dump rejected required TMD symbols, magic, LODs or skeleton\n" );
 		return TFALSE;
 	}
 
 	const TTMDWin::TRBLODHeader* pLOD = oHeader.get()->GetLOD( 0 );
 	const TINT iMeshCount = pLOD->m_iMeshCount1 + pLOD->m_iMeshCount2;
 	if ( pLOD->m_eShader != TTMDBase::SHADERTYPE_SKIN || iMeshCount <= 0 )
+	{
+		TERROR( "PSP model dump rejected LOD0 (shader=%u meshes=%d)\n", TUINT( pLOD->m_eShader ), iMeshCount );
 		return TFALSE;
+	}
 
 	std::ostringstream oOutput;
 	oOutput.imbue( std::locale::classic() );
@@ -153,7 +191,10 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 		TStringManager::String8Format( szSymbolName, sizeof( szSymbolName ), "LOD0_Mesh_%d", mesh );
 		auto oMesh = pSymbols->Find<TTMDWin::TRBMeshLODHeader>( pSections, szSymbolName );
 		if ( !oMesh || oMesh.get()->m_uiNumSubMeshes == 0 || oMesh.get()->m_pSubMeshes == TNULL )
+		{
+			TERROR( "PSP model dump rejected mesh symbol %s\n", szSymbolName );
 			return TFALSE;
+		}
 
 		oOutput << "      { \"material\": ";
 		const TCHAR* pMaterialName = oMesh.get()->m_szMaterialName;
@@ -204,7 +245,10 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 
 	std::ofstream oFile( a_pOutputPath, std::ios::out | std::ios::trunc );
 	if ( !oFile )
+	{
+		TERROR( "PSP model dump could not create %s\n", a_pOutputPath );
 		return TFALSE;
+	}
 	oFile << oOutput.rdbuf();
 	return oFile.good();
 }
