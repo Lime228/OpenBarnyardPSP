@@ -3,6 +3,7 @@
 #include "World/AWorldVIS.h"
 #include "PSP/TPSPAnimationDump.h"
 #include "PSP/TPSPModelDump.h"
+#include "PSP/TPSPTextureDump.h"
 
 #include <Toshi/Toshi.h>
 #include <Toshi/TPString8.h>
@@ -84,10 +85,28 @@ int main( int argc, char** argv )
 	auto          strKeyLib        = commandLine.GetParameterValue( "-keylib" );
 	auto          strPSPDumpFile   = commandLine.GetParameterValue( "-psp-dump" );
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
+	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
+	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
 	auto          strSequence      = commandLine.GetParameterValue( "-sequence" );
 	auto          strSampleRate    = commandLine.GetParameterValue( "-sample-rate", "30" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPTexture )
+	{
+		if ( !strTextureName || !strOutPath )
+		{
+			TERROR( "-psp-texture requires -texture and -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPTextureDump(
+		         strPSPTexture.GetString(), strTextureName.GetString(), strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP texture source\n" );
+			return 1;
+		}
+		return 0;
+	}
 
 	if ( strPSPAnimation )
 	{
