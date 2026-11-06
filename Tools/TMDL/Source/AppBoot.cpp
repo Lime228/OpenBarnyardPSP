@@ -4,6 +4,7 @@
 #include "PSP/TPSPAnimationDump.h"
 #include "PSP/TPSPModelDump.h"
 #include "PSP/TPSPTextureDump.h"
+#include "PSP/TPSPGUISectionDump.h"
 #include "PSP/TPSPSymbolDump.h"
 #include "PSP/TPSPTerrainDump.h"
 
@@ -89,6 +90,8 @@ int main( int argc, char** argv )
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
 	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
+	auto          strPSPGUISection = commandLine.GetParameterValue( "-psp-gui-section" );
+	auto          strSectionName   = commandLine.GetParameterValue( "-section" );
 	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
 	auto          strPSPTerrain    = commandLine.GetParameterValue( "-psp-terrain" );
 	auto          strPSPTerrainCell = commandLine.GetParameterValue( "-psp-terrain-cell" );
@@ -99,6 +102,22 @@ int main( int argc, char** argv )
 	auto          strSampleRate    = commandLine.GetParameterValue( "-sample-rate", "30" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPGUISection )
+	{
+		if ( !strSectionName || !strOutPath )
+		{
+			TERROR( "-psp-gui-section requires -section and -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPGUISectionDump(
+		         strPSPGUISection.GetString(), strSectionName.GetString(), strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP GUI texture section\n" );
+			return 1;
+		}
+		return 0;
+	}
 
 	if ( strPSPTerrainCell )
 	{
