@@ -68,17 +68,76 @@ def decode_dxt_block(fourcc: bytes, block: bytes) -> list[tuple[int, int, int, i
     raise ValueError(f"unsupported DDS compression {fourcc!r}")
 
 
+def decode_masked_channel(value: int, mask: int, default: int = 0) -> int:
+    if mask == 0:
+        return default
+    shift = (mask & -mask).bit_length() - 1
+    maximum = mask >> shift
+    return ((value & mask) >> shift) * 255 // maximum
+
+
+def decode_masked_pixels(
+    payload: bytes,
+    width: int,
+    height: int,
+    bit_count: int,
+    pitch: int,
+    masks: tuple[int, int, int, int],
+) -> bytes:
+    if bit_count not in {16, 32}:
+        raise ValueError(f"unsupported uncompressed DDS bit depth {bit_count}")
+    bytes_per_pixel = bit_count // 8
+    minimum_pitch = width * bytes_per_pixel
+    if pitch < minimum_pitch or len(payload) < pitch * height:
+        raise ValueError("DDS uncompressed top mip payload is truncated")
+    red_mask, green_mask, blue_mask, alpha_mask = masks
+    if red_mask == 0 or green_mask == 0 or blue_mask == 0:
+        raise ValueError("DDS RGB masks must be non-zero")
+    pixels = bytearray(width * height * 4)
+    for y in range(height):
+        for x in range(width):
+            source = y * pitch + x * bytes_per_pixel
+            value = int.from_bytes(payload[source : source + bytes_per_pixel], "little")
+            destination = (y * width + x) * 4
+            pixels[destination : destination + 4] = bytes(
+                (
+                    decode_masked_channel(value, red_mask),
+                    decode_masked_channel(value, green_mask),
+                    decode_masked_channel(value, blue_mask),
+                    decode_masked_channel(value, alpha_mask, 255),
+                )
+            )
+    return bytes(pixels)
+
+
 def read_dds(path: pathlib.Path) -> tuple[int, int, bytes]:
     payload = path.read_bytes()
     if len(payload) < 128 or payload[:4] != b"DDS " or struct.unpack_from("<I", payload, 4)[0] != 124:
         raise ValueError("input is not a supported DDS file")
     height, width = struct.unpack_from("<II", payload, 12)
     pixel_format_size = struct.unpack_from("<I", payload, 76)[0]
+    pixel_format_flags = struct.unpack_from("<I", payload, 80)[0]
     fourcc = payload[84:88]
-    if pixel_format_size != 32 or fourcc not in {b"DXT1", b"DXT3", b"DXT5"}:
-        raise ValueError(f"DDS must use DXT1, DXT3 or DXT5 compression, got {fourcc!r}")
+    bit_count, red_mask, green_mask, blue_mask, alpha_mask = struct.unpack_from("<5I", payload, 88)
+    if pixel_format_size != 32:
+        raise ValueError("DDS pixel format header must be 32 bytes")
     if not is_power_of_two(width) or not is_power_of_two(height) or width > 512 or height > 512:
         raise ValueError("PSP DDS dimensions must be powers of two no larger than 512x512")
+
+    if fourcc == b"\0\0\0\0" and pixel_format_flags & 0x40:
+        pitch = struct.unpack_from("<I", payload, 20)[0]
+        if pitch == 0:
+            pitch = width * (bit_count // 8)
+        return width, height, decode_masked_pixels(
+            payload[128:],
+            width,
+            height,
+            bit_count,
+            pitch,
+            (red_mask, green_mask, blue_mask, alpha_mask),
+        )
+    if fourcc not in {b"DXT1", b"DXT3", b"DXT5"}:
+        raise ValueError(f"DDS must use bounded RGB masks or DXT1/DXT3/DXT5, got {fourcc!r}")
 
     block_size = 8 if fourcc == b"DXT1" else 16
     blocks_x = (width + 3) // 4
