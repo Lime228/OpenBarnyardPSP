@@ -91,21 +91,24 @@ if (-not $PythonPath -or -not (Test-Path -LiteralPath $PythonPath -PathType Leaf
 $world = if ($manifest.world) { [int] $manifest.world } else { 0 }
 $cell = if ($manifest.cell) { [int] $manifest.cell } else { 0 }
 $mesh = if ($manifest.mesh) { [int] $manifest.mesh } else { 0 }
+$allMeshes = $manifest.all_meshes -match '^(1|true|yes)$'
 if ($world -lt 0 -or $cell -lt 0 -or $mesh -lt 0) {
     throw 'world, cell, and mesh must be non-negative'
 }
 
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
 $dumpPath = Join-Path $assetRoot 'Workspace\Dumps\barnyard_terrain.json'
-$meshPath = Join-Path $outputPath 'barnyard_terrain.pmes'
-$ddsPath = Join-Path $assetRoot 'Workspace\Dumps\barnyard_terrain.dds'
-$texturePath = Join-Path $outputPath 'barnyard_terrain.ptex'
 New-Item -ItemType Directory -Force -Path $outputPath,(Split-Path -Parent $dumpPath) | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path (Split-Path -Parent $TMDLPath) 'Logs') | Out-Null
 
 Push-Location (Split-Path -Parent $TMDLPath)
 try {
-    & $TMDLPath -psp-terrain $terrain -world $world -cell $cell -mesh $mesh -o $dumpPath
+    if ($allMeshes) {
+        & $TMDLPath -psp-terrain-cell $terrain -world $world -cell $cell -o $dumpPath
+    }
+    else {
+        & $TMDLPath -psp-terrain $terrain -world $world -cell $cell -mesh $mesh -o $dumpPath
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Retail terrain export failed with exit code $LASTEXITCODE"
     }
@@ -114,13 +117,42 @@ finally {
     Pop-Location
 }
 
-& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_terrain_dump.py') $dumpPath $meshPath
-if ($LASTEXITCODE -ne 0) {
-    throw "Retail terrain conversion failed with exit code $LASTEXITCODE"
+$textureSelections = @()
+if ($allMeshes) {
+    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_terrain_cell.py') $dumpPath $outputPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Retail terrain cell conversion failed with exit code $LASTEXITCODE"
+    }
+    $converted = Get-Content -LiteralPath (Join-Path $outputPath 'barnyard_terrain.json') -Raw | ConvertFrom-Json
+    for ($index = 0; $index -lt $converted.meshes.Count; $index++) {
+        $textureSelections += [pscustomobject]@{
+            Source = $converted.meshes[$index].source_texture
+            DDS = Join-Path $assetRoot "Workspace\Dumps\barnyard_terrain_$index.dds"
+            Output = Join-Path $outputPath "barnyard_terrain_$index.ptex"
+        }
+    }
+    Remove-Item -LiteralPath (Join-Path $outputPath 'barnyard_terrain.pmes'),(Join-Path $outputPath 'barnyard_terrain.ptex') -Force -ErrorAction SilentlyContinue
+}
+else {
+    $meshPath = Join-Path $outputPath 'barnyard_terrain.pmes'
+    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_terrain_dump.py') $dumpPath $meshPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Retail terrain conversion failed with exit code $LASTEXITCODE"
+    }
+    $converted = Get-Content -LiteralPath $dumpPath -Raw | ConvertFrom-Json
+    $textureSelections += [pscustomobject]@{
+        Source = $converted.texture
+        DDS = Join-Path $assetRoot 'Workspace\Dumps\barnyard_terrain.dds'
+        Output = Join-Path $outputPath 'barnyard_terrain.ptex'
+    }
+    foreach ($index in 0..3) {
+        Remove-Item -LiteralPath (Join-Path $outputPath "barnyard_terrain_$index.pmes"),(Join-Path $outputPath "barnyard_terrain_$index.ptex") -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Item -LiteralPath (Join-Path $outputPath 'barnyard_terrain.json') -Force -ErrorAction SilentlyContinue
 }
 
-$dump = Get-Content -LiteralPath $dumpPath -Raw | ConvertFrom-Json
-if ($dump.texture) {
+$texturesRequired = @($textureSelections | Where-Object { $_.Source })
+if ($texturesRequired.Count -gt 0) {
     $libraries = [System.Collections.Generic.List[string]]::new()
     if ($manifest.texture_libraries) {
         foreach ($value in $manifest.texture_libraries.Split(';')) {
@@ -138,43 +170,53 @@ if ($dump.texture) {
             ForEach-Object { $libraries.Add($_.FullName) }
     }
     if ($libraries.Count -eq 0) {
-        throw "No texture libraries were supplied or derived for '$($dump.texture)'"
+        throw 'No texture libraries were supplied or derived for the terrain textures'
     }
 
-    $textureFound = $false
-    foreach ($library in $libraries) {
-        if (-not (Test-Path -LiteralPath $library -PathType Leaf)) {
-            throw "Retail texture library was not found: $library"
+    $convertedTextures = @{}
+    foreach ($selection in $texturesRequired) {
+        $textureKey = $selection.Source.ToLowerInvariant()
+        if ($convertedTextures.ContainsKey($textureKey)) {
+            Copy-Item -LiteralPath $convertedTextures[$textureKey] -Destination $selection.Output -Force
+            continue
         }
-        Push-Location (Split-Path -Parent $TMDLPath)
-        try {
-            & $TMDLPath -psp-texture $library -texture $dump.texture -o $ddsPath
-            $textureFound = $LASTEXITCODE -eq 0
+        $textureFound = $false
+        foreach ($library in $libraries) {
+            if (-not (Test-Path -LiteralPath $library -PathType Leaf)) {
+                throw "Retail texture library was not found: $library"
+            }
+            Push-Location (Split-Path -Parent $TMDLPath)
+            try {
+                & $TMDLPath -psp-texture $library -texture $selection.Source -o $selection.DDS
+                $textureFound = $LASTEXITCODE -eq 0
+            }
+            finally {
+                Pop-Location
+            }
+            if ($textureFound) {
+                break
+            }
         }
-        finally {
-            Pop-Location
+        if (-not $textureFound) {
+            throw "Texture '$($selection.Source)' was not found in: $($libraries -join ', ')"
         }
-        if ($textureFound) {
-            break
+        & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') $selection.DDS $selection.Output
+        if ($LASTEXITCODE -ne 0) {
+            throw "Retail terrain texture conversion failed with exit code $LASTEXITCODE"
         }
-    }
-    if (-not $textureFound) {
-        throw "Texture '$($dump.texture)' was not found in: $($libraries -join ', ')"
-    }
-    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') $ddsPath $texturePath
-    if ($LASTEXITCODE -ne 0) {
-        throw "Retail terrain texture conversion failed with exit code $LASTEXITCODE"
+        $convertedTextures[$textureKey] = $selection.Output
     }
 }
 
 if ($RuntimeDirectory) {
     $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
     New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
-    Get-ChildItem $outputPath -Filter 'barnyard_terrain.*' -File |
+    Get-ChildItem $outputPath -Filter 'barnyard_terrain*' -File |
         Copy-Item -Destination $runtimePath -Force
     Write-Output "Published retail terrain to $runtimePath"
 }
 
 if (-not $KeepIntermediate) {
-    Remove-Item -LiteralPath $dumpPath,$ddsPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $dumpPath -Force -ErrorAction SilentlyContinue
+    $textureSelections | ForEach-Object { Remove-Item -LiteralPath $_.DDS -Force -ErrorAction SilentlyContinue }
 }
