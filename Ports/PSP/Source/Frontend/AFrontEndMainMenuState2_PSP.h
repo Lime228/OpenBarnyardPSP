@@ -5,11 +5,15 @@
 class AFrontEndMainMenuState2_PSP : public AGameState_PSP
 {
 public:
-	enum MenuItem : TUINT
+	enum FRONTENDBUTTON : TUINT
 	{
-		MenuItem_Probe,
-		MenuItem_Info,
-		MenuItem_Count,
+		FRONTENDBUTTON_NEWGAME,
+		FRONTENDBUTTON_LOADGAME,
+		FRONTENDBUTTON_OPTIONS,
+		FRONTENDBUTTON_BONUSES,
+		FRONTENDBUTTON_ANTICS,
+		FRONTENDBUTTON_QUIT,
+		FRONTENDBUTTON_NUMOF,
 	};
 
 public:
