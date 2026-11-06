@@ -55,8 +55,11 @@ instances or taking focus on every check:
 .\Ports\PSP\RunPPSSPP.ps1 -Action Stop
 ```
 
-The runner only stops the PPSSPP process whose PID it created and stored under
-the ignored `Runtime/PPSSPP` directory. Other emulator sessions are untouched.
+The runner stores its PID under the ignored `Runtime/PPSSPP` directory. If that
+disposable file is missing, it adopts an existing process using the exact
+bundled PPSSPP executable path instead of starting another one. Start, input and
+stop operations remove duplicates belonging to that same runner; PPSSPP
+installations at other paths are untouched.
 Background input uses window messages and does not activate the emulator window
 or take keyboard and mouse focus from the current application. The runner keeps
 the user's configured PPSSPP graphics backend and reports an immediate startup
