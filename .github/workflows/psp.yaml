@@ -132,6 +132,7 @@ jobs:
             bin/PSP/Release/probe_skinned.pmes
             bin/PSP/Release/probe.pskl
             bin/PSP/Release/probe.panm
+            bin/PSP/Release/probe.pwld
             bin/PSP/Release/bootstrap_font.ptex
             bin/PSP/Release/bootstrap_font.pfnt
             bin/PSP/Release/bootstrap_locale.ploc

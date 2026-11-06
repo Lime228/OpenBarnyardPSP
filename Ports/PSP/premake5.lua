@@ -101,6 +101,11 @@ project "OpenBarnyardPSP"
 		"pspnet_apctl"
 	}
 
+	prebuildcommands
+	{
+		'python3 "../../Ports/PSP/Tools/convert_world.py" "../../Ports/PSP/Assets/probe_world.json" "%{cfg.targetdir}/probe.pwld"'
+	}
+
 	postbuildcommands
 	{
 		'psp-fixup-imports "%{cfg.buildtarget.abspath}"',
