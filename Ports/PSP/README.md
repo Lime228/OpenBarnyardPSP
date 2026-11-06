@@ -51,6 +51,7 @@ instances or taking focus on every check:
 .\Ports\PSP\RunPPSSPP.ps1
 .\Ports\PSP\RunPPSSPP.ps1 -Action Status
 .\Ports\PSP\RunPPSSPP.ps1 -Action Restart -EbootPath .\Runtime\PSP\0a06d6b5\EBOOT.PBP
+.\Ports\PSP\RunPPSSPP.ps1 -Action Press -Key Start
 .\Ports\PSP\RunPPSSPP.ps1 -Action Press -Key Cross -Repeat 8
 .\Ports\PSP\RunPPSSPP.ps1 -Action Stop
 ```
