@@ -242,6 +242,13 @@ def run_pipeline(
     if preview_texture is not None:
         require_file(preview_texture, "preview texture")
 
+    tmdl = tmdl.resolve()
+    model = model.resolve()
+    output_directory = output_directory.resolve()
+    key_library = key_library.resolve() if key_library is not None else None
+    preview_texture = preview_texture.resolve() if preview_texture is not None else None
+    (tmdl.parent / "Logs").mkdir(exist_ok=True)
+
     output_name = safe_name(output_name)
 
     output_directory.mkdir(parents=True, exist_ok=True)
@@ -272,7 +279,11 @@ def run_pipeline(
             else None
         )
         preview_set = temporary / preview_set_destination.name if preview_set_destination is not None else None
-        subprocess.run([str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)], check=True)
+        subprocess.run(
+            [str(tmdl), "-psp-dump", str(model), "-o", str(model_dump)],
+            check=True,
+            cwd=tmdl.parent,
+        )
         convert_tmd_dump(model_dump, mesh, skeleton, preview_material)
         model_document = json.loads(model_dump.read_text(encoding="utf-8"))
         if not isinstance(model_document, dict):
@@ -299,6 +310,7 @@ def run_pipeline(
                     str(animation_dump),
                 ],
                 check=True,
+                cwd=tmdl.parent,
             )
             write_animation_skeleton(model_dump, animation_skeleton)
             convert_animation(animation_skeleton, animation_dump, animation)

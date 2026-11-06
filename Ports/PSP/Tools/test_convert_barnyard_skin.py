@@ -244,6 +244,7 @@ class BarnyardSkinPipelineTests(unittest.TestCase):
             self.assertTrue((output / "barnyard_preview.pskl").is_file())
             self.assertTrue((output / "barnyard_preview.panm").is_file())
             self.assertTrue((output / "barnyard_preview.ptex").is_file())
+            self.assertTrue((temporary / "Logs").is_dir())
             preview_set = struct.unpack("<12I", (output / "barnyard_preview.pset").read_bytes())
             self.assertEqual(
                 preview_set[:4],
