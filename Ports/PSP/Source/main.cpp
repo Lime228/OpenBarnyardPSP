@@ -4,6 +4,7 @@
 #include <Toshi/TDebug.h>
 #include <Toshi/THPTimer.h>
 #include <Toshi/TScheduler.h>
+#include <Toshi/T2String8.h>
 #include <Math/TMathInline.h>
 #include <Math/TVector4.h>
 #include <File/TFile.h>
@@ -112,8 +113,10 @@ static Toshi::TAnimationClip_PSP        g_PreviewAnimation_PSP;
 static Toshi::TSkeletonInstance_PSP     g_PreviewSkeletonInstance_PSP;
 static Toshi::TSkinningBuffer_PSP       g_PreviewSkinningBuffer_PSP;
 static Toshi::T2Texture                 g_PreviewTexture_PSP;
-static Toshi::TModel_PSP                g_TerrainModel_PSP;
-static Toshi::T2Texture                 g_TerrainTexture_PSP;
+static constexpr TUINT                  MAX_TERRAIN_MESHES_PSP = 4;
+static Toshi::TModel_PSP                g_TerrainModels_PSP[ MAX_TERRAIN_MESHES_PSP ];
+static Toshi::T2Texture                 g_TerrainTextures_PSP[ MAX_TERRAIN_MESHES_PSP ];
+static TUINT                            g_uiTerrainMeshes_PSP = 0;
 static const Toshi::TRenderModelTransform_PSP g_IdentityModelTransform_PSP = {
 	1.0f,
 	{ 0.0f, 0.0f, 0.0f },
@@ -317,17 +320,76 @@ static TBOOL TestPreviewTransform_PSP( const Toshi::TModel_PSP& a_rModel )
 
 static void UnloadTerrainModel_PSP()
 {
-	g_TerrainTexture_PSP.Unload();
-	g_TerrainModel_PSP.Unload();
+	for ( TUINT i = 0; i < MAX_TERRAIN_MESHES_PSP; i++ )
+	{
+		g_TerrainTextures_PSP[ i ].Unload();
+		g_TerrainModels_PSP[ i ].Unload();
+	}
+	g_uiTerrainMeshes_PSP = 0;
 	g_TerrainTransform_PSP = g_IdentityModelTransform_PSP;
+}
+
+static TBOOL CalculateTerrainTransform_PSP()
+{
+	if ( g_uiTerrainMeshes_PSP == 0 )
+		return TFALSE;
+	TFLOAT aMin[ 3 ];
+	TFLOAT aMax[ 3 ];
+	for ( TUINT axis = 0; axis < 3; axis++ )
+	{
+		aMin[ axis ] = g_TerrainModels_PSP[ 0 ].GetBounds().aMin[ axis ];
+		aMax[ axis ] = g_TerrainModels_PSP[ 0 ].GetBounds().aMax[ axis ];
+	}
+	for ( TUINT mesh = 1; mesh < g_uiTerrainMeshes_PSP; mesh++ )
+	{
+		const Toshi::TModelBounds_PSP& rBounds = g_TerrainModels_PSP[ mesh ].GetBounds();
+		for ( TUINT axis = 0; axis < 3; axis++ )
+		{
+			aMin[ axis ] = Toshi::TMath::Min( aMin[ axis ], rBounds.aMin[ axis ] );
+			aMax[ axis ] = Toshi::TMath::Max( aMax[ axis ], rBounds.aMax[ axis ] );
+		}
+	}
+	const TFLOAT fLargestSize = Toshi::TMath::Max(
+	    Toshi::TMath::Max( aMax[ 0 ] - aMin[ 0 ], aMax[ 1 ] - aMin[ 1 ] ),
+	    aMax[ 2 ] - aMin[ 2 ]
+	);
+	if ( !Toshi::TMath::IsFinite( fLargestSize ) || fLargestSize <= Toshi::TMath::TFLOAT_EPSILON )
+		return TFALSE;
+	g_TerrainTransform_PSP.fScale = 2.0f / fLargestSize;
+	for ( TUINT axis = 0; axis < 3; axis++ )
+		g_TerrainTransform_PSP.aCenter[ axis ] = aMin[ axis ] + ( aMax[ axis ] - aMin[ axis ] ) * 0.5f;
+	return TTRUE;
 }
 
 static TBOOL LoadTerrainModel_PSP()
 {
 	UnloadTerrainModel_PSP();
-	if ( !g_ModelFactory_PSP.CreateModelFromFile( g_TerrainModel_PSP, "local:barnyard_terrain.pmes" ) ||
-	     !CalculatePreviewTransform_PSP( g_TerrainModel_PSP, g_TerrainTransform_PSP ) ||
-	     !g_TextureFactory_PSP.CreateTextureFromFile( g_TerrainTexture_PSP, "local:barnyard_terrain.ptex" ) )
+	for ( TUINT i = 0; i < MAX_TERRAIN_MESHES_PSP; i++ )
+	{
+		TCHAR aMeshPath[ 40 ];
+		TCHAR aTexturePath[ 40 ];
+		Toshi::T2String8::Format( aMeshPath, TARRAYSIZE( aMeshPath ), "local:barnyard_terrain_%u.pmes", i );
+		Toshi::T2String8::Format( aTexturePath, TARRAYSIZE( aTexturePath ), "local:barnyard_terrain_%u.ptex", i );
+		if ( !g_ModelFactory_PSP.CreateModelFromFile( g_TerrainModels_PSP[ i ], aMeshPath ) )
+			break;
+		if ( !g_TextureFactory_PSP.CreateTextureFromFile( g_TerrainTextures_PSP[ i ], aTexturePath ) )
+		{
+			UnloadTerrainModel_PSP();
+			return TFALSE;
+		}
+		g_uiTerrainMeshes_PSP += 1;
+	}
+	if ( g_uiTerrainMeshes_PSP == 0 )
+	{
+		if ( !g_ModelFactory_PSP.CreateModelFromFile( g_TerrainModels_PSP[ 0 ], "local:barnyard_terrain.pmes" ) ||
+		     !g_TextureFactory_PSP.CreateTextureFromFile( g_TerrainTextures_PSP[ 0 ], "local:barnyard_terrain.ptex" ) )
+		{
+			UnloadTerrainModel_PSP();
+			return TFALSE;
+		}
+		g_uiTerrainMeshes_PSP = 1;
+	}
+	if ( !CalculateTerrainTransform_PSP() )
 	{
 		UnloadTerrainModel_PSP();
 		return TFALSE;
@@ -2101,8 +2163,9 @@ int main()
 		pCachedFont,
 		&g_LocaleManager_PSP,
 		pCachedModel,
-		bTerrainReady ? &g_TerrainModel_PSP : TNULL,
-		bTerrainReady ? &g_TerrainTexture_PSP : TNULL,
+		bTerrainReady ? g_TerrainModels_PSP : TNULL,
+		bTerrainReady ? g_TerrainTextures_PSP : TNULL,
+		bTerrainReady ? g_uiTerrainMeshes_PSP : 0,
 		bPreviewReady ? &g_PreviewModel_PSP : ( bSkinningReady ? &g_ProbeSkinnedModel_PSP : TNULL ),
 		bPreviewReady ? &g_PreviewSkinningBuffer_PSP : ( bSkinningReady ? &g_ProbeSkinningBuffer_PSP : TNULL ),
 		bPreviewReady ? &g_PreviewSkeletonInstance_PSP : ( bSkinningReady ? &g_ProbeSkeletonInstance_PSP : TNULL ),
@@ -2208,8 +2271,9 @@ int main()
 	    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ]
 	);
 	TDebug_FinalPrintf(
-	    "[PSP world] terrain      %s %.6f @ %.6f,%.6f,%.6f\n",
+	    "[PSP world] terrain      %s (%u meshes) %.6f @ %.6f,%.6f,%.6f\n",
 	    bTerrainReady ? "barnyard_terrain" : "inactive",
+	    bTerrainReady ? g_uiTerrainMeshes_PSP : 0,
 	    bTerrainReady ? g_TerrainTransform_PSP.fScale : g_IdentityModelTransform_PSP.fScale,
 	    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 0 ] : g_IdentityModelTransform_PSP.aCenter[ 0 ],
 	    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 1 ] : g_IdentityModelTransform_PSP.aCenter[ 1 ],
@@ -2293,6 +2357,7 @@ int main()
 		    bPreviewReady ? g_PreviewTransform_PSP.aCenter[ 2 ] : g_IdentityModelTransform_PSP.aCenter[ 2 ],
 		},
 		bTerrainReady,
+		bTerrainReady ? g_uiTerrainMeshes_PSP : 0,
 		bTerrainReady ? g_TerrainTransform_PSP.fScale : g_IdentityModelTransform_PSP.fScale,
 		{
 		    bTerrainReady ? g_TerrainTransform_PSP.aCenter[ 0 ] : g_IdentityModelTransform_PSP.aCenter[ 0 ],

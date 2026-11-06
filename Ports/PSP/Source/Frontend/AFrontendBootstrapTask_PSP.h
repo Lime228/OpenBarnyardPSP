@@ -43,8 +43,9 @@ struct AFrontendRenderContext_PSP
 	Toshi::T2GUIFont_PSP*             pFont;
 	ALocaleManager_PSP*               pLocale;
 	Toshi::TModel_PSP*                pModel;
-	Toshi::TModel_PSP*                pTerrainModel;
-	Toshi::T2Texture*                 pTerrainTexture;
+	Toshi::TModel_PSP*                pTerrainModels;
+	Toshi::T2Texture*                 pTerrainTextures;
+	TUINT                             uiTerrainModelCount;
 	Toshi::TModel_PSP*                pSkinnedModel;
 	Toshi::TSkinningBuffer_PSP*       pSkinningBuffer;
 	Toshi::TSkeletonInstance_PSP*     pSkeletonInstance;

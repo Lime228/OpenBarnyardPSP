@@ -17,7 +17,7 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	if ( pFile == TNULL )
 		return TFALSE;
 
-	pFile->CPrintf( "OpenBarnyard PSP port report v7\n" );
+	pFile->CPrintf( "OpenBarnyard PSP port report v8\n" );
 	pFile->CPrintf( "stage=%s\n", a_rData.pStage != TNULL ? a_rData.pStage : "UNKNOWN" );
 	pFile->CPrintf( "bootstrap=%s\n", GetReportStatus_PSP( a_rData.bBootstrapReady ) );
 	pFile->CPrintf( "input=%s\n", GetReportStatus_PSP( a_rData.bInputReady ) );
@@ -71,7 +71,8 @@ TBOOL APortReport_PSP::Write( const APortReportData_PSP& a_rData )
 	    a_rData.aPreviewCenter[ 2 ]
 	);
 	pFile->CPrintf( "terrain=%s\n", a_rData.bTerrainReady ? "ACTIVE" : "INACTIVE" );
-	pFile->CPrintf( "terrain_texture=%s\n", a_rData.bTerrainReady ? "barnyard_terrain.ptex" : "none" );
+	pFile->CPrintf( "terrain_meshes=%u\n", a_rData.uiTerrainMeshes );
+	pFile->CPrintf( "terrain_texture=%s\n", a_rData.bTerrainReady ? "barnyard_terrain*.ptex" : "none" );
 	pFile->CPrintf( "terrain_scale=%.6f\n", a_rData.fTerrainScale );
 	pFile->CPrintf(
 	    "terrain_center=%.6f,%.6f,%.6f\n",

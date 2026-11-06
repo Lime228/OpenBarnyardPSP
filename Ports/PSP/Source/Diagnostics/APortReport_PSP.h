@@ -48,6 +48,7 @@ struct APortReportData_PSP
 	TFLOAT fPreviewScale;
 	TFLOAT aPreviewCenter[ 3 ];
 	TBOOL bTerrainReady;
+	TUINT uiTerrainMeshes;
 	TFLOAT fTerrainScale;
 	TFLOAT aTerrainCenter[ 3 ];
 	TBOOL bCacheReady;
