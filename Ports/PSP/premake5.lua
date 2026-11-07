@@ -11,9 +11,9 @@ workspace "OpenBarnyardPSP"
 	configurations { "Debug", "Release", "Final" }
 	platforms "PSP"
 	architecture "PSP"
-	startproject "OpenBarnyardPSP"
+	startproject "OpenBarnyardPSPBootstrap"
 
-project "OpenBarnyardPSP"
+project "OpenBarnyardPSPBootstrap"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++20"
@@ -124,6 +124,63 @@ project "OpenBarnyardPSP"
 		'cp -f "../../Ports/PSP/Assets/bootstrap_stream.ppcm" "%{cfg.targetdir}/bootstrap_stream.ppcm"',
 		'cp -f "../../Ports/PSP/Assets/bootstrap_stream.padp" "%{cfg.targetdir}/bootstrap_stream.padp"',
 		'rm -f "%{cfg.targetdir}/openbarnyard_psp_strip.elf"'
+	}
+
+	filter "configurations:Debug"
+		defines "TOSHI_DEBUG"
+		symbols "On"
+
+	filter "configurations:Release"
+		defines "TOSHI_RELEASE"
+		optimize "On"
+
+	filter "configurations:Final"
+		defines "TOSHI_FINAL"
+		optimize "On"
+
+	filter {}
+
+project "OpenBarnyardPSPGameSlice"
+	kind "StaticLib"
+	language "C++"
+	cppdialect "C++20"
+	toolset "gcc"
+	gccprefix "psp-"
+	targetdir ( "../../bin/PSP/%{cfg.buildcfg}" )
+	objdir ( "../../bin-int/PSPGameSlice/%{cfg.buildcfg}" )
+
+	files
+	{
+		"GameSource/**.h",
+		"GameSource/**.cpp"
+	}
+
+	includedirs
+	{
+		"GameSource",
+		"../../OpenBarnyard/Source",
+		"../../Shared/Source",
+		"../../Toshi/Source",
+		pspdev .. "/psp/include",
+		pspdev .. "/psp/sdk/include"
+	}
+
+	defines
+	{
+		"TOSHI_SKU_PSP",
+		"TRENDERINTERFACE_PSP",
+		"_PSP_FW_VERSION=660"
+	}
+
+	buildoptions
+	{
+		"-G0",
+		"-Wall",
+		"-Wextra",
+		"-ffunction-sections",
+		"-fdata-sections",
+		"-fno-exceptions",
+		"-fno-rtti"
 	}
 
 	filter "configurations:Debug"
