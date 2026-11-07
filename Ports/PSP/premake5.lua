@@ -164,6 +164,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source",
 		"../../Shared/Source",
 		"../../Toshi/Source",
+		"../../Toshi/Vendor/Opcode/Source",
 		pspdev .. "/psp/include",
 		pspdev .. "/psp/sdk/include"
 	}
