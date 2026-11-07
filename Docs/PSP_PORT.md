@@ -8,28 +8,32 @@ DirectX 8 and DirectX 11. The `Revolution` directory currently contains only a
 texture implementation, so it is useful as a reference but is not a complete
 console backend.
 
-`Ports/PSP` began as milestone 0 and is now the M1/M2 bootstrap EBOOT that proves
-the toolchain, portable core, input, and PSP GU rendering path independently
-from the Windows executable.
+`Ports/PSP` is still a bootstrap/diagnostic EBOOT. It proves selected platform,
+input, audio, asset-conversion and PSP GU paths independently from the Windows
+executable, but it is not the Barnyard game executable and must not be presented
+as a playable frontend. The shipping target is to compile the real
+`OpenBarnyard/Source` game states and systems against PSP platform backends;
+the bootstrap remains available only as a regression harness.
 
-## Progress snapshot (2026-11-06)
+## Progress snapshot (2026-11-07)
 
-The PSP platform/render bring-up is approximately **90%** complete, while the
-complete playable-game port is approximately **77%** complete. The second value
-is intentionally much lower: the compiling probe does not yet include the real
-game states, converted Barnyard content, rooms, player simulation, complete UI,
-movies, or gameplay validation on hardware.
+The bounded bootstrap infrastructure is approximately **70%** complete, while
+the complete playable-game port is approximately **18%** complete. Earlier
+snapshots incorrectly treated completion of isolated bootstrap subsystems as
+completion of the corresponding game systems. The current EBOOT does not yet
+compile or execute the real `OpenBarnyard` application, state controller, GUI,
+terrain loader, player simulation, rooms, movies or save flow.
 
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
-| PSP toolchain and packaging | 98% | Premake, branded EBOOT/PARAM.SFO/ICON0/PIC1, deterministic assets, separate PSP/host-tool CI artifacts and a PPSSPP bundle work |
-| Portable Toshi/platform core | 83% | allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler tasks pass the PPSSPP bootstrap gate |
-| PSP renderer foundation | 72% | GU display, depth, indexed static/skinned models, model-space centring, per-instance and cell-level visibility, bind-pose bounds, textures, materials, alpha-blended atlas fonts, measured budgets and bounded factories build for PSP; the original logo is reduced below the GU maximum-width edge case |
-| Real-game asset pipeline | 90% | host tools relocate the retail `SS_Sbird2` set, export up to four meshes from a selected terrain cell and extract the shipping frontend logo; bounded offline conversion handles DXT and masked DDS, shared transforms, repeated textures and power-of-two reduction, while complete rooms and the remaining asset families still need handling |
-| Input integration | 60% | `AInputHandler_PSP` maps PSP controls to frontend confirm, cancel, pause, navigation and two-axis movement actions |
-| Game bootstrap and frontend | 57% | `AApplication_PSP` owns explicit frame phases; original-named `AFrontEndAttractState_PSP` loads the shipping logo, blinks `PRESS START` and transitions on PSP Start into `AFrontEndMainMenuState2_PSP`; the retail skin/terrain previews, cached font/locale resources and GUI audio remain active |
-| Audio, movies and saves | 95% | bounded resident/stream cues, stream time/seek, per-cue/global pause, local/global volume, cue queries and sample-clock fades, immediate/delayed stop, frequency, position and positional play wrappers, generation-safe managed/detached cues, named commands, GUI cues, PADP loops, typed PBNK entries, prefetch, spatial controls and output work; multi-track banks, movies and saves remain incomplete |
-| World, animation and gameplay | 42% | bounded PWLD layouts resolve four offline model/texture names and eight validated spatial cells; a real two-mesh `xroad` cell preserves shared world-space placement and retail textures through the PSP bridge, while analogue view movement, sampled clips and budgeted/profiled two-weight CPU skinning remain active; full rooms and player simulation are not loaded |
+| PSP toolchain and packaging | 90% | Premake, branded EBOOT/PARAM.SFO/ICON0/PIC1, deterministic bootstrap assets and separate PSP/host-tool CI artifacts work; retail package assembly is not complete |
+| Portable Toshi/platform core | 60% | selected allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler paths pass the harness; the dependency surface required by the full game is not yet compiled |
+| PSP renderer foundation | 35% | GU display, depth, bounded static/skinned models, textures and a diagnostic font work; the real renderer/material/scene interfaces used by `OpenBarnyard` are not connected |
+| Real-game asset pipeline | 20% | selected skin, animation, terrain, texture and GUI-section sources can be inspected or converted; complete frontend packages, rooms, models, material variants, fonts, movies and streaming manifests remain |
+| Input integration | 35% | PSP controls reach the bootstrap actions; the real `AInputHandler`/input-map path is not yet running |
+| Game bootstrap and frontend | 10% | a PSP-only imitation of the state flow exists for testing, but the real `AGameStateController`, `AFrontEndAttractState`, `AFrontEndMainMenuState2`, GUI hierarchy, windmill helper and child states are not compiled into the EBOOT |
+| Audio, movies and saves | 20% | a bounded PSP mixer and converted probe cues work; retail banks, music ownership, Bink replacement, save devices and real game callers are not integrated |
+| World, animation and gameplay | 5% | selected retail meshes and one sampled animation render in isolation; the real terrain/world loaders, actor systems, player, physics, quests and playable rooms are not running |
 
 M0 is runtime-complete in PPSSPP. The current M1 and M2 slices are also
 runtime-validated in PPSSPP, but still require real-hardware validation. M3 has
@@ -1132,11 +1136,15 @@ remain largely unstarted.
 ## Immediate next slice
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
-Next, convert the actual `Terrain/frontend` scene, `barnsign`/windmill models
-and their camera animation so `AFrontEndAttractState_PSP` renders the shipping
-3D title environment instead of only its original logo layer. Then replace the
-two diagnostic menu choices with the six original main-menu actions and their
-`frontend1.tga` sections while keeping unsupported game paths visibly disabled.
+Create a separate Premake game target/slice that compiles the real
+`OpenBarnyard/Source/GameInterface/AGameState.cpp`, `AGameStateController.cpp`,
+`AFrontEndAttractState.cpp` and `AFrontEndMainMenuState2.cpp` dependency graph.
+Port or adapt dependencies behind their existing interfaces and `_PSP`
+platform implementations; do not rewrite the presentation as another PSP-only
+menu. Keep the existing bootstrap executable as a CI smoke target, not the
+default game milestone. Once the real state graph links, finish the host-side
+`texsec.trb` crop path, `Terrain_FrontEnd`, `AWindmillHelper`, barn sign and
+`EnvFrontEnd_Cam/camera_loop` content required by those original classes.
 Keep animation selection explicit and
 all quantization offline. Keep complete multi-material conversion rejected
 until PMES has bounded draw ranges and matching texture ownership; use explicit
