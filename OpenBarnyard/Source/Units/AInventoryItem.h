@@ -68,4 +68,4 @@ private:
 	TWCHAR                  m_wszScreenName[ MAX_SCREEN_NAME_LEN ]; // 0x14, see GetScreenName
 };
 
-TSTATICASSERT( sizeof( AInventoryItem ) == 0x54 );
+TSTATICASSERT_SIZE( sizeof( AInventoryItem ) == 0x54 );
