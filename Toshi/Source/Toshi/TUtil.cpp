@@ -2,6 +2,7 @@
 #include "TUtil.h"
 #include "Toshi/TSystem.h"
 #include "Toshi/TError.h"
+#include "Toshi/TDebug.h"
 #include "Toshi/T2String.h"
 #include "File/TLogFile.h"
 #include "Toshi/TFreeList.h"
@@ -146,7 +147,7 @@ void TUtil::LogConsole( const TCHAR* a_szFormat, ... )
 		formatString.FormatV( a_szFormat, args );
 		va_end( args );
 
-		OutputDebugStringA( formatString.Get() );
+		TDebug_OutputDebugString( formatString.Get() );
 		printf( formatString.Get() );
 	}
 }

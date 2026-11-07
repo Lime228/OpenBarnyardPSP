@@ -129,7 +129,20 @@ void TLogFile::Log( TUtil::LogType type, const TCHAR* str1, const TCHAR* str2, c
 	{
 		TCHAR strTime[ 128 ];
 		strTime[ 0 ] = '\0';
-		_strtime( strTime );
+		time_t oCurrentTime;
+		time( &oCurrentTime );
+		const tm* pLocalTime = localtime( &oCurrentTime );
+		if ( pLocalTime != TNULL )
+		{
+			snprintf(
+			    strTime,
+			    sizeof( strTime ),
+			    "%02d:%02d:%02d",
+			    pLocalTime->tm_hour,
+			    pLocalTime->tm_min,
+			    pLocalTime->tm_sec
+			);
+		}
 
 		if ( m_bIsSimpleMode )
 		{

@@ -899,7 +899,7 @@ void TMemory::DebugPrintHALMemInfo( const TCHAR* a_szFormat, ... )
 #  endif
 	va_end( args );
 
-	OutputDebugStringA( s_szBuffer );
+	TDebug_OutputDebugString( s_szBuffer );
 }
 
 // $Barnyard: FUNCTION 006b4ba0
