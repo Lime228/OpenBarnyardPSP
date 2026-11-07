@@ -65,7 +65,7 @@ TRandom::TRandom()
 // $Barnyard: FUNCTION 006b5850
 void TRandom::Isaac()
 {
-	TUINT a, b, x, y, *m, *mm, *m2, *r, *mend;
+	TUINT32 a, b, x, y, *m, *mm, *m2, *r, *mend;
 	mm = m_pRandmem;
 	r  = m_pRandrsl;
 	a  = m_uiRandA;
