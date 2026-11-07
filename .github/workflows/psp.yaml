@@ -79,6 +79,7 @@ jobs:
           python3 Ports/PSP/Tools/test_convert_terrain_dump.py
           python3 Ports/PSP/Tools/test_convert_terrain_cell.py
           python3 Ports/PSP/Tools/test_merge_terrain_dumps.py
+          python3 Ports/PSP/Tools/test_audit_source_dependencies.py
           python3 Ports/PSP/Tools/test_convert_barnyard_skin.py
           python3 Ports/PSP/Tools/convert_world.py Ports/PSP/Assets/probe_world.json /tmp/probe.pwld
           python3 Ports/PSP/Tools/test_convert_world.py
