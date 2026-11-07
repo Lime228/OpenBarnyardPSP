@@ -1,4 +1,11 @@
 #pragma once
+
+#ifdef TOSHI_SKU_PSP
+
+#  include "Platform/PSP/ACollisionModel_PSP.h"
+
+#else
+
 #include "AOpcodeCache.h"
 #include "ACollisionCommon.h"
 
@@ -122,3 +129,5 @@ private:
 	Opcode::MeshInterface m_MeshInterface;
 	TINT                  m_aIgnoreGroups[ 2 ];
 };
+
+#endif // TOSHI_SKU_PSP
