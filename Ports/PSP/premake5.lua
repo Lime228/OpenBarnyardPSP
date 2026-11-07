@@ -151,7 +151,8 @@ project "OpenBarnyardPSPGameSlice"
 
 	files
 	{
-		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp"
+		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/ADisplayModes_PSP.cpp"
 	}
 
 	includedirs

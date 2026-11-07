@@ -6,6 +6,10 @@
 #  include "Platform/Windows/ADisplayModes_Win.h"
 #endif // TOSHI_SKU_WINDOWS
 
+#ifdef TOSHI_SKU_PSP
+#  include "Platform/PSP/ADisplayModes_PSP.h"
+#endif // TOSHI_SKU_PSP
+
 #include <Toshi/TTask.h>
 #include <Render/TViewport.h>
 #include <Render/TCameraObject.h>
@@ -156,7 +160,11 @@ private:
 	ASkyDome*                          m_pSkyDome;
 	TINT                               m_iScreenshotIndex; // 0x84
 	TBOOL                              m_bRenderGUI;
+#ifdef TOSHI_SKU_WINDOWS
 	ADisplayModes_Win                  m_DisplayModes;
+#elif defined( TOSHI_SKU_PSP )
+	ADisplayModes_PSP                  m_DisplayModes;
+#endif
 
 #ifdef BARNYARD_COMMUNITY_PATCH
 	inline static CreateShaders_t ms_fnCreateShadersCb = TNULL;
