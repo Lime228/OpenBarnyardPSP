@@ -18,20 +18,23 @@ the bootstrap remains available only as a regression harness.
 ## Progress snapshot (2026-11-07)
 
 The bounded bootstrap infrastructure is approximately **70%** complete, while
-the complete playable-game port is approximately **18%** complete. Earlier
+the complete playable-game port is approximately **20%** complete. Earlier
 snapshots incorrectly treated completion of isolated bootstrap subsystems as
 completion of the corresponding game systems. The current EBOOT does not yet
-compile or execute the real `OpenBarnyard` application, state controller, GUI,
-terrain loader, player simulation, rooms, movies or save flow.
+execute the real `OpenBarnyard` application, GUI, terrain loader, player
+simulation, rooms, movies or save flow. A separate compile-only PSP library now
+builds the original `ARootTask`, `AGameLoader`, `AGameStateController`,
+`AGameState`, `AFrontEndAttractState` and `AFrontEndMainMenuState2`; it is not
+yet linked into the EBOOT.
 
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain and packaging | 90% | Premake, branded EBOOT/PARAM.SFO/ICON0/PIC1, deterministic bootstrap assets and separate PSP/host-tool CI artifacts work; retail package assembly is not complete |
-| Portable Toshi/platform core | 60% | selected allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler paths pass the harness; the dependency surface required by the full game is not yet compiled |
+| Portable Toshi/platform core | 65% | selected allocator, strings, containers, file I/O, timer, sync, threads, input events and scheduler paths pass the harness; the original root/frontend source slice now passes PSP-GCC, but its complete link closure is not present |
 | PSP renderer foundation | 35% | GU display, depth, bounded static/skinned models, textures and a diagnostic font work; the real renderer/material/scene interfaces used by `OpenBarnyard` are not connected |
 | Real-game asset pipeline | 20% | selected skin, animation, terrain, texture and GUI-section sources can be inspected or converted; complete frontend packages, rooms, models, material variants, fonts, movies and streaming manifests remain |
 | Input integration | 35% | PSP controls reach the bootstrap actions; the real `AInputHandler`/input-map path is not yet running |
-| Game bootstrap and frontend | 10% | a PSP-only imitation of the state flow exists for testing, but the real `AGameStateController`, `AFrontEndAttractState`, `AFrontEndMainMenuState2`, GUI hierarchy, windmill helper and child states are not compiled into the EBOOT |
+| Game bootstrap and frontend | 20% | the real root task, loader, state controller, base state, attract state and main-menu state compile as a PSP static library; their implementations and transitive managers are not yet linked or executed in the EBOOT |
 | Audio, movies and saves | 20% | a bounded PSP mixer and converted probe cues work; retail banks, music ownership, Bink replacement, save devices and real game callers are not integrated |
 | World, animation and gameplay | 5% | selected retail meshes and one sampled animation render in isolation; the real terrain/world loaders, actor systems, player, physics, quests and playable rooms are not running |
 
