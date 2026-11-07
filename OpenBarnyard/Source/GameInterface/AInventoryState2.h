@@ -183,4 +183,4 @@ private:
 	TBOOL                 m_bMouseOnRightArrow;     // 0xa28
 };
 
-TSTATICASSERT( sizeof( AInventoryState2 ) == 0xa2c );
+TSTATICASSERT_SIZE( sizeof( AInventoryState2 ) == 0xa2c );

@@ -46,4 +46,4 @@ public:
 	Toshi::T2GUIFont* m_pTextFont;                    // 0x170, TNULL uses "Rekord26"
 };
 
-TSTATICASSERT( sizeof( AGUI2FadingText ) == 0x174 );
+TSTATICASSERT_SIZE( sizeof( AGUI2FadingText ) == 0x174 );

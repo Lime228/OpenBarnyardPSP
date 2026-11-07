@@ -185,4 +185,4 @@ private:
 	TFLOAT                     m_fUseItemCooldown;    // 0x1ac
 };
 
-TSTATICASSERT( sizeof( APlayerControlComponent ) == 0x1b0 );
+TSTATICASSERT_SIZE( sizeof( APlayerControlComponent ) == 0x1b0 );

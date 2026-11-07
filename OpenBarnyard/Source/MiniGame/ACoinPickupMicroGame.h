@@ -148,4 +148,4 @@ private:
 	TFLOAT              m_fLoadTime;                // 0xb60
 };
 
-TSTATICASSERT( sizeof( ACoinPickupMicroGame ) == 0xb64 );
+TSTATICASSERT_SIZE( sizeof( ACoinPickupMicroGame ) == 0xb64 );

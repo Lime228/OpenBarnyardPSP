@@ -351,4 +351,4 @@ private:
 };
 
 TSTATICASSERT( sizeof( ABarnExploreMinigameState::Item ) == 0xa4 );
-TSTATICASSERT( sizeof( ABarnExploreMinigameState ) == 0x153a8 );
+TSTATICASSERT_SIZE( sizeof( ABarnExploreMinigameState ) == 0x153a8 );

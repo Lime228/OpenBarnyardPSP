@@ -140,4 +140,4 @@ protected:
 	TINT                                                                             m_iNightAmbienceCue;        // 0x1001c
 };
 
-TSTATICASSERT( sizeof( ASimState ) == 0x10020 );
+TSTATICASSERT_SIZE( sizeof( ASimState ) == 0x10020 );

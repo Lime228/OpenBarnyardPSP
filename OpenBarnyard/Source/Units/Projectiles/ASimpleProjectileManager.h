@@ -107,4 +107,4 @@ private:
 	TINT                 m_iTrackedRecord;                      // 0x78c, high score record of the distance
 };
 
-TSTATICASSERT( sizeof( ASimpleProjectileManager ) == 0x790 );
+TSTATICASSERT_SIZE( sizeof( ASimpleProjectileManager ) == 0x790 );

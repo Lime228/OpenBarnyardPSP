@@ -273,4 +273,4 @@ private:
 
 TSTATICASSERT( sizeof( ABikeRaceMicroGame::TrackInfo ) == 0x28 );
 TSTATICASSERT( sizeof( ABikeRaceMicroGame::Berry ) == 0x18 );
-TSTATICASSERT( sizeof( ABikeRaceMicroGame ) == 0xe450 );
+TSTATICASSERT_SIZE( sizeof( ABikeRaceMicroGame ) == 0xe450 );

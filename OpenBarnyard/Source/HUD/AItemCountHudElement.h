@@ -101,4 +101,4 @@ public:
 };
 
 TSTATICASSERT( sizeof( AItemCountHudElement::State ) == 0x50 );
-TSTATICASSERT( sizeof( AItemCountHudElement ) == 0x1f0 );
+TSTATICASSERT_SIZE( sizeof( AItemCountHudElement ) == 0x1f0 );

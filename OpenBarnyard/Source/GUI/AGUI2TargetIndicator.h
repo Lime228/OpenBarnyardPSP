@@ -74,4 +74,4 @@ private:
 	TBOOL                 m_bVisible;                   // 0x24c
 };
 
-TSTATICASSERT( sizeof( AGUI2TargetIndicator ) == 0x250 );
+TSTATICASSERT_SIZE( sizeof( AGUI2TargetIndicator ) == 0x250 );
