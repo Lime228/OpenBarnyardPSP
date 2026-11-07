@@ -75,4 +75,4 @@ public:
 	Toshi::T2GUITextureSection* m_aImages[ STAGE_NUMOF ]; // 0x1cc, "Ready", "Set", "Go"
 };
 
-TSTATICASSERT( sizeof( AStartMiniGameHudElement ) == 0x1d8 );
+TSTATICASSERT_SIZE( sizeof( AStartMiniGameHudElement ) == 0x1d8 );

@@ -48,4 +48,4 @@ public:
 	TBOOL                 m_bAutoFade;      // 0x1e8, fades the counter out SHOW_TIME seconds after SetNumber, cleared by AMiniGameState::OnInsertion
 };
 
-TSTATICASSERT( sizeof( ASimPlayerPickUpHudElement ) == 0x1ec );
+TSTATICASSERT_SIZE( sizeof( ASimPlayerPickUpHudElement ) == 0x1ec );

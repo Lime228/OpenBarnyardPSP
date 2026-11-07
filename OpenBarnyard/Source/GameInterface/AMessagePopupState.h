@@ -100,4 +100,4 @@ private:
 	TINT                                               m_iSelectedButton;                           // 0x19c4
 };
 
-TSTATICASSERT( sizeof( AMessagePopupState ) == 0x19c8 );
+TSTATICASSERT_SIZE( sizeof( AMessagePopupState ) == 0x19c8 );

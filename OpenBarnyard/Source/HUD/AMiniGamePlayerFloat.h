@@ -42,4 +42,4 @@ public:
 	TBOOL        m_bEnabled;      // 0xe8
 };
 
-TSTATICASSERT( sizeof( AMiniGamePlayerFloat ) == 0xec );
+TSTATICASSERT_SIZE( sizeof( AMiniGamePlayerFloat ) == 0xec );

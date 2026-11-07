@@ -69,6 +69,11 @@
 #endif // TBREAK
 
 #define TSTATICASSERT( ... )              static_assert( __VA_ARGS__, "Compile time assert failed: " #__VA_ARGS__ )
+#if defined( TOSHI_SKU_PSP )
+#  define TSTATICASSERT_SIZE( ... ) static_assert( TTRUE, "Retail Win32 layout assertion is not applicable to PSP" )
+#else
+#  define TSTATICASSERT_SIZE( ... ) TSTATICASSERT( __VA_ARGS__ )
+#endif
 #define TREINTERPRETCAST( TYPE, VALUE )   ( reinterpret_cast<TYPE>( VALUE ) )
 #define TSTATICCAST( POINTERTYPE, VALUE ) ( static_cast<POINTERTYPE*>( VALUE ) )
 #define TCAST( TYPE, VALUE )              ( static_cast<TYPE>( VALUE ) )

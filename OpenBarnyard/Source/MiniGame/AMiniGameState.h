@@ -200,4 +200,4 @@ protected:
 
 TSTATICASSERT( sizeof( AMiniGameState::PlayerInfo ) == 0x40 );
 TSTATICASSERT( sizeof( AMiniGameState::S1 ) == 0x118 );
-TSTATICASSERT( sizeof( AMiniGameState ) == 0xbac );
+TSTATICASSERT_SIZE( sizeof( AMiniGameState ) == 0xbac );
