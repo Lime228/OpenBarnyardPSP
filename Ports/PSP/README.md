@@ -6,10 +6,14 @@ native PSP package artwork from `Assets/ICON0.PNG` (144x80) and
 budgets enforced by `Tools/test_package_assets.py`; Premake passes both images
 directly to `pack-pbp`.
 
-This target is the first executable milestone for the PSP port. It deliberately
-does not compile the game yet. It validates the PSPDEV toolchain, 32-bit C++ ABI,
-controller input, double buffering, and a basic GU draw call before Toshi is
-connected to the platform layer.
+The executable target is a diagnostic milestone for the PSP port. It validates
+the PSPDEV toolchain, 32-bit C++ ABI, controller input, selected Toshi services,
+bounded assets and GU rendering. A separate `OpenBarnyardPSPGameSlice` static
+library now compiles the original application bootstrap, root task, loader and
+selected frontend states, but that library is not linked into this EBOOT and the
+original game does not execute yet. See
+[`Docs/PSP_PORT_HANDOFF.md`](../../Docs/PSP_PORT_HANDOFF.md) for the exact
+runtime boundary and next dependency-closure work.
 
 ## Build on Windows through WSL
 
