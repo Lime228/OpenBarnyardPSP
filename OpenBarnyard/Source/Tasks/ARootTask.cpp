@@ -22,7 +22,11 @@
 #include "GameInterface/AFrontEndLanguageState.h"
 #include "Locale/ALocaleManager.h"
 #include "Sound/ASoundManager.h"
-#include "Movie/ABINKMoviePlayer.h"
+#ifdef TOSHI_SKU_WINDOWS
+#  include "Movie/ABINKMoviePlayer.h"
+#elif defined( TOSHI_SKU_PSP )
+#  include "Platform/PSP/AMoviePlayer_PSP.h"
+#endif
 #include "ALoadScreen.h"
 #include "FSM/AFSMManager.h"
 #include "Terrain/ATerrainInterface.h"
@@ -92,7 +96,11 @@ ARootTask::ARootTask()
 	m_pInputHandler        = pScheduler->CreateTask<AInputHandler>( this );
 	m_pGameStateController = pScheduler->CreateTask<AGameStateController>( this );
 	m_pSoundManager        = pScheduler->CreateTask<ASoundManager>( this );
-	m_pMoviePlayer         = pScheduler->CreateTask<ABINKMoviePlayer>( this );
+#ifdef TOSHI_SKU_WINDOWS
+	m_pMoviePlayer = pScheduler->CreateTask<ABINKMoviePlayer>( this );
+#elif defined( TOSHI_SKU_PSP )
+	m_pMoviePlayer = pScheduler->CreateTask<AMoviePlayer_PSP>( this );
+#endif
 
 	// NOTE: the wave bank info isn't loaded yet, SetCategoryVolume registers Music/VO/Ingame with the next free indices
 	AOptions::GetSingleton()->ApplySettings();
