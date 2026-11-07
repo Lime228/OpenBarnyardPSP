@@ -159,6 +159,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Platform/PSP/ACollisionModel_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ADisplayModes_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AMoviePlayer_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/AppBoot_PSP.cpp",
 		"../../OpenBarnyard/Source/Tasks/ARootTask.cpp"
 	}
 
