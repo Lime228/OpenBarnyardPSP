@@ -9,7 +9,7 @@ class TGenericGlobalListener : public TQList<TGenericGlobalListener<T>>::TNode
 public:
 	using EventCallback = void ( * )( void*, const T& );
 
-	template <class T>
+	template <class U>
 	friend class TGlobalEmitter;
 
 protected:

@@ -211,24 +211,24 @@ public:
 		return m_szBuffer;
 	}
 
-	constexpr CharType* Get( TUINT a_uiIndex )
+	CharType* Get( TUINT a_uiIndex )
 	{
 		TASSERT( a_uiIndex < Size );
 		return &m_szBuffer[ a_uiIndex ];
 	}
 
-	constexpr const CharType* Get( TUINT a_uiIndex ) const
+	const CharType* Get( TUINT a_uiIndex ) const
 	{
 		TASSERT( a_uiIndex < Size );
 		return &m_szBuffer[ a_uiIndex ];
 	}
 
-	constexpr CharType& operator[]( TUINT a_uiIndex )
+	CharType& operator[]( TUINT a_uiIndex )
 	{
 		return *Get( a_uiIndex );
 	}
 
-	constexpr const CharType& operator[]( TUINT a_uiIndex ) const
+	const CharType& operator[]( TUINT a_uiIndex ) const
 	{
 		return *Get( a_uiIndex );
 	}
@@ -264,7 +264,7 @@ class T2StringParser
 {
 public:
 	using CharType    = typename StringTraits::CharType;
-	using ConstString = typename T2StringViewBase<StringTraits>;
+	using ConstString = T2StringViewBase<StringTraits>;
 
 public:
 	T2StringParser( ConstString a_pchBuffer, TSIZE a_uiBufferSize = -1 )
@@ -496,24 +496,24 @@ public:
 		return m_szBuffer;
 	}
 
-	constexpr CharType* Get( TUINT a_uiIndex )
+	CharType* Get( TUINT a_uiIndex )
 	{
 		TASSERT( a_uiIndex < Size );
 		return &m_szBuffer[ a_uiIndex ];
 	}
 
-	constexpr const CharType* Get( TUINT a_uiIndex ) const
+	const CharType* Get( TUINT a_uiIndex ) const
 	{
 		TASSERT( a_uiIndex < Size );
 		return &m_szBuffer[ a_uiIndex ];
 	}
 
-	constexpr CharType& operator[]( TUINT a_uiIndex )
+	CharType& operator[]( TUINT a_uiIndex )
 	{
 		return *Get( a_uiIndex );
 	}
 
-	constexpr const CharType& operator[]( TUINT a_uiIndex ) const
+	const CharType& operator[]( TUINT a_uiIndex ) const
 	{
 		return *Get( a_uiIndex );
 	}
