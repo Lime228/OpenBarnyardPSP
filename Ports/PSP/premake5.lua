@@ -157,6 +157,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/GameInterface/AGameStateController.cpp",
 		"../../OpenBarnyard/Source/Helpers/AGameLoader.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ADisplayModes_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/AMoviePlayer_PSP.cpp",
 		"../../OpenBarnyard/Source/Tasks/ARootTask.cpp"
 	}
 
