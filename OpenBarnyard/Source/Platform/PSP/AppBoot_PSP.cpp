@@ -1,13 +1,42 @@
 #include "pch.h"
 
 #include "AppBoot.h"
+#include "CVar/AVarType.h"
+#include "Locale/ALocale.h"
+#include "Locale/ALocaleManager.h"
+#include "Memory/AMemory.h"
 #include "Tasks/ARootTask.h"
 
+#include <Plugins/PPropertyParser/PProperties.h>
+#include <Plugins/PPropertyParser/PProperty.h>
+#include <Toshi/TPString8.h>
 #include <Toshi/TScheduler.h>
 
 TOSHI_NAMESPACE_USING
 
 MODAPI AApplication g_oTheApp;
+
+static TBOOL CreateOptionalSystems_PSP()
+{
+	TPString8Pool* pStringPool = new TPString8Pool(
+	    1024,
+	    0,
+	    AMemory::GetAllocator( AMemory::POOL_StringPool ),
+	    TNULL
+	);
+	if ( pStringPool == TNULL )
+		return TFALSE;
+
+	TUtil::SetTPStringPool( pStringPool );
+	AVarType::Create( pStringPool );
+	return TTRUE;
+}
+
+static TBOOL CreateLocaleManager_PSP()
+{
+	T2Locale::CreateSingleton<ALocaleManager>();
+	return ALocaleManager::Interface() != TNULL;
+}
 
 static TBOOL CreateDummyTask_PSP( TScheduler* a_pScheduler, ADummyTask*& a_rTask, const TCHAR* a_szName )
 {
@@ -25,6 +54,16 @@ AApplication::~AApplication() = default;
 TBOOL AApplication::OnCreate( TINT a_iArgCount, TCHAR** a_ppArgValues )
 {
 	TINFO( "Starting Barnyard PSP...\n" );
+
+	if ( !CreateOptionalSystems_PSP() || !CreateLocaleManager_PSP() )
+		return TFALSE;
+
+	PProperties::SetupFreeList( 100, 0 );
+	PProperty::SetupFreeList( 100, 0 );
+	TPooledString8::SetupFreeList( 0, 0 );
+
+	ALocaleManager::Interface()->SetLanguage( ALocaleManager::Lang_EnglishUK );
+	ALocaleUnknownData_SetUnk1( 0 );
 
 	auto pScheduler = g_oSystemManager.GetScheduler();
 	if ( pScheduler == TNULL )
