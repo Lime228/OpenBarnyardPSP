@@ -151,13 +151,11 @@ project "OpenBarnyardPSPGameSlice"
 
 	files
 	{
-		"GameSource/**.h",
-		"GameSource/**.cpp"
+		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp"
 	}
 
 	includedirs
 	{
-		"GameSource",
 		"../../OpenBarnyard/Source",
 		"../../Shared/Source",
 		"../../Toshi/Source",
