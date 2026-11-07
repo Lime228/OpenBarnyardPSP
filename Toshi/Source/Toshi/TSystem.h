@@ -6,6 +6,9 @@
 #ifdef TOSHI_SKU_WINDOWS
 #  include "Platform/Windows/TSystemDLL_Win.h"
 #endif // TOSHI_SKU_WINDOWS
+#ifdef TOSHI_SKU_PSP
+#  include "Platform/PSP/TSystemDLL_PSP.h"
+#endif // TOSHI_SKU_PSP
 
 TOSHI_NAMESPACE_START
 
@@ -15,6 +18,9 @@ class TPString8Pool;
 class TKernelInterfaceDLL :
 #ifdef TOSHI_SKU_WINDOWS
     public TSystemDLLWin
+    ,
+#elif defined( TOSHI_SKU_PSP )
+    public TSystemDLL_PSP
     ,
 #else
 #  error Unsupported platform
