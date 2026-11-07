@@ -1,23 +1,21 @@
 #pragma once
 #include "AMemoryPoolAllocator.h"
 
-#include <cstdint>
-
 class AMemoryPool
 {
 public:
-	constexpr AMemoryPool( const TCHAR* a_szName, int a_iHeapIndex, size_t a_uiSize, int a_iUnk1, int a_iUnk2 )
+	constexpr AMemoryPool( const TCHAR* a_szName, TINT a_iHeapIndex, TSIZE a_uiSize, TINT a_iUnk1, TINT a_iUnk2 )
 	    : m_szName( a_szName ), m_iHeapIndex( a_iHeapIndex ), m_uiSize( a_uiSize ), m_iUnk1( a_iUnk1 ), m_iUnk2( a_iUnk2 ) {}
 
 	const TCHAR* GetName() const { return m_szName; }
-	int          GetHeapIndex() const { return m_iHeapIndex; }
-	size_t       GetSize() const { return m_uiSize; }
+	TINT         GetHeapIndex() const { return m_iHeapIndex; }
+	TSIZE        GetSize() const { return m_uiSize; }
 	TINT         GetUnk2() const { return m_iUnk2; }
 
 private:
 	const TCHAR* m_szName;
 	TINT         m_iHeapIndex;
-	size_t       m_uiSize;
+	TSIZE        m_uiSize;
 	TINT         m_iUnk1;
 	TINT         m_iUnk2;
 };
@@ -25,7 +23,7 @@ private:
 class AMemory
 {
 public:
-	using POOL = uint32_t;
+	using POOL = TUINT32;
 	enum POOL_ : POOL
 	{
 		POOL_None = 0,
