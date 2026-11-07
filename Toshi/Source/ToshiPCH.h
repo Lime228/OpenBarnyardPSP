@@ -2,9 +2,17 @@
 
 #ifdef TOSHI_SKU_PSP
 
-#  include "Toshi/Defines.h"
-#  include "Toshi/Profiler.h"
-#  include "Toshi/TDebug.h"
+#  include <algorithm>
+#  include <cstdarg>
+#  include <map>
+#  include <memory>
+#  include <string>
+#  include <unordered_map>
+#  include <unordered_set>
+#  include <utility>
+#  include <vector>
+
+#  include "Toshi/Toshi.h"
 
 #else
 
