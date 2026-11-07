@@ -275,6 +275,9 @@ void AOptions::SetLanguage( T2Locale::Lang a_eLanguage )
 
 TBOOL AOptions::IsWindowed() const
 {
+#ifdef TOSHI_SKU_PSP
+	return TFALSE;
+#else
 #ifdef BARNYARD_COMMUNITY_PATCH
 	// Allow forcing the windowed mode from the command line
 	if ( TStringManager::String8FindString( GetCommandLineA(), "-windowed" ) )
@@ -286,6 +289,7 @@ TBOOL AOptions::IsWindowed() const
 #endif
 
 	return IsDebuggerPresent() || m_bForcedWindowed;
+#endif
 }
 
 #ifdef BARNYARD_LATEST
