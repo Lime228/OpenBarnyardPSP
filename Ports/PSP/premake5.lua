@@ -244,6 +244,7 @@ project "OpenBarnyardPSPGame"
 		"../../Toshi/Source/Plugins/PPropertyParser/PPropertyName.cpp",
 		"../../Toshi/Source/Plugins/PPropertyParser/PPropertyValue.cpp",
 		"../../Toshi/Source/Plugins/PPropertyParser/PPropertyValueArray.cpp",
+		"../../Toshi/Source/Plugins/PLexerTRB.cpp",
 		"../../Toshi/Source/Math/TRandom.cpp",
 		"../../Toshi/Source/T2Locale/T2Locale.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
