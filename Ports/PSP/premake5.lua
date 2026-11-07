@@ -219,11 +219,15 @@ project "OpenBarnyardPSPGame"
 
 	files
 	{
+		"../../OpenBarnyard/Source/AOptions.cpp",
+		"../../OpenBarnyard/Source/ARandom.cpp",
 		"../../OpenBarnyard/Source/CVar/AVarType.cpp",
+		"../../OpenBarnyard/Source/FSM/AFSMManager.cpp",
 		"../../OpenBarnyard/Source/Locale/ALocale.cpp",
 		"../../OpenBarnyard/Source/Locale/ALocaleManager.cpp",
 		"../../OpenBarnyard/Source/Memory/AMemory.cpp",
 		"../../OpenBarnyard/Source/Memory/AMemoryPoolAllocator.cpp",
+		"../../OpenBarnyard/Source/Tasks/ADummyTask.cpp",
 		"../../Toshi/Source/Core/TMemory.cpp",
 		"../../Toshi/Source/File/TFile.cpp",
 		"../../Toshi/Source/File/TFileManager.cpp",

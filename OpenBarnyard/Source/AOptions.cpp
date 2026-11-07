@@ -13,7 +13,9 @@
 #  include <direct.h>
 #endif // BARNYARD_LATEST
 
-#include <windows.h>
+#ifdef TOSHI_SKU_WINDOWS
+#  include <windows.h>
+#endif
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -118,6 +120,15 @@ TBOOL AOptions::ApplySettings()
 // $Barnyard: FUNCTION 00662eb0
 void AOptions::LoadSettings()
 {
+#ifdef TOSHI_SKU_PSP
+	m_fGamma             = 0.420849f;
+	m_iWidth             = 480;
+	m_iHeight            = 272;
+	m_fSensitivity       = 0.5f;
+	m_bHighDetailGrass   = TFALSE;
+	m_bControllerEnabled = TTRUE;
+	m_bForcedWindowed    = TFALSE;
+#else
 	m_fGamma             = 0.420849f;
 	m_iWidth             = 800;
 	m_iHeight            = 600;
@@ -204,6 +215,7 @@ void AOptions::LoadSettings()
 			m_bControllerEnabled = dwData != FALSE;
 		}
 	}
+#endif
 }
 
 // $Barnyard: FUNCTION 00662d90
