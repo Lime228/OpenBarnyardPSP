@@ -60,7 +60,7 @@
 		#include "Ice/IceRay.h"
 		#include "Ice/IceIndexedTriangle.h"
 		#include "Ice/IceTriangle.h"
-		#include "Ice/IceTriList.h"
+		#include "Ice/IceTrilist.h"
 		#include "Ice/IceAABB.h"
 		#include "Ice/IceOBB.h"
 		#include "Ice/IceBoundingSphere.h"
