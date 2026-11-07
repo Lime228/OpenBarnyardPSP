@@ -129,6 +129,28 @@ jobs:
           --workdir /workspace
           ghcr.io/pspdev/pspdev:latest
           make -C Build/PSP config=release_psp -j"$(nproc)"
+          OpenBarnyardPSPBootstrap OpenBarnyardPSPGameSlice
+
+      - name: Audit original PSP game link closure
+        continue-on-error: true
+        run: |
+          mkdir -p Runtime/PSPLinkAudit
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:/workspace" \
+            --workdir /workspace \
+            ghcr.io/pspdev/pspdev:latest \
+            bash -o pipefail -c \
+            'make -C Build/PSP config=release_psp -j"$(nproc)" OpenBarnyardPSPGame 2>&1 | tee Runtime/PSPLinkAudit/build.log'
+
+      - name: Publish original PSP link audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenBarnyard-PSP-link-audit
+          path: |
+            Runtime/PSPLinkAudit/build.log
+            bin/PSP/Release/openbarnyard_psp_game.map
+          if-no-files-found: warn
 
       - name: Publish PSP bootstrap
         uses: actions/upload-artifact@v4

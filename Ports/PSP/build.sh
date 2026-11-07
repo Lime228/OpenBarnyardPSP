@@ -49,4 +49,14 @@ python3 "$script_dir/Tools/generate_wave_bank.py" \
     --stream bootstrap_stream=local:bootstrap_stream.padp
 
 premake5 --file="$repository_dir/premake5.lua" gmake --target=psp
-make -C "$repository_dir/Build/PSP" config="$build_config" -j"$(nproc)" "$@"
+
+build_targets=( OpenBarnyardPSPBootstrap OpenBarnyardPSPGameSlice )
+if [[ "${PSP_BUILD_ORIGINAL:-0}" == "1" ]]; then
+    build_targets+=( OpenBarnyardPSPGame )
+fi
+
+make -C "$repository_dir/Build/PSP" \
+    config="$build_config" \
+    -j"$(nproc)" \
+    "${build_targets[@]}" \
+    "$@"
