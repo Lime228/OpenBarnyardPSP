@@ -204,3 +204,123 @@ project "OpenBarnyardPSPGameSlice"
 		optimize "On"
 
 	filter {}
+
+project "OpenBarnyardPSPGame"
+	kind "ConsoleApp"
+	language "C++"
+	cppdialect "C++20"
+	toolset "gcc"
+	gccprefix "psp-"
+	targetname "openbarnyard_psp_game"
+	targetextension ".elf"
+
+	targetdir ( "../../bin/PSP/%{cfg.buildcfg}" )
+	objdir ( "../../bin-int/PSPGame/%{cfg.buildcfg}" )
+
+	files
+	{
+		"../../OpenBarnyard/Source/CVar/AVarType.cpp",
+		"../../OpenBarnyard/Source/Locale/ALocale.cpp",
+		"../../OpenBarnyard/Source/Locale/ALocaleManager.cpp",
+		"../../OpenBarnyard/Source/Memory/AMemory.cpp",
+		"../../OpenBarnyard/Source/Memory/AMemoryPoolAllocator.cpp",
+		"../../Toshi/Source/Core/TMemory.cpp",
+		"../../Toshi/Source/File/TFile.cpp",
+		"../../Toshi/Source/File/TFileManager.cpp",
+		"../../Toshi/Source/File/TFileSystem.cpp",
+		"../../Toshi/Source/File/TLogFile.cpp",
+		"../../Toshi/Source/Input/TInputDevice.cpp",
+		"../../Toshi/Source/Input/TInputDeviceController.cpp",
+		"../../Toshi/Source/Input/TInputInterface.cpp",
+		"../../Toshi/Source/Plugins/PPropertyParser/PProperties.cpp",
+		"../../Toshi/Source/Plugins/PPropertyParser/PPropertyBlock.cpp",
+		"../../Toshi/Source/Plugins/PPropertyParser/PPropertyName.cpp",
+		"../../Toshi/Source/Plugins/PPropertyParser/PPropertyValue.cpp",
+		"../../Toshi/Source/T2Locale/T2Locale.cpp",
+		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
+		"../../Toshi/Source/Toshi/T2String8.cpp",
+		"../../Toshi/Source/Toshi/TApplication.cpp",
+		"../../Toshi/Source/Toshi/TClass.cpp",
+		"../../Toshi/Source/Toshi/TDList.cpp",
+		"../../Toshi/Source/Toshi/TEvent.cpp",
+		"../../Toshi/Source/Toshi/TFreeList.cpp",
+		"../../Toshi/Source/Toshi/TObject.cpp",
+		"../../Toshi/Source/Toshi/TPriList.cpp",
+		"../../Toshi/Source/Toshi/TPString8.cpp",
+		"../../Toshi/Source/Toshi/TScheduler.cpp",
+		"../../Toshi/Source/Toshi/TString8.cpp",
+		"../../Toshi/Source/Toshi/TSystem.cpp",
+		"../../Toshi/Source/Toshi/TTask.cpp",
+		"../../Toshi/Source/Toshi/TUtil.cpp",
+		"../../Toshi/Source/Platform/PSP/**.h",
+		"../../Toshi/Source/Platform/PSP/**.cpp"
+	}
+
+	includedirs
+	{
+		"../../OpenBarnyard/Source",
+		"../../Shared/Source",
+		"../../Toshi/Source",
+		pspdev .. "/psp/include",
+		pspdev .. "/psp/sdk/include"
+	}
+
+	libdirs
+	{
+		pspdev .. "/psp/lib",
+		pspdev .. "/psp/sdk/lib"
+	}
+
+	defines
+	{
+		"TOSHI_SKU_PSP",
+		"TRENDERINTERFACE_PSP",
+		"TOSHI_NO_LOGS",
+		"_PSP_FW_VERSION=660"
+	}
+
+	buildoptions
+	{
+		"-G0",
+		"-Wall",
+		"-Wextra",
+		"-ffunction-sections",
+		"-fdata-sections",
+		"-fno-exceptions",
+		"-fno-rtti"
+	}
+
+	linkoptions
+	{
+		"-G0",
+		"-Wl,--gc-sections",
+		"-Wl,-zmax-page-size=128",
+		"-Wl,-Map=%{cfg.targetdir}/openbarnyard_psp_game.map"
+	}
+
+	links
+	{
+		"OpenBarnyardPSPGameSlice",
+		"pspaudio",
+		"pspgum",
+		"pspgu",
+		"pspge",
+		"pspdisplay",
+		"pspctrl",
+		"m",
+		"pspdebug"
+	}
+
+	filter "configurations:Debug"
+		defines "TOSHI_DEBUG"
+		symbols "On"
+
+	filter "configurations:Release"
+		defines "TOSHI_RELEASE"
+		optimize "On"
+
+	filter "configurations:Final"
+		defines "TOSHI_FINAL"
+		optimize "On"
+
+	filter {}
