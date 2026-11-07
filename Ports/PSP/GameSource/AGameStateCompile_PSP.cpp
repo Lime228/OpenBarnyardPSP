@@ -1,4 +1,4 @@
-#include <GameInterface/AGameState.h>
+#include <pch.h>
 
 static AGameState* GetOriginalGameStateCompileGate_PSP( AGameState* a_pState )
 {
