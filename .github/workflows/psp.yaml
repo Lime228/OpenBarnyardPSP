@@ -85,6 +85,7 @@ jobs:
           python3 Ports/PSP/Tools/test_convert_barnyard_skin.py
           python3 Ports/PSP/Tools/convert_world.py Ports/PSP/Assets/probe_world.json /tmp/probe.pwld
           python3 Ports/PSP/Tools/test_convert_world.py
+          python3 Ports/PSP/Tools/test_analyse_link_audit.py
           python3 Ports/PSP/Tools/generate_bootstrap_font.py Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.pfnt
           python3 Ports/PSP/Tools/convert_texture.py --alpha-mask Ports/PSP/Assets/bootstrap_font.ppm Ports/PSP/Assets/bootstrap_font.ptex
           python3 Ports/PSP/Tools/generate_bootstrap_locale.py Ports/PSP/Assets/bootstrap_locale.ploc
@@ -142,6 +143,13 @@ jobs:
             bash -o pipefail -c \
             'make -C Build/PSP config=release_psp -j"$(nproc)" OpenBarnyardPSPGame 2>&1 | tee Runtime/PSPLinkAudit/build.log'
 
+      - name: Summarise original PSP link closure
+        if: always()
+        run: >-
+          python3 Ports/PSP/Tools/analyse_link_audit.py
+          Runtime/PSPLinkAudit/build.log
+          --output Runtime/PSPLinkAudit/summary.md
+
       - name: Publish original PSP link audit
         if: always()
         uses: actions/upload-artifact@v4
@@ -149,6 +157,7 @@ jobs:
           name: OpenBarnyard-PSP-link-audit
           path: |
             Runtime/PSPLinkAudit/build.log
+            Runtime/PSPLinkAudit/summary.md
             bin/PSP/Release/openbarnyard_psp_game.map
           if-no-files-found: warn
 
