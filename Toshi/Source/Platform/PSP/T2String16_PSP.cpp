@@ -3,6 +3,36 @@
 
 TOSHI_NAMESPACE_START
 
+TINT T2String16::Compare( const TWCHAR* a_pLeft, const TWCHAR* a_pRight, TSIZE a_uiSize )
+{
+	TSIZE uiIndex = 0;
+	while ( ( a_uiSize == TSIZE( -1 ) || uiIndex < a_uiSize ) &&
+	        a_pLeft[ uiIndex ] == a_pRight[ uiIndex ] )
+	{
+		if ( a_pLeft[ uiIndex ] == L'\0' )
+			return 0;
+
+		uiIndex++;
+	}
+
+	if ( a_uiSize != TSIZE( -1 ) && uiIndex == a_uiSize )
+		return 0;
+
+	return a_pLeft[ uiIndex ] < a_pRight[ uiIndex ] ? -1 : 1;
+}
+
+TSIZE T2String16::Length( const TWCHAR* a_pString )
+{
+	if ( a_pString == TNULL )
+		return 0;
+
+	const TWCHAR* pCursor = a_pString;
+	while ( *pCursor != L'\0' )
+		pCursor++;
+
+	return TSIZE( pCursor - a_pString );
+}
+
 TWCHAR* T2String16::Copy( TWCHAR* a_pDestination, const TWCHAR* a_pSource, TSIZE a_uiSize )
 {
 	if ( a_uiSize == TSIZE( -1 ) )
