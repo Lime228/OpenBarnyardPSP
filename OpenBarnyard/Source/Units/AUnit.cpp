@@ -44,8 +44,8 @@ void AUnit::InitialiseClass()
 	ms_oFunctionTable.Register( reinterpret_cast<void*>( &AUnitFunctionFallback ) );
 
 	ms_oFunctionTable.AddFunction( AMethodPointer0ArgsRT<TBOOL, AUnit>::Create( "DoesHaveUnitCountIdentifier", &AUnit::DoesHaveUnitCountIdentifier ) );
-	ms_oFunctionTable.AddFunction( AMethodPointer0ArgsRT<TUINT, AUnit>::Create( "GetUnitCountIdentifier", &AUnit::GetUnitCountIdentifier ) );
-	ms_oFunctionTable.AddFunction( AMethodPointer0ArgsRT<TUINT, AUnit>::Create( "GetUnitCountMaximum", &AUnit::GetUnitCountMaximum ) );
+	ms_oFunctionTable.AddFunction( AMethodPointer0ArgsRT<TUINT32, AUnit>::Create( "GetUnitCountIdentifier", &AUnit::GetUnitCountIdentifier ) );
+	ms_oFunctionTable.AddFunction( AMethodPointer0ArgsRT<TUINT32, AUnit>::Create( "GetUnitCountMaximum", &AUnit::GetUnitCountMaximum ) );
 	ms_oFunctionTable.AddFunction( AMethodPointer0ArgsRT<TBOOL, AUnit>::Create( "HasInteraction", &AUnit::HasInteraction ) );
 	ms_oFunctionTable.AddFunction( AMethodPointer3ArgsRT<TBOOL, AUnit, AUnit*, TFLOAT, TFLOAT>::Create( "CanPerceiveUnit", &AUnit::CanPerceiveUnit ) );
 	ms_oFunctionTable.AddFunction( AMethodPointer3ArgsRT<TBOOL, AUnit, AUnit*, TFLOAT, TFLOAT>::Create( "CanPerceiveUnitMe", &AUnit::CanPerceiveUnitMe ) );
@@ -151,7 +151,7 @@ TINT AUnit::SetUnk34( TINT a_iValue )
 }
 
 // $Barnyard: FUNCTION 00412fa0
-TUINT AUnit::GetUnitCountMaximum()
+TUINT32 AUnit::GetUnitCountMaximum()
 {
 	return m_pType->GetInstanceCount();
 }

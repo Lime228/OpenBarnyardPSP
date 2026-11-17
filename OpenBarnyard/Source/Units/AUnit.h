@@ -70,8 +70,8 @@ public:
 	virtual TBOOL                 IsUnk34Set() { return m_iUnk34 != 0; }                  // +0x38
 	virtual TBOOL                 DoesHaveUnitCountIdentifier() { return TFALSE; }        // +0x3c, RETURNS_FALSE
 	virtual void                  SetUnitCountIdentifier( TUINT a_uiIndex ) {}            // +0x40, DOES_NOTHING
-	virtual TUINT                 GetUnitCountIdentifier() { return 1; }                  // +0x44
-	virtual TUINT                 GetUnitCountMaximum();                                  // +0x48, type's instance count
+	virtual TUINT32               GetUnitCountIdentifier() { return 1; }                  // +0x44
+	virtual TUINT32               GetUnitCountMaximum();                                  // +0x48, type's instance count
 	virtual TBOOL                 Unk_0x4c() { return TFALSE; }                           // +0x4c, RETURNS_FALSE
 	virtual void                  Unk_0x50( TINT a_iUnk ) {}                              // +0x50, DOES_NOTHING
 	virtual ACarryableUnitHelper* GetCarryableHelper() { return TNULL; }                  // +0x54, RETURNS_ZERO, ACarryableUnit returns its helper
