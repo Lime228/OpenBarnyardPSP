@@ -151,6 +151,7 @@ project "OpenBarnyardPSPGameSlice"
 
 	files
 	{
+		"../../OpenBarnyard/Source/FSM/**.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AFrontEndAttractState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AFrontEndMainMenuState2.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp",
@@ -223,7 +224,6 @@ project "OpenBarnyardPSPGame"
 		"../../OpenBarnyard/Source/APooledStrings.cpp",
 		"../../OpenBarnyard/Source/ARandom.cpp",
 		"../../OpenBarnyard/Source/CVar/AVarType.cpp",
-		"../../OpenBarnyard/Source/FSM/**.cpp",
 		"../../OpenBarnyard/Source/Locale/ALocale.cpp",
 		"../../OpenBarnyard/Source/Locale/ALocaleManager.cpp",
 		"../../OpenBarnyard/Source/Memory/AMemory.cpp",
