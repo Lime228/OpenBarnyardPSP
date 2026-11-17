@@ -92,7 +92,14 @@ ARootTask::ARootTask()
 	m_pGUISystem = pScheduler->CreateTask<AGUISystem>( this );
 	m_pGUI2      = pScheduler->CreateTask<AGUI2>( this );
 	m_pRenderer  = pScheduler->CreateTask<ARenderer>( this );
+	// The PSP front end has to fit alongside the converted startup assets.  The
+	// world FSM table pulls every gameplay native through AMiscFunctions, even
+	// though none of it is used by the legal slides or startup movies.  Defer it
+	// until CreateGameSystem(), immediately before the original FSM scripts are
+	// loaded.  Other platforms keep their original construction order.
+#ifndef TOSHI_SKU_PSP
 	pScheduler->CreateTask<AFSMManager>( this );
+#endif
 	m_pInputHandler        = pScheduler->CreateTask<AInputHandler>( this );
 	m_pGameStateController = pScheduler->CreateTask<AGameStateController>( this );
 	m_pSoundManager        = pScheduler->CreateTask<ASoundManager>( this );
@@ -532,6 +539,12 @@ void ARootTask::CreateGameSystem()
 	ASoundManager::GetSingleton()->LoadWaveBanksInfo( "soundmetadata" );
 
 	// Load the FSM scripts
+#ifdef TOSHI_SKU_PSP
+	if ( !AFSMManager::IsSingletonCreated() )
+	{
+		g_oSystemManager.GetScheduler()->CreateTask<AFSMManager>( this );
+	}
+#endif
 	AFSMManager::GetSingleton()->Create();
 	g_oLoadScreen.Update( 1.0f, TTRUE );
 	g_oLoadScreen.Update( 1.0f, TTRUE );
