@@ -124,9 +124,11 @@ ARootTask::~ARootTask()
 // $Barnyard: FUNCTION 00402dd0
 TBOOL ARootTask::Reset()
 {
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AUnitManager::GetSingleton()->RemoveAllUnits();
 	ASoundManager::GetSingleton()->Reset();
 	m_pGameSystemManager->Reset();
+#endif
 
 	return TTRUE;
 }
@@ -147,8 +149,10 @@ void ARootTask::OnDestroy()
 	if ( ARandom::IsSingletonCreated() )
 		delete ARandom::GetSingleton();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	if ( APlayerProgress::IsSingletonCreated() )
 		delete APlayerProgress::GetSingleton();
+#endif
 }
 
 // Moves the task to the end of its parent's children
@@ -164,7 +168,9 @@ void ARootTask::Shutdown()
 	s_bShuttingDown = TTRUE;
 
 	ReattachTask( m_pRenderer );
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	ReattachTask( AFSMManager::IsSingletonCreated() ? AFSMManager::GetSingleton() : TNULL );
+#endif
 	ReattachTask( m_pInputHandler );
 	ReattachTask( m_pMoviePlayer );
 	ReattachTask( m_pGUISystem );
@@ -176,16 +182,20 @@ void ARootTask::Shutdown()
 	if ( AGameStateController::IsSingletonCreated() )
 		AGameStateController::GetSingleton()->ResetStack();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	if ( AUnitManager::IsSingletonCreated() )
 		AUnitManager::GetSingleton()->RemoveAllUnits();
 
 	if ( AInteractionManager::IsSingletonCreated() )
 		AInteractionManager::GetSingleton()->Reset();
+#endif
 
 	if ( AGUISystem::IsSingletonCreated() )
 		AGUISystem::GetSingleton()->ResetPicture();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AGameLoader::DestroyLevel();
+#endif
 }
 
 // $Barnyard: FUNCTION 00402b20
@@ -249,6 +259,17 @@ TBOOL ARootTask::OnCreate()
 // $Barnyard: FUNCTION 00403a80
 TBOOL ARootTask::OnUpdate( TFLOAT a_fDeltaTime )
 {
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	// The first runnable original-game milestone ends after the retail startup
+	// chain.  World loading is deliberately outside this executable until its
+	// PSP render, audio and memory backends are linked.
+	if ( !m_bStartedGame )
+	{
+		CreateStartupGameStates();
+	}
+
+	return TTRUE;
+#else
 	if ( !IsGameSystemCreated() )
 	{
 		if ( !AGameStateController::GetSingleton()->IsCurrentState( &TGetClass( ASlideshowState ) ) &&
@@ -302,6 +323,7 @@ TBOOL ARootTask::OnUpdate( TFLOAT a_fDeltaTime )
 	}
 
 	return TTRUE;
+#endif
 }
 
 // $Barnyard: FUNCTION 00402b40
@@ -333,7 +355,9 @@ void ARootTask::OnActivate()
 	if ( m_bGameSystemCreated )
 	{
 		if ( m_pUnkTask ) m_pUnkTask->Activate( TTRUE );
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( AFSMManager::IsSingletonCreated() ) AFSMManager::GetSingleton()->Activate( TTRUE );
+#endif
 		if ( m_pGameSystemManager ) m_pGameSystemManager->Activate( TTRUE );
 	}
 }
@@ -348,7 +372,9 @@ void ARootTask::OnDeactivate()
 	if ( m_pGameStateController ) m_pGameStateController->Activate( TFALSE );
 	if ( m_pUnkTask ) m_pUnkTask->Activate( TFALSE );
 	if ( m_pMoviePlayer ) m_pMoviePlayer->Activate( TFALSE );
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	if ( AFSMManager::IsSingletonCreated() ) AFSMManager::GetSingleton()->Activate( TFALSE );
+#endif
 }
 
 TPSTRING8_DECLARE( bkg_by_legal1 );
@@ -359,6 +385,7 @@ TPSTRING8_DECLARE( bkg_fmod );
 // $Barnyard: FUNCTION 00402e70
 void ARootTask::CreateStartupGameStates()
 {
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	// Create main object for storing info about the current story progress
 	APlayerProgress::CreateSingleton( 1, 4, 0, 0 );
 
@@ -385,6 +412,7 @@ void ARootTask::CreateStartupGameStates()
 
 		return;
 	}
+#endif
 #endif
 
 	auto attractMovie    = new AMovieState( "Attract", TFALSE, TNULL, TFALSE );
@@ -426,6 +454,11 @@ void ARootTask::CreateStartupGameStates()
 	auto legalSlide             = new ASlideshowState( slideshowSettings, binkSlide, TTRUE );
 	legalSlide->AddSlide( TPS8( bkg_by_legal1 ) );
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	// Use the original state classes and original pooled asset names, but keep
+	// save-data and world loading out of the bounded startup milestone.
+	AGameStateController::GetSingleton()->PushState( legalSlide );
+#else
 	// Load the save data first
 #ifdef BARNYARD_COMMUNITY_PATCH
 	AGameLoader::Dev_SetupSaveFileAtBoot();
@@ -449,6 +482,7 @@ void ARootTask::CreateStartupGameStates()
 	}
 #else
 	AGameStateController::GetSingleton()->PushState( pSaveLoad );
+#endif
 #endif
 
 	m_bStartedGame = TTRUE;
