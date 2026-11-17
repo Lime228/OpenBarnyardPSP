@@ -243,9 +243,13 @@ void TRenderInterface::DumpStats()
 			pFile->CPrintf( "  Sub-version : %u\r\n", pAdapter->GetSubVersion() );
 			pFile->CPrintf( "  Build       : %u\r\n", pAdapter->GetBuild() );
 
-			// NOTE: retail prints the address of Data4 as the last number
+			// NOTE: retail prints the address of Data4 as the last number.
+#ifdef TOSHI_SKU_WINDOWS
 			const GUID* pGUID = TSTATICCAST( const GUID, pAdapter->GetDeviceIdentifier() );
 			pFile->CPrintf( "  GUID        : %u-%u-%u-%u\r\n", pGUID->Data1, pGUID->Data2, pGUID->Data3, pGUID->Data4 );
+#else
+			pFile->CPrintf( "  Identifier  : %p\r\n", pAdapter->GetDeviceIdentifier() );
+#endif
 
 			pFile->CPrintf( "  Supports %d modes:\r\n", pAdapter->GetModeList()->Count() );
 
