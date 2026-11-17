@@ -228,6 +228,7 @@ project "OpenBarnyardPSPGame"
 		"../../OpenBarnyard/Source/Memory/AMemory.cpp",
 		"../../OpenBarnyard/Source/Memory/AMemoryPoolAllocator.cpp",
 		"../../OpenBarnyard/Source/Movie/AMoviePlayer.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/Input/AInputHandler_PSP.cpp",
 		"../../OpenBarnyard/Source/Tasks/ADummyTask.cpp",
 		"../../Toshi/Source/Core/TMemory.cpp",
 		"../../Toshi/Source/File/TFile.cpp",

@@ -12,6 +12,8 @@
 #  include <Platform/Windows/Input/TInputDeviceController_Win.h>
 #  include <Platform/Windows/Input/TInputDeviceController_XInput.h>
 #  include <Platform/Windows/Input/TInputDeviceMouse_Win.h>
+#elif defined( TOSHI_SKU_PSP )
+#  include <Platform/PSP/Input/TInputInterface_PSP.h>
 #endif
 
 //-----------------------------------------------------------------------------
@@ -44,9 +46,13 @@ AInputHandler::AInputHandler()
 	m_pRumbleController      = TNULL;
 	m_vRumblePosition        = TVector4::VEC_ZERO;
 
+#ifdef TOSHI_SKU_PSP
+	new TInputInterface_PSP();
+#else
 	auto pInputInterfaceClass = TClass::Find( "TInputDXInterface" );
 	auto pInputInterface      = pInputInterfaceClass->CreateObject();
 	TASSERT( pInputInterface && pInputInterface->IsA( &TGetClass( TInputInterface ) ) );
+#endif
 }
 
 // $Barnyard: FUNCTION 00595c40
@@ -81,6 +87,13 @@ TBOOL AInputHandler::OnCreate()
 #  endif
 				m_Devices.PushBack( it );
 		}
+	}
+#elif defined( TOSHI_SKU_PSP )
+	TInputDeviceController* pController = pInputInterface->GetDeviceByIndex<TInputDeviceController>( 0 );
+	if ( pController )
+	{
+		m_Devices.PushBack( pController );
+		m_pMainController = pController;
 	}
 #endif
 
