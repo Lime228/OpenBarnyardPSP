@@ -83,6 +83,7 @@ TBOOL AOptions::ApplySettings()
 		pSoundManager->SetCategoryVolume( TPS8( VO ), m_iVOVolume * ( 1.0f / 255.0f ), 0.0f );
 		pSoundManager->SetCategoryVolume( TPS8( Ingame ), m_iSfxVolume * ( 1.0f / 255.0f ), 0.0f );
 
+#ifndef TOSHI_SKU_PSP
 		// Apply the new volume to the music of the main game
 		AMultiplexStream* pMultiplexStream = AMultiplexStream::IsSingletonCreated() ? AMultiplexStream::GetSingleton() : TNULL;
 
@@ -91,6 +92,7 @@ TBOOL AOptions::ApplySettings()
 			for ( TINT i = 0; i < pMultiplexStream->GetNumSubChannels(); i++ )
 				pMultiplexStream->SetVolume( pMultiplexStream->GetVolume( i ), i, TTRUE );
 		}
+#endif
 	}
 
 	if ( m_eUpdatedSettings & UpdatedSettings_Language )
