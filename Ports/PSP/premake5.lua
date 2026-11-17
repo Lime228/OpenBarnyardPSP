@@ -223,6 +223,7 @@ project "OpenBarnyardPSPGame"
 	files
 	{
 		"../../OpenBarnyard/Source/AOptions.cpp",
+		"../../OpenBarnyard/Source/APooledStrings.cpp",
 		"../../OpenBarnyard/Source/ARandom.cpp",
 		"../../OpenBarnyard/Source/CVar/AVarType.cpp",
 		"../../OpenBarnyard/Source/FSM/**.cpp",
