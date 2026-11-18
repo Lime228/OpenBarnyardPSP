@@ -328,7 +328,11 @@ public:
 	//-----------------------------------------------------------------------------
 	// Own virtuals
 	//-----------------------------------------------------------------------------
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	virtual AFunctionTable* GetFunctionTable() { return TNULL; } // +0x38
+#else
 	virtual AFunctionTable* GetFunctionTable(); // +0x38
+#endif
 
 	//-----------------------------------------------------------------------------
 	// Own methods
@@ -671,7 +675,9 @@ private:
 	inline static TINT                                                                     ms_iNumPauses;
 
 	// FSM natives (Play, Play3DFromUnit, Stop, SetVolume, SetPaused) (DAT_0078c480)
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	static AFunctionTable ms_oFunctionTable;
+#endif
 
 private:
 	Toshi::T2DynamicObjectPool<SoundEvent>                              m_SoundEventPool;                     // 0x20

@@ -153,6 +153,7 @@ project "OpenBarnyardPSPGameSlice"
 	{
 		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGameStateController_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/ASoundManager_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ADisplayModes_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AMoviePlayer_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AppBoot_PSP.cpp",
