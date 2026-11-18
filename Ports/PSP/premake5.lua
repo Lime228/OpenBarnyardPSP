@@ -151,7 +151,12 @@ project "OpenBarnyardPSPGameSlice"
 
 	files
 	{
+		"../../OpenBarnyard/Source/GameInterface/AMovieState.cpp",
+		"../../OpenBarnyard/Source/GameInterface/ASlideshowState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp",
+		"../../OpenBarnyard/Source/GUI/AFade.cpp",
+		"../../OpenBarnyard/Source/GUI/AFadeManager.cpp",
+		"../../OpenBarnyard/Source/GUI/AGUISlideshow.cpp",
 		"../../OpenBarnyard/Source/Input/AInputMap.cpp",
 		"../../OpenBarnyard/Source/Input/AInputMapManager.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGameStateController_PSP.cpp",
