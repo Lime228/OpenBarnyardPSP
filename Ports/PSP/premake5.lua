@@ -151,13 +151,8 @@ project "OpenBarnyardPSPGameSlice"
 
 	files
 	{
-		"../../OpenBarnyard/Source/FSM/**.cpp",
-		"../../OpenBarnyard/Source/GameInterface/AFrontEndAttractState.cpp",
-		"../../OpenBarnyard/Source/GameInterface/AFrontEndMainMenuState2.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AGameStateController.cpp",
-		"../../OpenBarnyard/Source/Helpers/AGameLoader.cpp",
-		"../../OpenBarnyard/Source/Platform/PSP/ACollisionModel_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ADisplayModes_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AMoviePlayer_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AppBoot_PSP.cpp",
@@ -232,8 +227,6 @@ project "OpenBarnyardPSPGame"
 		"../../OpenBarnyard/Source/Movie/AMoviePlayer.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/Input/AInputHandler_PSP.cpp",
 		"../../OpenBarnyard/Source/Tasks/ADummyTask.cpp",
-		"../../OpenBarnyard/Source/Units/AUnit.cpp",
-		"../../OpenBarnyard/Source/Units/AUnitTransform.cpp",
 		"../../Toshi/Source/Core/TMemory.cpp",
 		"../../Toshi/Source/File/TFile.cpp",
 		"../../Toshi/Source/File/TFileLexer.cpp",
