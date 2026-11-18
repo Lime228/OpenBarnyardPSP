@@ -338,6 +338,8 @@ project "OpenBarnyardPSPGame"
 	linkoptions
 	{
 		"-G0",
+		"-Wl,--gc-sections",
+		"-Wl,-T,../../Ports/PSP/psp-retain-imports.ld",
 		"-Wl,-zmax-page-size=128",
 		"-Wl,-Map=%{cfg.targetdir}/openbarnyard_psp_game.map"
 	}
