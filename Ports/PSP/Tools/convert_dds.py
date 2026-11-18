@@ -84,7 +84,7 @@ def decode_masked_pixels(
     pitch: int,
     masks: tuple[int, int, int, int],
 ) -> bytes:
-    if bit_count not in {16, 32}:
+    if bit_count not in {16, 24, 32}:
         raise ValueError(f"unsupported uncompressed DDS bit depth {bit_count}")
     bytes_per_pixel = bit_count // 8
     minimum_pitch = width * bytes_per_pixel
@@ -114,6 +114,7 @@ def read_dds(path: pathlib.Path) -> tuple[int, int, bytes]:
     payload = path.read_bytes()
     if len(payload) < 128 or payload[:4] != b"DDS " or struct.unpack_from("<I", payload, 4)[0] != 124:
         raise ValueError("input is not a supported DDS file")
+    header_flags = struct.unpack_from("<I", payload, 8)[0]
     height, width = struct.unpack_from("<II", payload, 12)
     pixel_format_size = struct.unpack_from("<I", payload, 76)[0]
     pixel_format_flags = struct.unpack_from("<I", payload, 80)[0]
@@ -125,9 +126,11 @@ def read_dds(path: pathlib.Path) -> tuple[int, int, bytes]:
         raise ValueError("PSP DDS dimensions must be powers of two no larger than 512x512")
 
     if fourcc == b"\0\0\0\0" and pixel_format_flags & 0x40:
-        pitch = struct.unpack_from("<I", payload, 20)[0]
+        minimum_pitch = width * (bit_count // 8)
+        pitch_or_linear_size = struct.unpack_from("<I", payload, 20)[0]
+        pitch = pitch_or_linear_size if header_flags & 0x8 else minimum_pitch
         if pitch == 0:
-            pitch = width * (bit_count // 8)
+            pitch = minimum_pitch
         return width, height, decode_masked_pixels(
             payload[128:],
             width,
@@ -205,7 +208,7 @@ def convert(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert a bounded DXT DDS texture to OpenBarnyard PSP PTEX")
+    parser = argparse.ArgumentParser(description="Convert a bounded DDS texture to OpenBarnyard PSP PTEX")
     parser.add_argument("--linear", action="store_true", help="store linear pixels instead of PSP-swizzled blocks")
     parser.add_argument("--max-width", type=int, help="reduce by 2x box filters until this PSP-safe width is reached")
     parser.add_argument("source", type=pathlib.Path)

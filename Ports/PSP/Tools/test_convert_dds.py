@@ -63,6 +63,20 @@ class DDSConversionTests(unittest.TestCase):
             self.assertEqual(payload[24:28], bytes((255, 0, 0, 255)))
             self.assertEqual(payload[28:32], bytes((0, 255, 0, 0)))
 
+    def test_converts_r8g8b8_to_rgba(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            source = temporary / "source.dds"
+            destination = temporary / "output.ptex"
+            header = bytearray(dds_header(2, 1, b"\0\0\0\0", 6))
+            struct.pack_into("<I", header, 80, 0x40)
+            struct.pack_into("<5I", header, 88, 24, 0xFF0000, 0x00FF00, 0x0000FF, 0)
+            source.write_bytes(header + bytes((0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00)))
+            convert(source, destination, linear=True)
+            payload = destination.read_bytes()
+            self.assertEqual(payload[24:28], bytes((255, 0, 0, 255)))
+            self.assertEqual(payload[28:32], bytes((0, 255, 0, 255)))
+
     def test_rejects_oversized_texture(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_name:
             source = pathlib.Path(temporary_name) / "large.dds"
