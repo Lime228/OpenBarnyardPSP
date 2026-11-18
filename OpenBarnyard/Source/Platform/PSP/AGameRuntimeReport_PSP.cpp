@@ -2,7 +2,9 @@
 
 #include "AGameRuntimeReport_PSP.h"
 
+#include <Core/TMemory.h>
 #include <Math/TMath.h>
+#include <Platform/PSP/TRenderMemory_PSP.h>
 #include <Toshi/TStringManager.h>
 
 #include <pspiofilemgr.h>
@@ -59,13 +61,30 @@ void ASetGameRuntimeFailedPath_PSP( const TCHAR* a_szPath )
 	);
 }
 
+void AUpdateGameRuntimeMemory_PSP()
+{
+	if ( g_pMemory != TNULL )
+	{
+		TMemory::MemInfo oMemoryInfo;
+		TMemory::GetMemInfo( oMemoryInfo, g_pMemory->GetGlobalBlock() );
+		s_GameRuntimeReport_PSP.uiHeapFree        = oMemoryInfo.m_uiTotalFree;
+		s_GameRuntimeReport_PSP.uiHeapLargestHole = oMemoryInfo.m_uiLargestHole;
+		s_GameRuntimeReport_PSP.uiHeapUsed        = oMemoryInfo.m_uiTotalUsed;
+	}
+
+	const TRenderMemoryStats_PSP oRenderMemory = TRenderMemory_PSP::GetStats();
+	s_GameRuntimeReport_PSP.uiRenderMainCurrent = oRenderMemory.uiMainCurrent;
+	s_GameRuntimeReport_PSP.uiRenderMainPeak    = oRenderMemory.uiMainPeak;
+	s_GameRuntimeReport_PSP.uiRenderMainBudget  = oRenderMemory.uiMainBudget;
+}
+
 void AWriteGameRuntimeReport_PSP()
 {
 	static TCHAR s_aReportBuffer_PSP[ 512 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=1\n"
+		"version=2\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -75,7 +94,13 @@ void AWriteGameRuntimeReport_PSP()
 		"controls=%d\n"
 		"picture=%s\n"
 		"picture_tiles=%d\n"
-		"failed_path=%s\n",
+		"failed_path=%s\n"
+		"heap_free=%u\n"
+		"heap_largest_hole=%u\n"
+		"heap_used=%u\n"
+		"render_main_current=%u\n"
+		"render_main_peak=%u\n"
+		"render_main_budget=%u\n",
 		s_GameRuntimeReport_PSP.szPhase,
 		s_GameRuntimeReport_PSP.bEngineCreated,
 		s_GameRuntimeReport_PSP.bApplicationCreated,
@@ -85,7 +110,13 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.bControlsLoaded,
 		s_GameRuntimeReport_PSP.szPicture,
 		s_GameRuntimeReport_PSP.iPictureTiles,
-		s_GameRuntimeReport_PSP.szFailedPath
+		s_GameRuntimeReport_PSP.szFailedPath,
+		TUINT( s_GameRuntimeReport_PSP.uiHeapFree ),
+		TUINT( s_GameRuntimeReport_PSP.uiHeapLargestHole ),
+		TUINT( s_GameRuntimeReport_PSP.uiHeapUsed ),
+		TUINT( s_GameRuntimeReport_PSP.uiRenderMainCurrent ),
+		TUINT( s_GameRuntimeReport_PSP.uiRenderMainPeak ),
+		TUINT( s_GameRuntimeReport_PSP.uiRenderMainBudget )
 	);
 
 	if ( iLength <= 0 )

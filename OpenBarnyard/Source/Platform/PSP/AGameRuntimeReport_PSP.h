@@ -8,6 +8,12 @@ struct AGameRuntimeReport_PSP
 	TCHAR szPicture[ 64 ];
 	TCHAR szFailedPath[ 96 ];
 	TINT  iPictureTiles;
+	TSIZE uiHeapFree;
+	TSIZE uiHeapLargestHole;
+	TSIZE uiHeapUsed;
+	TSIZE uiRenderMainCurrent;
+	TSIZE uiRenderMainPeak;
+	TSIZE uiRenderMainBudget;
 	TBOOL bEngineCreated;
 	TBOOL bApplicationCreated;
 	TBOOL bRootCreated;
@@ -20,4 +26,5 @@ AGameRuntimeReport_PSP& AGetGameRuntimeReport_PSP();
 void ASetGameRuntimePhase_PSP( const TCHAR* a_szPhase );
 void ASetGameRuntimePicture_PSP( const TCHAR* a_szPicture );
 void ASetGameRuntimeFailedPath_PSP( const TCHAR* a_szPath );
+void AUpdateGameRuntimeMemory_PSP();
 void AWriteGameRuntimeReport_PSP();

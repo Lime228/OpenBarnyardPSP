@@ -58,12 +58,15 @@ void AGUIMatlibPicture::Cache()
 		if ( !s_PictureTextureFactory_PSP.CreateTextureFromFile( s_aPictureTextures_PSP[ i ], strPath.GetString() ) )
 		{
 			ASetGameRuntimeFailedPath_PSP( strPath.GetString() );
+			AUpdateGameRuntimeMemory_PSP();
 			ASetGameRuntimePhase_PSP( "picture-failed" );
 			bLoaded = TFALSE;
 			break;
 		}
 
 		rReport.iPictureTiles = i + 1;
+		AUpdateGameRuntimeMemory_PSP();
+		AWriteGameRuntimeReport_PSP();
 	}
 
 	if ( !bLoaded )
