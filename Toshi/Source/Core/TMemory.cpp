@@ -219,55 +219,29 @@ void* TMemory::Alloc( TSIZE a_uiSize, TSIZE a_uiAlignment, MemBlock* a_pMemBlock
 	volatile TUINTPTR uiDataRegionEnd;
 	volatile TUINTPTR uiDataRegionSize;
 
-	const TUINT uiFirstNodeId = MapSizeToFreeList( uiAlignedSize );
-	TUINT       uiNodeId      = uiFirstNodeId;
+	TUINT uiNodeId = MapSizeToFreeList( uiAlignedSize );
 
-	// Find a hole that can allocate the required number of bytes. If the
-	// indexed lists have become detached from the physical node chain, rebuild
-	// them once and retry before reporting an out-of-memory condition.
-	for ( TINT iAttempt = 0; iAttempt < 2 && pMemNode == TNULL; iAttempt++ )
+	// Find a hole that can allocate the required number of bytes
+	for ( ; uiNodeId < TMEMORY_NUM_FREELISTS; uiNodeId++ )
 	{
-		uiNodeId = uiFirstNodeId;
-		for ( ; uiNodeId < TMEMORY_NUM_FREELISTS; uiNodeId++ )
+		pMemNode = pMemBlock->m_apHoles[ uiNodeId ];
+
+		while ( pMemNode != TNULL )
 		{
-			pMemNode = pMemBlock->m_apHoles[ uiNodeId ];
+			pAllocatedAddress = TAlignPointerUp( pMemNode->GetDataRegionStart(), uiAlignment );
+			uiDataRegionStart = TREINTERPRETCAST( TUINTPTR, pAllocatedAddress );
+			uiDataRegionEnd   = TREINTERPRETCAST( TUINTPTR, pMemNode->GetDataRegionEnd() );
+			uiDataRegionSize  = uiDataRegionEnd - uiDataRegionStart;
 
-			while ( pMemNode != TNULL )
-			{
-				pAllocatedAddress = TAlignPointerUp( pMemNode->GetDataRegionStart(), uiAlignment );
-				uiDataRegionStart = TREINTERPRETCAST( TUINTPTR, pAllocatedAddress );
-				uiDataRegionEnd   = TREINTERPRETCAST( TUINTPTR, pMemNode->GetDataRegionEnd() );
-				uiDataRegionSize  = uiDataRegionEnd - uiDataRegionStart;
-
-				if ( uiDataRegionEnd > uiDataRegionStart && uiDataRegionSize >= uiAlignedSize )
-					break;
-
-				pMemNode = pMemNode->pNextHole;
-			}
-
-			if ( pMemNode != TNULL )
+			if ( uiDataRegionEnd > uiDataRegionStart && uiDataRegionSize >= uiAlignedSize )
 				break;
+
+			// This freelist can't be used, let's check for the next
+			pMemNode = pMemNode->pNextHole;
 		}
 
-		if ( pMemNode != TNULL || iAttempt != 0 )
+		if ( pMemNode )
 			break;
-
-		TUtil::MemClear( pMemBlock->m_apHoles, sizeof( pMemBlock->m_apHoles ) );
-		MemNode* pPhysicalNode = pMemBlock->m_pFirstHole;
-		while ( GetNodeSize( pPhysicalNode ) != 0 )
-		{
-			MemNode* pNextPhysicalNode = static_cast<MemNode*>( pPhysicalNode->GetDataRegionEnd() );
-			if ( !IsProcess( pPhysicalNode ) )
-			{
-				const TUINT uiHoleId = MapSizeToFreeList( GetNodeSize( pPhysicalNode ) );
-				pPhysicalNode->pPrevHole = TNULL;
-				pPhysicalNode->pNextHole = pMemBlock->m_apHoles[ uiHoleId ];
-				if ( pPhysicalNode->pNextHole != TNULL )
-					pPhysicalNode->pNextHole->pPrevHole = pPhysicalNode;
-				pMemBlock->m_apHoles[ uiHoleId ] = pPhysicalNode;
-			}
-			pPhysicalNode = pNextPhysicalNode;
-		}
 	}
 
 	if ( !pMemNode )
