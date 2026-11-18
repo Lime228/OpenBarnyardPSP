@@ -50,4 +50,6 @@
 #  include "Platform/DX11/AWorldShader/AWorldShader_DX11.h"
 #  include "Platform/DX11/AWorldShader/AWorldMaterial_DX11.h"
 #  include "Platform/DX11/AWorldShader/AWorldMesh_DX11.h"
+#elif defined( TRENDERINTERFACE_PSP )
+#  include "Platform/PSP/AGUI2Renderer_PSP.h"
 #endif

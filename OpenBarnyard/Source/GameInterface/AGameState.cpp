@@ -242,7 +242,9 @@ void AGameState::OnDeactivate()
 
 void AGameState::Destroy()
 {
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	TRenderInterface::GetSingleton()->BeginEndSceneHAL();
+#endif
 
 	Deactivate();
 
@@ -252,7 +254,9 @@ void AGameState::Destroy()
 
 void AGameState::Destroy( TBOOL a_bDeactivate )
 {
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	TRenderInterface::GetSingleton()->BeginEndSceneHAL();
+#endif
 
 	if ( a_bDeactivate )
 		Deactivate();

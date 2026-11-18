@@ -16,6 +16,21 @@ static TFLOAT         s_fGlobalVolume_PSP      = 1.0f;
 
 TDEFINE_CLASS( ASoundManager );
 
+ASoundManager::Cue::Cue()
+{
+	bUsed           = TFALSE;
+	fStartTime      = -1.0f;
+	pSound          = TNULL;
+	fStartTime2     = -1.0f;
+	vecPosition     = TVector4::VEC_ZERO;
+	fVolume         = 1.0f;
+	fFrequency      = 1.0f;
+	iNumChannelRefs = 0;
+	oEventList      = TNULL;
+}
+
+ASoundManager::Cue::~Cue() = default;
+
 ASoundManager::ASoundManager()
     : m_SoundEventPool( AMemory::GetAllocator( AMemory::POOL_Sound ), s_iSoundPoolCapacity_PSP )
     , m_StreamRefPool( AMemory::GetAllocator( AMemory::POOL_Sound ), s_iSoundPoolCapacity_PSP )

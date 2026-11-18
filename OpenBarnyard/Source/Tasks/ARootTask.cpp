@@ -136,7 +136,9 @@ TBOOL ARootTask::Reset()
 // $Barnyard: FUNCTION 00402c40
 void ARootTask::OnDestroy()
 {
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AAssetLoader::Close( AAssetType_Startup );
+#endif
 
 	if ( AInputMapManager::IsSingletonCreated() )
 		AInputMapManager::GetSingleton()->Delete();
@@ -214,7 +216,9 @@ TBOOL ARootTask::OnCreate()
 	AMemory::CreatePool( AMemory::POOL_Misc );
 	AMemory::CreatePool( AMemory::POOL_Collision );
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AAssetLoader::Load( "data\\assets\\lib_startup.trb", AAssetType_Startup, TTRUE );
+#endif
 
 	// Initialise all classes
 	TGetClass( TObject ).RecurseTree( TNULL, TNULL, InitialiseClassCallback, TNULL );
@@ -491,6 +495,7 @@ void ARootTask::CreateStartupGameStates()
 // $Barnyard: FUNCTION 00403b90
 void ARootTask::LoadStartupData()
 {
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	TString8 startupLibPath;
 	startupLibPath.Format( "Data/%s.trb", "lib_startup" );
 
@@ -524,6 +529,16 @@ void ARootTask::LoadStartupData()
 	TRenderInterface::GetSingleton()->FlushDyingResources();
 	TRenderInterface::GetSingleton()->FlushDyingResources();
 	T2GUITextureSectionManager::UpdateMaterials();
+#else
+	// The first PSP startup slice consumes offline-converted retail picture
+	// tiles.  Material libraries and desktop texture resources join once their
+	// PSP backend is ready; the state/GUI lifecycle below stays original.
+	if ( m_pGUI2 && !m_pGUI2->Create() )
+		m_pGUI2 = TNULL;
+
+	if ( m_pGUISystem && !m_pGUISystem->Create() )
+		m_pGUISystem = TNULL;
+#endif
 
 	g_oSystemManager.GetScheduler()->CreateTask<AFadeManager>( this )->Create();
 }

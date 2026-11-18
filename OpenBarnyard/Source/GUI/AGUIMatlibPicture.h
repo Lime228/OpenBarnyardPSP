@@ -19,6 +19,9 @@ public:
 	virtual void Flush() override;
 	virtual void Cache() override;
 	virtual void Create( const Toshi::TPString8& a_rName ) override;
+#ifdef TOSHI_SKU_PSP
+	virtual void Render() override;
+#endif
 
 private:
 	void LoadMatLib();

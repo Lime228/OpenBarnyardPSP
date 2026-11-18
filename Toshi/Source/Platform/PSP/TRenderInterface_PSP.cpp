@@ -166,6 +166,8 @@ void TRenderInterface_PSP::DrawColourRectangle( TFLOAT a_fX, TFLOAT a_fY, TFLOAT
 	sceGuDisable( GU_TEXTURE_2D );
 	sceGuDisable( GU_DEPTH_TEST );
 	sceGuDisable( GU_CULL_FACE );
+	sceGuEnable( GU_BLEND );
+	sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0 );
 
 	auto* pVertices = static_cast<TRenderColourVertex_PSP*>( sceGuGetMemory( 2 * sizeof( TRenderColourVertex_PSP ) ) );
 	pVertices[ 0 ]  = { a_uiColour, a_fX, a_fY, 0.0f };
@@ -178,6 +180,7 @@ void TRenderInterface_PSP::DrawColourRectangle( TFLOAT a_fX, TFLOAT a_fY, TFLOAT
 	    TNULL,
 	    pVertices
 	);
+	sceGuDisable( GU_BLEND );
 }
 
 void TRenderInterface_PSP::DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices )
