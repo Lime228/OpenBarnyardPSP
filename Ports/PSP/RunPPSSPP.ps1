@@ -3,6 +3,7 @@ param(
     [string] $Action = 'Start',
     [string] $EbootPath = '',
     [string] $PPSSPPPath = '',
+    [switch] $OriginalGame,
 
     [ValidateSet('Cross', 'Circle', 'Start', 'DpadUp', 'DpadDown', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight')]
     [string] $Key = 'Cross',
@@ -39,7 +40,12 @@ if (-not $PPSSPPPath) {
 }
 
 if (-not $EbootPath) {
-    $EbootPath = Join-Path $repositoryRoot 'bin\PSP\Release\EBOOT.PBP'
+    if ($OriginalGame) {
+        $EbootPath = Join-Path $runtimeRoot 'OpenBarnyardPSPGame\EBOOT.PBP'
+    }
+    else {
+        $EbootPath = Join-Path $repositoryRoot 'bin\PSP\Release\EBOOT.PBP'
+    }
 }
 
 $PPSSPPPath = [System.IO.Path]::GetFullPath($PPSSPPPath)
