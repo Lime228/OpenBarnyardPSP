@@ -356,6 +356,15 @@ project "OpenBarnyardPSPGame"
 		"pspdebug"
 	}
 
+	postbuildcommands
+	{
+		'psp-fixup-imports "%{cfg.buildtarget.abspath}"',
+		'psp-strip "%{cfg.buildtarget.abspath}" -o "%{cfg.targetdir}/openbarnyard_psp_game_strip.elf"',
+		'mksfoex -d MEMSIZE=2 "OpenBarnyard PSP" "%{cfg.targetdir}/PARAM_GAME.SFO"',
+		'pack-pbp "%{cfg.targetdir}/EBOOT_GAME.PBP" "%{cfg.targetdir}/PARAM_GAME.SFO" "../../Ports/PSP/Assets/ICON0.PNG" NULL NULL "../../Ports/PSP/Assets/PIC1.PNG" NULL "%{cfg.targetdir}/openbarnyard_psp_game_strip.elf" NULL',
+		'rm -f "%{cfg.targetdir}/openbarnyard_psp_game_strip.elf"'
+	}
+
 	filter "configurations:Debug"
 		defines "TOSHI_DEBUG"
 		symbols "On"

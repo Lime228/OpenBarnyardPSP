@@ -133,8 +133,7 @@ jobs:
           make -C Build/PSP config=release_psp -j"$(nproc)"
           OpenBarnyardPSPBootstrap OpenBarnyardPSPGameSlice
 
-      - name: Audit original PSP game link closure
-        continue-on-error: true
+      - name: Build original PSP game
         run: |
           mkdir -p Runtime/PSPLinkAudit
           docker run --rm \
@@ -161,6 +160,15 @@ jobs:
             Runtime/PSPLinkAudit/summary.md
             bin/PSP/Release/openbarnyard_psp_game.map
           if-no-files-found: warn
+
+      - name: Publish original PSP game
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenBarnyard-PSP-original-game
+          path: |
+            bin/PSP/Release/EBOOT_GAME.PBP
+            bin/PSP/Release/PARAM_GAME.SFO
+          if-no-files-found: error
 
       - name: Publish PSP bootstrap
         uses: actions/upload-artifact@v4
