@@ -18,7 +18,11 @@ public:
 
 	// Script natives of the class, for the FSM
 	// $Barnyard: FUNCTION 004292e0
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	virtual AFunctionTable* GetFunctionTable() { return TNULL; } // +0x38
+#else
 	virtual AFunctionTable* GetFunctionTable() { return &ms_oFunctionTable; } // +0x38
+#endif
 
 	struct OverlayData
 	{
@@ -110,7 +114,9 @@ public:
 	// Whether a state called a_rcClassName is on the stack
 	TBOOL IsStateOnStack( const Toshi::TPString8& a_rcClassName );
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	static AFunctionTable ms_oFunctionTable; // 0x0078178c
+#endif
 
 	// TRUE while the game is transitioning or fading (the items of the inventory can't be used)
 	// NOTE: It's next to the FSM natives.
