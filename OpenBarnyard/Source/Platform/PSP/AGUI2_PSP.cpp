@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "GUI/AGUI2.h"
+#include "Mod/AModEvents.h"
 #include "Render/ABackend.h"
 
 //-----------------------------------------------------------------------------
