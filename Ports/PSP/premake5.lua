@@ -295,6 +295,11 @@ project "OpenBarnyardPSPGame"
 		"../../Toshi/Source/Platform/PSP/**.cpp"
 	}
 
+	removefiles
+	{
+		"../../Toshi/Source/Platform/PSP/TMemory_PSP.cpp"
+	}
+
 	includedirs
 	{
 		"../../OpenBarnyard/Source",
