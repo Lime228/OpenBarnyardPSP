@@ -3,6 +3,7 @@
 #include "GUI/AGUI2.h"
 #include "Mod/AModEvents.h"
 #include "Render/ABackend.h"
+#include "AGameRuntimeReport_PSP.h"
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -35,6 +36,8 @@ TBOOL AGUI2::OnCreate()
 
 	m_pRootElement->SetDimensions( 480.0f, 272.0f );
 	m_pRootElement->SetPostRenderCallback( MainPostRenderCallback );
+	AGetGameRuntimeReport_PSP().bGUI2Created = TTRUE;
+	ASetGameRuntimePhase_PSP( "gui2-created" );
 	FIRE_EVENT( AGUI2::Created, this );
 	return TTRUE;
 }

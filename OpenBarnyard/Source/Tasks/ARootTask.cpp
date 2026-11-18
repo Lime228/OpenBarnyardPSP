@@ -42,6 +42,10 @@
 #include "SoundBank/music.h"
 #include "SoundBank/ui.h"
 
+#ifdef TOSHI_SKU_PSP
+#  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#endif
+
 #include <Plugins/PPropertyParser/PBProperties.h>
 #include <Toshi/TScheduler.h>
 #include <Toshi/T2ObjectPool.h>
@@ -212,6 +216,9 @@ static TBOOL InitialiseClassCallback( TClass* a_pClass, void* a_pUserData )
 // $Barnyard: FUNCTION 00403cf0
 TBOOL ARootTask::OnCreate()
 {
+#ifdef TOSHI_SKU_PSP
+	ASetGameRuntimePhase_PSP( "root-creating" );
+#endif
 	AMemory::CreatePool( AMemory::POOL_Viewport );
 	AMemory::CreatePool( AMemory::POOL_Misc );
 	AMemory::CreatePool( AMemory::POOL_Collision );
@@ -247,7 +254,11 @@ TBOOL ARootTask::OnCreate()
 	}
 
 	TGetClass( AInputMapManager ).CreateObject();
-	AInputMapManager::GetSingleton()->ReadControlsData();
+	const TBOOL bControlsLoaded = AInputMapManager::GetSingleton()->ReadControlsData();
+#ifdef TOSHI_SKU_PSP
+	AGetGameRuntimeReport_PSP().bControlsLoaded = bControlsLoaded;
+	AWriteGameRuntimeReport_PSP();
+#endif
 
 	LoadStartupData();
 	m_pGameStateController->Create();
@@ -256,6 +267,11 @@ TBOOL ARootTask::OnCreate()
 	ARenderer::GetSingleton()->ForceUpdate30FPS();
 	ARenderer::GetSingleton()->ForceUpdate30FPS();
 	AGUISystem::AllowBackgroundClear( TFALSE );
+
+#ifdef TOSHI_SKU_PSP
+	AGetGameRuntimeReport_PSP().bRootCreated = TTRUE;
+	ASetGameRuntimePhase_PSP( "root-created" );
+#endif
 
 	return TTRUE;
 }

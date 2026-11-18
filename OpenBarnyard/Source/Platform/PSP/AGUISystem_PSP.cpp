@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "GUI/AGUISystem.h"
+#include "AGameRuntimeReport_PSP.h"
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -58,6 +59,8 @@ TBOOL AGUISystem::OnCreate()
 		OnGUIRender,
 		0xffff8000
 	);
+	AGetGameRuntimeReport_PSP().bGUISystemCreated = TTRUE;
+	ASetGameRuntimePhase_PSP( "gui-system-created" );
 	return TTRUE;
 }
 

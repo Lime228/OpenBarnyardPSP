@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "ARenderer_PSP.h"
+#include "AGameRuntimeReport_PSP.h"
 #include "GUI/AGUIMatlibPicture.h"
 
 #include <Platform/PSP/TTextureFactory_PSP.h>
@@ -43,6 +44,12 @@ void AGUIMatlibPicture::Cache()
 	if ( m_bLoaded || m_Name.IsEmpty() )
 		return;
 
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	ASetGameRuntimePicture_PSP( m_Name.GetString8().GetString() );
+	ASetGameRuntimeFailedPath_PSP( "" );
+	rReport.iPictureTiles = 0;
+	ASetGameRuntimePhase_PSP( "picture-loading" );
+
 	TBOOL bLoaded = TTRUE;
 	for ( TINT i = 0; i < TARRAYSIZE( s_aPictureTextures_PSP ); i++ )
 	{
@@ -50,9 +57,13 @@ void AGUIMatlibPicture::Cache()
 		strPath.Format( "local:%s_%d.ptex", m_Name.GetString8().GetString(), i + 1 );
 		if ( !s_PictureTextureFactory_PSP.CreateTextureFromFile( s_aPictureTextures_PSP[ i ], strPath.GetString() ) )
 		{
+			ASetGameRuntimeFailedPath_PSP( strPath.GetString() );
+			ASetGameRuntimePhase_PSP( "picture-failed" );
 			bLoaded = TFALSE;
 			break;
 		}
+
+		rReport.iPictureTiles = i + 1;
 	}
 
 	if ( !bLoaded )
@@ -64,6 +75,7 @@ void AGUIMatlibPicture::Cache()
 	m_iNumRects1 = TARRAYSIZE( s_aPictureTextures_PSP );
 	m_iNumRects2 = TARRAYSIZE( s_aPictureTextures_PSP );
 	m_bLoaded    = TTRUE;
+	ASetGameRuntimePhase_PSP( "picture-ready" );
 }
 
 void AGUIMatlibPicture::Create( const TPString8& a_rName )

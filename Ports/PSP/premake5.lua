@@ -166,6 +166,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Platform/PSP/AGUIMatlibPicture_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUIPicture_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUISystem_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/AGameRuntimeReport_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGameStateController_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ARenderer_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ASoundManager_PSP.cpp",

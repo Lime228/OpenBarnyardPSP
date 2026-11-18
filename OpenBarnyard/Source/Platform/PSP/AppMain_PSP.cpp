@@ -6,6 +6,7 @@
 #include "Locale/ALocaleManager.h"
 #include "Memory/AMemory.h"
 #include "Tasks/ARootTask.h"
+#include "AGameRuntimeReport_PSP.h"
 
 #include <Core/TMemory.h>
 #include <Toshi/TFreeList.h>
@@ -119,12 +120,17 @@ int main( TINT, TCHAR** )
 		return 1;
 	}
 
+	AGetGameRuntimeReport_PSP().bEngineCreated = TTRUE;
+	ASetGameRuntimePhase_PSP( "engine-created" );
+
 	TCHAR  szExecutable[] = "OpenBarnyardPSP";
 	TCHAR* apArguments[]  = { szExecutable };
 
 	TINT iResult = 1;
 	if ( g_oTheApp.Create( "The Barnyard - PSP", 1, apArguments ) )
 	{
+		AGetGameRuntimeReport_PSP().bApplicationCreated = TTRUE;
+		ASetGameRuntimePhase_PSP( "application-executing" );
 		g_oTheApp.Execute();
 		iResult = 0;
 	}
