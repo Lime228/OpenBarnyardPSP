@@ -807,14 +807,21 @@ void TMemory::Deinitialise()
  */
 TUINT TMemory::MapSizeToFreeList( TSIZE a_uiSize )
 {
-	TFLOAT fSize          = TFLOAT( TAlignNumUp( a_uiSize ) - 1 );
-	TUINT  uiExponentSign = ( *(TINT*)&fSize ) >> 23;
-	TUINT  uiResult       = uiExponentSign - 127;
+	TSIZE uiSize = TAlignNumUp( a_uiSize );
+	if ( uiSize > 0 )
+		uiSize -= 1;
 
-	if ( uiResult & 1 )
-		uiResult = uiExponentSign - 126;
+	TUINT uiExponent = 0;
+	while ( uiSize > 1 )
+	{
+		uiSize >>= 1;
+		uiExponent += 1;
+	}
 
-	uiResult = uiResult >> 1;
+	if ( uiExponent & 1 )
+		uiExponent += 1;
+
+	TUINT uiResult = uiExponent >> 1;
 
 	if ( uiResult != 0 )
 		uiResult = uiResult - 1;
