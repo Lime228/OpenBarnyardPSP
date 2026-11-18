@@ -2,9 +2,14 @@
 
 #include "AGameRuntimeReport_PSP.h"
 
+#include <Math/TMath.h>
+#include <Toshi/TStringManager.h>
+
 #include <pspiofilemgr.h>
 
 #include <cstdio>
+
+TOSHI_NAMESPACE_USING
 
 static AGameRuntimeReport_PSP s_GameRuntimeReport_PSP = {};
 
