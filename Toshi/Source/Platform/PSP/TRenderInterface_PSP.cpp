@@ -3,11 +3,20 @@
 
 #include "TRenderMemory_PSP.h"
 
+#include <Render/TRenderInterface.h>
+
 #include <pspdisplay.h>
 #include <pspgu.h>
 #include <pspgum.h>
 
 TOSHI_NAMESPACE_START
+
+// PSP GU has no desktop device-lost scene probe.  Keeping this platform seam
+// as a no-op preserves the original state destruction contract without
+// submitting an extra display list between frontend frames.
+void TRenderInterface::BeginEndSceneHAL()
+{
+}
 
 struct TRenderTextureVertex_PSP
 {

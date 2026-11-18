@@ -137,7 +137,14 @@ void AGameState::OnVISGroupChanged( void* a_pCurrentSection, void* a_pPreviousSe
 // $Barnyard: FUNCTION 0045b650
 TFLOAT AGameState::GetFOV()
 {
+#ifdef TOSHI_SKU_PSP
+	// The bounded frontend does not create the world camera manager.  Preserve
+	// the per-state field initialised to the retail 60 degree default instead of
+	// pulling the complete gameplay camera graph into startup.
+	return m_fFOV;
+#else
 	return ACamera::sm_fCurrentFOV;
+#endif
 }
 
 // $Barnyard: FUNCTION 00428890
@@ -322,7 +329,6 @@ void AGameState::GetHUDMaskImpl( TUINT32& a_rOutput )
 // $Barnyard: FUNCTION 00428730
 TBOOL AGameState::SendInputCommands( const TInputInterface::InputEvent* a_pEvent )
 {
-	auto pInputHandler = AInputHandler::GetSingleton();
 	auto pInputManager = AInputMapManager::GetSingleton();
 
 	pInputManager->PushInputMap( m_pInputMap );
@@ -330,6 +336,8 @@ TBOOL AGameState::SendInputCommands( const TInputInterface::InputEvent* a_pEvent
 	AInputCommandArray commands;
 	pInputManager->GetEventCommands( a_pEvent, commands );
 
+#ifdef TOSHI_SKU_WINDOWS
+	auto pInputHandler = AInputHandler::GetSingleton();
 	if ( a_pEvent->GetDoodad() == TInputDeviceKeyboard::KEY_F4 && pInputHandler->GetKeyboardDevice()->IsAltDown() )
 	{
 		// Quit app if Alt + F4 was pressed
@@ -337,6 +345,7 @@ TBOOL AGameState::SendInputCommands( const TInputInterface::InputEvent* a_pEvent
 		g_oTheApp.Destroy();
 	}
 	else
+#endif
 	{
 		TBOOL bProcessedCommand = TFALSE;
 
