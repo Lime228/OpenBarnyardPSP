@@ -24,16 +24,18 @@ $TMDLPath = (Resolve-Path -LiteralPath $TMDLPath).Path
 
 $pythonArguments = @()
 if (-not $PythonPath) {
-    $launcher = Get-Command py -ErrorAction SilentlyContinue
-    if ($launcher) {
-        $PythonPath = $launcher.Source
-        $pythonArguments = @('-3')
-    }
     foreach ($name in @('python3', 'python')) {
         if ($PythonPath) { break }
         $candidate = Get-Command $name -ErrorAction SilentlyContinue
         if ($candidate -and $candidate.Source -notlike '*\WindowsApps\python*.exe') {
             $PythonPath = $candidate.Source
+        }
+    }
+    if (-not $PythonPath) {
+        $launcher = Get-Command py -ErrorAction SilentlyContinue
+        if ($launcher) {
+            $PythonPath = $launcher.Source
+            $pythonArguments = @('-3')
         }
     }
     if (-not $PythonPath) {
@@ -53,6 +55,16 @@ New-Item -ItemType Directory -Force -Path $outputPath,$dumpPath,(Join-Path (Spli
 $items = @(
     @{ Library = 'Install\Data\Matlibs\gui_FrontEnd.ttl'; Texture = 'Dialogs\barnyard_logo.tga'; Output = 'barnyard_logo' }
 )
+
+foreach ($picture in @('bkg_by_legal1', 'bkg_Bink_Big')) {
+    foreach ($tile in 1..6) {
+        $items += @{
+            Library = "Install\Data\Matlibs\$picture.ttl"
+            Texture = "${picture}_${tile}.tga"
+            Output = "${picture}_${tile}"
+        }
+    }
+}
 
 foreach ($item in $items) {
     $library = [System.IO.Path]::GetFullPath((Join-Path $assetRoot $item.Library))
@@ -76,8 +88,11 @@ foreach ($item in $items) {
 if ($RuntimeDirectory) {
     $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
     New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
-    Remove-Item -LiteralPath (Join-Path $runtimePath 'barnyard_logo.ptex') -Force -ErrorAction SilentlyContinue
-    Copy-Item -LiteralPath (Join-Path $outputPath 'barnyard_logo.ptex') -Destination $runtimePath -Force
+    foreach ($item in $items) {
+        $fileName = "$($item.Output).ptex"
+        Remove-Item -LiteralPath (Join-Path $runtimePath $fileName) -Force -ErrorAction SilentlyContinue
+        Copy-Item -LiteralPath (Join-Path $outputPath $fileName) -Destination $runtimePath -Force
+    }
     Write-Output "Published retail frontend to $runtimePath"
 }
 
