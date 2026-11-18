@@ -4,6 +4,8 @@
 
 TOSHI_NAMESPACE_START
 
+class TFile;
+
 enum T2TextureFormat_PSP : TUINT32
 {
 	T2TEXTUREFORMAT_PSP_RGBA8888          = 0,
@@ -35,6 +37,7 @@ public:
 	void GetData( const void*& a_rData, TUINT& a_rDataSize ) const;
 
 	TBOOL Load();
+	TBOOL LoadFromFile( TFile& a_rFile );
 	void  Unload();
 
 	TUINT GetWidth() const { return m_uiWidth; }
@@ -44,6 +47,9 @@ public:
 	TUINT GetFormat() const { return m_uiFormat; }
 	TBOOL IsSwizzled() const { return m_uiFormat == T2TEXTUREFORMAT_PSP_RGBA8888_SWIZZLED; }
 	void* GetImageData() const { return m_pImageData; }
+
+private:
+	TBOOL PrepareImage_PSP( const T2TextureDataHeader_PSP& a_rHeader, TSIZE a_uiDataSize );
 
 private:
 	const void* m_pData;

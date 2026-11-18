@@ -2,7 +2,6 @@
 #include "TTextureFactory_PSP.h"
 
 #include "File/TFile.h"
-#include "Toshi/T2Allocator.h"
 
 TOSHI_NAMESPACE_START
 
@@ -18,15 +17,7 @@ TBOOL TTextureFactory_PSP::CreateTextureFromFile( T2Texture& a_rTexture, const T
 	TBOOL       bLoaded    = TFALSE;
 	const TSIZE uiFileSize = pFile->GetSize();
 	if ( uiFileSize >= sizeof( T2TextureDataHeader_PSP ) && uiFileSize <= MAX_TEXTURE_FILE_SIZE )
-	{
-		void* pData = GetGlobalAllocator()->Malloc( uiFileSize, 16 );
-		if ( pData != TNULL )
-		{
-			if ( pFile->Read( pData, uiFileSize ) == uiFileSize )
-				bLoaded = CreateTextureFromMemory( a_rTexture, pData, TUINT( uiFileSize ) );
-			GetGlobalAllocator()->Free( pData );
-		}
-	}
+		bLoaded = a_rTexture.LoadFromFile( *pFile );
 
 	pFile->Destroy();
 	return bLoaded;
