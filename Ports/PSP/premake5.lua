@@ -338,7 +338,6 @@ project "OpenBarnyardPSPGame"
 	linkoptions
 	{
 		"-G0",
-		"-Wl,--gc-sections",
 		"-Wl,-zmax-page-size=128",
 		"-Wl,-Map=%{cfg.targetdir}/openbarnyard_psp_game.map"
 	}
