@@ -3,7 +3,9 @@
 #include "AInputHandler.h"
 #include "Memory/AMemory.h"
 #include "Locale/ALocaleManager.h"
-#include "HUD/AMenuNavHudElement.h"
+#if defined( BARNYARD_COMMUNITY_PATCH ) && !defined( TOSHI_SKU_PSP )
+#  include "HUD/AMenuNavHudElement.h"
+#endif
 
 #include <Input/TInputDeviceKeyboard.h>
 #include <Input/TInputDeviceMouse.h>
@@ -103,7 +105,7 @@ AInputMap* AInputMapManager::PopInputMap()
 	m_iNumPushedInputMaps = Toshi::TMath::Max( m_iNumPushedInputMaps - 1, 0 );
 
 	m_pActiveInputMap = ( m_iNumPushedInputMaps != 0 ) ? m_apPushedInputMaps[ m_iNumPushedInputMaps - 1 ] : TNULL;
-	return m_apPushedInputMaps[ m_iNumPushedInputMaps - 1 ];
+	return m_pActiveInputMap;
 }
 
 // $Barnyard: FUNCTION 00596ee0
@@ -162,7 +164,7 @@ static const GlyphEntry s_aGlyphsGC[] = {
 // $Barnyard: FUNCTION 00597790
 void AInputMapManager::GetEventCommands( const Toshi::TInputInterface::InputEvent* a_pEvent, AInputCommandArray& a_rCommandArray )
 {
-#ifdef BARNYARD_COMMUNITY_PATCH
+#if defined( BARNYARD_COMMUNITY_PATCH ) && !defined( TOSHI_SKU_PSP )
 	
 	TBOOL bIsCurrentlyUsingController = AInputHandler::GetSingleton()->IsControllerUsed();
 
@@ -194,7 +196,7 @@ void AInputMapManager::GetEventCommands( const Toshi::TInputInterface::InputEven
 
 		m_bIsUsingController = bIsCurrentlyUsingController;
 	}
-#endif // BARNYARD_COMMUNITY_PATCH
+#endif // BARNYARD_COMMUNITY_PATCH && !TOSHI_SKU_PSP
 
 	a_rCommandArray.Clear();
 
