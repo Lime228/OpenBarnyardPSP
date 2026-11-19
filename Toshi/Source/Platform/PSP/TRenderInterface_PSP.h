@@ -3,6 +3,7 @@
 #include "T2Texture_PSP.h"
 #include "TModel_PSP.h"
 #include "TRenderBuffer_PSP.h"
+#include "Math/TMathInline.h"
 #include "Math/TVector2.h"
 
 TOSHI_NAMESPACE_START
