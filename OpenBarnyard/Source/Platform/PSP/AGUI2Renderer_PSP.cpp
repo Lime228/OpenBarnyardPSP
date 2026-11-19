@@ -160,9 +160,11 @@ void AGUI2Renderer_PSP::BeginScene()
 	if ( AGUI2::GetContext() != TNULL && AGUI2::GetContext()->GetRootElement() != TNULL )
 		AGUI2::GetContext()->GetRootElement()->GetDimensions( fRootWidth, fRootHeight );
 
+	// D3D applies the original negative GUI Y scale before its viewport inversion.
+	// The GU uses top-left screen coordinates directly, so the final PSP scale is positive.
 	m_aTransforms_PSP[ 0 ].Set(
 		{ 480.0f / fRootWidth, 0.0f },
-		{ 0.0f, -272.0f / fRootHeight },
+		{ 0.0f, 272.0f / fRootHeight },
 		{ 240.0f, 136.0f }
 	);
 }
