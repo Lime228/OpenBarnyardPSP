@@ -53,7 +53,16 @@ $dumpPath = Join-Path $assetRoot 'Workspace\Dumps\Frontend'
 New-Item -ItemType Directory -Force -Path $outputPath,$dumpPath,(Join-Path (Split-Path -Parent $TMDLPath) 'Logs') | Out-Null
 
 $items = @(
-    @{ Library = 'Install\Data\Matlibs\gui_FrontEnd.ttl'; Texture = 'Dialogs\barnyard_logo.tga'; Output = 'barnyard_logo' }
+    @{ Library = 'Install\Data\Matlibs\gui_FrontEnd.ttl'; Texture = 'Dialogs\barnyard_logo.tga'; Output = 'barnyard_logo' },
+    @{ Library = 'Install\Data\Matlibs\gui_Fonts.ttl'; Texture = 'Fonts\Rekord_Black_26.tga'; Output = 'Rekord_Black_26' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Panel_01.tga'; Output = 'Panel_01' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Top_Left.tga'; Output = 'Border_Top_Left' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Top_Right.tga'; Output = 'Border_Top_Right' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Horizontal.tga'; Output = 'Border_Horizontal' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Vertical.tga'; Output = 'Border_Vertical' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_MIddle.tga'; Output = 'Border_MIddle' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Bottom_Left.tga'; Output = 'Border_Bottom_Left' },
+    @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Bottom_Right.tga'; Output = 'Border_Bottom_Right' }
 )
 
 foreach ($picture in @('bkg_by_legal1', 'bkg_Bink_Big')) {

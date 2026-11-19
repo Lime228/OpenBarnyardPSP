@@ -38,9 +38,18 @@ foreach ($requiredFile in @($gamePbpPath, $gameSfoPath)) {
     }
 }
 
-$controlsPath = Join-Path $installPath 'Data\Options\Controls_Win.trb'
-if (-not (Test-Path -LiteralPath $controlsPath -PathType Leaf)) {
-    throw "Retail controls file was not found: $controlsPath"
+$retailFiles = @(
+    @{ Source = 'Data\Options\Controls_Win.trb'; Destination = 'Data\Options\Controls_Win.trb' },
+    @{ Source = 'Data\GUI\fonts.trb'; Destination = 'Data\GUI\fonts.trb' },
+    @{ Source = 'Data\GUI\texsec.trb'; Destination = 'Data\GUI\texsec.trb' },
+    @{ Source = 'Data\Locale\eng-uk.trb'; Destination = 'Data\Locale\eng-uk.trb' }
+)
+
+foreach ($retailFile in $retailFiles) {
+    $sourcePath = Join-Path $installPath $retailFile.Source
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Retail runtime file was not found: $sourcePath"
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
@@ -56,7 +65,18 @@ if (-not $SkipConversion) {
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontend.ps1') @conversionArguments
 }
 
-$frontendFiles = @('barnyard_logo.ptex')
+$frontendFiles = @(
+    'barnyard_logo.ptex',
+    'Rekord_Black_26.ptex',
+    'Panel_01.ptex',
+    'Border_Top_Left.ptex',
+    'Border_Top_Right.ptex',
+    'Border_Horizontal.ptex',
+    'Border_Vertical.ptex',
+    'Border_MIddle.ptex',
+    'Border_Bottom_Left.ptex',
+    'Border_Bottom_Right.ptex'
+)
 foreach ($picture in @('bkg_by_legal1', 'bkg_Bink_Big')) {
     foreach ($tile in 1..6) {
         $frontendFiles += "${picture}_${tile}.ptex"
@@ -71,9 +91,13 @@ foreach ($fileName in $frontendFiles) {
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
 
-$controlsRuntimeDirectory = Join-Path $runtimePath 'Data\Options'
-New-Item -ItemType Directory -Force -Path $controlsRuntimeDirectory | Out-Null
-Copy-Item -LiteralPath $controlsPath -Destination (Join-Path $controlsRuntimeDirectory 'Controls_Win.trb') -Force
+foreach ($retailFile in $retailFiles) {
+    $sourcePath = Join-Path $installPath $retailFile.Source
+    $destinationPath = Join-Path $runtimePath $retailFile.Destination
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destinationPath) | Out-Null
+    Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+}
+
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force
 Copy-Item -LiteralPath $gameSfoPath -Destination (Join-Path $runtimePath 'PARAM.SFO') -Force
 
