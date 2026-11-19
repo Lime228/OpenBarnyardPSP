@@ -47,6 +47,13 @@ void AFrontEndMainMenuState2::SetupCamera()
 
 TBOOL AFrontEndMainMenuState2::ProcessInput( const TInputInterface::InputEvent* a_pInputEvent )
 {
+	if ( a_pInputEvent != TNULL && a_pInputEvent->GetEventType() == TInputInterface::EVENT_TYPE_GONE_DOWN )
+	{
+		AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+		rReport.iMenuLastPressedDoodad  = a_pInputEvent->GetDoodad();
+		rReport.uiMenuInputDownCount++;
+	}
+
 	return ABYardMenuState::ProcessInput( a_pInputEvent );
 }
 
@@ -56,6 +63,20 @@ TBOOL AFrontEndMainMenuState2::ProcessCommand( AInputCommand a_eInputCommand, co
 	rReport.iMenuLastCommand        = a_eInputCommand;
 	rReport.iMenuLastEventType      = a_pInputEvent != TNULL ? a_pInputEvent->GetEventType() : -1;
 	rReport.iMenuLastDoodad         = a_pInputEvent != TNULL ? a_pInputEvent->GetDoodad() : -1;
+	if ( a_eInputCommand != AInputCommand_Move )
+	{
+		rReport.iMenuLastActionCommand   = a_eInputCommand;
+		rReport.iMenuLastActionEventType = rReport.iMenuLastEventType;
+		rReport.iMenuLastActionDoodad    = rReport.iMenuLastDoodad;
+		rReport.uiMenuActionCommandCount++;
+
+		if ( a_eInputCommand == AInputCommand_Up )
+			rReport.uiMenuCommandUpCount++;
+		if ( a_eInputCommand == AInputCommand_Down )
+			rReport.uiMenuCommandDownCount++;
+		if ( a_eInputCommand == AInputCommand_OK )
+			rReport.uiMenuCommandOKCount++;
+	}
 	return ABYardMenuState::ProcessCommand( a_eInputCommand, a_pInputEvent, a_rStopEvents );
 }
 
@@ -77,14 +98,23 @@ void AFrontEndMainMenuState2::OnInsertion()
 {
 	ms_bIsInserted = TTRUE;
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
-	rReport.iMenuState              = MENUSTATE_NOTHING;
-	rReport.iMenuFocusID            = -1;
-	rReport.iMenuLastCommand        = -1;
-	rReport.iMenuLastEventType      = -1;
-	rReport.iMenuLastDoodad         = -1;
-	rReport.iMenuActivatedButtonID  = -1;
-	rReport.uiMenuActivationCount   = 0;
-	rReport.uiMenuCloseCount        = 0;
+	rReport.iMenuState               = MENUSTATE_NOTHING;
+	rReport.iMenuFocusID             = -1;
+	rReport.iMenuLastPressedDoodad   = -1;
+	rReport.iMenuLastCommand         = -1;
+	rReport.iMenuLastEventType       = -1;
+	rReport.iMenuLastDoodad          = -1;
+	rReport.iMenuLastActionCommand   = -1;
+	rReport.iMenuLastActionEventType = -1;
+	rReport.iMenuLastActionDoodad    = -1;
+	rReport.iMenuActivatedButtonID   = -1;
+	rReport.uiMenuInputDownCount     = 0;
+	rReport.uiMenuActionCommandCount = 0;
+	rReport.uiMenuCommandUpCount     = 0;
+	rReport.uiMenuCommandDownCount   = 0;
+	rReport.uiMenuCommandOKCount     = 0;
+	rReport.uiMenuActivationCount    = 0;
+	rReport.uiMenuCloseCount         = 0;
 	ASetGameRuntimePhase_PSP( "frontend-menu-inserting" );
 
 	T2GUIFont* pFont = T2GUIFontManager::FindFont( AGUI2STYLE_FONT_PRIMARY );
