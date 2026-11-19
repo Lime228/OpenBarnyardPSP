@@ -49,6 +49,8 @@ TBOOL AGUI2::OnCreate()
 		T2GUIFontManager::Close( "Data/GUI/fonts.trb" );
 		return TFALSE;
 	}
+	ASetGameRuntimePhase_PSP( "gui2-materials-creating" );
+	T2GUITextureSectionManager::CreateMaterials();
 	AGetGameRuntimeReport_PSP().bGUI2Created = TTRUE;
 	ASetGameRuntimePhase_PSP( "gui2-created" );
 	FIRE_EVENT( AGUI2::Created, this );

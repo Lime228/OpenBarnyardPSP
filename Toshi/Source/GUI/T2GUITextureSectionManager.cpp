@@ -47,8 +47,25 @@ TBOOL T2GUITextureSectionManager::Open( const TCHAR* a_szFileName, TTRB* a_pTRB 
 		g_defblock = TSTATICCAST( TRBHeader, g_trb->GetSymbolAddress( symbolName ) );
 	}
 
+	if ( g_defblock == TNULL ||
+	     g_defblock->m_pSections == TNULL ||
+	     g_defblock->m_uiNumSections == 0 ||
+	     g_defblock->m_uiNumSections > 4096 )
+	{
+		if ( !g_providedtrb )
+			delete g_trb;
+
+		g_providedtrb = TFALSE;
+		g_trb         = TNULL;
+		g_defblock    = TNULL;
+		g_sections    = TNULL;
+		return TFALSE;
+	}
+
 	g_sections = g_defblock->m_pSections;
+#ifndef TOSHI_SKU_PSP
 	CreateMaterials();
+#endif
 
 	return TTRUE;
 }
