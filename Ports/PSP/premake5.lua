@@ -276,6 +276,7 @@ project "OpenBarnyardPSPGame"
 		"../../Toshi/Source/Math/**.cpp",
 		"../../Toshi/Source/Render/**.cpp",
 		"../../Toshi/Source/T2Locale/T2Locale.cpp",
+		"../../Toshi/Source/Toshi/T2Allocator.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
 		"../../Toshi/Source/Toshi/T2String8.cpp",
 		"../../Toshi/Source/Toshi/TApplication.cpp",
@@ -298,6 +299,7 @@ project "OpenBarnyardPSPGame"
 
 	removefiles
 	{
+		"../../Toshi/Source/Platform/PSP/T2Allocator_PSP.cpp",
 		"../../Toshi/Source/Platform/PSP/TMemory_PSP.cpp"
 	}
 
