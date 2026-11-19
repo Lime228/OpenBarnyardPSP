@@ -5,6 +5,7 @@
 #include <Core/TMemory.h>
 #include <Math/TMath.h>
 #include <Platform/PSP/TRenderMemory_PSP.h>
+#include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Toshi/TStringManager.h>
 
 #include <pspiofilemgr.h>
@@ -80,11 +81,20 @@ void AUpdateGameRuntimeMemory_PSP()
 
 void AWriteGameRuntimeReport_PSP()
 {
-	static TCHAR s_aReportBuffer_PSP[ 1024 ];
+	if ( TInputInterface::IsSingletonCreated() )
+	{
+		TInputInterface_PSP* pInputInterface = TSTATICCAST( TInputInterface_PSP, TInputInterface::GetSingleton() );
+		const TInputDeviceController_PSP& rController = pInputInterface->GetController();
+		s_GameRuntimeReport_PSP.uiControllerButtons = rController.GetCurrentButtons_PSP();
+		s_GameRuntimeReport_PSP.uiControllerObservedButtons = rController.GetObservedButtons_PSP();
+		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
+	}
+
+	static TCHAR s_aReportBuffer_PSP[ 1152 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=5\n"
+		"version=6\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -106,6 +116,9 @@ void AWriteGameRuntimeReport_PSP()
 		"picture_draws=%u\n"
 		"gui_colour_draws=%u\n"
 		"last_gui_colour=%08x\n"
+		"controller_buttons=%08x\n"
+		"controller_observed_buttons=%08x\n"
+		"controller_nonzero_button_samples=%u\n"
 		"menu_state=%d\n"
 		"menu_focus=%d\n"
 		"menu_last_pressed_doodad=%d\n"
@@ -144,6 +157,9 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiPictureDraws,
 		s_GameRuntimeReport_PSP.uiGUIColourDraws,
 		s_GameRuntimeReport_PSP.uiLastGUIColour,
+		s_GameRuntimeReport_PSP.uiControllerButtons,
+		s_GameRuntimeReport_PSP.uiControllerObservedButtons,
+		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples,
 		s_GameRuntimeReport_PSP.iMenuState,
 		s_GameRuntimeReport_PSP.iMenuFocusID,
 		s_GameRuntimeReport_PSP.iMenuLastPressedDoodad,

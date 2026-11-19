@@ -19,6 +19,9 @@ struct AGameRuntimeReport_PSP
 	TUINT uiPictureDraws;
 	TUINT uiGUIColourDraws;
 	TUINT uiLastGUIColour;
+	TUINT uiControllerButtons;
+	TUINT uiControllerObservedButtons;
+	TUINT uiControllerNonZeroButtonSamples;
 	TUINT uiMenuInputDownCount;
 	TUINT uiMenuActionCommandCount;
 	TUINT uiMenuCommandUpCount;

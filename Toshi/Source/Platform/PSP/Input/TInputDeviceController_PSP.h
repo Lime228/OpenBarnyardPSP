@@ -33,6 +33,9 @@ public:
 	virtual TFLOAT GetAxisFloat( Doodad a_iDoodad, TINT a_iAxis ) const override;
 	virtual TFLOAT GetAxisFloat2( Doodad a_iDoodad, TINT a_iAxis ) const override;
 	virtual TBOOL IsEnabled() const override;
+	TUINT GetCurrentButtons_PSP() const { return m_oState.Buttons; }
+	TUINT GetObservedButtons_PSP() const { return m_uiObservedButtonsPSP; }
+	TUINT GetNonZeroButtonSamples_PSP() const { return m_uiNonZeroButtonSamplesPSP; }
 
 	virtual TBOOL WasDown( Doodad a_iDoodad ) const override;
 	virtual TINT  GetPortIndex() override;
@@ -43,6 +46,8 @@ private:
 private:
 	SceCtrlData m_oState;
 	SceCtrlData m_oOldState;
+	TUINT       m_uiObservedButtonsPSP;
+	TUINT       m_uiNonZeroButtonSamplesPSP;
 	TBOOL       m_bPolled;
 };
 

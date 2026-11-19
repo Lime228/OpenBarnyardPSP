@@ -23,6 +23,8 @@ static constexpr TInputDevice::Doodad s_aPSPButtons[] = {
 TInputDeviceController_PSP::TInputDeviceController_PSP()
     : m_oState{}
     , m_oOldState{}
+    , m_uiObservedButtonsPSP( 0 )
+    , m_uiNonZeroButtonSamplesPSP( 0 )
     , m_bPolled( TFALSE )
 {
 	m_oState.Lx    = STICK_CENTRE;
@@ -75,6 +77,11 @@ void TInputDeviceController_PSP::Update( TFLOAT )
 
 	m_oOldState = m_oState;
 	m_oState    = oState;
+	m_uiObservedButtonsPSP |= oState.Buttons;
+	if ( oState.Buttons != 0 )
+	{
+		m_uiNonZeroButtonSamplesPSP += 1;
+	}
 	UpdateVirtualButtons();
 	m_bPolled = TTRUE;
 }
