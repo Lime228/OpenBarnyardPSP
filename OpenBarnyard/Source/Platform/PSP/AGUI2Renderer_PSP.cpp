@@ -250,17 +250,20 @@ void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2
 {
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiGUIColourDraws++;
+	rReport.uiGUIQuadDraws++;
 	rReport.uiLastGUIColour = m_uiColour_PSP;
+	const T2GUITransform& rTransform = m_aTransforms_PSP[ m_iTransformCount_PSP ];
+	if ( TMath::Abs( rTransform.m_aMatrixRows[ 0 ].y ) > 0.0001f ||
+	     TMath::Abs( rTransform.m_aMatrixRows[ 1 ].x ) > 0.0001f )
+	{
+		rReport.uiGUIRotatedQuadDraws++;
+	}
 
-	TVector2 oPos1;
-	TVector2 oPos2;
-	TransformPoint( oPos1, a_rPos1 );
-	TransformPoint( oPos2, a_rPos2 );
-
-	const TFLOAT fX      = TMath::Min( oPos1.x, oPos2.x );
-	const TFLOAT fY      = TMath::Min( oPos1.y, oPos2.y );
-	const TFLOAT fWidth  = TMath::Abs( oPos2.x - oPos1.x );
-	const TFLOAT fHeight = TMath::Abs( oPos2.y - oPos1.y );
+	TRenderQuad_PSP oQuad;
+	TransformPoint( oQuad.aPositions[ 0 ], a_rPos1 );
+	TransformPoint( oQuad.aPositions[ 1 ], { a_rPos2.x, a_rPos1.y } );
+	TransformPoint( oQuad.aPositions[ 2 ], { a_rPos1.x, a_rPos2.y } );
+	TransformPoint( oQuad.aPositions[ 3 ], a_rPos2 );
 
 	if ( m_pMaterial_PSP != TNULL )
 	{
@@ -268,23 +271,20 @@ void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2
 		if ( pMaterial->pTextureEntry != TNULL )
 		{
 			const T2Texture& rTexture = pMaterial->pTextureEntry->oTexture;
-			AGetRenderInterface_PSP().DrawTextureRegion(
-				rTexture,
-				a_rUV1.x * rTexture.GetWidth(),
-				a_rUV1.y * rTexture.GetHeight(),
-				TMath::Abs( a_rUV2.x - a_rUV1.x ) * rTexture.GetWidth(),
-				TMath::Abs( a_rUV2.y - a_rUV1.y ) * rTexture.GetHeight(),
-				fX,
-				fY,
-				fWidth,
-				fHeight,
-				m_uiColour_PSP
-			);
+			const TFLOAT fU1 = a_rUV1.x * rTexture.GetWidth();
+			const TFLOAT fV1 = a_rUV1.y * rTexture.GetHeight();
+			const TFLOAT fU2 = a_rUV2.x * rTexture.GetWidth();
+			const TFLOAT fV2 = a_rUV2.y * rTexture.GetHeight();
+			oQuad.aUVs[ 0 ] = { fU1, fV1 };
+			oQuad.aUVs[ 1 ] = { fU2, fV1 };
+			oQuad.aUVs[ 2 ] = { fU1, fV2 };
+			oQuad.aUVs[ 3 ] = { fU2, fV2 };
+			AGetRenderInterface_PSP().DrawTextureQuad( rTexture, oQuad, m_uiColour_PSP );
 			return;
 		}
 	}
 
-	AGetRenderInterface_PSP().DrawColourRectangle( fX, fY, fWidth, fHeight, m_uiColour_PSP );
+	AGetRenderInterface_PSP().DrawColourQuad( oQuad, m_uiColour_PSP );
 }
 
 void AGUI2Renderer_PSP::RenderTriStrip( TVector2*, TVector2*, TUINT32 )

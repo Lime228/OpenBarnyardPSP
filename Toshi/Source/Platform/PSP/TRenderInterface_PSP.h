@@ -3,6 +3,7 @@
 #include "T2Texture_PSP.h"
 #include "TModel_PSP.h"
 #include "TRenderBuffer_PSP.h"
+#include "Math/TVector2.h"
 
 TOSHI_NAMESPACE_START
 
@@ -15,6 +16,12 @@ struct TRenderColourVertex_PSP
 };
 
 static_assert( sizeof( TRenderColourVertex_PSP ) == 16, "Unexpected PSP colour vertex layout" );
+
+struct TRenderQuad_PSP
+{
+	TVector2 aPositions[ 4 ];
+	TVector2 aUVs[ 4 ];
+};
 
 enum TRenderCullMode_PSP : TUINT32
 {
@@ -69,6 +76,7 @@ public:
 	void BeginScene( TUINT32 a_uiClearColour );
 	void DrawColourTriangle( TFLOAT a_fXOffset );
 	void DrawColourRectangle( TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight, TUINT32 a_uiColour );
+	void DrawColourQuad( const TRenderQuad_PSP& a_rQuad, TUINT32 a_uiColour );
 	void DrawIndexedColourTriangles( const TVertexPoolResource_PSP& a_rVertices, const TIndexPoolResource_PSP& a_rIndices );
 	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture = TNULL );
 	void DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const TRenderMaterial_PSP& a_rMaterial, const T2Texture* a_pTexture );
@@ -106,6 +114,7 @@ public:
 	    TFLOAT a_fHeight,
 	    TUINT32 a_uiColour
 	);
+	void DrawTextureQuad( const T2Texture& a_rTexture, const TRenderQuad_PSP& a_rQuad, TUINT32 a_uiColour );
 	void EndScene();
 
 	TBOOL IsDisplayCreated() const { return m_bDisplayCreated; }

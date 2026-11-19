@@ -18,6 +18,8 @@ struct AGameRuntimeReport_PSP
 	TUINT uiPictureRenderFrames;
 	TUINT uiPictureDraws;
 	TUINT uiGUIColourDraws;
+	TUINT uiGUIQuadDraws;
+	TUINT uiGUIRotatedQuadDraws;
 	TUINT uiLastGUIColour;
 	TUINT uiControllerButtons;
 	TUINT uiControllerObservedButtons;

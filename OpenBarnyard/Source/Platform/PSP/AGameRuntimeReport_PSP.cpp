@@ -90,11 +90,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 1152 ];
+	static TCHAR s_aReportBuffer_PSP[ 1216 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=6\n"
+		"version=7\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -115,6 +115,8 @@ void AWriteGameRuntimeReport_PSP()
 		"picture_render_frames=%u\n"
 		"picture_draws=%u\n"
 		"gui_colour_draws=%u\n"
+		"gui_quad_draws=%u\n"
+		"gui_rotated_quad_draws=%u\n"
 		"last_gui_colour=%08x\n"
 		"controller_buttons=%08x\n"
 		"controller_observed_buttons=%08x\n"
@@ -156,6 +158,8 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiPictureRenderFrames,
 		s_GameRuntimeReport_PSP.uiPictureDraws,
 		s_GameRuntimeReport_PSP.uiGUIColourDraws,
+		s_GameRuntimeReport_PSP.uiGUIQuadDraws,
+		s_GameRuntimeReport_PSP.uiGUIRotatedQuadDraws,
 		s_GameRuntimeReport_PSP.uiLastGUIColour,
 		s_GameRuntimeReport_PSP.uiControllerButtons,
 		s_GameRuntimeReport_PSP.uiControllerObservedButtons,

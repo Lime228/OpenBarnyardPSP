@@ -41,6 +41,19 @@ struct TRenderTextureColourVertex_PSP
 
 static_assert( sizeof( TRenderTextureColourVertex_PSP ) == 24, "Unexpected PSP texture colour vertex layout" );
 
+static TBOOL TRenderHasQuadArea_PSP( const TRenderQuad_PSP& a_rQuad )
+{
+	const TVector2& rPosition0 = a_rQuad.aPositions[ 0 ];
+	const TVector2& rPosition1 = a_rQuad.aPositions[ 1 ];
+	const TVector2& rPosition2 = a_rQuad.aPositions[ 2 ];
+	const TVector2& rPosition3 = a_rQuad.aPositions[ 3 ];
+	const TFLOAT fArea0 = ( rPosition1.x - rPosition0.x ) * ( rPosition2.y - rPosition0.y ) -
+	                      ( rPosition1.y - rPosition0.y ) * ( rPosition2.x - rPosition0.x );
+	const TFLOAT fArea1 = ( rPosition3.x - rPosition1.x ) * ( rPosition2.y - rPosition1.y ) -
+	                      ( rPosition3.y - rPosition1.y ) * ( rPosition2.x - rPosition1.x );
+	return TMath::Abs( fArea0 ) + TMath::Abs( fArea1 ) > 0.001f;
+}
+
 static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureFunction )
 {
 	sceGuEnable( GU_TEXTURE_2D );
@@ -177,6 +190,33 @@ void TRenderInterface_PSP::DrawColourRectangle( TFLOAT a_fX, TFLOAT a_fY, TFLOAT
 	    GU_SPRITES,
 	    GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
 	    2,
+	    TNULL,
+	    pVertices
+	);
+	sceGuDisable( GU_BLEND );
+}
+
+void TRenderInterface_PSP::DrawColourQuad( const TRenderQuad_PSP& a_rQuad, TUINT32 a_uiColour )
+{
+	if ( !TRenderHasQuadArea_PSP( a_rQuad ) )
+		return;
+
+	sceGuDisable( GU_TEXTURE_2D );
+	sceGuDisable( GU_DEPTH_TEST );
+	sceGuDisable( GU_CULL_FACE );
+	sceGuEnable( GU_BLEND );
+	sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0 );
+
+	auto* pVertices = static_cast<TRenderColourVertex_PSP*>( sceGuGetMemory( 4 * sizeof( TRenderColourVertex_PSP ) ) );
+	for ( TINT i = 0; i < 4; i++ )
+	{
+		pVertices[ i ] = { a_uiColour, a_rQuad.aPositions[ i ].x, a_rQuad.aPositions[ i ].y, 0.0f };
+	}
+
+	sceGuDrawArray(
+	    GU_TRIANGLE_STRIP,
+	    GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
+	    4,
 	    TNULL,
 	    pVertices
 	);
@@ -439,6 +479,41 @@ void TRenderInterface_PSP::DrawTextureRegion(
 	    GU_SPRITES,
 	    GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
 	    2,
+	    TNULL,
+	    pVertices
+	);
+	sceGuDisable( GU_BLEND );
+	sceGuDisable( GU_TEXTURE_2D );
+}
+
+void TRenderInterface_PSP::DrawTextureQuad( const T2Texture& a_rTexture, const TRenderQuad_PSP& a_rQuad, TUINT32 a_uiColour )
+{
+	if ( a_rTexture.GetImageData() == TNULL || !TRenderHasQuadArea_PSP( a_rQuad ) )
+		return;
+
+	TRenderSetTexture_PSP( a_rTexture, GU_TFX_MODULATE );
+	sceGuDisable( GU_DEPTH_TEST );
+	sceGuDisable( GU_CULL_FACE );
+	sceGuEnable( GU_BLEND );
+	sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0 );
+
+	auto* pVertices = static_cast<TRenderTextureColourVertex_PSP*>( sceGuGetMemory( 4 * sizeof( TRenderTextureColourVertex_PSP ) ) );
+	for ( TINT i = 0; i < 4; i++ )
+	{
+		pVertices[ i ] = {
+			a_rQuad.aUVs[ i ].x,
+			a_rQuad.aUVs[ i ].y,
+			a_uiColour,
+			a_rQuad.aPositions[ i ].x,
+			a_rQuad.aPositions[ i ].y,
+			0.0f,
+		};
+	}
+
+	sceGuDrawArray(
+	    GU_TRIANGLE_STRIP,
+	    GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,
+	    4,
 	    TNULL,
 	    pVertices
 	);
