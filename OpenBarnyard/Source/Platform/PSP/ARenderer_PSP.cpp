@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "ARenderer_PSP.h"
+#include "AGameRuntimeReport_PSP.h"
 #include "GUI/AGUI2.h"
 #include "Render/ARenderer.h"
 
@@ -56,10 +57,14 @@ TBOOL ARenderer::OnUpdate( TFLOAT )
 	if ( !s_RenderInterface_PSP.IsDisplayCreated() )
 		return TFALSE;
 
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.uiRendererFrames++;
 	s_RenderInterface_PSP.BeginScene( 0xff101820 );
 	if ( m_bRenderGUI && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
 		RenderGUI();
 	s_RenderInterface_PSP.EndScene();
+	if ( rReport.uiRendererFrames == 1 || rReport.uiRendererFrames % 60 == 0 )
+		AWriteGameRuntimeReport_PSP();
 	return TTRUE;
 }
 

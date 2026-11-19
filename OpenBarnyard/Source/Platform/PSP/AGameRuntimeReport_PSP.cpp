@@ -84,7 +84,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=2\n"
+		"version=3\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -100,7 +100,12 @@ void AWriteGameRuntimeReport_PSP()
 		"heap_used=%u\n"
 		"render_main_current=%u\n"
 		"render_main_peak=%u\n"
-		"render_main_budget=%u\n",
+		"render_main_budget=%u\n"
+		"renderer_frames=%u\n"
+		"picture_render_frames=%u\n"
+		"picture_draws=%u\n"
+		"gui_colour_draws=%u\n"
+		"last_gui_colour=%08x\n",
 		s_GameRuntimeReport_PSP.szPhase,
 		s_GameRuntimeReport_PSP.bEngineCreated,
 		s_GameRuntimeReport_PSP.bApplicationCreated,
@@ -116,7 +121,12 @@ void AWriteGameRuntimeReport_PSP()
 		TUINT( s_GameRuntimeReport_PSP.uiHeapUsed ),
 		TUINT( s_GameRuntimeReport_PSP.uiRenderMainCurrent ),
 		TUINT( s_GameRuntimeReport_PSP.uiRenderMainPeak ),
-		TUINT( s_GameRuntimeReport_PSP.uiRenderMainBudget )
+		TUINT( s_GameRuntimeReport_PSP.uiRenderMainBudget ),
+		s_GameRuntimeReport_PSP.uiRendererFrames,
+		s_GameRuntimeReport_PSP.uiPictureRenderFrames,
+		s_GameRuntimeReport_PSP.uiPictureDraws,
+		s_GameRuntimeReport_PSP.uiGUIColourDraws,
+		s_GameRuntimeReport_PSP.uiLastGUIColour
 	);
 
 	if ( iLength <= 0 )

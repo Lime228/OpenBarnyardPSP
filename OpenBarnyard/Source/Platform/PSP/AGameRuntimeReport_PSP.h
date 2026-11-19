@@ -14,6 +14,11 @@ struct AGameRuntimeReport_PSP
 	TSIZE uiRenderMainCurrent;
 	TSIZE uiRenderMainPeak;
 	TSIZE uiRenderMainBudget;
+	TUINT uiRendererFrames;
+	TUINT uiPictureRenderFrames;
+	TUINT uiPictureDraws;
+	TUINT uiGUIColourDraws;
+	TUINT uiLastGUIColour;
 	TBOOL bEngineCreated;
 	TBOOL bApplicationCreated;
 	TBOOL bRootCreated;

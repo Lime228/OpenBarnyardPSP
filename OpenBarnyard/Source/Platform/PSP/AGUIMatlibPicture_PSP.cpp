@@ -93,6 +93,8 @@ void AGUIMatlibPicture::Render()
 	if ( !m_bIsVisible || !m_bLoaded )
 		return;
 
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.uiPictureRenderFrames++;
 	TRenderInterface_PSP& rRender = AGetRenderInterface_PSP();
 	const TFLOAT aColumnWidths_PSP[ 3 ] = { 192.0f, 192.0f, 96.0f };
 	const TFLOAT aRowHeights_PSP[ 2 ]   = { 145.06667f, 126.93333f };
@@ -118,6 +120,7 @@ void AGUIMatlibPicture::Render()
 				aRowHeights_PSP[ iRow ],
 				0xffffffff
 			);
+			rReport.uiPictureDraws++;
 			fX += aColumnWidths_PSP[ iColumn ];
 		}
 		fY += aRowHeights_PSP[ iRow ];

@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "AGUI2Renderer_PSP.h"
+#include "AGameRuntimeReport_PSP.h"
 #include "ARenderer_PSP.h"
 
 #include "GUI/AGUI2.h"
@@ -136,6 +137,10 @@ void AGUI2Renderer_PSP::ClearScissor()
 
 void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2& a_rPos2, const TVector2&, const TVector2& )
 {
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.uiGUIColourDraws++;
+	rReport.uiLastGUIColour = m_uiColour_PSP;
+
 	TVector2 oPos1;
 	TVector2 oPos2;
 	TransformPoint( oPos1, a_rPos1 );
