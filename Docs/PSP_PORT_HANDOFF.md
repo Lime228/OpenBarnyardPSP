@@ -1,352 +1,284 @@
 # OpenBarnyard PSP port handoff
 
-Updated: 2026-11-07  
-Repository: `https://github.com/Lime228/OpenBarnyardPSP.git`  
-Working branch: `psp-port`  
-Upstream source branch: `InfiniteC0re/OpenBarnyard:new-modcore`
+Updated: 2026-11-19
 
-## Read this first
+Repository: https://github.com/Lime228/OpenBarnyardPSP.git
 
-The product goal is a PSP version of the original Barnyard game: its original
-startup sequence, frontend, menus, game states, rooms and gameplay, adapted only
-where PSP hardware or APIs require it. The runnable EBOOT in this branch is
-still a diagnostic bootstrap. It is useful for regression testing PSP platform
-code, but it is **not** the game and must not be presented as the original
-frontend.
+Working branch: psp-port
 
-The real game migration has started in the separate
-`OpenBarnyardPSPGameSlice` static library. It currently compiles original game
-sources with PSP GCC, including the root task, loader, state controller, attract
-state and main-menu state. That library is not linked into the EBOOT yet, so
-none of those original states execute at runtime.
+Upstream source branch: InfiniteC0re/OpenBarnyard:new-modcore
 
-Current honest estimates:
+## Product goal and honest runtime boundary
 
-| Scope | Estimate | Meaning |
+The target is the original Barnyard game on PSP: original startup flow, assets,
+menus, game states, rooms and gameplay, with platform changes only where PSP
+hardware or APIs require them. Synthetic bootstrap screens are regression tools,
+not a substitute for the game.
+
+There are now two runnable PSP packages:
+
+- OpenBarnyardPSPBootstrap is the diagnostic regression EBOOT.
+- OpenBarnyardPSPGame is the original-game EBOOT. It starts the original
+  AApplication/ARootTask chain and reaches the original six-entry
+  AFrontEndMainMenuState2 presentation with retail GUI sections, font atlas and
+  localized strings.
+
+The original-game EBOOT has been visually confirmed in PPSSPP through:
+
+1. the retail legal screen;
+2. the retail Bink/logo screen;
+3. the original localized six-entry main menu.
+
+The same original menu is runtime-confirmed with D-pad focus movement and Cross
+activation through the retail `DialogInputMap`.
+
+This is a real original-game frontend milestone, but it is not a playable game
+yet. The menu currently uses a bounded PSP implementation of the original class:
+the original button construction, locale IDs, panels, colours, transforms and
+focus are retained, while world/camera/windmill/music/save and downstream state
+transitions are intentionally deferred. Activating an item records
+frontend-menu-selection and reopens the menu.
+
+Current estimates:
+
+| Scope | Estimate | Current boundary |
 | --- | ---: | --- |
-| Diagnostic PSP bootstrap infrastructure | 70% | Toolchain, package, selected Toshi services, GU probes and bounded sample assets work |
-| Complete playable-game port | 20% | Original startup source compiles in isolation; the real renderer, GUI, content graph and gameplay closure do not run |
+| PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
+| Original startup plus main-menu milestone | 98% | Legal/Bink screens, correctly oriented original menu, D-pad focus and Cross activation run; 3D frontend/audio and hardware validation remain |
+| Complete playable-game port | 28% | Original application/frontend runs, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
-Do not spend the next block making the custom bootstrap resemble the retail
-menu. Keep it only as a hidden regression harness. The next milestone is to
-link and execute original `OpenBarnyard/Source` code against PSP backends.
+## Non-negotiable repository rules
 
-## Repository and source-control rules
+- Work on psp-port unless another branch is explicitly requested.
+- origin is Lime228/OpenBarnyardPSP; upstream is InfiniteC0re/OpenBarnyard.
+- Use InfiniteC0re-style Conventional Commits and split logical subsystems:
+  fix(engine), feat(frontend), build(psp), docs(psp), and so on.
+- Premake owns all project generation and build graph changes. Do not add a
+  parallel CMake project.
+- This fork is PSP-only. Windows host exporters are allowed; a Windows game
+  target is not required.
+- Retail data and converted local output stay ignored. Never commit anything
+  below Game/ or Runtime/.
 
-- Work only on `psp-port` unless a new branch is explicitly requested.
-- `origin` is `Lime228/OpenBarnyardPSP`; `upstream` is
-  `InfiniteC0re/OpenBarnyard`.
-- Preserve InfiniteC0re's Conventional Commit style and split work by logical
-  subsystem. Examples: `feat(render): ...`, `fix(engine): ...`,
-  `build(psp): ...`, `docs(psp): ...`.
-- Do not mix engine, frontend, asset tooling and documentation into one commit.
-- Use Premake for project generation and ownership of the build graph. Do not
-  introduce a parallel CMake project.
-- The fork is PSP-only. A Windows game build is not required; Windows host
-  exporters such as TMDL are allowed and expected.
-- Original retail assets and converted local output must never be committed.
-  `Game/` and `Runtime/` are ignored for this purpose.
+## Coding conventions
 
-## Port coding conventions
+- Prefer existing Toshi types such as TBOOL, TINT, TUINT32, TSIZE and TUINTPTR.
+- If a platform-specific type is necessary, preserve the original name and add
+  the _PSP suffix.
+- Use file-local static data/functions, not anonymous namespaces.
+- Keep logical TSTATICASSERT checks. Only confirmed MSVC class-layout checks use
+  TSTATICASSERT_SIZE.
+- Allegrex is 32-bit little-endian. Do not serialize host size_t, host pointers
+  or MSVC-only layouts.
+- Prefer bounded arrays, fixed-capacity caches, offline conversion and explicit
+  release over STL-heavy runtime conversion.
 
-- Prefer existing Toshi types (`TBOOL`, `TINT`, `TUINT32`, `TSIZE`,
-  `TUINTPTR`, and related types) over equivalent standard or platform types.
-- If a PSP-specific type is necessary, retain the original name and add the
-  `_PSP` suffix.
-- Use `static` for file-local data and helper functions. Do not add anonymous
-  namespaces to PSP implementation files.
-- Keep ordinary logical `TSTATICASSERT` checks enabled. Retail Win32 ABI size
-  checks use `TSTATICASSERT_SIZE`, which remains strict on PC and is explicitly
-  skipped on PSP.
-- Treat Allegrex as a 32-bit little-endian target. Never serialize host-sized
-  `size_t` or pointer-dependent layouts.
-- Use bounded arrays, bounded scratch buffers and offline conversion. Avoid
-  desktop-style permanent heaps, runtime container relocation and hidden
-  copies.
+## Build architecture
 
-## Build architecture at handoff
+Ports/PSP/premake5.lua declares three projects:
 
-`Ports/PSP/premake5.lua` defines two projects:
+### OpenBarnyardPSPBootstrap
 
-### `OpenBarnyardPSPBootstrap`
+The diagnostic EBOOT remains a CI smoke target for PSP system, GU, input, audio
+and bounded asset regressions. Its rotating objects/checkerboard/probe screens
+are not retail game content.
 
-This is the current executable and Premake start project. It builds
-`bin/PSP/<Configuration>/EBOOT.PBP`, titled **OpenBarnyard PSP**, with
-`ICON0.PNG`, `PIC1.PNG` and `MEMSIZE=2` in its SFO. It contains the diagnostic
-code below `Ports/PSP/Source`, a selected portable Toshi subset and PSP
-platform implementations.
+### OpenBarnyardPSPGameSlice
 
-It validates controller input, scheduler/platform services, PSP GU rendering,
-bounded static and skinned sample assets, audio, locale, frontend-logo and
-terrain-preview paths. Several screens and objects shown by this executable are
-synthetic probes. They are not retail Barnyard UI or gameplay.
+A static library with the original root task, state controller, loader, menu
+classes and their growing dependency closure. It keeps portability failures
+small and reviewable.
 
-### `OpenBarnyardPSPGameSlice`
+### OpenBarnyardPSPGame
 
-This is a compile-only static library used to expose portability errors in the
-original code without pretending its complete link dependency graph exists.
-At this handoff it compiles:
+The runnable original-game target. It links the slice with the portable Toshi
+core and PSP implementations, writes a linker map, produces EBOOT_GAME.PBP, and
+uses the branded ICON0.PNG/PIC1.PNG plus MEMSIZE=2.
 
-- `OpenBarnyard/Source/GameInterface/AFrontEndAttractState.cpp`
-- `OpenBarnyard/Source/GameInterface/AFrontEndMainMenuState2.cpp`
-- `OpenBarnyard/Source/GameInterface/AGameState.cpp`
-- `OpenBarnyard/Source/GameInterface/AGameStateController.cpp`
-- `OpenBarnyard/Source/Helpers/AGameLoader.cpp`
-- `OpenBarnyard/Source/Platform/PSP/ACollisionModel_PSP.cpp`
-- `OpenBarnyard/Source/Platform/PSP/ADisplayModes_PSP.cpp`
-- `OpenBarnyard/Source/Platform/PSP/AMoviePlayer_PSP.cpp`
-- `OpenBarnyard/Source/Platform/PSP/AppBoot_PSP.cpp`
-- `OpenBarnyard/Source/Tasks/ARootTask.cpp`
+Important PSP platform implementations include:
 
-`AppBoot_PSP.cpp` defines the original `MODAPI AApplication g_oTheApp` and
-creates the original dummy-task chain and `ARootTask`. It deliberately omits
-Win32 virtual memory, mutex, message-box and `WinMain` code. It does not yet
-reproduce all of the PC `CreateOptionalSystems`, locale and free-list setup, so
-linking it prematurely would not produce a safe game runtime.
+- AppBoot_PSP.cpp: original g_oTheApp, bounded 20 MiB Toshi heap and original
+  task chain;
+- ARenderer_PSP and AGUI2Renderer_PSP: GU display, resource budget and original
+  GUI rendering;
+- AInputHandler_PSP: PSP controller events through the game input layer;
+- AMoviePlayer_PSP: platform movie interface without proprietary Bink;
+- ACollisionModel_PSP: platform collision interface without x86 Opcode;
+- PSP file, allocator, time, sync, thread, input and texture implementations.
 
-## PSP platform work already present
+## Current original frontend path
 
-- `TSystemDLL_PSP`: PSP-safe replacement for the dynamic-library seam.
-- `T2Atomic_PSP`: Allegrex-compatible engine atomic integer operations.
-- `ADisplayModes_PSP`: one fixed 480x272x32 display mode.
-- `ACollisionModel_PSP`: preserves the original collision-model interface and
-  keeps x86/MSVC Opcode out of the PSP frontend dependency graph.
-- `AMoviePlayer_PSP`: preserves the original movie-player interface without
-  pulling proprietary Bink headers into PSP compilation.
-- `TTMD_PSP`: PSP-side model LOD/header contracts.
-- PSP Toshi implementations for allocation, time, files, threads, mutexes,
-  semaphores, controller input and selected render/resource services used by
-  the harness.
+AppBoot_PSP creates the original application/root task and opens:
 
-Important limitations:
+- retail Data/GUI/fonts.trb;
+- retail Data/GUI/texsec.trb;
+- retail Data/Locale/eng-uk.trb;
+- retail Data/Options/Controls_Win.trb;
+- PSP-converted PTEX files resolved from the original GUI material names.
 
-- `ACollisionModel_PSP` currently stores model/index information but returns
-  `false` from every collision query. This is sufficient only to unblock menu
-  compilation and must become a real bounded collision backend before gameplay.
-- `AMoviePlayer_PSP::PlayMovie` currently returns `false`. It constructs the
-  retail-style `Data/Movies/%s.pmvf` path but no PSP decoder exists yet.
-- The original game slice is compiled but not linked or executed.
-- The runnable diagnostic class `Ports/PSP/Source/Frontend/AApplication_PSP`
-  is unrelated to the original `AApplication` defined by `AppBoot_PSP.cpp`.
+T2Locale converts the validated retail UTF-16 table to PSP GCC's native 32-bit
+TWCHAR storage. T2GUITextureSectionManager validates the TRB header, section
+pointer and bounded section count before creating materials.
+AGUI2Renderer_PSP owns a fixed 16-entry texture cache and maps the original
+800x600 logical GUI root to 480x272.
 
-## Why key PC dependencies were replaced
+The Rekord_Black_26 atlas must remain 512x512 because fonts.trb stores glyph
+coordinates for that exact atlas. Other frontend textures retain the default
+256-pixel conversion cap unless a measured manifest exception is added.
 
-- Bundled Opcode is an x86/MSVC implementation containing `__declspec`,
-  `__int64` and x86 assembly. Header-case/include fixes were useful for host
-  portability, but Opcode cannot execute on Allegrex. PSP therefore selects
-  `ACollisionModel_PSP` at the platform boundary.
-- The PC root task directly selected Bink and required proprietary `bink.h`.
-  PSP selects `AMoviePlayer_PSP`; retail movies will require an offline
-  conversion format and a bounded PSP decoder.
-- Exact retail class sizes describe MSVC Win32 layout, not portable gameplay
-  invariants. `TSTATICASSERT_SIZE` separates those checks without disabling
-  normal assertions.
+Measured original-menu runtime after the orientation and controller fixes:
 
-The confirmed failures, root causes, fixes and validation signals are maintained
-in `Docs/PSP_PORTING_ISSUES.md`. Continue adding rows only after a root cause is
-confirmed.
+    phase=frontend-menu-ready
+    heap_free=15493872
+    heap_largest_hole=15493204
+    heap_used=5475728
+    render_main_current=2641920
+    render_main_peak=2641920
+    render_main_budget=16777216
+    controller_observed_buttons=00004040
+    controller_nonzero_button_samples=30
+    menu_focus=1
+    menu_command_down_count=1
+    menu_command_ok_count=1
+    menu_activated_button=1
+    menu_activation_count=1
+    menu_close_count=1
 
-## Build and CI
+The 512x512 font atlas is therefore currently acceptable, but the figures must
+also be checked on real 32/64 MiB hardware.
 
-From Windows with WSL and PSPDEV installed:
+## Known limitations
 
-```powershell
-.\Ports\PSP\Build.ps1
-```
+- The 3D frontend barn/terrain, camera loop, windmill and environment are not
+  loaded, so the original menu is drawn over a dark background.
+- Menu actions are bounded to a selection checkpoint and menu reopen. New game,
+  load game, options, extras, antics and quit do not enter their retail states.
+- AMoviePlayer_PSP does not decode Bink. Startup images currently follow the
+  original GUI presentation path; full-motion retail movies need offline
+  conversion and a bounded PSP stream format.
+- ACollisionModel_PSP preserves the interface but returns no hits. Gameplay must
+  not start until a bounded collision backend exists.
+- Retail FMOD banks/music are not integrated. The diagnostic mixer proves PSP
+  audio only.
+- GUI rectangles are currently submitted as axis-aligned sprites. Small retail
+  menu-panel rotations are not yet represented by a four-corner GU quad.
+- The texture cache holds at most 16 unique GUI textures. The current menu fits;
+  future screens need measured lifetime/reuse or a larger justified budget.
+- Rekord18 and Bremen25 are not staged for the current menu because it only uses
+  Rekord26.
+- Save data, memory-stick UI, rooms, actors, player control, quests and streaming
+  are not connected.
 
-The underlying Linux entry point is:
+## Retail data and repeatable staging
 
-```sh
-./Ports/PSP/build.sh
-```
+The user's complete PC installation is local and ignored at:
 
-It regenerates all deterministic bootstrap assets, runs:
+    D:\BARNYARDPSP\Game\BarnyardPC\Install\
 
-```sh
-premake5 --file=premake5.lua gmake --target=psp
-make -C Build/PSP config=release_psp -j"$(nproc)"
-```
+Converted frontend workspace:
 
-and produces `bin/PSP/Release/EBOOT.PBP`.
+    Game/BarnyardPC/Workspace/Frontend/
 
-The GitHub workflow is `.github/workflows/psp.yaml` and contains:
+Staged PSP runtime:
 
-- `host-tools`: builds the Windows x86 TMDL exporter on VS2022 and publishes
-  `OpenBarnyard-PSP-host-tools`.
-- `bootstrap`: tests deterministic converters, generates the Premake PSP
-  project, builds it in `ghcr.io/pspdev/pspdev:latest`, and publishes
-  `OpenBarnyard-PSP-bootstrap`.
+    Runtime/OpenBarnyardPSPGame/
 
-Last verified code run at handoff: workflow `42352921891`, commit `34848273`.
-Both `host-tools` (job `128344709341`) and `bootstrap` (job `128344709574`)
-completed successfully. This verifies compilation and packaging, not original
-game execution.
-
-## PPSSPP workflow
-
-Use exactly one emulator instance through the background runner:
-
-```powershell
-.\Ports\PSP\RunPPSSPP.ps1 -Action Start
-.\Ports\PSP\RunPPSSPP.ps1 -Action Status
-.\Ports\PSP\RunPPSSPP.ps1 -Action Restart
-.\Ports\PSP\RunPPSSPP.ps1 -Action Press -Key Cross
-.\Ports\PSP\RunPPSSPP.ps1 -Action Stop
-```
-
-The script launches the bundled PPSSPP minimized, tracks/adopts its PID, removes
-duplicate instances at the same executable path and injects controller keys
-without taking keyboard/mouse focus. Do not launch PPSSPP manually for routine
-checks and do not create multiple instances. PPSSPP validation is not a
-substitute for testing on 32/64 MiB PSP hardware.
-
-## Retail asset location and current discrepancy
-
-The documented, ignored retail-data root is:
-
-```text
-D:\BARNYARDPSP\Game\BarnyardPC\Install\
-```
-
-The user previously said the whole game had been copied directly into an
-`Install` directory without an additional subfolder. At this handoff neither
-`D:\BARNYARDPSP\Install` nor the documented install directory is present in
-this checkout. Before any retail conversion, locate the user's existing copy
-and place or reference it under the ignored structure above. Do not download,
-commit or upload proprietary game data.
-
-Expected local-only layout:
-
-```text
-Game/BarnyardPC/Install/               complete untouched PC installation
-Game/BarnyardPC/Selected/              deliberately selected small inputs
-Game/BarnyardPC/Manifests/             text selection manifests
-Game/BarnyardPC/Tools/TMDL.exe         downloaded CI host exporter
-Game/BarnyardPC/Workspace/Dumps/       ignored intermediate JSON/DDS dumps
-Game/BarnyardPC/Workspace/Converted/   ignored PSP assets
-```
-
-See `Docs/PSP_ASSET_INTAKE.md` for manifest formats and the exact first-content
-workflow.
-
-## Repeatable asset tooling
-
-Never hand-edit generated PSP assets. Extend and test these repeatable paths:
+Never hand-edit generated assets. Main entry points:
 
 | Entry point | Purpose |
 | --- | --- |
-| `ConvertRetailFrontend.ps1` | Extract and reduce the shipping Barnyard logo to a PSP-safe 256x64 PTEX |
-| `ConvertRetailPreview.ps1` | Manifest-driven retail skin, skeleton, animation and texture conversion |
-| `ConvertRetailTerrain.ps1` | Manifest-driven bounded cell/mesh/material/texture conversion |
-| `convert_barnyard_skin.py` | Transactional orchestration and `.pset` manifest publication |
-| `convert_tmd_dump.py` | Strip triangulation and two-influence PSP skin reduction |
-| `convert_animation.py` | Bounded PANM quantization, max 64 bones/frames |
-| `convert_dds.py` | DXT1/3/5 and masked 16/32-bit DDS to reduced/swizzled PTEX |
-| `convert_terrain_dump.py` / `convert_terrain_cell.py` | Bounded static PMES terrain conversion |
-| `convert_mesh.py` / `convert_skeleton.py` / `convert_texture.py` | Synthetic and intermediate mesh/skeleton/texture formats |
-| `convert_world.py` | Bounded PWLD resources, instances and deterministic spatial cells |
-| `convert_audio.py` / `generate_wave_bank.py` | Bounded resident PPCM and streamed PADP audio assets |
-| `mark_retail_layout_asserts.py` | Repeatable conversion of confirmed Win32 size checks to `TSTATICASSERT_SIZE` |
-| `audit_source_dependencies.py` | Detect forbidden desktop dependencies in selected PSP sources |
+| ConvertRetailFrontend.ps1 | Extract retail GUI textures and convert them to bounded PTEX, including the 512 font exception |
+| StageOriginalGame.ps1 | Assemble an ignored original-game runtime from a CI/local build and retail files |
+| ConvertRetailPreview.ps1 | Manifest-driven retail model/skeleton/animation/texture preview |
+| ConvertRetailTerrain.ps1 | Manifest-driven bounded terrain cell conversion |
+| convert_dds.py | DXT and masked DDS decode, reduction and PSP swizzle |
+| mark_retail_layout_asserts.py | Repeatable marking of confirmed MSVC size assertions |
+| audit_source_dependencies.py | Detect forbidden desktop dependencies in selected PSP sources |
 
-Converter tests live beside these scripts and run in CI. Add a deterministic
-test whenever a new retail edge case or reduction rule is introduced.
+Typical local frontend preparation:
 
-## PSP constraints that govern every implementation
+    .\Ports\PSP\Tools\ConvertRetailFrontend.ps1 -TMDLPath .\Runtime\CIArtifacts\e8c4dcab\host-tools\TMDL.exe
+    .\Ports\PSP\StageOriginalGame.ps1 -BuildDirectory .\Runtime\CIArtifacts\<commit> -SkipConversion
 
-- Native resolution is 480x272. Main RAM is constrained to PSP hardware limits
-  and display/depth/texture use must fit the separate 2 MiB EDRAM budget.
-- The GU expects aligned, cache-written-back data. Current texture contracts use
-  16-byte alignment, power-of-two dimensions/strides and a maximum dimension
-  of 512.
-- Prefer preconverted immutable data, zone streaming, fixed-capacity ownership
-  and explicit release to runtime decoding and STL-heavy asset graphs.
-- Do not restore the PC 256 MiB heap request.
-- PSP has no Win32 DLL/mod-injection model, DirectX, FMOD or Bink runtime.
-  Platform services must enter through PSP implementations.
-- Input is one local PSP controller with fewer controls. Map through the real
-  game input layer rather than adding frontend-only shortcuts.
+## CI and local PPSSPP workflow
 
-## Exact next implementation path
+GitHub workflow: .github/workflows/psp.yaml.
 
-Work in this order so every step produces a truthful, reviewable milestone:
+- host-tools builds TMDL on VS2022.
+- bootstrap runs converter tests, generates the Premake PSP workspace, builds
+  the diagnostic and original-game targets, and publishes separate artifacts.
 
-1. **Complete the original PSP application bootstrap.** Compare PC
-   `AppBoot.cpp` with `AppBoot_PSP.cpp`; port required free-list, locale and
-   optional-system initialization through PSP-safe services. Exclude Win32 and
-   ModCore injection behaviour explicitly.
-2. **Build the original root-task link closure.** Add original sources in small
-   groups to the compile library: GUI system (`AGUI2`/`AGUISystem`), asset and
-   material libraries, renderer task, input handler/maps, sound manager adapters
-   and locale. Use unresolved symbols and a linker map as the dependency list;
-   do not replace original states with lookalike PSP states.
-3. **Create a real-game EBOOT target.** Keep
-   `OpenBarnyardPSPBootstrap` as a separate regression executable. Add a new
-   original-game executable only when it intentionally references original
-   `g_oTheApp`/`ARootTask` and its startup closure can link.
-4. **Reach the original frontend with bounded content.** Convert and package
-   the retail frontend library, main GUI sections, fonts, locales, camera,
-   animation, models/materials and necessary sounds into a deterministic PSP
-   manifest. Missing data must fail clearly; synthetic bootstrap UI is not an
-   acceptable fallback for this milestone.
-5. **Implement movie replacement.** Determine the retail startup movie set,
-   add an offline converter to a PSP-suitable stream and implement bounded
-   decode/playback behind `AMoviePlayer_PSP`. Bink itself cannot ship.
-6. **Implement collision before gameplay.** Replace the all-false
-   `ACollisionModel_PSP` fallback with a profiled, bounded Allegrex-compatible
-   collision representation produced offline.
-7. **Validate the original menu.** Confirm original attract/menu states,
-   original assets, input transitions, audio ownership and memory telemetry in
-   one PPSSPP instance, then on hardware.
-8. **Advance to one playable room.** Only after the real frontend works, bring
-   up one reduced room, actor/player control, physics and zone streaming within
-   measured budgets.
+Current green original-menu artifact: PSP run `44579456976`, commit
+`02317c22`. Its report v6 proves Down and Cross through the complete
+PPSSPP/sceCtrl/Toshi/retail-input-map/menu path.
 
-The immediate next commit should therefore concern original application
-initialization or one dependency group of the original root-task closure, not
-another custom diagnostic screen.
+Install the pinned official PPSSPP development build once:
 
-## Known-good commit boundary
+    .\Ports\PSP\InstallPPSSPP.ps1
 
-The handoff starts after these logical blocks:
+Use exactly one background emulator instance:
 
-- `f16aee45`–`141c3e78`: restored the original PSP PCH surface, allocator type
-  discipline, GCC template portability and PSP atomic support.
-- `4ddd4db9`–`878b923c`: compiled original game-state/controller sources and
-  added the PSP display-mode backend.
-- `1fbfbf96`–`4cd89369`: separated Win32 retail layout checks and added the
-  repeatable marking tool.
-- `1b2a59b5`–`1437e931`: compiled original menu, attract and loader sources.
-- `244cde87`–`51237197`: diagnosed Opcode and introduced the PSP collision
-  contract instead of attempting to execute x86 code.
-- `7f416f15`–`6abe76f7`: added PSP model contracts, marked transitive retail
-  layouts and compiled original `ARootTask`.
-- `1d2e6790`–`3e43603c`: introduced the PSP movie contract and explicit fallback.
-- `aa9ccdc8`: added the explicit collision fallback.
-- `34848273`: added the original PSP `AApplication` bootstrap and completed the
-  green compile-only startup slice.
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Start -OriginalGame
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Status -OriginalGame
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key DpadDown
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key Cross
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Stop -OriginalGame
 
-At the moment this file was written, the working tree was clean before adding
-the handoff document.
+In a sandboxed validation session, run start, wait, input/screenshot, report and
+stop inside one shell invocation. The sandbox may terminate background child
+processes at command exit; that is not evidence of a game crash. The runner
+launches minimized and injects controller state through PPSSPP's local
+WebSocket debugger without taking user focus.
 
-## Claims that must not be made yet
+Runtime evidence:
 
-- The original Barnyard menu does not run on PSP yet.
-- The original splash/movie sequence does not play yet.
-- The original game slice is not linked into the runnable EBOOT.
-- The diagnostic rotating models, checkerboard, logo and terrain preview are
-  validation probes, not evidence that the corresponding retail game system is
-  ported.
-- Collision and movie playback are interface-compatible fallbacks, not finished
-  implementations.
-- A green CI run proves conversion tests, PSP compilation and packaging only;
-  it does not prove gameplay or hardware memory safety.
+    Runtime/OpenBarnyardPSPGame/openbarnyard_psp_game.log
+    Runtime/Tools/PPSSPPDev/memstick/PSP/SCREENSHOT/
+
+## Next implementation order
+
+1. Replace axis-aligned GUI sprites with bounded four-corner GU quads so the
+   original small menu rotations survive.
+2. Bring up the original frontend 3D environment in measured pieces:
+   Terrain_FrontEnd, camera locator/loop, barn sign and windmill helper.
+3. Connect the original menu's downstream states one at a time, beginning with
+   the smallest options or extras screen before new-game world loading.
+4. Convert/integrate the retail menu cue/music ownership behind the existing PSP
+   audio interfaces.
+5. Design and implement offline movie conversion plus bounded PSP playback.
+6. Implement a bounded collision representation before any gameplay claim.
+7. Advance to one reduced playable room, then add actor/player control, saves
+   and zone streaming with memory telemetry.
+
+## Recent logical commit boundary
+
+- c249ef5e, 881f7f00: retain and share the original PSP game heap.
+- a8ea23d2: load retail PSP GUI materials.
+- a86b0ea9: stage original menu resources.
+- b292d80b: convert retail locale strings for PSP.
+- 36efbea9: enter the original PSP main menu.
+- 8d6433d3: validate PSP GUI section data.
+- b9885c57: preserve the 512x512 original font atlas.
+- 5790ebb7: fit the original 800x600 GUI to PSP.
+- a593704d: preserve the original final vertical orientation on the GU.
+- cf28eaa0: inject background controls through PPSSPP's debugger.
+- 3097316b, 92e7c229: trace retail commands and raw PSP controller samples.
+- 02317c22: preserve PSP controller transitions across repeated acquisition.
+
+## Claims that must not be made
+
+- The full game is not playable.
+- The dark menu background is not the finished retail frontend scene.
+- Legal/Bink presentation does not mean Bink video decoding is implemented.
+- Menu selection checkpoints are not downstream menu/game state support.
+- Diagnostic models, terrain and audio prove platform paths only.
+- A green CI build proves compilation and packaging, not real-hardware safety.
 
 ## Companion documents
 
-- `Docs/PSP_PORT.md`: detailed subsystem notes, progress and milestone plan.
-- `Docs/PSP_PORTING_ISSUES.md`: reproducible failures and their confirmed fixes.
-- `Docs/PSP_ASSET_INTAKE.md`: local retail-data layout, manifests and converters.
-- `Ports/PSP/README.md`: bootstrap build, PPSSPP runner and converter usage.
+- Docs/PSP_PORT.md: detailed history, progress and subsystem notes.
+- Docs/PSP_PORTING_ISSUES.md: confirmed failures, causes and fixes.
+- Docs/PSP_ASSET_INTAKE.md: retail input layout and asset contracts.
+- Ports/PSP/README.md: build, staging and runner commands.
 
-Keep all four documents synchronized when the runtime boundary changes.
+Keep these documents synchronized whenever the runtime boundary changes.

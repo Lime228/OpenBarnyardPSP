@@ -6,14 +6,15 @@ native PSP package artwork from `Assets/ICON0.PNG` (144x80) and
 budgets enforced by `Tools/test_package_assets.py`; Premake passes both images
 directly to `pack-pbp`.
 
-The executable target is a diagnostic milestone for the PSP port. It validates
-the PSPDEV toolchain, 32-bit C++ ABI, controller input, selected Toshi services,
-bounded assets and GU rendering. A separate `OpenBarnyardPSPGameSlice` static
-library now compiles the original application bootstrap, root task, loader and
-selected frontend states, but that library is not linked into this EBOOT and the
-original game does not execute yet. See
+The Premake workspace produces two runnable packages. The diagnostic
+`OpenBarnyardPSPBootstrap` validates platform paths and remains a regression
+target. The separate `OpenBarnyardPSPGame` links the original
+`AApplication`/`ARootTask` chain and now reaches the retail legal/logo
+presentation and original localized six-entry main menu. It is not yet a
+playable game: the frontend 3D scene, downstream states, movies, collision,
+saves and rooms remain incomplete. See
 [`Docs/PSP_PORT_HANDOFF.md`](../../Docs/PSP_PORT_HANDOFF.md) for the exact
-runtime boundary and next dependency-closure work.
+runtime boundary.
 
 ## Build on Windows through WSL
 
@@ -39,17 +40,25 @@ or directly in the Ubuntu shell:
 ```
 
 The build script generates the PSP project with
-`premake5 gmake --target=psp` and builds its `release_psp` configuration. The
-result is `bin/PSP/Release/EBOOT.PBP`. Copy it to a folder such as
-`PSP/GAME/OpenBarnyardProbe/EBOOT.PBP` on a homebrew-capable PSP, or open it in
-PPSSPP. The analog stick moves the triangle; Cross changes the background. A
-red background means that the embedded Toshi ABI/endianness smoke test failed.
+`premake5 gmake --target=psp` and builds its `release_psp` configuration.
+The diagnostic package is `bin/PSP/Release/EBOOT.PBP`; the original-game
+package is `bin/PSP/Release/EBOOT_GAME.PBP`. Use the diagnostic package for
+platform smoke tests and stage the original-game package with
+`StageOriginalGame.ps1` so that its retail resources are present.
 
 ## Background PPSSPP runner
 
-For local PPSSPP checks on Windows, use the background runner. It records the
-PID of this port's emulator process and reuses it instead of opening duplicate
-instances or taking focus on every check:
+Install the pinned official PPSSPP development build once, then use the
+background runner. Emulator binaries and configuration remain ignored under
+`Runtime/Tools/PPSSPPDev`:
+
+```powershell
+.\Ports\PSP\InstallPPSSPP.ps1
+```
+
+The runner prefers that pinned build, records the PID of this port's emulator
+process and reuses it instead of opening duplicate instances or taking focus on
+every check:
 
 ```powershell
 .\Ports\PSP\RunPPSSPP.ps1
@@ -60,15 +69,46 @@ instances or taking focus on every check:
 .\Ports\PSP\RunPPSSPP.ps1 -Action Stop
 ```
 
+For the staged original-game runtime use:
+
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Start -OriginalGame
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key DpadDown
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key Cross
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Stop -OriginalGame
+
 The runner stores its PID under the ignored `Runtime/PPSSPP` directory. If that
 disposable file is missing, it adopts an existing process using the exact
 bundled PPSSPP executable path instead of starting another one. Start, input and
 stop operations remove duplicates belonging to that same runner; PPSSPP
 installations at other paths are untouched.
-Background input uses window messages and does not activate the emulator window
-or take keyboard and mouse focus from the current application. The runner keeps
-the user's configured PPSSPP graphics backend and reports an immediate startup
-failure instead of launching fallback instances.
+Background input uses PPSSPP's local WebSocket debugger and does not activate
+the emulator window or take keyboard and mouse focus from the current
+application. The debugger identity and process ID are checked before a command
+is sent. Screenshot requests use the emulator window command, temporarily
+restoring a minimized D3D11 window without activation because its minimized
+swap chain is not capturable. The runner keeps the configured graphics backend
+and reports an immediate startup failure instead of launching fallback
+instances.
+
+## Original-game retail staging
+
+The complete user-owned PC installation is expected at:
+
+    Game/BarnyardPC/Install/
+
+Convert the retail frontend after downloading a matching CI TMDL host tool:
+
+    .\Ports\PSP\Tools\ConvertRetailFrontend.ps1 -TMDLPath <TMDL.exe>
+
+Then assemble an ignored runtime from the original-game build artifact:
+
+    .\Ports\PSP\StageOriginalGame.ps1 -BuildDirectory <artifact-directory> -SkipConversion
+
+This stages fonts.trb, texsec.trb, locale/control resources and converted PTEX
+files under Runtime/OpenBarnyardPSPGame. Rekord_Black_26 is intentionally kept
+at 512x512 because the retail glyph table uses coordinates from that atlas.
+The original GUI keeps its 800x600 logical root and is scaled to the PSP's
+480x272 framebuffer by AGUI2Renderer_PSP.
 
 ## Optional Barnyard skin preview
 

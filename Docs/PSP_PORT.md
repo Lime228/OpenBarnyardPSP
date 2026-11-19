@@ -2,6 +2,43 @@
 
 ## Current state
 
+The port now has a separate runnable original-game EBOOT in addition to the
+diagnostic bootstrap. OpenBarnyardPSPGame starts the original
+AApplication/ARootTask chain and reaches the retail legal/logo presentation and
+the original localized six-entry AFrontEndMainMenuState2 interface in PPSSPP.
+It uses retail fonts.trb, texsec.trb, locale/control resources and offline
+converted PSP textures.
+
+This is not a complete playable port. The current PSP menu implementation keeps
+the original class, button construction, locale IDs and retail presentation but
+deliberately bounds out the 3D frontend world/camera/windmill/music/save closure
+and downstream menu states. Collision, movies, saves, rooms, player control and
+world streaming remain unfinished. The diagnostic EBOOT stays available only
+as a platform regression harness.
+
+## Progress snapshot (2026-11-19)
+
+PSP toolchain/packaging is approximately **90%** complete, the original startup
+plus main-menu milestone is approximately **98%** complete, and the
+complete playable-game port is approximately **28%** complete.
+
+| Area | Estimate | Current boundary |
+| --- | ---: | --- |
+| PSP toolchain and packaging | 90% | Premake, branded PBP, deterministic converters, PSPDEV CI, host tools and separate bootstrap/original-game artifacts work; hardware release validation remains |
+| Portable Toshi/platform core | 75% | allocator, shared 20 MiB game/resource heap, files, TRB, timer, sync, threads, scheduler, input and GUI paths execute in the original-game target |
+| PSP renderer foundation | 50% | GU display, texture loading, bounded resources and original 800x600 GUI mapping work; general material/model/scene closure and rotated GUI quads remain |
+| Real-game asset pipeline | 35% | retail frontend GUI sections, locale, controls, font and menu textures stage repeatably; complete frontend 3D content, rooms, movies and streaming manifests remain |
+| Input integration | 75% | PSP buttons pass through sceCtrl, Toshi events, the retail input map and the original menu; gameplay mappings and real hardware remain |
+| Game bootstrap and frontend | 55% | original application/root task and authentic menu visuals run; 3D frontend, downstream menu states and new-game flow remain |
+| Audio, movies and saves | 20% | bounded diagnostic PSP audio works; retail music/SFX ownership, Bink replacement and save devices are not integrated |
+| World, animation and gameplay | 8% | retail probes render in the harness, but the original world, actors, player, quests, physics and rooms are not running |
+
+All current runtime claims are PPSSPP claims. Real PSP hardware validation is
+still required, especially for RAM fragmentation, GU synchronization and EDRAM
+use.
+
+## Historical baseline (2026-11-07)
+
 The upstream game is not portable as-is. Its workspace only declares Win32, its
 entry point and bootstrap use Win32 APIs, and the complete render backends are
 DirectX 8 and DirectX 11. The `Revolution` directory currently contains only a
@@ -15,7 +52,7 @@ as a playable frontend. The shipping target is to compile the real
 `OpenBarnyard/Source` game states and systems against PSP platform backends;
 the bootstrap remains available only as a regression harness.
 
-## Progress snapshot (2026-11-07)
+### Progress snapshot at that baseline
 
 The bounded bootstrap infrastructure is approximately **70%** complete, while
 the complete playable-game port is approximately **20%** complete. Earlier
@@ -1132,11 +1169,36 @@ remain largely unstarted.
   render memory and 1,392,640 bytes of EDRAM. Exactly one background PPSSPP
   process, PID `8504`, remained alive after the runner delivered PSP Start and
   transitioned toward the menu without taking desktop focus.
+- Commit `02317c22` passed PSP run `44579456976`. In one pinned PPSSPP
+  development-build process, report v6 observed Down (`0x40`) and Cross
+  (`0x4000`) for 15 controller samples each. Down moved the authentic menu
+  focus from item `0` to item `1`; Cross produced the retail OK command,
+  activated item `1` and reached `frontend-menu-selection`. The controller
+  edge fix makes repeated PSP acquisition idempotent so `old/current` state is
+  preserved until `ProcessEvents()`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
 
 ## Immediate next slice
+
+Replace the axis-aligned GUI sprite submission with a bounded four-corner GU
+quad so the small retail panel rotations survive. The original menu order,
+D-pad focus movement and Cross activation are already confirmed in one PPSSPP
+runner invocation.
+
+The next content block is the original 3D frontend scene, not another synthetic
+screen: stage and load Terrain_FrontEnd, the frontend camera locator/loop, barn
+sign and windmill helper in measured pieces. Keep the dark menu as an explicit
+fallback until each required retail asset is present. After the frontend scene,
+connect one downstream original menu state at a time and preserve memory
+telemetry.
+
+Movies, collision and retail audio remain separate platform work. Do not claim
+playable gameplay until the PSP collision backend, one reduced room, player
+control and zone lifetime have been validated.
+
+### Historical next-slice notes
 
 Run the validated bundle on real hardware and collect `openbarnyard_psp.log`.
 Create a separate Premake game target/slice that compiles the real
