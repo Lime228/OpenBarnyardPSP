@@ -67,6 +67,7 @@ TBOOL AFrontEndMainMenuState2::OnUpdate( TFLOAT a_fDeltaTime )
 void AFrontEndMainMenuState2::OnInsertion()
 {
 	ms_bIsInserted = TTRUE;
+	ASetGameRuntimePhase_PSP( "frontend-menu-inserting" );
 
 	T2GUIFont* pFont = T2GUIFontManager::FindFont( AGUI2STYLE_FONT_PRIMARY );
 	if ( pFont == TNULL || g_pLocaleManager == TNULL )
@@ -74,6 +75,7 @@ void AFrontEndMainMenuState2::OnInsertion()
 		ASetGameRuntimePhase_PSP( "frontend-menu-data-failed" );
 		return;
 	}
+	ASetGameRuntimePhase_PSP( "frontend-menu-data-ready" );
 
 	for ( TINT i = 0; i < FRONTENDBUTTON_NUMOF; i++ )
 	{
@@ -93,6 +95,7 @@ void AFrontEndMainMenuState2::OnInsertion()
 		m_aButtons[ i ].SetTextShadowOffset( 5.0f, 5.0f );
 		m_oMenu.AddMenuItem( m_aButtons[ i ] );
 	}
+	ASetGameRuntimePhase_PSP( "frontend-menu-buttons-ready" );
 
 	m_oMenu.SetFocusAt( m_aButtons[ 0 ] );
 	m_oMenu.SetItemFocusCallback( MenuItemFocusCallback );
@@ -109,7 +112,9 @@ void AFrontEndMainMenuState2::OnInsertion()
 
 	AGUI2::GetRootElement()->AddChildTail( m_Rectangle2 );
 	AGUI2::GetRootElement()->AddChildTail( m_Rectangle1 );
+	ASetGameRuntimePhase_PSP( "frontend-menu-base-inserting" );
 	BaseClass::OnInsertion();
+	ASetGameRuntimePhase_PSP( "frontend-menu-base-ready" );
 
 	m_oMenu.SetFocusSound( soundbank::UI_FE_MOVE );
 	m_oMenu.SetSelectSound( soundbank::UI_FE_SELECT );
