@@ -435,7 +435,11 @@ void ARootTask::CreateStartupGameStates()
 #endif
 #endif
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	auto attractMovie    = new AMovieState( "Attract", TFALSE, new AFrontEndMainMenuState2(), TFALSE );
+#else
 	auto attractMovie    = new AMovieState( "Attract", TFALSE, TNULL, TFALSE );
+#endif
 	auto bluetongueMovie = new AMovieState( "BTE", TFALSE, attractMovie, TFALSE );
 	auto thqMovie        = new AMovieState( "THQ", TFALSE, bluetongueMovie, TFALSE );
 	auto nickmovsMovie   = new AMovieState( "NickMovs", TFALSE, thqMovie, TFALSE );

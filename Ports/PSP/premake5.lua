@@ -151,9 +151,14 @@ project "OpenBarnyardPSPGameSlice"
 
 	files
 	{
+		"../../OpenBarnyard/Source/GameInterface/ABYardMenuState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AMovieState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/ASlideshowState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AGameState.cpp",
+		"../../OpenBarnyard/Source/GUI/AGUI2Button.cpp",
+		"../../OpenBarnyard/Source/GUI/AGUI2Dialog.cpp",
+		"../../OpenBarnyard/Source/GUI/AGUI2Menu.cpp",
+		"../../OpenBarnyard/Source/GUI/AGUI2MenuItem.cpp",
 		"../../OpenBarnyard/Source/GUI/AGUI2MouseCursor.cpp",
 		"../../OpenBarnyard/Source/GUI/AGUI2TextBox.cpp",
 		"../../OpenBarnyard/Source/GUI/AFade.cpp",
@@ -163,6 +168,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Input/AInputMapManager.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUI2_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUI2Renderer_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndMainMenuState2_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUIMatlibPicture_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUIPicture_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUISystem_PSP.cpp",
