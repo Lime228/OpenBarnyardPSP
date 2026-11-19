@@ -33,6 +33,12 @@ namespace OpenBarnyard
     {
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool PostMessage(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsIconic(IntPtr window);
+
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindowAsync(IntPtr window, int command);
     }
 }
 '@
@@ -192,8 +198,24 @@ function Send-OpenBarnyardPPSSPPKey {
 
     $window = $Process.MainWindowHandle
     if ($Button -eq 'Screenshot') {
-        if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0111, [UIntPtr]::new(40066), [IntPtr]::Zero)) {
-            throw "Could not request a screenshot from PPSSPP process $($Process.Id)."
+        $wasMinimized = [OpenBarnyard.PPSSPPWindow]::IsIconic($window)
+        if ($wasMinimized) {
+            # D3D11 returns a black capture while PPSSPP is minimised. Restore it
+            # without activation so automated checks never take keyboard focus.
+            [OpenBarnyard.PPSSPPWindow]::ShowWindowAsync($window, 4) | Out-Null
+            Start-Sleep -Milliseconds 600
+        }
+
+        try {
+            if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0111, [UIntPtr]::new(40066), [IntPtr]::Zero)) {
+                throw "Could not request a screenshot from PPSSPP process $($Process.Id)."
+            }
+            Start-Sleep -Milliseconds 400
+        }
+        finally {
+            if ($wasMinimized) {
+                [OpenBarnyard.PPSSPPWindow]::ShowWindowAsync($window, 7) | Out-Null
+            }
         }
 
         Write-Output "Requested a screenshot from PPSSPP (PID $($Process.Id))."
