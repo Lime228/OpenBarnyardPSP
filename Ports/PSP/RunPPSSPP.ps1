@@ -11,6 +11,15 @@ param(
     [ValidateRange(1, 60)]
     [int] $Repeat = 1,
 
+    [ValidateRange(1, 60)]
+    [int] $ButtonDurationFrames = 15,
+
+    [ValidateRange(20, 500)]
+    [int] $AnalogHoldMilliseconds = 100,
+
+    [ValidateRange(1024, 65535)]
+    [int] $DebuggerPort = 7755,
+
     [ValidateRange(100, 5000)]
     [int] $StartupWaitMilliseconds = 2000
 )
@@ -39,13 +48,16 @@ namespace OpenBarnyard
 
         [DllImport("user32.dll")]
         public static extern bool ShowWindowAsync(IntPtr window, int command);
+
     }
 }
 '@
 }
 
 if (-not $PPSSPPPath) {
-    $PPSSPPPath = Join-Path $runtimeRoot 'Tools\PPSSPP\PPSSPPWindows64.exe'
+    $developmentBuild = Join-Path $runtimeRoot 'Tools\PPSSPPDev\PPSSPPWindows64.exe'
+    $stableBuild = Join-Path $runtimeRoot 'Tools\PPSSPP\PPSSPPWindows64.exe'
+    $PPSSPPPath = if (Test-Path -LiteralPath $developmentBuild -PathType Leaf) { $developmentBuild } else { $stableBuild }
 }
 
 if (-not $EbootPath) {
@@ -117,6 +129,22 @@ function Remove-StalePIDFile {
     }
 }
 
+function Enable-PPSSPPDebugger {
+    $configPath = Join-Path (Split-Path -Parent $PPSSPPPath) 'memstick\PSP\SYSTEM\ppsspp.ini'
+    if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
+        throw "PPSSPP configuration was not found: $configPath"
+    }
+
+    $config = Get-Content -LiteralPath $configPath -Raw
+    if ($config -notmatch '(?m)^RemoteISOPort = ' -or $config -notmatch '(?m)^RemoteDebuggerOnStartup = ') {
+        throw "PPSSPP configuration does not expose the remote debugger settings: $configPath"
+    }
+
+    $config = $config -replace '(?m)^RemoteISOPort = .*$', "RemoteISOPort = $DebuggerPort"
+    $config = $config -replace '(?m)^RemoteDebuggerOnStartup = .*$', 'RemoteDebuggerOnStartup = True'
+    Set-Content -LiteralPath $configPath -Value $config -NoNewline
+}
+
 function Start-OpenBarnyardPPSSPP {
     $process = Get-OpenBarnyardPPSSPPProcess
     if ($process) {
@@ -136,6 +164,7 @@ function Start-OpenBarnyardPPSSPP {
     }
 
     New-Item -ItemType Directory -Path $runnerRoot -Force | Out-Null
+    Enable-PPSSPPDebugger
 
     $process = Start-Process `
         -FilePath $PPSSPPPath `
@@ -164,6 +193,141 @@ function Stop-OpenBarnyardPPSSPP {
     Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
 }
 
+function Send-PPSSPPDebuggerText {
+    param(
+        [System.Net.WebSockets.ClientWebSocket] $Socket,
+        [string] $Text
+    )
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
+    $segment = [System.ArraySegment[byte]]::new($bytes)
+    $null = $Socket.SendAsync(
+        $segment,
+        [System.Net.WebSockets.WebSocketMessageType]::Text,
+        $true,
+        [System.Threading.CancellationToken]::None
+    ).GetAwaiter().GetResult()
+}
+
+function Receive-PPSSPPDebuggerText {
+    param(
+        [System.Net.WebSockets.ClientWebSocket] $Socket,
+        [int] $TimeoutMilliseconds
+    )
+
+    $buffer = New-Object byte[] 4096
+    $stream = [System.IO.MemoryStream]::new()
+    $cancellation = [System.Threading.CancellationTokenSource]::new($TimeoutMilliseconds)
+    try {
+        do {
+            $segment = [System.ArraySegment[byte]]::new($buffer)
+            $result = $Socket.ReceiveAsync($segment, $cancellation.Token).GetAwaiter().GetResult()
+            if ($result.MessageType -eq [System.Net.WebSockets.WebSocketMessageType]::Close) {
+                throw 'The PPSSPP debugger closed the WebSocket connection.'
+            }
+
+            $stream.Write($buffer, 0, $result.Count)
+        } while (-not $result.EndOfMessage)
+
+        return [System.Text.Encoding]::UTF8.GetString($stream.ToArray())
+    }
+    finally {
+        $cancellation.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Wait-PPSSPPDebuggerResponse {
+    param(
+        [System.Net.WebSockets.ClientWebSocket] $Socket,
+        [string] $EventName,
+        [int] $Ticket,
+        [int] $TimeoutMilliseconds = 5000
+    )
+
+    $deadline = [System.DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    while ([System.DateTime]::UtcNow -lt $deadline) {
+        $remaining = [int] [System.Math]::Max(1, ($deadline - [System.DateTime]::UtcNow).TotalMilliseconds)
+        $message = Receive-PPSSPPDebuggerText -Socket $Socket -TimeoutMilliseconds $remaining
+        Write-Verbose "PPSSPP debugger: $message"
+        $response = $message | ConvertFrom-Json
+        $hasTicket = $response.PSObject.Properties.Name -contains 'ticket'
+        if ($response.event -eq 'error' -and $hasTicket -and [string] $response.ticket -eq [string] $Ticket) {
+            throw "PPSSPP debugger rejected $EventName`: $($response.message)"
+        }
+
+        if ($response.event -eq $EventName -and $hasTicket -and [string] $response.ticket -eq [string] $Ticket) {
+            return $response
+        }
+    }
+
+    throw "Timed out waiting for the PPSSPP debugger response to $EventName."
+}
+
+function Invoke-PPSSPPDebuggerRequest {
+    param(
+        [System.Net.WebSockets.ClientWebSocket] $Socket,
+        [string] $EventName,
+        [hashtable] $Parameters,
+        [int] $Ticket,
+        [int] $TimeoutMilliseconds = 5000
+    )
+
+    $request = @{
+        event = $EventName
+        ticket = $Ticket
+    }
+    foreach ($key in $Parameters.Keys) {
+        $request[$key] = $Parameters[$key]
+    }
+
+    Send-PPSSPPDebuggerText -Socket $Socket -Text ($request | ConvertTo-Json -Compress)
+    return Wait-PPSSPPDebuggerResponse `
+        -Socket $Socket `
+        -EventName $EventName `
+        -Ticket $Ticket `
+        -TimeoutMilliseconds $TimeoutMilliseconds
+}
+
+function Connect-PPSSPPDebugger {
+    param([System.Diagnostics.Process] $Process)
+
+    $uri = [System.Uri]::new("ws://127.0.0.1:$DebuggerPort/debugger")
+    $lastError = $null
+    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+        $socket = [System.Net.WebSockets.ClientWebSocket]::new()
+        $socket.Options.AddSubProtocol('debugger.ppsspp.org')
+        $cancellation = [System.Threading.CancellationTokenSource]::new(500)
+        try {
+            $null = $socket.ConnectAsync($uri, $cancellation.Token).GetAwaiter().GetResult()
+            $response = Invoke-PPSSPPDebuggerRequest `
+                -Socket $socket `
+                -EventName 'version' `
+                -Parameters @{ name = 'OpenBarnyard PSP runner'; version = '1' } `
+                -Ticket 1
+            if ($response.name -ne 'PPSSPP') {
+                throw "Debugger port $DebuggerPort did not identify itself as PPSSPP."
+            }
+            $hasPID = $response.PSObject.Properties.Name -contains 'pid'
+            if ($hasPID -and [int] $response.pid -ne $Process.Id) {
+                throw "Debugger port $DebuggerPort belongs to PPSSPP process $($response.pid), not $($Process.Id)."
+            }
+
+            return $socket
+        }
+        catch {
+            $lastError = $_
+            $socket.Dispose()
+            Start-Sleep -Milliseconds 50
+        }
+        finally {
+            $cancellation.Dispose()
+        }
+    }
+
+    throw "Could not connect to the PPSSPP debugger on port $DebuggerPort. Restart PPSSPP through this script. Last error: $lastError"
+}
+
 function Send-OpenBarnyardPPSSPPKey {
     param(
         [System.Diagnostics.Process] $Process,
@@ -171,16 +335,12 @@ function Send-OpenBarnyardPPSSPPKey {
         [int] $Count
     )
 
-    $virtualKeys = @{
-        Cross = 0x5A
-        Circle = 0x58
-        Start = 0x20
-        DpadUp = 0x26
-        DpadDown = 0x28
-        AnalogUp = 0x49
-        AnalogDown = 0x4B
-        AnalogLeft = 0x4A
-        AnalogRight = 0x4C
+    $buttons = @{
+        Cross = 'cross'
+        Circle = 'circle'
+        Start = 'start'
+        DpadUp = 'up'
+        DpadDown = 'down'
     }
 
     for ($attempt = 0; $attempt -lt 50; $attempt++) {
@@ -222,18 +382,43 @@ function Send-OpenBarnyardPPSSPPKey {
         return
     }
 
-    $virtualKey = [UIntPtr]::new([uint32] $virtualKeys[$Button])
-    for ($index = 0; $index -lt $Count; $index++) {
-        if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0100, $virtualKey, [IntPtr]::Zero)) {
-            throw "Could not send $Button to PPSSPP process $($Process.Id)."
-        }
+    $socket = Connect-PPSSPPDebugger -Process $Process
+    try {
+        for ($index = 0; $index -lt $Count; $index++) {
+            $ticket = $index + 2
+            if ($buttons.ContainsKey($Button)) {
+                $null = Invoke-PPSSPPDebuggerRequest `
+                    -Socket $socket `
+                    -EventName 'input.buttons.press' `
+                    -Parameters @{ button = $buttons[$Button]; duration = $ButtonDurationFrames } `
+                    -Ticket $ticket
+                continue
+            }
 
-        Start-Sleep -Milliseconds 20
-        [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0101, $virtualKey, [IntPtr]::Zero) | Out-Null
-        Start-Sleep -Milliseconds 20
+            $analog = switch ($Button) {
+                'AnalogUp' { @{ x = 0.0; y = -1.0 } }
+                'AnalogDown' { @{ x = 0.0; y = 1.0 } }
+                'AnalogLeft' { @{ x = -1.0; y = 0.0 } }
+                'AnalogRight' { @{ x = 1.0; y = 0.0 } }
+            }
+            $null = Invoke-PPSSPPDebuggerRequest `
+                -Socket $socket `
+                -EventName 'input.analog.send' `
+                -Parameters $analog `
+                -Ticket $ticket
+            Start-Sleep -Milliseconds $AnalogHoldMilliseconds
+            $null = Invoke-PPSSPPDebuggerRequest `
+                -Socket $socket `
+                -EventName 'input.analog.send' `
+                -Parameters @{ x = 0.0; y = 0.0 } `
+                -Ticket ($ticket + $Count)
+        }
+    }
+    finally {
+        $socket.Dispose()
     }
 
-    Write-Output "Sent $Button to PPSSPP (PID $($Process.Id), count $Count)."
+    Write-Output "Injected $Button through the PPSSPP debugger (PID $($Process.Id), count $Count)."
 }
 
 switch ($Action) {
