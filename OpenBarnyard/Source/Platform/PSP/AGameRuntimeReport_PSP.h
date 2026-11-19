@@ -19,6 +19,14 @@ struct AGameRuntimeReport_PSP
 	TUINT uiPictureDraws;
 	TUINT uiGUIColourDraws;
 	TUINT uiLastGUIColour;
+	TUINT uiMenuActivationCount;
+	TUINT uiMenuCloseCount;
+	TINT  iMenuState;
+	TINT  iMenuFocusID;
+	TINT  iMenuLastCommand;
+	TINT  iMenuLastEventType;
+	TINT  iMenuLastDoodad;
+	TINT  iMenuActivatedButtonID;
 	TBOOL bEngineCreated;
 	TBOOL bApplicationCreated;
 	TBOOL bRootCreated;

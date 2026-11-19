@@ -52,11 +52,20 @@ TBOOL AFrontEndMainMenuState2::ProcessInput( const TInputInterface::InputEvent* 
 
 TBOOL AFrontEndMainMenuState2::ProcessCommand( AInputCommand a_eInputCommand, const TInputInterface::InputEvent* a_pInputEvent, TBOOL& a_rStopEvents )
 {
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuLastCommand        = a_eInputCommand;
+	rReport.iMenuLastEventType      = a_pInputEvent != TNULL ? a_pInputEvent->GetEventType() : -1;
+	rReport.iMenuLastDoodad         = a_pInputEvent != TNULL ? a_pInputEvent->GetDoodad() : -1;
 	return ABYardMenuState::ProcessCommand( a_eInputCommand, a_pInputEvent, a_rStopEvents );
 }
 
 TBOOL AFrontEndMainMenuState2::OnUpdate( TFLOAT a_fDeltaTime )
 {
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuState              = m_eMenuState;
+	AGUI2MenuItem* pFocusedItem     = m_oMenu.GetFocusedMenuItem();
+	rReport.iMenuFocusID            = pFocusedItem != TNULL ? TSTATICCAST( AGUI2Button, pFocusedItem )->GetId() : -1;
+
 	UpdateMenuButtons( a_fDeltaTime );
 	if ( m_eMenuState == MENUSTATE_MENU_VISIBLE && m_bIgnoreInputs )
 		UpdateFocusedButton( a_fDeltaTime );
@@ -67,6 +76,15 @@ TBOOL AFrontEndMainMenuState2::OnUpdate( TFLOAT a_fDeltaTime )
 void AFrontEndMainMenuState2::OnInsertion()
 {
 	ms_bIsInserted = TTRUE;
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuState              = MENUSTATE_NOTHING;
+	rReport.iMenuFocusID            = -1;
+	rReport.iMenuLastCommand        = -1;
+	rReport.iMenuLastEventType      = -1;
+	rReport.iMenuLastDoodad         = -1;
+	rReport.iMenuActivatedButtonID  = -1;
+	rReport.uiMenuActivationCount   = 0;
+	rReport.uiMenuCloseCount        = 0;
 	ASetGameRuntimePhase_PSP( "frontend-menu-inserting" );
 
 	T2GUIFont* pFont = T2GUIFontManager::FindFont( AGUI2STYLE_FONT_PRIMARY );
@@ -160,6 +178,9 @@ void AFrontEndMainMenuState2::OnMenuItemActivated( AGUI2MenuItem* a_pMenuItem )
 {
 	AGUI2Button* pButton = TSTATICCAST( AGUI2Button, a_pMenuItem );
 	m_iActivatedButtonID = pButton->GetId();
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuActivatedButtonID  = m_iActivatedButtonID;
+	rReport.uiMenuActivationCount++;
 	OnButtonActivated( pButton );
 	m_eMenuState = MENUSTATE_MENU_VISIBLE;
 }
@@ -170,6 +191,7 @@ void AFrontEndMainMenuState2::OnMenuClose()
 		return;
 
 	ASetGameRuntimePhase_PSP( "frontend-menu-selection" );
+	AGetGameRuntimeReport_PSP().uiMenuCloseCount++;
 	m_iActivatedButtonID = -1;
 	m_bIgnoreInputs      = TFALSE;
 	m_fMenuOpacity       = 0.0f;

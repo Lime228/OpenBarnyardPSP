@@ -80,11 +80,11 @@ void AUpdateGameRuntimeMemory_PSP()
 
 void AWriteGameRuntimeReport_PSP()
 {
-	static TCHAR s_aReportBuffer_PSP[ 512 ];
+	static TCHAR s_aReportBuffer_PSP[ 768 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=3\n"
+		"version=4\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -105,7 +105,15 @@ void AWriteGameRuntimeReport_PSP()
 		"picture_render_frames=%u\n"
 		"picture_draws=%u\n"
 		"gui_colour_draws=%u\n"
-		"last_gui_colour=%08x\n",
+		"last_gui_colour=%08x\n"
+		"menu_state=%d\n"
+		"menu_focus=%d\n"
+		"menu_last_command=%d\n"
+		"menu_last_event_type=%d\n"
+		"menu_last_doodad=%d\n"
+		"menu_activated_button=%d\n"
+		"menu_activation_count=%u\n"
+		"menu_close_count=%u\n",
 		s_GameRuntimeReport_PSP.szPhase,
 		s_GameRuntimeReport_PSP.bEngineCreated,
 		s_GameRuntimeReport_PSP.bApplicationCreated,
@@ -126,7 +134,15 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiPictureRenderFrames,
 		s_GameRuntimeReport_PSP.uiPictureDraws,
 		s_GameRuntimeReport_PSP.uiGUIColourDraws,
-		s_GameRuntimeReport_PSP.uiLastGUIColour
+		s_GameRuntimeReport_PSP.uiLastGUIColour,
+		s_GameRuntimeReport_PSP.iMenuState,
+		s_GameRuntimeReport_PSP.iMenuFocusID,
+		s_GameRuntimeReport_PSP.iMenuLastCommand,
+		s_GameRuntimeReport_PSP.iMenuLastEventType,
+		s_GameRuntimeReport_PSP.iMenuLastDoodad,
+		s_GameRuntimeReport_PSP.iMenuActivatedButtonID,
+		s_GameRuntimeReport_PSP.uiMenuActivationCount,
+		s_GameRuntimeReport_PSP.uiMenuCloseCount
 	);
 
 	if ( iLength <= 0 )
