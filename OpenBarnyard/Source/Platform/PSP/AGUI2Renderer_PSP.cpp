@@ -6,6 +6,7 @@
 
 #include "GUI/AGUI2.h"
 
+#include <Toshi/TStringManager.h>
 #include <pspgu.h>
 
 TOSHI_NAMESPACE_USING
@@ -15,6 +16,11 @@ AGUI2Renderer_PSP::AGUI2Renderer_PSP()
     , m_uiColour_PSP( 0xffffffff )
     , m_pMaterial_PSP( TNULL )
 {
+	for ( TINT i = 0; i < TARRAYSIZE( m_aTextures_PSP ); i++ )
+	{
+		m_aTextures_PSP[ i ].szName[ 0 ]   = '\0';
+		m_aTextures_PSP[ i ].uiReferences = 0;
+	}
 }
 
 T2GUIMaterial* AGUI2Renderer_PSP::CreateMaterial( TTexture* )
@@ -22,13 +28,42 @@ T2GUIMaterial* AGUI2Renderer_PSP::CreateMaterial( TTexture* )
 	return TNULL;
 }
 
-T2GUIMaterial* AGUI2Renderer_PSP::CreateMaterial( const TCHAR* )
+T2GUIMaterial* AGUI2Renderer_PSP::CreateMaterial( const TCHAR* a_szTextureName )
 {
-	return TNULL;
+	Material_PSP* pMaterial = new Material_PSP;
+	if ( pMaterial == TNULL )
+		return TNULL;
+
+	TextureEntry_PSP* pTextureEntry = LoadTexture_PSP( a_szTextureName );
+	if ( pTextureEntry == TNULL )
+	{
+		delete pMaterial;
+		return TNULL;
+	}
+
+	pTextureEntry->uiReferences++;
+	pMaterial->pTextureEntry = pTextureEntry;
+	return pMaterial;
 }
 
-void AGUI2Renderer_PSP::DestroyMaterial( T2GUIMaterial* )
+void AGUI2Renderer_PSP::DestroyMaterial( T2GUIMaterial* a_pMaterial )
 {
+	if ( a_pMaterial == TNULL )
+		return;
+
+	Material_PSP* pMaterial = TSTATICCAST( Material_PSP, a_pMaterial );
+	TextureEntry_PSP* pTextureEntry = pMaterial->pTextureEntry;
+	if ( pTextureEntry != TNULL && pTextureEntry->uiReferences > 0 )
+	{
+		pTextureEntry->uiReferences--;
+		if ( pTextureEntry->uiReferences == 0 )
+		{
+			pTextureEntry->oTexture.Unload();
+			pTextureEntry->szName[ 0 ] = '\0';
+		}
+	}
+
+	delete pMaterial;
 }
 
 TTexture* AGUI2Renderer_PSP::GetTexture( const TCHAR* )
@@ -36,14 +71,82 @@ TTexture* AGUI2Renderer_PSP::GetTexture( const TCHAR* )
 	return TNULL;
 }
 
-TUINT AGUI2Renderer_PSP::GetWidth( T2GUIMaterial* )
+TUINT AGUI2Renderer_PSP::GetWidth( T2GUIMaterial* a_pMaterial )
 {
-	return 0;
+	if ( a_pMaterial == TNULL )
+		return 0;
+
+	Material_PSP* pMaterial = TSTATICCAST( Material_PSP, a_pMaterial );
+	return pMaterial->pTextureEntry != TNULL ? pMaterial->pTextureEntry->oTexture.GetWidth() : 0;
 }
 
-TUINT AGUI2Renderer_PSP::GetHeight( T2GUIMaterial* )
+TUINT AGUI2Renderer_PSP::GetHeight( T2GUIMaterial* a_pMaterial )
 {
-	return 0;
+	if ( a_pMaterial == TNULL )
+		return 0;
+
+	Material_PSP* pMaterial = TSTATICCAST( Material_PSP, a_pMaterial );
+	return pMaterial->pTextureEntry != TNULL ? pMaterial->pTextureEntry->oTexture.GetHeight() : 0;
+}
+
+AGUI2Renderer_PSP::TextureEntry_PSP* AGUI2Renderer_PSP::FindTexture_PSP( const TCHAR* a_szTextureName )
+{
+	if ( a_szTextureName == TNULL )
+		return TNULL;
+
+	for ( TINT i = 0; i < TARRAYSIZE( m_aTextures_PSP ); i++ )
+	{
+		TextureEntry_PSP& rEntry = m_aTextures_PSP[ i ];
+		if ( rEntry.uiReferences > 0 && TStringManager::String8CompareNoCase( rEntry.szName, a_szTextureName ) == 0 )
+			return &rEntry;
+	}
+
+	return TNULL;
+}
+
+AGUI2Renderer_PSP::TextureEntry_PSP* AGUI2Renderer_PSP::LoadTexture_PSP( const TCHAR* a_szTextureName )
+{
+	TextureEntry_PSP* pExisting = FindTexture_PSP( a_szTextureName );
+	if ( pExisting != TNULL )
+		return pExisting;
+
+	TextureEntry_PSP* pFreeEntry = TNULL;
+	for ( TINT i = 0; i < TARRAYSIZE( m_aTextures_PSP ); i++ )
+	{
+		if ( m_aTextures_PSP[ i ].uiReferences == 0 )
+		{
+			pFreeEntry = &m_aTextures_PSP[ i ];
+			break;
+		}
+	}
+	if ( pFreeEntry == TNULL )
+		return TNULL;
+
+	const TCHAR* pFileName = a_szTextureName;
+	for ( const TCHAR* pCharacter = a_szTextureName; *pCharacter != '\0'; pCharacter++ )
+	{
+		if ( *pCharacter == '\\' || *pCharacter == '/' )
+			pFileName = pCharacter + 1;
+	}
+
+	TCHAR szStem[ 64 ];
+	TStringManager::String8Copy( szStem, pFileName, TARRAYSIZE( szStem ) );
+	for ( TCHAR* pCharacter = szStem; *pCharacter != '\0'; pCharacter++ )
+	{
+		if ( *pCharacter == '.' )
+		{
+			*pCharacter = '\0';
+			break;
+		}
+	}
+
+	TCHAR szPath[ 80 ];
+	TStringManager::String8Format( szPath, TARRAYSIZE( szPath ), "local:%s.ptex", szStem );
+	if ( !m_TextureFactory_PSP.CreateTextureFromFile( pFreeEntry->oTexture, szPath ) )
+		return TNULL;
+
+	TStringManager::String8Copy( pFreeEntry->szName, a_szTextureName, TARRAYSIZE( pFreeEntry->szName ) );
+	return pFreeEntry;
 }
 
 void AGUI2Renderer_PSP::BeginScene()
@@ -135,7 +238,7 @@ void AGUI2Renderer_PSP::ClearScissor()
 	sceGuScissor( 0, 0, 480, 272 );
 }
 
-void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2& a_rPos2, const TVector2&, const TVector2& )
+void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2& a_rPos2, const TVector2& a_rUV1, const TVector2& a_rUV2 )
 {
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiGUIColourDraws++;
@@ -151,9 +254,28 @@ void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2
 	const TFLOAT fWidth  = TMath::Abs( oPos2.x - oPos1.x );
 	const TFLOAT fHeight = TMath::Abs( oPos2.y - oPos1.y );
 
-	// The bounded startup slice currently uses untextured GUI rectangles for
-	// fades and overlays.  Retail picture tiles are submitted by
-	// AGUIMatlibPicture through the same GU display list.
+	if ( m_pMaterial_PSP != TNULL )
+	{
+		Material_PSP* pMaterial = TSTATICCAST( Material_PSP, m_pMaterial_PSP );
+		if ( pMaterial->pTextureEntry != TNULL )
+		{
+			const T2Texture& rTexture = pMaterial->pTextureEntry->oTexture;
+			AGetRenderInterface_PSP().DrawTextureRegion(
+				rTexture,
+				a_rUV1.x * rTexture.GetWidth(),
+				a_rUV1.y * rTexture.GetHeight(),
+				TMath::Abs( a_rUV2.x - a_rUV1.x ) * rTexture.GetWidth(),
+				TMath::Abs( a_rUV2.y - a_rUV1.y ) * rTexture.GetHeight(),
+				fX,
+				fY,
+				fWidth,
+				fHeight,
+				m_uiColour_PSP
+			);
+			return;
+		}
+	}
+
 	AGetRenderInterface_PSP().DrawColourRectangle( fX, fY, fWidth, fHeight, m_uiColour_PSP );
 }
 

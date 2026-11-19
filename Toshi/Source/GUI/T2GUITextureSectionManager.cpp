@@ -99,6 +99,14 @@ void T2GUITextureSectionManager::CreateMaterials()
 
 		if ( pSection->GetMaterial() == TNULL )
 		{
+#ifdef TOSHI_SKU_PSP
+			auto pMaterial = pRenderer->CreateMaterial( pSection->GetTextureFile() );
+			if ( pMaterial != TNULL )
+			{
+				pSection->SetMaterial( pMaterial );
+				pSection->CalculateUV( TFLOAT( pRenderer->GetWidth( pMaterial ) ), TFLOAT( pRenderer->GetHeight( pMaterial ) ) );
+			}
+#else
 			if ( TTexture* pTexture = pRenderer->GetTexture( pSection->GetTextureFile() ) )
 			{
 				auto pMaterial = pRenderer->CreateMaterial( pTexture );
@@ -109,6 +117,7 @@ void T2GUITextureSectionManager::CreateMaterials()
 
 				pSection->CalculateUV( TFLOAT( iWidth ), TFLOAT( iHeight ) );
 			}
+#endif
 		}
 	}
 }
@@ -143,6 +152,17 @@ void T2GUITextureSectionManager::UpdateMaterials()
 		for ( TUINT i = 0; i < g_defblock->m_uiNumSections; i++ )
 		{
 			auto pSection = &g_defblock->m_pSections[ i ];
+#ifdef TOSHI_SKU_PSP
+			if ( pSection->GetMaterial() == TNULL )
+			{
+				auto pMaterial = pRenderer->CreateMaterial( pSection->GetTextureFile() );
+				if ( pMaterial != TNULL )
+				{
+					pSection->SetMaterial( pMaterial );
+					pSection->CalculateUV( TFLOAT( pRenderer->GetWidth( pMaterial ) ), TFLOAT( pRenderer->GetHeight( pMaterial ) ) );
+				}
+			}
+#else
 			auto pTexture = pRenderer->GetTexture( pSection->GetTextureFile() );
 
 			if ( pSection->GetMaterial() == TNULL )
@@ -163,6 +183,7 @@ void T2GUITextureSectionManager::UpdateMaterials()
 				pRenderer->DestroyMaterial( pSection->GetMaterial() );
 				pSection->SetMaterial( TNULL );
 			}
+#endif
 		}
 	}
 }

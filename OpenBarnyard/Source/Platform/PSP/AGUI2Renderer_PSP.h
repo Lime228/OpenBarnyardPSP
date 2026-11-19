@@ -1,11 +1,14 @@
 #pragma once
 
 #include <GUI/T2GUIRenderer.h>
+#include <Platform/PSP/T2Texture_PSP.h>
+#include <Platform/PSP/TTextureFactory_PSP.h>
 
 class AGUI2Renderer_PSP : public Toshi::T2GUIRenderer
 {
 public:
 	static constexpr TINT MAX_NUM_TRANSFORMS_PSP = 32;
+	static constexpr TINT MAX_NUM_TEXTURES_PSP   = 16;
 
 public:
 	AGUI2Renderer_PSP();
@@ -38,11 +41,28 @@ public:
 	virtual void                   ResetZCoordinate() override;
 
 private:
+	struct TextureEntry_PSP
+	{
+		TCHAR             szName[ 64 ];
+		Toshi::T2Texture  oTexture;
+		TUINT             uiReferences;
+	};
+
+	class Material_PSP : public Toshi::T2GUIMaterial
+	{
+	public:
+		TextureEntry_PSP* pTextureEntry;
+	};
+
+	TextureEntry_PSP* FindTexture_PSP( const TCHAR* a_szTextureName );
+	TextureEntry_PSP* LoadTexture_PSP( const TCHAR* a_szTextureName );
 	void TransformPoint( Toshi::TVector2& a_rOut, const Toshi::TVector2& a_rPoint ) const;
 
 private:
-	Toshi::T2GUITransform m_aTransforms_PSP[ MAX_NUM_TRANSFORMS_PSP ];
-	TINT                   m_iTransformCount_PSP;
-	TUINT32                m_uiColour_PSP;
-	Toshi::T2GUIMaterial* m_pMaterial_PSP;
+	TextureEntry_PSP          m_aTextures_PSP[ MAX_NUM_TEXTURES_PSP ];
+	Toshi::TTextureFactory_PSP m_TextureFactory_PSP;
+	Toshi::T2GUITransform    m_aTransforms_PSP[ MAX_NUM_TRANSFORMS_PSP ];
+	TINT                      m_iTransformCount_PSP;
+	TUINT32                   m_uiColour_PSP;
+	Toshi::T2GUIMaterial*    m_pMaterial_PSP;
 };

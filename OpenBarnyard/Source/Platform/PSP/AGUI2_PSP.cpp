@@ -5,6 +5,9 @@
 #include "Render/ABackend.h"
 #include "AGameRuntimeReport_PSP.h"
 
+#include <GUI/T2GUIFontManager.h>
+#include <GUI/T2GUITextureSectionManager.h>
+
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
 // Note: Should be the last include!
@@ -36,6 +39,13 @@ TBOOL AGUI2::OnCreate()
 
 	m_pRootElement->SetDimensions( 480.0f, 272.0f );
 	m_pRootElement->SetPostRenderCallback( MainPostRenderCallback );
+	if ( !T2GUIFontManager::Open( "Data/GUI/fonts.trb" ) )
+		return TFALSE;
+	if ( !T2GUITextureSectionManager::Open( "Data/GUI/texsec.trb", TNULL ) )
+	{
+		T2GUIFontManager::Close( "Data/GUI/fonts.trb" );
+		return TFALSE;
+	}
 	AGetGameRuntimeReport_PSP().bGUI2Created = TTRUE;
 	ASetGameRuntimePhase_PSP( "gui2-created" );
 	FIRE_EVENT( AGUI2::Created, this );
@@ -51,6 +61,8 @@ TBOOL AGUI2::OnUpdate( TFLOAT a_fDeltaTime )
 
 void AGUI2::OnDestroy()
 {
+	T2GUITextureSectionManager::Close();
+	T2GUIFontManager::Close( "Data/GUI/fonts.trb" );
 	T2GUIRenderer* pRenderer = T2GUI::GetRenderer();
 	if ( pRenderer != TNULL )
 		delete pRenderer;
