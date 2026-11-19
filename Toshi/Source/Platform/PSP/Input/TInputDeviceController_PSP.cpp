@@ -35,6 +35,9 @@ TInputDeviceController_PSP::TInputDeviceController_PSP()
 
 TBOOL TInputDeviceController_PSP::Acquire()
 {
+	if ( IsAcquired() )
+		return TTRUE;
+
 	if ( sceCtrlSetSamplingCycle( 0 ) < 0 || sceCtrlSetSamplingMode( PSP_CTRL_MODE_ANALOG ) < 0 )
 		return TFALSE;
 
