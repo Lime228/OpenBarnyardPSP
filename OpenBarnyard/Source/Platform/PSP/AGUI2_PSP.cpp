@@ -38,7 +38,9 @@ TBOOL AGUI2::OnCreate()
 	if ( m_pRootElement == TNULL )
 		return TFALSE;
 
-	m_pRootElement->SetDimensions( 480.0f, 272.0f );
+	// Keep the original 800x600 GUI coordinate space. The PSP renderer maps it
+	// to 480x272 just like the desktop renderer maps it to the active display.
+	m_pRootElement->SetDimensions( 800.0f, 600.0f );
 	m_pRootElement->SetPostRenderCallback( MainPostRenderCallback );
 	ASetGameRuntimePhase_PSP( "gui2-fonts-opening" );
 	if ( !T2GUIFontManager::Open( "Data/GUI/fonts.trb" ) )

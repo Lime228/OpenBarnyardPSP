@@ -154,9 +154,15 @@ void AGUI2Renderer_PSP::BeginScene()
 	m_iTransformCount_PSP = 0;
 	m_uiColour_PSP        = 0xffffffff;
 	m_pMaterial_PSP       = TNULL;
+
+	TFLOAT fRootWidth  = 480.0f;
+	TFLOAT fRootHeight = 272.0f;
+	if ( AGUI2::GetContext() != TNULL && AGUI2::GetContext()->GetRootElement() != TNULL )
+		AGUI2::GetContext()->GetRootElement()->GetDimensions( fRootWidth, fRootHeight );
+
 	m_aTransforms_PSP[ 0 ].Set(
-		{ 1.0f, 0.0f },
-		{ 0.0f, -1.0f },
+		{ 480.0f / fRootWidth, 0.0f },
+		{ 0.0f, -272.0f / fRootHeight },
 		{ 240.0f, 136.0f }
 	);
 }
