@@ -5,11 +5,14 @@ param(
     [string] $PPSSPPPath = '',
     [switch] $OriginalGame,
 
-    [ValidateSet('Cross', 'Circle', 'Start', 'DpadUp', 'DpadDown', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight')]
+    [ValidateSet('Cross', 'Circle', 'Start', 'DpadUp', 'DpadDown', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'Screenshot')]
     [string] $Key = 'Cross',
 
     [ValidateRange(1, 60)]
-    [int] $Repeat = 1
+    [int] $Repeat = 1,
+
+    [ValidateRange(100, 5000)]
+    [int] $StartupWaitMilliseconds = 2000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -136,7 +139,7 @@ function Start-OpenBarnyardPPSSPP {
         -PassThru
 
     Set-Content -LiteralPath $pidPath -Value $process.Id -NoNewline
-    if ($process.WaitForExit(2000)) {
+    if ($process.WaitForExit($StartupWaitMilliseconds)) {
         Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
         throw "PPSSPP exited during startup with code $($process.ExitCode)."
     }
@@ -188,6 +191,15 @@ function Send-OpenBarnyardPPSSPPKey {
     }
 
     $window = $Process.MainWindowHandle
+    if ($Button -eq 'Screenshot') {
+        if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0111, [UIntPtr]::new(40066), [IntPtr]::Zero)) {
+            throw "Could not request a screenshot from PPSSPP process $($Process.Id)."
+        }
+
+        Write-Output "Requested a screenshot from PPSSPP (PID $($Process.Id))."
+        return
+    }
+
     $virtualKey = [UIntPtr]::new([uint32] $virtualKeys[$Button])
     for ($index = 0; $index -lt $Count; $index++) {
         if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0100, $virtualKey, [IntPtr]::Zero)) {
