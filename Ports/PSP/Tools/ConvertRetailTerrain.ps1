@@ -62,11 +62,6 @@ $TMDLPath = [System.IO.Path]::GetFullPath($TMDLPath)
 
 $pythonArguments = @()
 if (-not $PythonPath) {
-    $launcher = Get-Command py -ErrorAction SilentlyContinue
-    if ($launcher) {
-        $PythonPath = $launcher.Source
-        $pythonArguments = @('-3')
-    }
     foreach ($name in @('python3', 'python')) {
         if ($PythonPath) {
             break
@@ -81,6 +76,13 @@ if (-not $PythonPath) {
         $codexPython = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
         if (Test-Path -LiteralPath $codexPython -PathType Leaf) {
             $PythonPath = $codexPython
+        }
+    }
+    if (-not $PythonPath) {
+        $launcher = Get-Command py -ErrorAction SilentlyContinue
+        if ($launcher) {
+            $PythonPath = $launcher.Source
+            $pythonArguments = @('-3')
         }
     }
 }

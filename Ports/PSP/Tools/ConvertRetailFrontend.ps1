@@ -32,15 +32,15 @@ if (-not $PythonPath) {
         }
     }
     if (-not $PythonPath) {
+        $candidate = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $PythonPath = $candidate }
+    }
+    if (-not $PythonPath) {
         $launcher = Get-Command py -ErrorAction SilentlyContinue
         if ($launcher) {
             $PythonPath = $launcher.Source
             $pythonArguments = @('-3')
         }
-    }
-    if (-not $PythonPath) {
-        $candidate = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
-        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $PythonPath = $candidate }
     }
 }
 if (-not $PythonPath -or -not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
