@@ -54,7 +54,7 @@ New-Item -ItemType Directory -Force -Path $outputPath,$dumpPath,(Join-Path (Spli
 
 $items = @(
     @{ Library = 'Install\Data\Matlibs\gui_FrontEnd.ttl'; Texture = 'Dialogs\barnyard_logo.tga'; Output = 'barnyard_logo' },
-    @{ Library = 'Install\Data\Matlibs\gui_Fonts.ttl'; Texture = 'Fonts\Rekord_Black_26.tga'; Output = 'Rekord_Black_26' },
+    @{ Library = 'Install\Data\Matlibs\gui_Fonts.ttl'; Texture = 'Fonts\Rekord_Black_26.tga'; Output = 'Rekord_Black_26'; MaxWidth = 512 },
     @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Panel_01.tga'; Output = 'Panel_01' },
     @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Top_Left.tga'; Output = 'Border_Top_Left' },
     @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Border_Top_Right.tga'; Output = 'Border_Top_Right' },
@@ -90,7 +90,8 @@ foreach ($item in $items) {
     finally {
         Pop-Location
     }
-    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') --max-width 256 $ddsPath $ptexPath
+    $maxWidth = if ($item.MaxWidth) { $item.MaxWidth } else { 256 }
+    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') --max-width $maxWidth $ddsPath $ptexPath
     if ($LASTEXITCODE -ne 0) { throw "Frontend conversion failed for '$($item.Texture)'" }
 }
 
