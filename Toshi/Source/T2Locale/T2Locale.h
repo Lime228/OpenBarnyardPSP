@@ -55,6 +55,11 @@ protected:
 		return ptr;
 	}
 
+#ifdef TOSHI_SKU_PSP
+	TBOOL ConvertStringTable_PSP( LocaleStrings* a_pRetailStringTable );
+	void  DestroyStringTable_PSP();
+#endif
+
 protected:
 	TTRB           m_Locale;      // 0x04
 	void*          m_pBuffer;     // 0x18
@@ -62,6 +67,9 @@ protected:
 	LocaleStrings* m_StringTable; // 0x20
 	Lang           m_LangId;      // 0x24
 	TBOOL          m_bOwnsBuffer; // 0x28
+#ifdef TOSHI_SKU_PSP
+	void*          m_pStringTable_PSP;
+#endif
 };
 
 TOSHI_NAMESPACE_END

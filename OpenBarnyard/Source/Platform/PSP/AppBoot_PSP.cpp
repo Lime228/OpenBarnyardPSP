@@ -63,6 +63,8 @@ TBOOL AApplication::OnCreate( TINT a_iArgCount, TCHAR** a_ppArgValues )
 	TPooledString8::SetupFreeList( 0, 0 );
 
 	ALocaleManager::Interface()->SetLanguage( ALocaleManager::Lang_EnglishUK );
+	if ( ALocaleManager::Interface()->GetLanguage() != ALocaleManager::Lang_EnglishUK )
+		return TFALSE;
 	ALocaleUnknownData_SetUnk1( 0 );
 
 	auto pScheduler = g_oSystemManager.GetScheduler();
