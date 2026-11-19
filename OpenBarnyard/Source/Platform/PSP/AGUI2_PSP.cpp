@@ -32,6 +32,7 @@ AGUI2::~AGUI2() = default;
 
 TBOOL AGUI2::OnCreate()
 {
+	ASetGameRuntimePhase_PSP( "gui2-context-creating" );
 	T2GUI::CreateContext()->SetRenderer( new AGUI2Renderer_PSP );
 	m_pRootElement = T2GUI::GetContext()->GetRootElement();
 	if ( m_pRootElement == TNULL )
@@ -39,8 +40,10 @@ TBOOL AGUI2::OnCreate()
 
 	m_pRootElement->SetDimensions( 480.0f, 272.0f );
 	m_pRootElement->SetPostRenderCallback( MainPostRenderCallback );
+	ASetGameRuntimePhase_PSP( "gui2-fonts-opening" );
 	if ( !T2GUIFontManager::Open( "Data/GUI/fonts.trb" ) )
 		return TFALSE;
+	ASetGameRuntimePhase_PSP( "gui2-sections-opening" );
 	if ( !T2GUITextureSectionManager::Open( "Data/GUI/texsec.trb", TNULL ) )
 	{
 		T2GUIFontManager::Close( "Data/GUI/fonts.trb" );
