@@ -7,29 +7,32 @@ diagnostic bootstrap. OpenBarnyardPSPGame starts the original
 AApplication/ARootTask chain and reaches the retail legal/logo presentation and
 the original localized six-entry AFrontEndMainMenuState2 interface in PPSSPP.
 It uses retail fonts.trb, texsec.trb, locale/control resources and offline
-converted PSP textures.
+converted PSP textures. The original frontend camera loop, a four-mesh slice
+of the shipping barn terrain and the original barn-sign object now render
+behind that menu.
 
 This is not a complete playable port. The current PSP menu implementation keeps
-the original class, button construction, locale IDs and retail presentation but
-deliberately bounds out the 3D frontend world/camera/windmill/music/save closure
-and downstream menu states. Collision, movies, saves, rooms, player control and
-world streaming remain unfinished. The diagnostic EBOOT stays available only
-as a platform regression harness.
+the original class, button construction, locale IDs and retail presentation.
+Its 3D environment is still only a bounded first slice: remaining terrain
+cells, windmill/helper instances, lighting and environment layers are not
+loaded. Collision, movies, saves, rooms, player control, downstream menu states
+and world streaming remain unfinished. The diagnostic EBOOT stays available
+only as a platform regression harness.
 
-## Progress snapshot (2026-11-19)
+## Progress snapshot (2026-11-21)
 
 PSP toolchain/packaging is approximately **90%** complete, the original startup
-plus main-menu milestone is approximately **98%** complete, and the
-complete playable-game port is approximately **28%** complete.
+plus main-menu milestone is approximately **99%** complete, and the
+complete playable-game port is approximately **30%** complete.
 
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain and packaging | 90% | Premake, branded PBP, deterministic converters, PSPDEV CI, host tools and separate bootstrap/original-game artifacts work; hardware release validation remains |
 | Portable Toshi/platform core | 75% | allocator, shared 20 MiB game/resource heap, files, TRB, timer, sync, threads, scheduler, input and GUI paths execute in the original-game target |
-| PSP renderer foundation | 50% | GU display, texture loading, bounded resources and original 800x600 GUI mapping work; general material/model/scene closure and rotated GUI quads remain |
-| Real-game asset pipeline | 35% | retail frontend GUI sections, locale, controls, font and menu textures stage repeatably; complete frontend 3D content, rooms, movies and streaming manifests remain |
+| PSP renderer foundation | 55% | GU display, rotated GUI quads, bounded static resources, original camera and original 800x600 GUI mapping work; general material/model/scene closure remains |
+| Real-game asset pipeline | 42% | retail frontend GUI, four barn meshes, camera and barn sign stage repeatably; complete frontend terrain/instances, rooms, movies and streaming manifests remain |
 | Input integration | 75% | PSP buttons pass through sceCtrl, Toshi events, the retail input map and the original menu; gameplay mappings and real hardware remain |
-| Game bootstrap and frontend | 55% | original application/root task and authentic menu visuals run; 3D frontend, downstream menu states and new-game flow remain |
+| Game bootstrap and frontend | 62% | original application/root task, authentic menu/input and a first original 3D frontend slice run; complete environment, downstream states and new-game flow remain |
 | Audio, movies and saves | 20% | bounded diagnostic PSP audio works; retail music/SFX ownership, Bink replacement and save devices are not integrated |
 | World, animation and gameplay | 8% | retail probes render in the harness, but the original world, actors, player, quests, physics and rooms are not running |
 
@@ -1176,23 +1179,31 @@ remain largely unstarted.
   activated item `1` and reached `frontend-menu-selection`. The controller
   edge fix makes repeated PSP acquisition idempotent so `old/current` state is
   preserved until `ProcessEvents()`.
+- Commit `541247bb` passed PSP run `44825451098`. It restores the +pi/2 X
+  transform used by `ATerrainInterface::CreateModelInstance`; the original
+  `Barn_L0Mod0` slice now occupies the shipping camera view instead of lying on
+  the wrong axes.
+- Commit `336a5563` passed PSP run `44826253217`. Report v10 loads four original
+  terrain meshes, ten 30 Hz camera frames and both original barn-sign meshes.
+  The one-process validation recorded 3,120 terrain draws, 1,560 barn-sign
+  draws, 14,697,408 free heap bytes, working Down/Cross activation and PSP
+  screenshot `EBOO00649_00022.jpg`.
+- Commit `37b7399d` packages that launch/wait/screenshot/input/report/stop chain
+  as `ValidateOriginalGame.ps1`, preserving the exact-path single-instance and
+  no-focus guarantees of the runner.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
 
 ## Immediate next slice
 
-Replace the axis-aligned GUI sprite submission with a bounded four-corner GU
-quad so the small retail panel rotations survive. The original menu order,
-D-pad focus movement and Cross activation are already confirmed in one PPSSPP
-runner invocation.
-
-The next content block is the original 3D frontend scene, not another synthetic
-screen: stage and load Terrain_FrontEnd, the frontend camera locator/loop, barn
-sign and windmill helper in measured pieces. Keep the dark menu as an explicit
-fallback until each required retail asset is present. After the frontend scene,
-connect one downstream original menu state at a time and preserve memory
-telemetry.
+Continue the original 3D frontend scene, not another synthetic screen. The
+camera loop, four `Barn_L0Mod0` meshes and barn sign are now running. Inventory
+the terrain cells actually visible from that camera, then add bounded sets for
+the remaining barn/landscape layers with residency and draw telemetry. Add the
+windmill/helper instances from their original locators after the terrain set is
+visually coherent. Then connect one downstream original menu state at a time
+and preserve memory telemetry.
 
 Movies, collision and retail audio remain separate platform work. Do not claim
 playable gameplay until the PSP collision backend, one reduced room, player

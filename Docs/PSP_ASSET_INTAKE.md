@@ -73,8 +73,12 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `Tools/TMDL -psp-animation` | Samples one explicitly named retail sequence without adding the relocatable parser to the EBOOT; `-keylib-symbol` selects a bounded key library embedded in an asset-pack TRB. |
 | `Tools/TMDL -psp-texture` | Relocates one retail TTL on the host and extracts an explicitly named embedded DDS. |
 | `Tools/TMDL -psp-terrain` / `-psp-terrain-cell` | Relocates one terrain TRB, selects one mesh or up to four meshes in a cell and resolves every material to its exact retail texture name. |
+| `Tools/TMDL -psp-locator` | Extracts one explicitly named locator from a retail terrain skeleton without adding the relocatable TRB parser to the EBOOT. |
 | `convert_terrain_dump.py` / `convert_terrain_cell.py` | Triangulates bounded terrain strips, preserves vertex colours/UVs and emits static textured PMES files with shared cell bounds. |
+| `convert_placed_terrain_cell.py` | Bakes the original terrain-locator/global-axis matrix into one bounded world-model cell for a PSP static draw path. |
 | `Tools/ConvertRetailTerrain.ps1` | Repeats terrain export, searches declared TTLs, deduplicates repeated source textures, converts PMES/PTEX sets and publishes only the complete generated set into a runtime directory. |
+| `Tools/ConvertRetailFrontendCamera.ps1` | Samples the shipping `camera_loop` hierarchy and reduces it to the bounded PCAM runtime contract. |
+| `Tools/ConvertRetailBarnSign.ps1` | Converts the shipping two-mesh barn-sign `WorldDatabase`, its original `loc_barnsign` placement and both declared textures. |
 | `convert_animation.py` | Quantizes the sampled clip into a maximum of 64 bounded PANM frames. |
 | `convert_dds.py` | Decodes bounded DXT1/DXT3/DXT5 or explicitly masked 16/32-bit top mips, optionally applies power-of-two 2x box reduction, and emits swizzled RGBA8888 PTEX data. |
 | `convert_texture.py` | Converts P3 PPM into a power-of-two, optionally swizzled PTEX payload. |
@@ -91,6 +95,10 @@ Host-tool dumps and converted PSP files belong in the ignored workspace:
 ```text
 Game/BarnyardPC/Workspace/Dumps/
 Game/BarnyardPC/Workspace/Converted/
+Game/BarnyardPC/Workspace/Frontend/
+Game/BarnyardPC/Workspace/FrontendTerrain/
+Game/BarnyardPC/Workspace/FrontendCamera/
+Game/BarnyardPC/Workspace/FrontendBarnSign/
 ```
 
 Do not put generated PMES, PSKL, PANM, PTEX or PWLD beside the originals. A

@@ -90,6 +90,17 @@ swap chain is not capturable. The runner keeps the configured graphics backend
 and reports an immediate startup failure instead of launching fallback
 instances.
 
+Run the current original-game frontend gate as one repeatable operation with:
+
+```powershell
+.\Ports\PSP\ValidateOriginalGame.ps1
+```
+
+The validator starts exactly one background instance, waits for a fresh
+`openbarnyard_psp_game.log`, requests a PSP framebuffer screenshot without
+activation, injects Down/Cross, checks the original terrain/camera/barn-sign
+and menu-input fields, then stops the same process in `finally`.
+
 ## Original-game retail staging
 
 The complete user-owned PC installation is expected at:
@@ -104,9 +115,11 @@ Then assemble an ignored runtime from the original-game build artifact:
 
     .\Ports\PSP\StageOriginalGame.ps1 -BuildDirectory <artifact-directory> -SkipConversion
 
-This stages fonts.trb, texsec.trb, locale/control resources and converted PTEX
-files under Runtime/OpenBarnyardPSPGame. Rekord_Black_26 is intentionally kept
-at 512x512 because the retail glyph table uses coordinates from that atlas.
+This stages fonts.trb, texsec.trb, locale/control resources, converted GUI PTEX
+files, four original barn meshes, the original camera loop and the original
+two-mesh barn sign under Runtime/OpenBarnyardPSPGame. Rekord_Black_26 is
+intentionally kept at 512x512 because the retail glyph table uses coordinates
+from that atlas.
 The original GUI keeps its 800x600 logical root and is scaled to the PSP's
 480x272 framebuffer by AGUI2Renderer_PSP.
 
@@ -186,6 +199,15 @@ the retail bone helper intentionally discards camera-bone roll.
 `StageOriginalGame.ps1` stages that file from the ignored
 `Game/BarnyardPC/Workspace/FrontendCamera` directory. The conversion step is
 repeatable whenever the source exporter or camera transform changes.
+
+`Tools/ConvertRetailBarnSign.ps1` handles the original menu's 3D title object.
+`Models/barnsign.trb` is a two-mesh `WorldDatabase`, so it uses the bounded
+terrain-cell exporter rather than the standard TMD skin path. TMDL extracts
+`loc_barnsign` from `Terrain/frontend/frontend_skel.trb`; the converter bakes
+the same locator/global-axis matrix used by `ABarnSign`, then extracts both
+declared textures from `Matlibs/windmillhelper.ttl`. The ignored output is kept
+under `Game/BarnyardPC/Workspace/FrontendBarnSign` and staged as two numbered
+PMES/PTEX pairs.
 
 ## Bounded world layout
 

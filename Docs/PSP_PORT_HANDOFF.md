@@ -1,6 +1,6 @@
 # OpenBarnyard PSP port handoff
 
-Updated: 2026-11-19
+Updated: 2026-11-21
 
 Repository: https://github.com/Lime228/OpenBarnyardPSP.git
 
@@ -32,20 +32,26 @@ The original-game EBOOT has been visually confirmed in PPSSPP through:
 The same original menu is runtime-confirmed with D-pad focus movement and Cross
 activation through the retail `DialogInputMap`.
 
+The original frontend now also runs a first measured 3D slice: four meshes from
+`Terrain/frontend/Barn_L0Mod0.trb`, the shipping `camera_loop` sampled from
+`EnvFrontEnd_Cam.trb`, and the two-mesh `barnsign` object placed from the retail
+`loc_barnsign` transform. This is visibly better than the old flat fallback,
+but it is not the complete frontend environment.
+
 This is a real original-game frontend milestone, but it is not a playable game
 yet. The menu currently uses a bounded PSP implementation of the original class:
 the original button construction, locale IDs, panels, colours, transforms and
-focus are retained, while world/camera/windmill/music/save and downstream state
-transitions are intentionally deferred. Activating an item records
-frontend-menu-selection and reopens the menu.
+focus are retained, while the complete world/windmill/music/save closure and
+downstream state transitions are intentionally deferred. Activating an item
+records frontend-menu-selection and reopens the menu.
 
 Current estimates:
 
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 98% | Legal/Bink screens, correctly oriented original menu, D-pad focus and Cross activation run; 3D frontend/audio and hardware validation remain |
-| Complete playable-game port | 28% | Original application/frontend runs, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, first barn terrain slice and barn sign run; complete environment/audio and hardware validation remain |
+| Complete playable-game port | 30% | Original application/frontend runs, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
 ## Non-negotiable repository rules
 
@@ -115,6 +121,9 @@ AppBoot_PSP creates the original application/root task and opens:
 - retail Data/Locale/eng-uk.trb;
 - retail Data/Options/Controls_Win.trb;
 - PSP-converted PTEX files resolved from the original GUI material names.
+- four converted meshes and textures from the original front-end barn cell;
+- the bounded original `camera_loop` as `frontend_camera.pcam`;
+- the original two-mesh barn sign baked at `loc_barnsign`.
 
 T2Locale converts the validated retail UTF-16 table to PSP GCC's native 32-bit
 TWCHAR storage. T2GUITextureSectionManager validates the TRB header, section
@@ -126,15 +135,25 @@ The Rekord_Black_26 atlas must remain 512x512 because fonts.trb stores glyph
 coordinates for that exact atlas. Other frontend textures retain the default
 256-pixel conversion cap unless a measured manifest exception is added.
 
-Measured original-menu runtime after the orientation and controller fixes:
+Measured original-menu runtime after the terrain-axis, camera, barn-sign and
+controller fixes (report v10, CI run `44826253217`):
 
-    phase=frontend-menu-ready
-    heap_free=15493872
-    heap_largest_hole=15493204
-    heap_used=5475728
-    render_main_current=2641920
-    render_main_peak=2641920
+    phase=frontend-menu-selection
+    heap_free=14697408
+    heap_largest_hole=14680532
+    heap_used=6271964
+    render_main_current=3438034
+    render_main_peak=3438034
     render_main_budget=16777216
+    frontend_terrain_loaded=1
+    frontend_terrain_meshes=4
+    frontend_terrain_draws=3120
+    frontend_barnsign_loaded=1
+    frontend_barnsign_meshes=2
+    frontend_barnsign_draws=1560
+    frontend_camera_loaded=1
+    frontend_camera_frames=10
+    frontend_camera_sample_rate=30
     controller_observed_buttons=00004040
     controller_nonzero_button_samples=30
     menu_focus=1
@@ -149,8 +168,9 @@ also be checked on real 32/64 MiB hardware.
 
 ## Known limitations
 
-- The 3D frontend barn/terrain, camera loop, windmill and environment are not
-  loaded, so the original menu is drawn over a dark background.
+- The 3D frontend is incomplete. Only four meshes from `Barn_L0Mod0`, the
+  original camera loop and barn sign are loaded; the remaining barn/landscape
+  cells, windmill helper, lighting and environment layers are absent.
 - Menu actions are bounded to a selection checkpoint and menu reopen. New game,
   load game, options, extras, antics and quit do not enter their retail states.
 - AMoviePlayer_PSP does not decode Bink. Startup images currently follow the
@@ -160,8 +180,6 @@ also be checked on real 32/64 MiB hardware.
   not start until a bounded collision backend exists.
 - Retail FMOD banks/music are not integrated. The diagnostic mixer proves PSP
   audio only.
-- GUI rectangles are currently submitted as axis-aligned sprites. Small retail
-  menu-panel rotations are not yet represented by a four-corner GU quad.
 - The texture cache holds at most 16 unique GUI textures. The current menu fits;
   future screens need measured lifetime/reuse or a larger justified budget.
 - Rekord18 and Bremen25 are not staged for the current menu because it only uses
@@ -178,6 +196,9 @@ The user's complete PC installation is local and ignored at:
 Converted frontend workspace:
 
     Game/BarnyardPC/Workspace/Frontend/
+    Game/BarnyardPC/Workspace/FrontendTerrain/
+    Game/BarnyardPC/Workspace/FrontendCamera/
+    Game/BarnyardPC/Workspace/FrontendBarnSign/
 
 Staged PSP runtime:
 
@@ -191,13 +212,16 @@ Never hand-edit generated assets. Main entry points:
 | StageOriginalGame.ps1 | Assemble an ignored original-game runtime from a CI/local build and retail files |
 | ConvertRetailPreview.ps1 | Manifest-driven retail model/skeleton/animation/texture preview |
 | ConvertRetailTerrain.ps1 | Manifest-driven bounded terrain cell conversion |
+| ConvertRetailFrontendCamera.ps1 | Export and reduce the original camera hierarchy/loop to PCAM |
+| ConvertRetailBarnSign.ps1 | Export the world-model meshes/textures and bake the original locator transform |
+| ValidateOriginalGame.ps1 | One-process validation of a staged runtime through PPSSPP report/input/screenshot evidence |
 | convert_dds.py | DXT and masked DDS decode, reduction and PSP swizzle |
 | mark_retail_layout_asserts.py | Repeatable marking of confirmed MSVC size assertions |
 | audit_source_dependencies.py | Detect forbidden desktop dependencies in selected PSP sources |
 
 Typical local frontend preparation:
 
-    .\Ports\PSP\Tools\ConvertRetailFrontend.ps1 -TMDLPath .\Runtime\CIArtifacts\e8c4dcab\host-tools\TMDL.exe
+    .\Ports\PSP\Tools\ConvertRetailFrontend.ps1 -TMDLPath .\Runtime\CIArtifacts\<commit>\host-tools\TMDL.exe
     .\Ports\PSP\StageOriginalGame.ps1 -BuildDirectory .\Runtime\CIArtifacts\<commit> -SkipConversion
 
 ## CI and local PPSSPP workflow
@@ -208,9 +232,10 @@ GitHub workflow: .github/workflows/psp.yaml.
 - bootstrap runs converter tests, generates the Premake PSP workspace, builds
   the diagnostic and original-game targets, and publishes separate artifacts.
 
-Current green original-menu artifact: PSP run `44579456976`, commit
-`02317c22`. Its report v6 proves Down and Cross through the complete
-PPSSPP/sceCtrl/Toshi/retail-input-map/menu path.
+Current green original-menu/3D-slice artifact: PSP run `44826253217`, commit
+`336a5563`. Its report v10 proves terrain, camera and barn-sign residency plus
+Down and Cross through the complete PPSSPP/sceCtrl/Toshi/retail-input-map/menu
+path.
 
 Install the pinned official PPSSPP development build once:
 
@@ -223,6 +248,12 @@ Use exactly one background emulator instance:
     .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key DpadDown
     .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key Cross
     .\Ports\PSP\RunPPSSPP.ps1 -Action Stop -OriginalGame
+
+For the repeatable end-to-end check, use the wrapper below. It starts exactly
+one background instance, waits for a fresh report, requests a PSP screenshot,
+injects Down/Cross, validates all current frontend gates and stops the same PID:
+
+    .\Ports\PSP\ValidateOriginalGame.ps1
 
 In a sandboxed validation session, run start, wait, input/screenshot, report and
 stop inside one shell invocation. The sandbox may terminate background child
@@ -237,10 +268,11 @@ Runtime evidence:
 
 ## Next implementation order
 
-1. Replace axis-aligned GUI sprites with bounded four-corner GU quads so the
-   original small menu rotations survive.
-2. Bring up the original frontend 3D environment in measured pieces:
-   Terrain_FrontEnd, camera locator/loop, barn sign and windmill helper.
+1. Expand the original frontend terrain beyond the current four `Barn_L0Mod0`
+   meshes: inventory the cells visible from `camera_loop`, then stage bounded
+   multi-cell sets without exceeding the PSP memory budget.
+2. Add the original windmill/helper pieces and remaining frontend instances,
+   preserving their locators and material ownership.
 3. Connect the original menu's downstream states one at a time, beginning with
    the smallest options or extras screen before new-game world loading.
 4. Convert/integrate the retail menu cue/music ownership behind the existing PSP
@@ -264,11 +296,20 @@ Runtime evidence:
 - cf28eaa0: inject background controls through PPSSPP's debugger.
 - 3097316b, 92e7c229: trace retail commands and raw PSP controller samples.
 - 02317c22: preserve PSP controller transitions across repeated acquisition.
+- da1d645d, 983c1ffa, ad2df3db: export the retail camera and match its final
+  world-up behaviour.
+- 01d6da8d: apply the original camera to the PSP frontend.
+- 4ac62801: export original terrain locators from TMDL.
+- 541247bb: restore the original +pi/2 terrain axis transform.
+- 4ace8fa3: convert and stage the original frontend barn sign.
+- 336a5563: render the original barn sign and report its residency/draws.
+- 37b7399d: automate the single-process original frontend validation.
 
 ## Claims that must not be made
 
 - The full game is not playable.
-- The dark menu background is not the finished retail frontend scene.
+- The current partial barn/sign background is not the finished retail frontend
+  scene.
 - Legal/Bink presentation does not mean Bink video decoding is implemented.
 - Menu selection checkpoints are not downstream menu/game state support.
 - Diagnostic models, terrain and audio prove platform paths only.
