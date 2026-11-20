@@ -86,6 +86,7 @@ int main( int argc, char** argv )
 	auto          strTexturesPath  = commandLine.GetParameterValue( "-d" );
 	auto          strOutPath       = commandLine.GetParameterValue( "-o" );
 	auto          strKeyLib        = commandLine.GetParameterValue( "-keylib" );
+	auto          strKeyLibSymbol  = commandLine.GetParameterValue( "-keylib-symbol", "keylib" );
 	auto          strPSPDumpFile   = commandLine.GetParameterValue( "-psp-dump" );
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
@@ -200,7 +201,13 @@ int main( int argc, char** argv )
 		}
 		const TINT iSampleRate = T2String8::StringToInt( strSampleRate.GetString() );
 		if ( !ExportPSPAnimationDump(
-		         strPSPAnimation.GetString(), strKeyLib.GetString(), strSequence.GetString(), iSampleRate, strOutPath.GetString() ) )
+		         strPSPAnimation.GetString(),
+		         strKeyLib.GetString(),
+		         strKeyLibSymbol.GetString(),
+		         strSequence.GetString(),
+		         iSampleRate,
+		         strOutPath.GetString()
+		     ) )
 		{
 			TERROR( "Unable to export PSP animation dump\n" );
 			return 1;

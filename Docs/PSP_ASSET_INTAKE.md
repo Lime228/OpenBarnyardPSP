@@ -70,7 +70,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
-| `Tools/TMDL -psp-animation` | Samples one explicitly named retail TKL sequence without adding the relocatable parser to the EBOOT. |
+| `Tools/TMDL -psp-animation` | Samples one explicitly named retail sequence without adding the relocatable parser to the EBOOT; `-keylib-symbol` selects a bounded key library embedded in an asset-pack TRB. |
 | `Tools/TMDL -psp-texture` | Relocates one retail TTL on the host and extracts an explicitly named embedded DDS. |
 | `Tools/TMDL -psp-terrain` / `-psp-terrain-cell` | Relocates one terrain TRB, selects one mesh or up to four meshes in a cell and resolves every material to its exact retail texture name. |
 | `convert_terrain_dump.py` / `convert_terrain_cell.py` | Triangulates bounded terrain strips, preserves vertex colours/UVs and emits static textured PMES files with shared cell bounds. |

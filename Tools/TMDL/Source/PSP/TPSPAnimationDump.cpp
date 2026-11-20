@@ -115,12 +115,14 @@ static TBOOL SampleSequenceBone_PSPAnimation(
 TBOOL ExportPSPAnimationDump(
     const TCHAR* a_pModelPath,
     const TCHAR* a_pKeyLibraryPath,
+    const TCHAR* a_pKeyLibrarySymbol,
     const TCHAR* a_pSequenceName,
     TINT         a_iSampleRate,
     const TCHAR* a_pOutputPath
 )
 {
-	if ( a_pModelPath == TNULL || a_pKeyLibraryPath == TNULL || a_pSequenceName == TNULL ||
+	if ( a_pModelPath == TNULL || a_pKeyLibraryPath == TNULL || a_pKeyLibrarySymbol == TNULL ||
+	     a_pSequenceName == TNULL ||
 	     a_pOutputPath == TNULL || a_iSampleRate < 1 || a_iSampleRate > 60 )
 	{
 		return TFALSE;
@@ -132,7 +134,9 @@ TBOOL ExportPSPAnimationDump(
 		return TFALSE;
 	auto oSkeleton = oModelTRB.GetSymbols()->Find<TSkeleton>( oModelTRB.GetSections(), "Skeleton" );
 	auto oSkeletonHeader = oModelTRB.GetSymbols()->Find<TTMDBase::SkeletonHeader>( oModelTRB.GetSections(), "SkeletonHeader" );
-	auto oKeyLibrary = oKeyLibraryTRB.GetSymbols()->Find<TKeyframeLibrary::TRBHeader>( oKeyLibraryTRB.GetSections(), "keylib" );
+	auto oKeyLibrary = oKeyLibraryTRB.GetSymbols()->Find<TKeyframeLibrary::TRBHeader>(
+	    oKeyLibraryTRB.GetSections(), a_pKeyLibrarySymbol
+	);
 	if ( !oSkeleton || !oSkeletonHeader || !oKeyLibrary )
 		return TFALSE;
 
@@ -214,7 +218,20 @@ TBOOL ExportPSPAnimationDump(
 	WriteJSONString_PSPAnimation( oOutput, rSequence.GetName(), rSequence.GetNameLength() );
 	oOutput << ",\n  \"sample_rate\": " << a_iSampleRate
 	        << ",\n  \"loop\": " << ( rSequence.GetMode() == TSkeletonSequence::MODE_LOOPED ? "true" : "false" )
-	        << ",\n  \"frames\": [\n";
+	        << ",\n  \"bones\": [\n";
+	for ( TINT bone = 0; bone < iBoneCount; bone++ )
+	{
+		TSkeletonBone& rBone = *rSkeleton.GetBone( bone );
+		oOutput << "    { \"name\": ";
+		WriteJSONString_PSPAnimation( oOutput, rBone.GetName(), rBone.GetNameLength() );
+		oOutput << ", \"parent\": ";
+		if ( rBone.GetParentBone() < 0 ) oOutput << "null";
+		else oOutput << rBone.GetParentBone();
+		oOutput << " }";
+		if ( bone + 1 != iBoneCount ) oOutput << ',';
+		oOutput << '\n';
+	}
+	oOutput << "  ],\n  \"frames\": [\n";
 
 	for ( TINT frame = 0; frame < iFrameCount; frame++ )
 	{
