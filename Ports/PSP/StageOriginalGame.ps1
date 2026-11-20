@@ -6,6 +6,7 @@ param(
     [string] $FrontendTerrainDirectory = '',
     [string] $FrontendTerrainManifestPath = '',
     [string] $FrontendCameraDirectory = '',
+    [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
@@ -33,6 +34,9 @@ if (-not $FrontendTerrainManifestPath) {
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
+if (-not $FrontendBarnSignDirectory) {
+    $FrontendBarnSignDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendBarnSign'
+}
 if (-not $RuntimeDirectory) {
     $RuntimeDirectory = Join-Path $repositoryRoot 'Runtime\OpenBarnyardPSPGame'
 }
@@ -43,6 +47,7 @@ $frontendPath = [System.IO.Path]::GetFullPath($FrontendDirectory)
 $frontendTerrainPath = [System.IO.Path]::GetFullPath($FrontendTerrainDirectory)
 $frontendTerrainManifestPath = [System.IO.Path]::GetFullPath($FrontendTerrainManifestPath)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
+$frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
 $gamePbpPath = Join-Path $buildPath 'EBOOT_GAME.PBP'
 $gameSfoPath = Join-Path $buildPath 'PARAM_GAME.SFO'
@@ -92,6 +97,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $cameraConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendCamera.ps1') @cameraConversionArguments
+
+    $barnSignConversionArguments = @{ OutputDirectory = $frontendBarnSignPath }
+    if ($TMDLPath) { $barnSignConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $barnSignConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailBarnSign.ps1') @barnSignConversionArguments
 }
 
 $frontendFiles = @(
@@ -137,6 +147,17 @@ if (-not (Test-Path -LiteralPath $frontendCameraSource -PathType Leaf)) {
     throw "Converted retail frontend camera was not found: $frontendCameraSource"
 }
 Copy-Item -LiteralPath $frontendCameraSource -Destination (Join-Path $runtimePath 'frontend_camera.pcam') -Force
+
+foreach ($meshIndex in 0..1) {
+    foreach ($extension in @('pmes', 'ptex')) {
+        $fileName = "frontend_barnsign_$meshIndex.$extension"
+        $sourcePath = Join-Path $frontendBarnSignPath $fileName
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            throw "Converted retail front-end barn-sign asset was not found: $sourcePath"
+        }
+        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+    }
+}
 
 foreach ($retailFile in $retailFiles) {
     $sourcePath = Join-Path $installPath $retailFile.Source
