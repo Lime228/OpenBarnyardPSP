@@ -3,6 +3,8 @@ param(
     [string] $BuildDirectory = '',
     [string] $InstallDirectory = '',
     [string] $FrontendDirectory = '',
+    [string] $FrontendTerrainDirectory = '',
+    [string] $FrontendTerrainManifestPath = '',
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
@@ -21,6 +23,12 @@ if (-not $InstallDirectory) {
 if (-not $FrontendDirectory) {
     $FrontendDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\Frontend'
 }
+if (-not $FrontendTerrainDirectory) {
+    $FrontendTerrainDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrain'
+}
+if (-not $FrontendTerrainManifestPath) {
+    $FrontendTerrainManifestPath = Join-Path $PSScriptRoot 'Assets\original_frontend_terrain.txt'
+}
 if (-not $RuntimeDirectory) {
     $RuntimeDirectory = Join-Path $repositoryRoot 'Runtime\OpenBarnyardPSPGame'
 }
@@ -28,6 +36,8 @@ if (-not $RuntimeDirectory) {
 $buildPath = [System.IO.Path]::GetFullPath($BuildDirectory)
 $installPath = [System.IO.Path]::GetFullPath($InstallDirectory)
 $frontendPath = [System.IO.Path]::GetFullPath($FrontendDirectory)
+$frontendTerrainPath = [System.IO.Path]::GetFullPath($FrontendTerrainDirectory)
+$frontendTerrainManifestPath = [System.IO.Path]::GetFullPath($FrontendTerrainManifestPath)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
 $gamePbpPath = Join-Path $buildPath 'EBOOT_GAME.PBP'
 $gameSfoPath = Join-Path $buildPath 'PARAM_GAME.SFO'
@@ -63,6 +73,15 @@ if (-not $SkipConversion) {
     if ($PythonPath) { $conversionArguments.PythonPath = $PythonPath }
 
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontend.ps1') @conversionArguments
+
+    $terrainConversionArguments = @{
+        ManifestPath = $frontendTerrainManifestPath
+        OutputDirectory = $frontendTerrainPath
+    }
+    if ($TMDLPath) { $terrainConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainConversionArguments.PythonPath = $PythonPath }
+
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailTerrain.ps1') @terrainConversionArguments
 }
 
 $frontendFiles = @(
@@ -87,6 +106,18 @@ foreach ($fileName in $frontendFiles) {
     $sourcePath = Join-Path $frontendPath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail frontend asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendTerrainFiles = foreach ($meshIndex in 0..3) {
+    "barnyard_terrain_$meshIndex.pmes"
+    "barnyard_terrain_$meshIndex.ptex"
+}
+foreach ($fileName in $frontendTerrainFiles) {
+    $sourcePath = Join-Path $frontendTerrainPath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail frontend terrain asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }

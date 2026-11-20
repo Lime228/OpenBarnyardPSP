@@ -169,6 +169,13 @@ the set beside the EBOOT. With `all_meshes=true`, up to four numbered
 runtime loads them independently from the animated `barnyard_preview.*` set and
 records `terrain=ACTIVE` plus `terrain_meshes=N` in report v8.
 
+`StageOriginalGame.ps1` uses the tracked
+`Assets/original_frontend_terrain.txt` recipe to convert the four shipping
+`frontend/Barn_L0Mod0` meshes and stage their numbered PMES/PTEX pairs beside
+the original-game EBOOT. `-SkipConversion` reuses the ignored
+`Game/BarnyardPC/Workspace/FrontendTerrain` output while still validating and
+copying the complete eight-file set.
+
 ## Bounded world layout
 
 `AWorld_PSP` accepts PWLD v3 layouts containing at most 16 fixed-size model
