@@ -5,6 +5,7 @@
 #include "PSP/TPSPModelDump.h"
 #include "PSP/TPSPTextureDump.h"
 #include "PSP/TPSPGUISectionDump.h"
+#include "PSP/TPSPLocatorDump.h"
 #include "PSP/TPSPSymbolDump.h"
 #include "PSP/TPSPTerrainDump.h"
 
@@ -93,6 +94,8 @@ int main( int argc, char** argv )
 	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
 	auto          strPSPGUISection = commandLine.GetParameterValue( "-psp-gui-section" );
 	auto          strSectionName   = commandLine.GetParameterValue( "-section" );
+	auto          strPSPLocator    = commandLine.GetParameterValue( "-psp-locator" );
+	auto          strLocatorName   = commandLine.GetParameterValue( "-locator" );
 	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
 	auto          strPSPTerrain    = commandLine.GetParameterValue( "-psp-terrain" );
 	auto          strPSPTerrainCell = commandLine.GetParameterValue( "-psp-terrain-cell" );
@@ -135,6 +138,25 @@ int main( int argc, char** argv )
 		     ) )
 		{
 			TERROR( "Unable to export PSP terrain cell\n" );
+			return 1;
+		}
+		return 0;
+	}
+
+	if ( strPSPLocator )
+	{
+		if ( !strLocatorName || !strOutPath )
+		{
+			TERROR( "-psp-locator requires -locator and -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPLocatorDump(
+		         strPSPLocator.GetString(),
+		         strLocatorName.GetString(),
+		         strOutPath.GetString()
+		     ) )
+		{
+			TERROR( "Unable to export PSP locator\n" );
 			return 1;
 		}
 		return 0;
