@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import struct
 import tempfile
 import unittest
 
@@ -37,14 +38,18 @@ class TerrainCellConversionTests(unittest.TestCase):
             self.assertEqual((output / "barnyard_terrain_0.pmes").stat().st_size, 102)
             self.assertEqual((output / "barnyard_terrain_1.pmes").stat().st_size, 102)
             self.assertEqual(json.loads((output / "barnyard_terrain.json").read_text())["cell"], 3)
+            self.assertEqual(
+                struct.unpack("<4I", (output / "barnyard_terrain.pcfg").read_bytes()),
+                (0x52544650, 1, 2, 0),
+            )
 
-    def test_rejects_more_than_four_meshes(self) -> None:
-        document = {"version": 2, "meshes": [mesh(str(index), float(index)) for index in range(5)]}
+    def test_rejects_more_than_sixteen_meshes(self) -> None:
+        document = {"version": 2, "meshes": [mesh(str(index), float(index)) for index in range(17)]}
         with tempfile.TemporaryDirectory() as temporary_name:
             temporary = pathlib.Path(temporary_name)
             source = temporary / "cell.json"
             source.write_text(json.dumps(document), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "between 1 and 4"):
+            with self.assertRaisesRegex(ValueError, "between 1 and 16"):
                 convert(source, temporary / "output")
 
 

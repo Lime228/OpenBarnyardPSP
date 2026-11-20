@@ -103,8 +103,8 @@ if ($manifest.meshes) {
 if ($allMeshes -and $selectedMeshes.Count -gt 0) {
     throw 'all_meshes and meshes are mutually exclusive'
 }
-if ($selectedMeshes.Count -gt 4 -or @($selectedMeshes | Select-Object -Unique).Count -ne $selectedMeshes.Count) {
-    throw 'meshes must contain between one and four unique indices'
+if ($selectedMeshes.Count -gt 16 -or @($selectedMeshes | Select-Object -Unique).Count -ne $selectedMeshes.Count) {
+    throw 'meshes must contain between one and sixteen unique indices'
 }
 $multiMeshes = $allMeshes -or $selectedMeshes.Count -gt 0
 $textureMaxWidth = if ($manifest.texture_max_width) { [int] $manifest.texture_max_width } else { 0 }
@@ -181,6 +181,7 @@ else {
         Remove-Item -LiteralPath (Join-Path $outputPath "barnyard_terrain_$index.pmes"),(Join-Path $outputPath "barnyard_terrain_$index.ptex") -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath (Join-Path $outputPath 'barnyard_terrain.json') -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $outputPath 'barnyard_terrain.pcfg') -Force -ErrorAction SilentlyContinue
 }
 
 $texturesRequired = @($textureSelections | Where-Object { $_.Source })

@@ -41,8 +41,8 @@ class TerrainDumpMergeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_name:
             source = pathlib.Path(temporary_name) / "mesh.json"
             source.write_text(json.dumps(MESH), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "between 1 and 4"):
-                merge([source] * 5, source.with_name("cell.json"), 0, 0)
+            with self.assertRaisesRegex(ValueError, "between 1 and 16"):
+                merge([source] * 17, source.with_name("cell.json"), 0, 0)
 
 
 if __name__ == "__main__":

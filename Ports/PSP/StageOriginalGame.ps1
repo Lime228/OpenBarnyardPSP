@@ -130,9 +130,23 @@ foreach ($fileName in $frontendFiles) {
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
 
-$frontendTerrainFiles = foreach ($meshIndex in 0..3) {
-    "barnyard_terrain_$meshIndex.pmes"
-    "barnyard_terrain_$meshIndex.ptex"
+$frontendTerrainManifest = Join-Path $frontendTerrainPath 'barnyard_terrain.json'
+if (-not (Test-Path -LiteralPath $frontendTerrainManifest -PathType Leaf)) {
+    throw "Converted retail front-end terrain manifest was not found: $frontendTerrainManifest"
+}
+$frontendTerrain = Get-Content -LiteralPath $frontendTerrainManifest -Raw | ConvertFrom-Json
+if ($frontendTerrain.version -ne 1 -or $frontendTerrain.meshes.Count -lt 1 -or $frontendTerrain.meshes.Count -gt 16) {
+    throw "Converted retail front-end terrain manifest is invalid: $frontendTerrainManifest"
+}
+$frontendTerrainFiles = @('barnyard_terrain.pcfg')
+for ($meshIndex = 0; $meshIndex -lt $frontendTerrain.meshes.Count; $meshIndex++) {
+    $expectedMesh = "barnyard_terrain_$meshIndex.pmes"
+    $expectedTexture = "barnyard_terrain_$meshIndex.ptex"
+    if ($frontendTerrain.meshes[$meshIndex].mesh -ne $expectedMesh -or
+        $frontendTerrain.meshes[$meshIndex].texture -ne $expectedTexture) {
+        throw "Converted retail front-end terrain manifest has an invalid mesh $meshIndex binding"
+    }
+    $frontendTerrainFiles += $expectedMesh,$expectedTexture
 }
 foreach ($fileName in $frontendTerrainFiles) {
     $sourcePath = Join-Path $frontendTerrainPath $fileName

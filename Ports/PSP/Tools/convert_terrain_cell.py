@@ -5,12 +5,15 @@ import json
 import math
 import os
 import pathlib
+import struct
 import tempfile
 
 from convert_terrain_dump import convert_document
 
 
-MAX_TERRAIN_MESHES = 4
+MAX_TERRAIN_MESHES = 16
+FRONTEND_TERRAIN_CONFIG_MAGIC = 0x52544650
+FRONTEND_TERRAIN_CONFIG_VERSION = 1
 
 
 def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
@@ -76,13 +79,23 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object
         }
         manifest_path = temporary / "barnyard_terrain.json"
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        (temporary / "barnyard_terrain.pcfg").write_bytes(
+            struct.pack(
+                "<4I",
+                FRONTEND_TERRAIN_CONFIG_MAGIC,
+                FRONTEND_TERRAIN_CONFIG_VERSION,
+                len(meshes),
+                0,
+            )
+        )
         for path in temporary.iterdir():
             os.replace(path, destination / path.name)
 
     for index in range(len(meshes), MAX_TERRAIN_MESHES):
-        stale = destination / f"barnyard_terrain_{index}.pmes"
-        if stale.exists():
-            stale.unlink()
+        for extension in ("pmes", "ptex"):
+            stale = destination / f"barnyard_terrain_{index}.{extension}"
+            if stale.exists():
+                stale.unlink()
     return manifest
 
 
