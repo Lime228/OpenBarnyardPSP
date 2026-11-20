@@ -2,6 +2,7 @@
 
 #include "AFrontEndTerrain_PSP.h"
 
+#include <File/TFile.h>
 #include <Toshi/TStringManager.h>
 
 TOSHI_NAMESPACE_USING
@@ -29,6 +30,19 @@ static const TRenderModelTransform_PSP s_FrontEndTerrainOriginalModelTransform_P
 	{ 0.0f, 0.0f, 0.0f },
 };
 
+struct AFrontEndTerrainConfig_PSP
+{
+	TUINT32 uiMagic;
+	TUINT32 uiVersion;
+	TUINT32 uiMeshCount;
+	TUINT32 uiReserved;
+};
+
+static constexpr TUINT32 s_uiFrontEndTerrainConfigMagic_PSP = 0x52544650;
+static constexpr TUINT32 s_uiFrontEndTerrainConfigVersion_PSP = 1;
+
+static_assert( sizeof( AFrontEndTerrainConfig_PSP ) == 16, "Unexpected PSP frontend terrain config layout" );
+
 AFrontEndTerrain_PSP::AFrontEndTerrain_PSP()
     : m_ModelTransform_PSP{ 1.0f, { 0.0f, 0.0f, 0.0f } }
     , m_uiMeshCount_PSP( 0 )
@@ -44,7 +58,36 @@ AFrontEndTerrain_PSP::~AFrontEndTerrain_PSP()
 TBOOL AFrontEndTerrain_PSP::Load()
 {
 	Unload();
-	for ( TUINT i = 0; i < MAX_MESHES_PSP; i++ )
+	TStringManager::String8Copy(
+		m_szFailedPath_PSP,
+		"local:barnyard_terrain.pcfg",
+		TARRAYSIZE( m_szFailedPath_PSP )
+	);
+	TFile* pConfigFile = TFile::Create( m_szFailedPath_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	if ( pConfigFile == TNULL )
+		return TFALSE;
+
+	AFrontEndTerrainConfig_PSP oConfig = {};
+	TBOOL bConfigValid =
+		pConfigFile->GetSize() == sizeof( oConfig ) &&
+		pConfigFile->Read( &oConfig, sizeof( oConfig ) ) == sizeof( oConfig ) &&
+		oConfig.uiMagic == s_uiFrontEndTerrainConfigMagic_PSP &&
+		oConfig.uiVersion == s_uiFrontEndTerrainConfigVersion_PSP &&
+		oConfig.uiMeshCount >= 1 &&
+		oConfig.uiMeshCount <= MAX_MESHES_PSP &&
+		oConfig.uiReserved == 0;
+	pConfigFile->Destroy();
+	if ( !bConfigValid )
+	{
+		TStringManager::String8Copy(
+			m_szFailedPath_PSP,
+			"frontend-terrain-config",
+			TARRAYSIZE( m_szFailedPath_PSP )
+		);
+		return TFALSE;
+	}
+
+	for ( TUINT i = 0; i < oConfig.uiMeshCount; i++ )
 	{
 		TStringManager::String8Format(
 			m_szFailedPath_PSP,

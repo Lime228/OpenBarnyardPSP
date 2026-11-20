@@ -7,7 +7,7 @@
 class AFrontEndTerrain_PSP
 {
 public:
-	static constexpr TUINT MAX_MESHES_PSP = 4;
+	static constexpr TUINT MAX_MESHES_PSP = 16;
 
 public:
 	AFrontEndTerrain_PSP();
@@ -20,7 +20,7 @@ public:
 		const Toshi::TRenderCamera_PSP* a_pCamera
 	) const;
 
-	TBOOL IsLoaded() const { return m_uiMeshCount_PSP == MAX_MESHES_PSP; }
+	TBOOL IsLoaded() const { return m_uiMeshCount_PSP != 0; }
 	TUINT GetMeshCount() const { return m_uiMeshCount_PSP; }
 	const Toshi::TRenderModelTransform_PSP& GetModelTransform() const { return m_ModelTransform_PSP; }
 	const TCHAR* GetFailedPath() const { return m_szFailedPath_PSP; }

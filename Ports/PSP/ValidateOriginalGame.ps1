@@ -116,7 +116,7 @@ try {
     )) {
         Assert-ReportValue $report $name '1'
     }
-    Assert-ReportValue $report 'frontend_terrain_meshes' '4'
+    Assert-ReportValue $report 'frontend_terrain_meshes' '11'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
     foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_barnsign_draws')) {
         Assert-ReportPositive $report $name
