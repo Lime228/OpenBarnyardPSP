@@ -20,7 +20,7 @@ static const TRenderSceneTransform_PSP s_FrontEndTerrainSceneTransform_PSP = {
 
 static const TRenderSceneTransform_PSP s_FrontEndTerrainOriginalSceneTransform_PSP = {
 	{ 0.0f, 0.0f, 0.0f },
-	{ 0.0f, 0.0f, 0.0f },
+	{ 1.570796f, 0.0f, 0.0f },
 	1.0f,
 };
 
