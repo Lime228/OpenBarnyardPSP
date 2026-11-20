@@ -42,8 +42,8 @@ def main() -> None:
     header = struct.unpack_from("<6I", payload)
     assert header == (PCAM_MAGIC, PCAM_VERSION, 1, 30, PCAM_FRAME_SIZE, PCAM_FLAG_LOOP)
     assert len(payload) == 24 + PCAM_FRAME_SIZE
-    frame = struct.unpack_from("<6f", payload, 24)
-    expected = (1.0, -4.0, 2.0, 0.0, 1.0, 0.0)
+    frame = struct.unpack_from("<9f", payload, 24)
+    expected = (1.0, -4.0, 2.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     assert all(math.isclose(actual, wanted, abs_tol=0.000001) for actual, wanted in zip(frame, expected))
 
 

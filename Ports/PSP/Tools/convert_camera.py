@@ -9,7 +9,7 @@ import struct
 
 PCAM_MAGIC = 0x4D414350
 PCAM_VERSION = 1
-PCAM_FRAME_SIZE = 24
+PCAM_FRAME_SIZE = 36
 PCAM_FLAG_LOOP = 1
 MAX_BONE_COUNT = 64
 MAX_FRAME_COUNT = 64
@@ -97,7 +97,7 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
         [0.0, -1.0, 0.0, 0.0],
         [0.0, 0.0, 0.0, 1.0],
     ]
-    frames: list[tuple[list[float], list[float]]] = []
+    frames: list[tuple[list[float], list[float], list[float]]] = []
     expected_names = set(bone_names)
     for frame_index, source_frame in enumerate(source_frames):
         if not isinstance(source_frame, dict) or set(source_frame) != expected_names:
@@ -121,7 +121,11 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
             [-component for component in camera_transform[2][:3]],
             f"frame {frame_index} camera direction",
         )
-        frames.append((position, direction))
+        up = normalize(
+            camera_transform[1][:3],
+            f"frame {frame_index} camera up",
+        )
+        frames.append((position, direction, up))
 
     flags = PCAM_FLAG_LOOP if loop else 0
     payload = bytearray(
@@ -135,8 +139,8 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
             flags,
         )
     )
-    for position, direction in frames:
-        payload.extend(struct.pack("<6f", *position, *direction))
+    for position, direction, up in frames:
+        payload.extend(struct.pack("<9f", *position, *direction, *up))
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(payload)
