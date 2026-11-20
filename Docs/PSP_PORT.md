@@ -7,8 +7,8 @@ diagnostic bootstrap. OpenBarnyardPSPGame starts the original
 AApplication/ARootTask chain and reaches the retail legal/logo presentation and
 the original localized six-entry AFrontEndMainMenuState2 interface in PPSSPP.
 It uses retail fonts.trb, texsec.trb, locale/control resources and offline
-converted PSP textures. The original frontend camera loop, a four-mesh slice
-of the shipping barn terrain and the original barn-sign object now render
+converted PSP textures. The original frontend camera loop, all eleven meshes
+of the shipping `Barn_L0Mod0` terrain and the original barn-sign object render
 behind that menu.
 
 This is not a complete playable port. The current PSP menu implementation keeps
@@ -30,9 +30,9 @@ complete playable-game port is approximately **30%** complete.
 | PSP toolchain and packaging | 90% | Premake, branded PBP, deterministic converters, PSPDEV CI, host tools and separate bootstrap/original-game artifacts work; hardware release validation remains |
 | Portable Toshi/platform core | 75% | allocator, shared 20 MiB game/resource heap, files, TRB, timer, sync, threads, scheduler, input and GUI paths execute in the original-game target |
 | PSP renderer foundation | 55% | GU display, rotated GUI quads, bounded static resources, original camera and original 800x600 GUI mapping work; general material/model/scene closure remains |
-| Real-game asset pipeline | 42% | retail frontend GUI, four barn meshes, camera and barn sign stage repeatably; complete frontend terrain/instances, rooms, movies and streaming manifests remain |
+| Real-game asset pipeline | 44% | retail frontend GUI, all eleven `Barn_L0Mod0` meshes, camera and barn sign stage repeatably; complete frontend terrain/instances, rooms, movies and streaming manifests remain |
 | Input integration | 75% | PSP buttons pass through sceCtrl, Toshi events, the retail input map and the original menu; gameplay mappings and real hardware remain |
-| Game bootstrap and frontend | 62% | original application/root task, authentic menu/input and a first original 3D frontend slice run; complete environment, downstream states and new-game flow remain |
+| Game bootstrap and frontend | 64% | original application/root task, authentic menu/input and the complete `Barn_L0Mod0` slice run; complete environment, downstream states and new-game flow remain |
 | Audio, movies and saves | 20% | bounded diagnostic PSP audio works; retail music/SFX ownership, Bink replacement and save devices are not integrated |
 | World, animation and gameplay | 8% | retail probes render in the harness, but the original world, actors, player, quests, physics and rooms are not running |
 
@@ -1191,6 +1191,11 @@ remain largely unstarted.
 - Commit `37b7399d` packages that launch/wait/screenshot/input/report/stop chain
   as `ValidateOriginalGame.ps1`, preserving the exact-path single-instance and
   no-focus guarantees of the runner.
+- Commits `20fc25c3` and `dde9e86e` replace the four-file assumption with a
+  bounded PCFG declaring all eleven `Barn_L0Mod0` meshes. PSP run
+  `44827773449` is green. One-process validation records 8,580 terrain draws,
+  14,573,600 free heap bytes, 3,561,358 bytes of main render memory, working
+  Down/Cross activation and screenshot `EBOO00649_00023.jpg`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1198,8 +1203,8 @@ remain largely unstarted.
 ## Immediate next slice
 
 Continue the original 3D frontend scene, not another synthetic screen. The
-camera loop, four `Barn_L0Mod0` meshes and barn sign are now running. Inventory
-the terrain cells actually visible from that camera, then add bounded sets for
+camera loop, all eleven `Barn_L0Mod0` meshes and barn sign are now running.
+Inventory the terrain cells actually visible from that camera, then add bounded sets for
 the remaining barn/landscape layers with residency and draw telemetry. Add the
 windmill/helper instances from their original locators after the terrain set is
 visually coherent. Then connect one downstream original menu state at a time

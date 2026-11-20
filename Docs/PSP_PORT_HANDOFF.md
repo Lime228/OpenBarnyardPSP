@@ -32,7 +32,7 @@ The original-game EBOOT has been visually confirmed in PPSSPP through:
 The same original menu is runtime-confirmed with D-pad focus movement and Cross
 activation through the retail `DialogInputMap`.
 
-The original frontend now also runs a first measured 3D slice: four meshes from
+The original frontend now also runs a measured 3D slice: all eleven meshes from
 `Terrain/frontend/Barn_L0Mod0.trb`, the shipping `camera_loop` sampled from
 `EnvFrontEnd_Cam.trb`, and the two-mesh `barnsign` object placed from the retail
 `loc_barnsign` transform. This is visibly better than the old flat fallback,
@@ -50,7 +50,7 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, first barn terrain slice and barn sign run; complete environment/audio and hardware validation remain |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete `Barn_L0Mod0` and barn sign run; complete environment/audio and hardware validation remain |
 | Complete playable-game port | 30% | Original application/frontend runs, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
 ## Non-negotiable repository rules
@@ -121,7 +121,7 @@ AppBoot_PSP creates the original application/root task and opens:
 - retail Data/Locale/eng-uk.trb;
 - retail Data/Options/Controls_Win.trb;
 - PSP-converted PTEX files resolved from the original GUI material names.
-- four converted meshes and textures from the original front-end barn cell;
+- all eleven converted meshes and textures from the original front-end `Barn_L0Mod0` cell;
 - the bounded original `camera_loop` as `frontend_camera.pcam`;
 - the original two-mesh barn sign baked at `loc_barnsign`.
 
@@ -135,19 +135,19 @@ The Rekord_Black_26 atlas must remain 512x512 because fonts.trb stores glyph
 coordinates for that exact atlas. Other frontend textures retain the default
 256-pixel conversion cap unless a measured manifest exception is added.
 
-Measured original-menu runtime after the terrain-axis, camera, barn-sign and
-controller fixes (report v10, CI run `44826253217`):
+Measured original-menu runtime after expanding the bounded terrain set to all
+eleven `Barn_L0Mod0` meshes (report v10, CI run `44827773449`):
 
     phase=frontend-menu-selection
-    heap_free=14697408
-    heap_largest_hole=14680532
-    heap_used=6271964
-    render_main_current=3438034
-    render_main_peak=3438034
+    heap_free=14573600
+    heap_largest_hole=14573268
+    heap_used=6395472
+    render_main_current=3561358
+    render_main_peak=3561358
     render_main_budget=16777216
     frontend_terrain_loaded=1
-    frontend_terrain_meshes=4
-    frontend_terrain_draws=3120
+    frontend_terrain_meshes=11
+    frontend_terrain_draws=8580
     frontend_barnsign_loaded=1
     frontend_barnsign_meshes=2
     frontend_barnsign_draws=1560
@@ -168,9 +168,10 @@ also be checked on real 32/64 MiB hardware.
 
 ## Known limitations
 
-- The 3D frontend is incomplete. Only four meshes from `Barn_L0Mod0`, the
-  original camera loop and barn sign are loaded; the remaining barn/landscape
-  cells, windmill helper, lighting and environment layers are absent.
+- The 3D frontend is incomplete. All eleven meshes from `Barn_L0Mod0`, the
+  original camera loop and barn sign are loaded; `Barn_L0Mod1`/2/3, the
+  remaining landscape cells, windmill helper, lighting and environment layers
+  are absent.
 - Menu actions are bounded to a selection checkpoint and menu reopen. New game,
   load game, options, extras, antics and quit do not enter their retail states.
 - AMoviePlayer_PSP does not decode Bink. Startup images currently follow the
@@ -268,9 +269,9 @@ Runtime evidence:
 
 ## Next implementation order
 
-1. Expand the original frontend terrain beyond the current four `Barn_L0Mod0`
-   meshes: inventory the cells visible from `camera_loop`, then stage bounded
-   multi-cell sets without exceeding the PSP memory budget.
+1. Expand the original frontend terrain beyond the complete eleven-mesh
+   `Barn_L0Mod0`: inventory meshes visible from `camera_loop`, then stage
+   bounded multi-cell sets without exceeding the PSP memory budget.
 2. Add the original windmill/helper pieces and remaining frontend instances,
    preserving their locators and material ownership.
 3. Connect the original menu's downstream states one at a time, beginning with

@@ -116,8 +116,9 @@ Then assemble an ignored runtime from the original-game build artifact:
     .\Ports\PSP\StageOriginalGame.ps1 -BuildDirectory <artifact-directory> -SkipConversion
 
 This stages fonts.trb, texsec.trb, locale/control resources, converted GUI PTEX
-files, four original barn meshes, the original camera loop and the original
-two-mesh barn sign under Runtime/OpenBarnyardPSPGame. Rekord_Black_26 is
+files, all eleven original `Barn_L0Mod0` meshes, the original camera loop and
+the original two-mesh barn sign under Runtime/OpenBarnyardPSPGame.
+Rekord_Black_26 is
 intentionally kept at 512x512 because the retail glyph table uses coordinates
 from that atlas.
 The original GUI keeps its 800x600 logical root and is scaled to the PSP's
@@ -177,17 +178,18 @@ binds it into the transactional preview set.
 exports one explicitly selected retail world/cell/mesh, resolves its material
 to the original texture name and emits `barnyard_terrain.pmes` plus
 `barnyard_terrain.ptex`. Use `-RuntimeDirectory <EBOOT-directory>` to publish
-the set beside the EBOOT. With `all_meshes=true`, up to four numbered
-`barnyard_terrain_N.pmes/.ptex` pairs retain one shared cell transform. The
-runtime loads them independently from the animated `barnyard_preview.*` set and
-records `terrain=ACTIVE` plus `terrain_meshes=N` in report v8.
+the set beside the EBOOT. With `all_meshes=true`, up to sixteen numbered
+`barnyard_terrain_N.pmes/.ptex` pairs retain one shared cell transform. A
+16-byte `barnyard_terrain.pcfg` declares the exact transactional mesh count.
+The runtime loads them independently from the animated `barnyard_preview.*`
+set and records `terrain=ACTIVE` plus `terrain_meshes=N` in report v8.
 
 `StageOriginalGame.ps1` uses the tracked
-`Assets/original_frontend_terrain.txt` recipe to convert the four shipping
+`Assets/original_frontend_terrain.txt` recipe to convert all eleven shipping
 `frontend/Barn_L0Mod0` meshes and stage their numbered PMES/PTEX pairs beside
 the original-game EBOOT. `-SkipConversion` reuses the ignored
-`Game/BarnyardPC/Workspace/FrontendTerrain` output while still validating and
-copying the complete eight-file set.
+`Game/BarnyardPC/Workspace/FrontendTerrain` output while still validating the
+manifest and copying the complete declared set plus PCFG.
 
 `Tools/ConvertRetailFrontendCamera.ps1` exports the original
 `camera_loop` sequence from `EnvFrontEnd_Cam.trb` and the embedded
