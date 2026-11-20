@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "ARenderer_PSP.h"
+#include "AFrontEndCamera_PSP.h"
 #include "AFrontEndTerrain_PSP.h"
 #include "AGameRuntimeReport_PSP.h"
 #include "GUI/AGUI2.h"
@@ -15,6 +16,7 @@
 TOSHI_NAMESPACE_USING
 
 static TRenderInterface_PSP s_RenderInterface_PSP;
+static AFrontEndCamera_PSP s_FrontEndCamera_PSP;
 static AFrontEndTerrain_PSP s_FrontEndTerrain_PSP;
 
 TDEFINE_CLASS( ARenderer );
@@ -60,19 +62,42 @@ TBOOL ARenderer::OnCreate()
 	rReport.fFrontendTerrainScale = s_FrontEndTerrain_PSP.GetModelTransform().fScale;
 	if ( !rReport.bFrontendTerrainLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_FrontEndTerrain_PSP.GetFailedPath() );
+	rReport.bFrontendCameraLoaded = s_FrontEndCamera_PSP.Load();
+	rReport.uiFrontendCameraFrames = s_FrontEndCamera_PSP.GetFrameCount();
+	rReport.uiFrontendCameraSampleRate = s_FrontEndCamera_PSP.GetSampleRate();
+	if ( !rReport.bFrontendCameraLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndCamera_PSP.GetFailedPath() );
 	AUpdateGameRuntimeMemory_PSP();
 	return TTRUE;
 }
 
-TBOOL ARenderer::OnUpdate( TFLOAT )
+TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 {
 	if ( !s_RenderInterface_PSP.IsDisplayCreated() )
 		return TFALSE;
 
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiRendererFrames++;
+	s_FrontEndCamera_PSP.Update( a_fDeltaTime );
+	const TRenderCamera_PSP* pFrontEndCamera = s_FrontEndCamera_PSP.IsLoaded() ?
+		&s_FrontEndCamera_PSP.GetRenderCamera() : TNULL;
+	if ( pFrontEndCamera != TNULL )
+	{
+		rReport.fFrontendCameraX = pFrontEndCamera->aPosition[ 0 ];
+		rReport.fFrontendCameraY = pFrontEndCamera->aPosition[ 1 ];
+		rReport.fFrontendCameraZ = pFrontEndCamera->aPosition[ 2 ];
+		rReport.fFrontendCameraDirectionX = pFrontEndCamera->aDirection[ 0 ];
+		rReport.fFrontendCameraDirectionY = pFrontEndCamera->aDirection[ 1 ];
+		rReport.fFrontendCameraDirectionZ = pFrontEndCamera->aDirection[ 2 ];
+		rReport.fFrontendCameraUpX = pFrontEndCamera->aUp[ 0 ];
+		rReport.fFrontendCameraUpY = pFrontEndCamera->aUp[ 1 ];
+		rReport.fFrontendCameraUpZ = pFrontEndCamera->aUp[ 2 ];
+	}
 	s_RenderInterface_PSP.BeginScene( 0xff101820 );
-	rReport.uiFrontendTerrainDraws += s_FrontEndTerrain_PSP.Render( s_RenderInterface_PSP );
+	rReport.uiFrontendTerrainDraws += s_FrontEndTerrain_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera
+	);
 	if ( m_bRenderGUI && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
 		RenderGUI();
 	s_RenderInterface_PSP.EndScene();
@@ -83,6 +108,7 @@ TBOOL ARenderer::OnUpdate( TFLOAT )
 
 void ARenderer::OnDestroy()
 {
+	s_FrontEndCamera_PSP.Unload();
 	s_FrontEndTerrain_PSP.Unload();
 	s_RenderInterface_PSP.DestroyDisplay();
 }

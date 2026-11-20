@@ -284,7 +284,8 @@ void TRenderInterface_PSP::DrawModel(
     const TRenderSceneTransform_PSP& a_rTransform,
     const TRenderMaterial_PSP& a_rMaterial,
     const T2Texture* a_pTexture,
-    const TRenderModelTransform_PSP& a_rModelTransform
+    const TRenderModelTransform_PSP& a_rModelTransform,
+    const TRenderCamera_PSP* a_pCamera
 )
 {
 	const auto& rVertices = a_rModel.GetVertices();
@@ -312,9 +313,33 @@ void TRenderInterface_PSP::DrawModel(
 
 	sceGumMatrixMode( GU_PROJECTION );
 	sceGumLoadIdentity();
-	sceGumPerspective( 45.0f, TFLOAT( SCREEN_WIDTH ) / TFLOAT( SCREEN_HEIGHT ), 0.1f, 100.0f );
+	sceGumPerspective(
+		a_pCamera != TNULL ? a_pCamera->fFOV : 45.0f,
+		TFLOAT( SCREEN_WIDTH ) / TFLOAT( SCREEN_HEIGHT ),
+		a_pCamera != TNULL ? 1.0f : 0.1f,
+		a_pCamera != TNULL ? 280.0f : 100.0f
+	);
 	sceGumMatrixMode( GU_VIEW );
 	sceGumLoadIdentity();
+	if ( a_pCamera != TNULL )
+	{
+		ScePspFVector3 oEye = {
+			a_pCamera->aPosition[ 0 ],
+			a_pCamera->aPosition[ 1 ],
+			a_pCamera->aPosition[ 2 ],
+		};
+		ScePspFVector3 oCenter = {
+			a_pCamera->aPosition[ 0 ] + a_pCamera->aDirection[ 0 ],
+			a_pCamera->aPosition[ 1 ] + a_pCamera->aDirection[ 1 ],
+			a_pCamera->aPosition[ 2 ] + a_pCamera->aDirection[ 2 ],
+		};
+		ScePspFVector3 oUp = {
+			a_pCamera->aUp[ 0 ],
+			a_pCamera->aUp[ 1 ],
+			a_pCamera->aUp[ 2 ],
+		};
+		sceGumLookAt( &oEye, &oCenter, &oUp );
+	}
 	sceGumMatrixMode( GU_MODEL );
 	sceGumLoadIdentity();
 

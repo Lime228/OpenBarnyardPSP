@@ -90,11 +90,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 1408 ];
+	static TCHAR s_aReportBuffer_PSP[ 1792 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=8\n"
+		"version=9\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -116,6 +116,12 @@ void AWriteGameRuntimeReport_PSP()
 		"frontend_terrain_meshes=%u\n"
 		"frontend_terrain_draws=%u\n"
 		"frontend_terrain_scale=%.6f\n"
+		"frontend_camera_loaded=%d\n"
+		"frontend_camera_frames=%u\n"
+		"frontend_camera_sample_rate=%u\n"
+		"frontend_camera_position=%.6f,%.6f,%.6f\n"
+		"frontend_camera_direction=%.6f,%.6f,%.6f\n"
+		"frontend_camera_up=%.6f,%.6f,%.6f\n"
 		"picture_render_frames=%u\n"
 		"picture_draws=%u\n"
 		"gui_colour_draws=%u\n"
@@ -163,6 +169,18 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiFrontendTerrainMeshes,
 		s_GameRuntimeReport_PSP.uiFrontendTerrainDraws,
 		s_GameRuntimeReport_PSP.fFrontendTerrainScale,
+		s_GameRuntimeReport_PSP.bFrontendCameraLoaded,
+		s_GameRuntimeReport_PSP.uiFrontendCameraFrames,
+		s_GameRuntimeReport_PSP.uiFrontendCameraSampleRate,
+		s_GameRuntimeReport_PSP.fFrontendCameraX,
+		s_GameRuntimeReport_PSP.fFrontendCameraY,
+		s_GameRuntimeReport_PSP.fFrontendCameraZ,
+		s_GameRuntimeReport_PSP.fFrontendCameraDirectionX,
+		s_GameRuntimeReport_PSP.fFrontendCameraDirectionY,
+		s_GameRuntimeReport_PSP.fFrontendCameraDirectionZ,
+		s_GameRuntimeReport_PSP.fFrontendCameraUpX,
+		s_GameRuntimeReport_PSP.fFrontendCameraUpY,
+		s_GameRuntimeReport_PSP.fFrontendCameraUpZ,
 		s_GameRuntimeReport_PSP.uiPictureRenderFrames,
 		s_GameRuntimeReport_PSP.uiPictureDraws,
 		s_GameRuntimeReport_PSP.uiGUIColourDraws,

@@ -15,7 +15,10 @@ public:
 
 	TBOOL Load();
 	void  Unload();
-	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderInterface ) const;
+	TUINT Render(
+		Toshi::TRenderInterface_PSP& a_rRenderInterface,
+		const Toshi::TRenderCamera_PSP* a_pCamera
+	) const;
 
 	TBOOL IsLoaded() const { return m_uiMeshCount_PSP == MAX_MESHES_PSP; }
 	TUINT GetMeshCount() const { return m_uiMeshCount_PSP; }

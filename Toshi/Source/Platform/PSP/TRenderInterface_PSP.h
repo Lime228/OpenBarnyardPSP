@@ -57,6 +57,14 @@ struct TRenderSceneTransform_PSP
 	TFLOAT fScale;
 };
 
+struct TRenderCamera_PSP
+{
+	TFLOAT aPosition[ 3 ];
+	TFLOAT aDirection[ 3 ];
+	TFLOAT aUp[ 3 ];
+	TFLOAT fFOV;
+};
+
 class TRenderInterface_PSP
 {
 public:
@@ -92,7 +100,8 @@ public:
 	    const TRenderSceneTransform_PSP& a_rTransform,
 	    const TRenderMaterial_PSP& a_rMaterial,
 	    const T2Texture* a_pTexture,
-	    const TRenderModelTransform_PSP& a_rModelTransform
+	    const TRenderModelTransform_PSP& a_rModelTransform,
+	    const TRenderCamera_PSP* a_pCamera = TNULL
 	);
 	void DrawSkinnedModel(
 	    const TModel_PSP& a_rModel,

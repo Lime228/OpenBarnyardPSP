@@ -18,6 +18,17 @@ static const TRenderSceneTransform_PSP s_FrontEndTerrainSceneTransform_PSP = {
 	0.85f,
 };
 
+static const TRenderSceneTransform_PSP s_FrontEndTerrainOriginalSceneTransform_PSP = {
+	{ 0.0f, 0.0f, 0.0f },
+	{ 0.0f, 0.0f, 0.0f },
+	1.0f,
+};
+
+static const TRenderModelTransform_PSP s_FrontEndTerrainOriginalModelTransform_PSP = {
+	1.0f,
+	{ 0.0f, 0.0f, 0.0f },
+};
+
 AFrontEndTerrain_PSP::AFrontEndTerrain_PSP()
     : m_ModelTransform_PSP{ 1.0f, { 0.0f, 0.0f, 0.0f } }
     , m_uiMeshCount_PSP( 0 )
@@ -89,19 +100,28 @@ void AFrontEndTerrain_PSP::Unload()
 	m_uiMeshCount_PSP = 0;
 }
 
-TUINT AFrontEndTerrain_PSP::Render( TRenderInterface_PSP& a_rRenderInterface ) const
+TUINT AFrontEndTerrain_PSP::Render(
+    TRenderInterface_PSP& a_rRenderInterface,
+    const TRenderCamera_PSP* a_pCamera
+) const
 {
 	if ( !IsLoaded() )
 		return 0;
+
+	const TRenderSceneTransform_PSP& rSceneTransform = a_pCamera != TNULL ?
+		s_FrontEndTerrainOriginalSceneTransform_PSP : s_FrontEndTerrainSceneTransform_PSP;
+	const TRenderModelTransform_PSP& rModelTransform = a_pCamera != TNULL ?
+		s_FrontEndTerrainOriginalModelTransform_PSP : m_ModelTransform_PSP;
 
 	for ( TUINT i = 0; i < m_uiMeshCount_PSP; i++ )
 	{
 		a_rRenderInterface.DrawModel(
 			m_aModels_PSP[ i ],
-			s_FrontEndTerrainSceneTransform_PSP,
+			rSceneTransform,
 			s_FrontEndTerrainMaterial_PSP,
 			&m_aTextures_PSP[ i ],
-			m_ModelTransform_PSP
+			rModelTransform,
+			a_pCamera
 		);
 	}
 
