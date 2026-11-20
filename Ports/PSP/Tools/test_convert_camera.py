@@ -25,7 +25,7 @@ def main() -> None:
                     "translation": [1.0, 2.0, 3.0],
                 },
                 "camera": {
-                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "rotation": [0.7071067811865475, 0.0, 0.0, 0.7071067811865476],
                     "translation": [0.0, 0.0, 1.0],
                 },
             }
@@ -43,7 +43,7 @@ def main() -> None:
     assert header == (PCAM_MAGIC, PCAM_VERSION, 1, 30, PCAM_FRAME_SIZE, PCAM_FLAG_LOOP)
     assert len(payload) == 24 + PCAM_FRAME_SIZE
     frame = struct.unpack_from("<9f", payload, 24)
-    expected = (1.0, -4.0, 2.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    expected = (1.0, -4.0, 2.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0)
     assert all(math.isclose(actual, wanted, abs_tol=0.000001) for actual, wanted in zip(frame, expected))
 
 

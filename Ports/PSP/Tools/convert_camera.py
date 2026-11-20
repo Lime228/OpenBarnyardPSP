@@ -121,8 +121,17 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
             [-component for component in camera_transform[2][:3]],
             f"frame {frame_index} camera direction",
         )
+        # ACamera::LookAtDirection intentionally discards the camera bone's
+        # roll. It projects sm_vWorldUp (0, -1, 0) onto the direction plane,
+        # then negates that projection for the camera's up basis.
+        retail_world_up = [0.0, -1.0, 0.0]
+        up_dot = sum(component * direction[index] for index, component in enumerate(retail_world_up))
+        projected_up = [
+            retail_world_up[index] - direction[index] * up_dot
+            for index in range(3)
+        ]
         up = normalize(
-            camera_transform[1][:3],
+            [-component for component in projected_up],
             f"frame {frame_index} camera up",
         )
         frames.append((position, direction, up))

@@ -181,7 +181,8 @@ copying the complete eight-file set.
 `frontendchar_keylib` in `lib_frontend.trb`. The sampled hierarchy is reduced
 offline to the bounded `frontend_camera.pcam` file: at most 64 position,
 direction and up-vector frames, with no retail skeleton or TRB parser required
-in the EBOOT.
+in the EBOOT. Its up vector follows the original `ACamera::sm_vWorldUp` rule;
+the retail bone helper intentionally discards camera-bone roll.
 `StageOriginalGame.ps1` stages that file from the ignored
 `Game/BarnyardPC/Workspace/FrontendCamera` directory. The conversion step is
 repeatable whenever the source exporter or camera transform changes.
