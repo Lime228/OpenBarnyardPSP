@@ -18,6 +18,8 @@ struct AGameRuntimeReport_PSP
 	TUINT uiFrontendTerrainMeshes;
 	TUINT uiFrontendTerrainDraws;
 	TFLOAT fFrontendTerrainScale;
+	TUINT uiFrontendBarnSignMeshes;
+	TUINT uiFrontendBarnSignDraws;
 	TUINT uiFrontendCameraFrames;
 	TUINT uiFrontendCameraSampleRate;
 	TFLOAT fFrontendCameraX;
@@ -62,6 +64,7 @@ struct AGameRuntimeReport_PSP
 	TBOOL bGUISystemCreated;
 	TBOOL bControlsLoaded;
 	TBOOL bFrontendTerrainLoaded;
+	TBOOL bFrontendBarnSignLoaded;
 	TBOOL bFrontendCameraLoaded;
 };
 

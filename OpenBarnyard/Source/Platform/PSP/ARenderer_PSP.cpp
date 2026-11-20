@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "ARenderer_PSP.h"
+#include "AFrontEndBarnSign_PSP.h"
 #include "AFrontEndCamera_PSP.h"
 #include "AFrontEndTerrain_PSP.h"
 #include "AGameRuntimeReport_PSP.h"
@@ -16,6 +17,7 @@
 TOSHI_NAMESPACE_USING
 
 static TRenderInterface_PSP s_RenderInterface_PSP;
+static AFrontEndBarnSign_PSP s_FrontEndBarnSign_PSP;
 static AFrontEndCamera_PSP s_FrontEndCamera_PSP;
 static AFrontEndTerrain_PSP s_FrontEndTerrain_PSP;
 
@@ -67,6 +69,10 @@ TBOOL ARenderer::OnCreate()
 	rReport.uiFrontendCameraSampleRate = s_FrontEndCamera_PSP.GetSampleRate();
 	if ( !rReport.bFrontendCameraLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_FrontEndCamera_PSP.GetFailedPath() );
+	rReport.bFrontendBarnSignLoaded = s_FrontEndBarnSign_PSP.Load();
+	rReport.uiFrontendBarnSignMeshes = s_FrontEndBarnSign_PSP.GetMeshCount();
+	if ( !rReport.bFrontendBarnSignLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndBarnSign_PSP.GetFailedPath() );
 	AUpdateGameRuntimeMemory_PSP();
 	return TTRUE;
 }
@@ -98,6 +104,10 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 		s_RenderInterface_PSP,
 		pFrontEndCamera
 	);
+	rReport.uiFrontendBarnSignDraws += s_FrontEndBarnSign_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera
+	);
 	if ( m_bRenderGUI && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
 		RenderGUI();
 	s_RenderInterface_PSP.EndScene();
@@ -109,6 +119,7 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 void ARenderer::OnDestroy()
 {
 	s_FrontEndCamera_PSP.Unload();
+	s_FrontEndBarnSign_PSP.Unload();
 	s_FrontEndTerrain_PSP.Unload();
 	s_RenderInterface_PSP.DestroyDisplay();
 }
