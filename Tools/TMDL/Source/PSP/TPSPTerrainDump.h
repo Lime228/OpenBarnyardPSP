@@ -16,3 +16,10 @@ TBOOL ExportPSPTerrainCellDump(
     TINT         a_iCell,
     const TCHAR* a_pOutputPath
 );
+
+TBOOL ExportPSPTerrainInventory(
+    const TCHAR* a_pInputPath,
+    TINT         a_iWorld,
+    TINT         a_iCell,
+    const TCHAR* a_pOutputPath
+);

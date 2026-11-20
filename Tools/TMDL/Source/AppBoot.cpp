@@ -99,6 +99,7 @@ int main( int argc, char** argv )
 	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
 	auto          strPSPTerrain    = commandLine.GetParameterValue( "-psp-terrain" );
 	auto          strPSPTerrainCell = commandLine.GetParameterValue( "-psp-terrain-cell" );
+	auto          strPSPTerrainInventory = commandLine.GetParameterValue( "-psp-terrain-inventory" );
 	auto          strWorldIndex    = commandLine.GetParameterValue( "-world", "0" );
 	auto          strCellIndex     = commandLine.GetParameterValue( "-cell", "0" );
 	auto          strMeshIndex     = commandLine.GetParameterValue( "-mesh", "0" );
@@ -138,6 +139,26 @@ int main( int argc, char** argv )
 		     ) )
 		{
 			TERROR( "Unable to export PSP terrain cell\n" );
+			return 1;
+		}
+		return 0;
+	}
+
+	if ( strPSPTerrainInventory )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-terrain-inventory requires -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPTerrainInventory(
+		         strPSPTerrainInventory.GetString(),
+		         T2String8::StringToInt( strWorldIndex.GetString() ),
+		         T2String8::StringToInt( strCellIndex.GetString() ),
+		         strOutPath.GetString()
+		     ) )
+		{
+			TERROR( "Unable to export PSP terrain inventory\n" );
 			return 1;
 		}
 		return 0;

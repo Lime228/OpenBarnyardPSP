@@ -194,3 +194,83 @@ TBOOL ExportPSPTerrainCellDump(
 	oFile << oOutput.str();
 	return oFile.good();
 }
+
+TBOOL ExportPSPTerrainInventory(
+    const TCHAR* a_pInputPath,
+    TINT         a_iWorld,
+    TINT         a_iCell,
+    const TCHAR* a_pOutputPath
+)
+{
+	if ( a_pInputPath == TNULL || a_pOutputPath == TNULL )
+		return TFALSE;
+
+	PTRB oTRB;
+	if ( !oTRB.ReadFromFile( a_pInputPath ) )
+		return TFALSE;
+	Cell* pCell = FindCell_PSPTerrain( oTRB, a_iWorld, a_iCell );
+	if ( pCell == TNULL || pCell->uiNumMeshes == 0 || pCell->uiNumMeshes > 1024 ||
+	     pCell->ppCellMeshSpheres == TNULL )
+	{
+		TERROR( "PSP terrain inventory requires between 1 and 1024 meshes\n" );
+		return TFALSE;
+	}
+
+	auto oMaterials = oTRB.GetSymbols()->Find<TTMDBase::MaterialsHeader>( oTRB.GetSections(), "Materials" );
+	std::ostringstream oOutput;
+	oOutput.imbue( std::locale::classic() );
+	oOutput << std::setprecision( 9 );
+	oOutput << "{\n  \"version\": 1,\n  \"world\": " << a_iWorld
+	        << ",\n  \"cell\": " << a_iCell
+	        << ",\n  \"mesh_count\": " << pCell->uiNumMeshes
+	        << ",\n  \"meshes\": [\n";
+
+	for ( TUINT32 i = 0; i < pCell->uiNumMeshes; i++ )
+	{
+		CellMeshSphere* pMeshSphere = pCell->ppCellMeshSpheres[ i ];
+		CellMesh* pMesh = pMeshSphere != TNULL ? pMeshSphere->m_pCellMesh : TNULL;
+		if ( pMesh == TNULL || pMesh->uiNumVertices1 == 0 ||
+		     pMesh->uiNumVertices1 != pMesh->uiNumVertices2 || pMesh->uiNumVertices1 > 0xffff ||
+		     pMesh->uiNumIndices < 3 || pMesh->uiNumIndices > 0xffff ||
+		     pMesh->pVertices == TNULL || pMesh->pIndices == TNULL || pMesh->szMaterialName == TNULL )
+		{
+			TERROR( "PSP terrain inventory rejected mesh %u\n", i );
+			return TFALSE;
+		}
+
+		const TVector4& rSphere = pMeshSphere->m_BoundingSphere.AsVector4();
+		if ( !std::isfinite( rSphere.x ) || !std::isfinite( rSphere.y ) ||
+		     !std::isfinite( rSphere.z ) || !std::isfinite( rSphere.w ) || rSphere.w < 0.0f )
+		{
+			TERROR( "PSP terrain inventory rejected mesh %u sphere\n", i );
+			return TFALSE;
+		}
+		for ( TUINT32 index = 0; index < pMesh->uiNumIndices; index++ )
+		{
+			if ( pMesh->pIndices[ index ] >= pMesh->uiNumVertices1 )
+			{
+				TERROR( "PSP terrain inventory rejected mesh %u indices\n", i );
+				return TFALSE;
+			}
+		}
+
+		oOutput << "    { \"index\": " << i << ", \"material\": ";
+		WriteJSONString_PSPTerrain( oOutput, pMesh->szMaterialName );
+		oOutput << ", \"texture\": ";
+		WriteJSONString_PSPTerrain( oOutput, FindTexture_PSPTerrain( oMaterials.get(), pMesh->szMaterialName ) );
+		oOutput << ", \"vertices\": " << pMesh->uiNumVertices1
+		        << ", \"indices\": " << pMesh->uiNumIndices
+		        << ", \"sphere\": [" << rSphere.x << ", " << rSphere.y << ", "
+		        << rSphere.z << ", " << rSphere.w << "] }";
+		if ( i + 1 != pCell->uiNumMeshes )
+			oOutput << ',';
+		oOutput << '\n';
+	}
+
+	oOutput << "  ]\n}\n";
+	std::ofstream oFile( a_pOutputPath, std::ios::out | std::ios::trunc );
+	if ( !oFile )
+		return TFALSE;
+	oFile << oOutput.str();
+	return oFile.good();
+}
