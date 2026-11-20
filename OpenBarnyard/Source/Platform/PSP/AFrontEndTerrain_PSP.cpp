@@ -1,0 +1,148 @@
+#include "pch.h"
+
+#include "AFrontEndTerrain_PSP.h"
+
+#include <Toshi/TStringManager.h>
+
+TOSHI_NAMESPACE_USING
+
+static const TRenderMaterial_PSP s_FrontEndTerrainMaterial_PSP = {
+	TTRUE,
+	TRENDERTEXTUREFUNCTION_PSP_MODULATE,
+	TRENDERCULLMODE_PSP_BACK,
+};
+
+static const TRenderSceneTransform_PSP s_FrontEndTerrainSceneTransform_PSP = {
+	{ 0.0f, -0.45f, -4.8f },
+	{ 0.0f, 0.0f, 0.0f },
+	0.85f,
+};
+
+AFrontEndTerrain_PSP::AFrontEndTerrain_PSP()
+    : m_ModelTransform_PSP{ 1.0f, { 0.0f, 0.0f, 0.0f } }
+    , m_uiMeshCount_PSP( 0 )
+    , m_szFailedPath_PSP{ '\0' }
+{
+}
+
+AFrontEndTerrain_PSP::~AFrontEndTerrain_PSP()
+{
+	Unload();
+}
+
+TBOOL AFrontEndTerrain_PSP::Load()
+{
+	Unload();
+	for ( TUINT i = 0; i < MAX_MESHES_PSP; i++ )
+	{
+		TStringManager::String8Format(
+			m_szFailedPath_PSP,
+			TARRAYSIZE( m_szFailedPath_PSP ),
+			"local:barnyard_terrain_%u.pmes",
+			i
+		);
+		if ( !m_ModelFactory_PSP.CreateModelFromFile( m_aModels_PSP[ i ], m_szFailedPath_PSP ) )
+		{
+			Unload();
+			return TFALSE;
+		}
+
+		TStringManager::String8Format(
+			m_szFailedPath_PSP,
+			TARRAYSIZE( m_szFailedPath_PSP ),
+			"local:barnyard_terrain_%u.ptex",
+			i
+		);
+		if ( !m_TextureFactory_PSP.CreateTextureFromFile( m_aTextures_PSP[ i ], m_szFailedPath_PSP ) )
+		{
+			Unload();
+			return TFALSE;
+		}
+
+		m_uiMeshCount_PSP++;
+	}
+
+	if ( !CalculateModelTransform_PSP() )
+	{
+		TStringManager::String8Copy(
+			m_szFailedPath_PSP,
+			"frontend-terrain-bounds",
+			TARRAYSIZE( m_szFailedPath_PSP )
+		);
+		Unload();
+		return TFALSE;
+	}
+
+	m_szFailedPath_PSP[ 0 ] = '\0';
+	return TTRUE;
+}
+
+void AFrontEndTerrain_PSP::Unload()
+{
+	for ( TUINT i = 0; i < MAX_MESHES_PSP; i++ )
+	{
+		m_aTextures_PSP[ i ].Unload();
+		m_aModels_PSP[ i ].Unload();
+	}
+
+	m_ModelTransform_PSP = { 1.0f, { 0.0f, 0.0f, 0.0f } };
+	m_uiMeshCount_PSP = 0;
+}
+
+TUINT AFrontEndTerrain_PSP::Render( TRenderInterface_PSP& a_rRenderInterface ) const
+{
+	if ( !IsLoaded() )
+		return 0;
+
+	for ( TUINT i = 0; i < m_uiMeshCount_PSP; i++ )
+	{
+		a_rRenderInterface.DrawModel(
+			m_aModels_PSP[ i ],
+			s_FrontEndTerrainSceneTransform_PSP,
+			s_FrontEndTerrainMaterial_PSP,
+			&m_aTextures_PSP[ i ],
+			m_ModelTransform_PSP
+		);
+	}
+
+	return m_uiMeshCount_PSP;
+}
+
+TBOOL AFrontEndTerrain_PSP::CalculateModelTransform_PSP()
+{
+	if ( m_uiMeshCount_PSP == 0 )
+		return TFALSE;
+
+	TFLOAT aMin[ 3 ];
+	TFLOAT aMax[ 3 ];
+	for ( TUINT axis = 0; axis < TARRAYSIZE( aMin ); axis++ )
+	{
+		aMin[ axis ] = m_aModels_PSP[ 0 ].GetBounds().aMin[ axis ];
+		aMax[ axis ] = m_aModels_PSP[ 0 ].GetBounds().aMax[ axis ];
+	}
+
+	for ( TUINT mesh = 1; mesh < m_uiMeshCount_PSP; mesh++ )
+	{
+		const TModelBounds_PSP& rBounds = m_aModels_PSP[ mesh ].GetBounds();
+		for ( TUINT axis = 0; axis < TARRAYSIZE( aMin ); axis++ )
+		{
+			aMin[ axis ] = TMath::Min( aMin[ axis ], rBounds.aMin[ axis ] );
+			aMax[ axis ] = TMath::Max( aMax[ axis ], rBounds.aMax[ axis ] );
+		}
+	}
+
+	const TFLOAT fLargestSize = TMath::Max(
+		TMath::Max( aMax[ 0 ] - aMin[ 0 ], aMax[ 1 ] - aMin[ 1 ] ),
+		aMax[ 2 ] - aMin[ 2 ]
+	);
+	if ( !TMath::IsFinite( fLargestSize ) || fLargestSize <= TMath::TFLOAT_EPSILON )
+		return TFALSE;
+
+	m_ModelTransform_PSP.fScale = 2.0f / fLargestSize;
+	for ( TUINT axis = 0; axis < TARRAYSIZE( aMin ); axis++ )
+	{
+		m_ModelTransform_PSP.aCenter[ axis ] =
+			aMin[ axis ] + ( aMax[ axis ] - aMin[ axis ] ) * 0.5f;
+	}
+	return TTRUE;
+}

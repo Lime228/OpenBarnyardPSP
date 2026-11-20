@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "ARenderer_PSP.h"
+#include "AFrontEndTerrain_PSP.h"
 #include "AGameRuntimeReport_PSP.h"
 #include "GUI/AGUI2.h"
 #include "Render/ARenderer.h"
@@ -14,6 +15,7 @@
 TOSHI_NAMESPACE_USING
 
 static TRenderInterface_PSP s_RenderInterface_PSP;
+static AFrontEndTerrain_PSP s_FrontEndTerrain_PSP;
 
 TDEFINE_CLASS( ARenderer );
 
@@ -49,7 +51,17 @@ ARenderer::~ARenderer() = default;
 TBOOL ARenderer::OnCreate()
 {
 	m_DisplayModes.Initialise();
-	return s_RenderInterface_PSP.CreateDisplay();
+	if ( !s_RenderInterface_PSP.CreateDisplay() )
+		return TFALSE;
+
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.bFrontendTerrainLoaded = s_FrontEndTerrain_PSP.Load();
+	rReport.uiFrontendTerrainMeshes = s_FrontEndTerrain_PSP.GetMeshCount();
+	rReport.fFrontendTerrainScale = s_FrontEndTerrain_PSP.GetModelTransform().fScale;
+	if ( !rReport.bFrontendTerrainLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndTerrain_PSP.GetFailedPath() );
+	AUpdateGameRuntimeMemory_PSP();
+	return TTRUE;
 }
 
 TBOOL ARenderer::OnUpdate( TFLOAT )
@@ -60,6 +72,7 @@ TBOOL ARenderer::OnUpdate( TFLOAT )
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiRendererFrames++;
 	s_RenderInterface_PSP.BeginScene( 0xff101820 );
+	rReport.uiFrontendTerrainDraws += s_FrontEndTerrain_PSP.Render( s_RenderInterface_PSP );
 	if ( m_bRenderGUI && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
 		RenderGUI();
 	s_RenderInterface_PSP.EndScene();
@@ -70,6 +83,7 @@ TBOOL ARenderer::OnUpdate( TFLOAT )
 
 void ARenderer::OnDestroy()
 {
+	s_FrontEndTerrain_PSP.Unload();
 	s_RenderInterface_PSP.DestroyDisplay();
 }
 

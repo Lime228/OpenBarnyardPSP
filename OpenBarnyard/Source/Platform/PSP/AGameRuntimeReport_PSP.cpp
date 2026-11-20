@@ -90,11 +90,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 1216 ];
+	static TCHAR s_aReportBuffer_PSP[ 1408 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=7\n"
+		"version=8\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -112,6 +112,10 @@ void AWriteGameRuntimeReport_PSP()
 		"render_main_peak=%u\n"
 		"render_main_budget=%u\n"
 		"renderer_frames=%u\n"
+		"frontend_terrain_loaded=%d\n"
+		"frontend_terrain_meshes=%u\n"
+		"frontend_terrain_draws=%u\n"
+		"frontend_terrain_scale=%.6f\n"
 		"picture_render_frames=%u\n"
 		"picture_draws=%u\n"
 		"gui_colour_draws=%u\n"
@@ -155,6 +159,10 @@ void AWriteGameRuntimeReport_PSP()
 		TUINT( s_GameRuntimeReport_PSP.uiRenderMainPeak ),
 		TUINT( s_GameRuntimeReport_PSP.uiRenderMainBudget ),
 		s_GameRuntimeReport_PSP.uiRendererFrames,
+		s_GameRuntimeReport_PSP.bFrontendTerrainLoaded,
+		s_GameRuntimeReport_PSP.uiFrontendTerrainMeshes,
+		s_GameRuntimeReport_PSP.uiFrontendTerrainDraws,
+		s_GameRuntimeReport_PSP.fFrontendTerrainScale,
 		s_GameRuntimeReport_PSP.uiPictureRenderFrames,
 		s_GameRuntimeReport_PSP.uiPictureDraws,
 		s_GameRuntimeReport_PSP.uiGUIColourDraws,

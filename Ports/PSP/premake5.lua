@@ -168,6 +168,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Input/AInputMapManager.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUI2_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUI2Renderer_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndTerrain_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndMainMenuState2_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUIMatlibPicture_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AGUIPicture_PSP.cpp",

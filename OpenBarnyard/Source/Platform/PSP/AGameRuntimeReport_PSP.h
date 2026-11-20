@@ -15,6 +15,9 @@ struct AGameRuntimeReport_PSP
 	TSIZE uiRenderMainPeak;
 	TSIZE uiRenderMainBudget;
 	TUINT uiRendererFrames;
+	TUINT uiFrontendTerrainMeshes;
+	TUINT uiFrontendTerrainDraws;
+	TFLOAT fFrontendTerrainScale;
 	TUINT uiPictureRenderFrames;
 	TUINT uiPictureDraws;
 	TUINT uiGUIColourDraws;
@@ -47,6 +50,7 @@ struct AGameRuntimeReport_PSP
 	TBOOL bGUI2Created;
 	TBOOL bGUISystemCreated;
 	TBOOL bControlsLoaded;
+	TBOOL bFrontendTerrainLoaded;
 };
 
 AGameRuntimeReport_PSP& AGetGameRuntimeReport_PSP();
