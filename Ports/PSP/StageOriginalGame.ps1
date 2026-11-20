@@ -5,6 +5,7 @@ param(
     [string] $FrontendDirectory = '',
     [string] $FrontendTerrainDirectory = '',
     [string] $FrontendTerrainManifestPath = '',
+    [string] $FrontendCameraDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
@@ -29,6 +30,9 @@ if (-not $FrontendTerrainDirectory) {
 if (-not $FrontendTerrainManifestPath) {
     $FrontendTerrainManifestPath = Join-Path $PSScriptRoot 'Assets\original_frontend_terrain.txt'
 }
+if (-not $FrontendCameraDirectory) {
+    $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
+}
 if (-not $RuntimeDirectory) {
     $RuntimeDirectory = Join-Path $repositoryRoot 'Runtime\OpenBarnyardPSPGame'
 }
@@ -38,6 +42,7 @@ $installPath = [System.IO.Path]::GetFullPath($InstallDirectory)
 $frontendPath = [System.IO.Path]::GetFullPath($FrontendDirectory)
 $frontendTerrainPath = [System.IO.Path]::GetFullPath($FrontendTerrainDirectory)
 $frontendTerrainManifestPath = [System.IO.Path]::GetFullPath($FrontendTerrainManifestPath)
+$frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
 $gamePbpPath = Join-Path $buildPath 'EBOOT_GAME.PBP'
 $gameSfoPath = Join-Path $buildPath 'PARAM_GAME.SFO'
@@ -82,6 +87,11 @@ if (-not $SkipConversion) {
     if ($PythonPath) { $terrainConversionArguments.PythonPath = $PythonPath }
 
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailTerrain.ps1') @terrainConversionArguments
+
+    $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
+    if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $cameraConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendCamera.ps1') @cameraConversionArguments
 }
 
 $frontendFiles = @(
@@ -121,6 +131,12 @@ foreach ($fileName in $frontendTerrainFiles) {
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
+
+$frontendCameraSource = Join-Path $frontendCameraPath 'frontend_camera.pcam'
+if (-not (Test-Path -LiteralPath $frontendCameraSource -PathType Leaf)) {
+    throw "Converted retail frontend camera was not found: $frontendCameraSource"
+}
+Copy-Item -LiteralPath $frontendCameraSource -Destination (Join-Path $runtimePath 'frontend_camera.pcam') -Force
 
 foreach ($retailFile in $retailFiles) {
     $sourcePath = Join-Path $installPath $retailFile.Source

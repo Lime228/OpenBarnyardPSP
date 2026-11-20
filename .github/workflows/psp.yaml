@@ -77,6 +77,7 @@ jobs:
           python3 Ports/PSP/Tools/convert_animation.py Ports/PSP/Assets/probe_skeleton.json Ports/PSP/Assets/probe_animation.json /tmp/probe.panm
           python3 Ports/PSP/Tools/convert_tmd_dump.py Ports/PSP/Assets/probe_tmd_dump.json /tmp/probe_tmd_bridge.pmes /tmp/probe_tmd_bridge.pskl
           python3 Ports/PSP/Tools/test_convert_tmd_dump.py
+          python3 Ports/PSP/Tools/test_convert_camera.py
           python3 Ports/PSP/Tools/test_convert_dds.py
           python3 Ports/PSP/Tools/test_convert_terrain_dump.py
           python3 Ports/PSP/Tools/test_convert_terrain_cell.py
