@@ -1,6 +1,6 @@
 # OpenBarnyard PSP port handoff
 
-Updated: 2026-11-21
+Updated: 2026-11-22
 
 Repository: https://github.com/Lime228/OpenBarnyardPSP.git
 
@@ -36,7 +36,8 @@ The original frontend now also runs a measured 3D slice: all eleven meshes from
 `Terrain/frontend/Barn_L0Mod0.trb`, all 94 meshes from `Barn_L0Mod1.trb`, all
 six grass meshes from `Barn_L0Mod2.trb`, the shipping `camera_loop` sampled
 from `EnvFrontEnd_Cam.trb`, and the two-mesh `barnsign` object placed from the
-retail `loc_barnsign` transform. Mod1 is batched into 36 draw groups and Mod2
+retail `loc_barnsign` transform. The three additive `Barn_L0Mod3` meshes are
+also resident with their original barn/cone night-light profiles. Mod1 is batched into 36 draw groups and Mod2
 into one draw group only where the original material and texture are identical;
 no original geometry or world placement is removed.
 
@@ -52,7 +53,7 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete `Barn_L0Mod0`/`Mod1`/`Mod2` and barn sign run; Mod3, complete environment/audio and hardware validation remain |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete `Barn_L0Mod0`-`Mod3` and barn sign run; remaining landscape/environment, audio and hardware validation remain |
 | Complete playable-game port | 31% | Original application/frontend runs with substantially more retail world geometry, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
 ## Non-negotiable repository rules
@@ -126,6 +127,7 @@ AppBoot_PSP creates the original application/root task and opens:
 - all eleven converted meshes and textures from the original front-end `Barn_L0Mod0` cell;
 - all 94 original `Barn_L0Mod1` meshes, losslessly grouped into 36 PSP material draws with 34 shared textures;
 - all six original `Barn_L0Mod2` grass meshes, grouped into one draw because all six use the same `grassmain` material and texture;
+- all three original `Barn_L0Mod3` additive meshes with explicit barn/cone light profiles and the retail dawn/night fade schedule;
 - the bounded original `camera_loop` as `frontend_camera.pcam`;
 - the original two-mesh barn sign baked at `loc_barnsign`.
 
@@ -139,31 +141,36 @@ The Rekord_Black_26 atlas must remain 512x512 because fonts.trb stores glyph
 coordinates for that exact atlas. Other frontend textures retain the default
 256-pixel conversion cap unless a measured manifest exception is added.
 
-Measured original-menu runtime after adding complete `Barn_L0Mod0`,
-`Barn_L0Mod1` and `Barn_L0Mod2` geometry and correcting the D3D/GU camera-up
-boundary (report v12, CI run `44905543528`):
+Measured original-menu runtime after adding complete `Barn_L0Mod0` through
+`Barn_L0Mod3` geometry, correcting the D3D/GU camera-up boundary and restoring
+the original dawn light schedule (report v14, CI run `44958757644`):
 
     phase=frontend-menu-selection
-    heap_free=13437624
-    heap_largest_hole=13432868
-    heap_used=7530104
-    render_main_current=4695500
-    render_main_peak=4695500
+    heap_free=13427332
+    heap_largest_hole=13426756
+    heap_used=7540312
+    render_main_current=4705524
+    render_main_peak=4705524
     render_main_budget=16777216
     frontend_terrain_loaded=1
     frontend_terrain_meshes=11
-    frontend_terrain_draws=8745
+    frontend_terrain_draws=9240
     frontend_terrain_pack_loaded=1
     frontend_terrain_pack_models=36
     frontend_terrain_pack_textures=34
-    frontend_terrain_pack_draws=28620
+    frontend_terrain_pack_draws=30240
     frontend_grass_loaded=1
     frontend_grass_models=1
     frontend_grass_textures=1
-    frontend_grass_draws=795
+    frontend_grass_draws=840
+    frontend_glow_loaded=1
+    frontend_glow_models=3
+    frontend_glow_textures=1
+    frontend_glow_draws=0
+    frontend_hour=6.000000
     frontend_barnsign_loaded=1
     frontend_barnsign_meshes=2
-    frontend_barnsign_draws=1590
+    frontend_barnsign_draws=1680
     frontend_camera_loaded=1
     frontend_camera_frames=10
     frontend_camera_sample_rate=30
@@ -181,10 +188,10 @@ also be checked on real 32/64 MiB hardware.
 
 ## Known limitations
 
-- The 3D frontend is incomplete. All meshes from `Barn_L0Mod0`,
-  `Barn_L0Mod1` and `Barn_L0Mod2`, the original camera loop and barn sign are
-  loaded; `Barn_L0Mod3`, the remaining landscape cells, windmill helper,
-  lighting and environment layers are absent.
+- The 3D frontend is incomplete. All meshes from `Barn_L0Mod0` through
+  `Barn_L0Mod3`, the original camera loop and barn sign are loaded. The initial
+  06:00 light state matches retail, but time-driven frontend re-entry, remaining
+  landscape sections, windmill helper and environment layers are absent.
 - Menu actions are bounded to a selection checkpoint and menu reopen. New game,
   load game, options, extras, antics and quit do not enter their retail states.
 - AMoviePlayer_PSP does not decode Bink. Startup images currently follow the
@@ -213,6 +220,7 @@ Converted frontend workspace:
     Game/BarnyardPC/Workspace/FrontendTerrain/
     Game/BarnyardPC/Workspace/FrontendTerrainPack/
     Game/BarnyardPC/Workspace/FrontendTerrainGrass/
+    Game/BarnyardPC/Workspace/FrontendTerrainGlow/
     Game/BarnyardPC/Workspace/FrontendCamera/
     Game/BarnyardPC/Workspace/FrontendBarnSign/
 
@@ -230,8 +238,10 @@ Never hand-edit generated assets. Main entry points:
 | ConvertRetailTerrain.ps1 | Manifest-driven bounded terrain cell conversion |
 | ConvertRetailFrontendDetail.ps1 | Complete original Barn_L0Mod1 conversion, material grouping and retail property finalization |
 | ConvertRetailFrontendGrass.ps1 | Complete original Barn_L0Mod2 grass conversion through the shared exact-binding batch path |
+| ConvertRetailFrontendGlow.ps1 | Complete original Barn_L0Mod3 conversion with additive modes and barn/cone light profiles |
 | ConvertRetailFrontendCamera.ps1 | Export and reduce the original camera hierarchy/loop to PCAM |
 | ConvertRetailBarnSign.ps1 | Export the world-model meshes/textures and bake the original locator transform |
+| ResolvePSPHostTool.ps1 | Select the newest downloaded/local host exporter for every repeatable retail conversion |
 | ValidateOriginalGame.ps1 | One-process validation of a staged runtime through PPSSPP report/input/screenshot evidence |
 | convert_dds.py | DXT and masked DDS decode, reduction and PSP swizzle |
 | mark_retail_layout_asserts.py | Repeatable marking of confirmed MSVC size assertions |
@@ -239,8 +249,7 @@ Never hand-edit generated assets. Main entry points:
 
 Typical local frontend preparation:
 
-    .\Ports\PSP\Tools\ConvertRetailFrontend.ps1 -TMDLPath .\Runtime\CIArtifacts\<commit>\host-tools\TMDL.exe
-    .\Ports\PSP\StageOriginalGame.ps1 -BuildDirectory .\Runtime\CIArtifacts\<commit> -SkipConversion
+    .\Ports\PSP\StageOriginalGame.ps1 -BuildDirectory .\Runtime\CIArtifacts\<commit>
 
 ## CI and local PPSSPP workflow
 
@@ -250,12 +259,12 @@ GitHub workflow: .github/workflows/psp.yaml.
 - bootstrap runs converter tests, generates the Premake PSP workspace, builds
   the diagnostic and original-game targets, and publishes separate artifacts.
 
-Current green original-menu/3D-slice artifact: PSP run `44905543528`, commit
-`607db5c5`. Its report v12 proves complete Mod0/Mod1/Mod2 residency, camera and
-barn-sign residency plus Down and Cross through the complete
+Current green original-menu/3D-slice artifact: PSP run `44958757644`, commit
+`63b8ff38`. Its report v14 proves complete Mod0-Mod3 residency, the original
+06:00 light state, camera and barn-sign residency plus Down and Cross through the complete
 PPSSPP/sceCtrl/Toshi/retail-input-map/menu path. The matching one-process
-validation captured the correctly oriented `EBOO00649_00029.jpg`, exercised
-Down/Cross, and stopped PID `20876` cleanly.
+validation captured the correctly oriented `EBOO00649_00031.jpg` without the
+night-only light cone, exercised Down/Cross, and stopped PID `19376` cleanly.
 
 Install the pinned official PPSSPP development build once:
 
@@ -288,9 +297,9 @@ Runtime evidence:
 
 ## Next implementation order
 
-1. Expand the original frontend terrain beyond the complete eleven-mesh
-   `Barn_L0Mod0`: inventory meshes visible from `camera_loop`, then stage
-   bounded multi-cell sets without exceeding the PSP memory budget.
+1. Expand the original frontend beyond the complete `Barn_L0Mod0`-`Mod3`
+   section: use the exported VIS section order and original camera visibility,
+   then stage the next exact section without removing or rearranging geometry.
 2. Add the original windmill/helper pieces and remaining frontend instances,
    preserving their locators and material ownership.
 3. Connect the original menu's downstream states one at a time, beginning with
@@ -324,6 +333,9 @@ Runtime evidence:
 - 4ace8fa3: convert and stage the original frontend barn sign.
 - 336a5563: render the original barn sign and report its residency/draws.
 - 37b7399d: automate the single-process original frontend validation.
+- c39a0211, 500b5fa5, 63b8ff38: preserve Mod3 light profiles and the original
+  dawn/night schedule through conversion, runtime and validation.
+- ceaa7dc5: resolve the newest PSP host tool consistently for all converters.
 
 ## Claims that must not be made
 
