@@ -34,6 +34,9 @@ foreach ($requiredFile in @(
     (Join-Path $runtimePath 'frontend_detail.pcfg'),
     (Join-Path $runtimePath 'frontend_detail_model_0.pmes'),
     (Join-Path $runtimePath 'frontend_detail_texture_0.ptex'),
+    (Join-Path $runtimePath 'frontend_grass.pcfg'),
+    (Join-Path $runtimePath 'frontend_grass_model_0.pmes'),
+    (Join-Path $runtimePath 'frontend_grass_texture_0.ptex'),
     (Join-Path $runtimePath 'frontend_barnsign_0.pmes'),
     (Join-Path $runtimePath 'frontend_barnsign_1.pmes'),
     $ppssppFullPath,
@@ -118,6 +121,7 @@ try {
         'controls',
         'frontend_terrain_loaded',
         'frontend_terrain_pack_loaded',
+        'frontend_grass_loaded',
         'frontend_camera_loaded',
         'frontend_barnsign_loaded'
     )) {
@@ -126,8 +130,10 @@ try {
     Assert-ReportValue $report 'frontend_terrain_meshes' '11'
     Assert-ReportValue $report 'frontend_terrain_pack_models' '36'
     Assert-ReportValue $report 'frontend_terrain_pack_textures' '34'
+    Assert-ReportValue $report 'frontend_grass_models' '1'
+    Assert-ReportValue $report 'frontend_grass_textures' '1'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
-    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_barnsign_draws')) {
+    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnsign_draws')) {
         Assert-ReportPositive $report $name
     }
     if (-not $SkipMenuInput) {
@@ -151,6 +157,7 @@ try {
         Frames = [int] $report.renderer_frames
         TerrainDraws = [int] $report.frontend_terrain_draws
         TerrainPackDraws = [int] $report.frontend_terrain_pack_draws
+        GrassDraws = [int] $report.frontend_grass_draws
         BarnSignDraws = [int] $report.frontend_barnsign_draws
         HeapFree = [int] $report.heap_free
         Screenshot = $screenshotPath

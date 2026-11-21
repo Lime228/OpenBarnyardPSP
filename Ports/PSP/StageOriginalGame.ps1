@@ -6,6 +6,7 @@ param(
     [string] $FrontendTerrainDirectory = '',
     [string] $FrontendTerrainManifestPath = '',
     [string] $FrontendTerrainPackDirectory = '',
+    [string] $FrontendTerrainGrassDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -35,6 +36,9 @@ if (-not $FrontendTerrainManifestPath) {
 if (-not $FrontendTerrainPackDirectory) {
     $FrontendTerrainPackDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainPack'
 }
+if (-not $FrontendTerrainGrassDirectory) {
+    $FrontendTerrainGrassDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainGrass'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -51,6 +55,7 @@ $frontendPath = [System.IO.Path]::GetFullPath($FrontendDirectory)
 $frontendTerrainPath = [System.IO.Path]::GetFullPath($FrontendTerrainDirectory)
 $frontendTerrainManifestPath = [System.IO.Path]::GetFullPath($FrontendTerrainManifestPath)
 $frontendTerrainPackPath = [System.IO.Path]::GetFullPath($FrontendTerrainPackDirectory)
+$frontendTerrainGrassPath = [System.IO.Path]::GetFullPath($FrontendTerrainGrassDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -102,6 +107,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $terrainPackConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $terrainPackConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendDetail.ps1') @terrainPackConversionArguments
+
+    $terrainGrassConversionArguments = @{ OutputDirectory = $frontendTerrainGrassPath }
+    if ($TMDLPath) { $terrainGrassConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainGrassConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendGrass.ps1') @terrainGrassConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -195,6 +205,25 @@ foreach ($fileName in $frontendTerrainPackFiles) {
     $sourcePath = Join-Path $frontendTerrainPackPath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail front-end detail asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendGrassManifest = Join-Path $frontendTerrainGrassPath 'frontend_grass.json'
+if (-not (Test-Path -LiteralPath $frontendGrassManifest -PathType Leaf)) {
+    throw "Converted retail front-end grass manifest was not found: $frontendGrassManifest"
+}
+$frontendGrass = Get-Content -LiteralPath $frontendGrassManifest -Raw | ConvertFrom-Json
+if ($frontendGrass.version -ne 1 -or $frontendGrass.source_meshes -ne 6 -or
+    $frontendGrass.models.Count -ne 1 -or $frontendGrass.textures.Count -ne 1 -or
+    $frontendGrass.models[0].mesh -ne 'frontend_grass_model_0.pmes' -or
+    $frontendGrass.textures[0].texture -ne 'frontend_grass_texture_0.ptex') {
+    throw "Converted retail front-end grass manifest is invalid: $frontendGrassManifest"
+}
+foreach ($fileName in @('frontend_grass.pcfg', 'frontend_grass_model_0.pmes', 'frontend_grass_texture_0.ptex')) {
+    $sourcePath = Join-Path $frontendTerrainGrassPath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail front-end grass asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
