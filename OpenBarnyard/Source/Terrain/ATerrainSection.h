@@ -147,7 +147,13 @@ public:
 
 	const TCHAR* GetName() const { return m_szName; }
 
-	TINT GetLODCount( ATerrainLODType a_eLODType ) { return ( a_eLODType == ATerrainLODType_High ) ? m_iNumHighModelFiles : m_iNumLowModelFiles; }
+	TINT GetLODCount( ATerrainLODType a_eLODType ) const { return ( a_eLODType == ATerrainLODType_High ) ? m_iNumHighModelFiles : m_iNumLowModelFiles; }
+	LODFLAGS GetLODFlags( ATerrainLODType a_eLODType, TINT a_iLOD ) const
+	{
+		TASSERT( a_eLODType >= ATerrainLODType_High && a_eLODType < ATerrainLODType_NUMOF );
+		TASSERT( a_iLOD >= 0 && a_iLOD < GetLODCount( a_eLODType ) );
+		return m_aLODFlags[ a_eLODType ][ a_iLOD ];
+	}
 
 	TBOOL           IsOtherSectionVisible( TINT a_iSection ) const { return m_pVisibility[ a_iSection ] > ATerrainLODType_None; }
 	ATerrainLODType GetOtherSectionVisibility( TINT a_iSection ) const { return m_pVisibility[ a_iSection ]; }

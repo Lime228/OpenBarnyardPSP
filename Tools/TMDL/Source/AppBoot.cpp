@@ -9,6 +9,7 @@
 #include "PSP/TPSPMaterialPropertiesDump.h"
 #include "PSP/TPSPSymbolDump.h"
 #include "PSP/TPSPTerrainDump.h"
+#include "PSP/TPSPTerrainVISDump.h"
 
 #include <Toshi/Toshi.h>
 #include <Toshi/TPString8.h>
@@ -102,6 +103,7 @@ int main( int argc, char** argv )
 	auto          strPSPTerrain    = commandLine.GetParameterValue( "-psp-terrain" );
 	auto          strPSPTerrainCell = commandLine.GetParameterValue( "-psp-terrain-cell" );
 	auto          strPSPTerrainInventory = commandLine.GetParameterValue( "-psp-terrain-inventory" );
+	auto          strPSPTerrainVIS = commandLine.GetParameterValue( "-psp-terrain-vis" );
 	auto          strWorldIndex    = commandLine.GetParameterValue( "-world", "0" );
 	auto          strCellIndex     = commandLine.GetParameterValue( "-cell", "0" );
 	auto          strMeshIndex     = commandLine.GetParameterValue( "-mesh", "0" );
@@ -161,6 +163,21 @@ int main( int argc, char** argv )
 		     ) )
 		{
 			TERROR( "Unable to export PSP terrain inventory\n" );
+			return 1;
+		}
+		return 0;
+	}
+
+	if ( strPSPTerrainVIS )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-terrain-vis requires -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPTerrainVISDump( strPSPTerrainVIS.GetString(), strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP terrain VIS metadata\n" );
 			return 1;
 		}
 		return 0;

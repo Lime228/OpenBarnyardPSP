@@ -27,6 +27,7 @@ project "TMDL"
 		"Source",
 		"Vendor/Assimp/include",
 		"%{wks.location}/Toshi/Source",
+		"%{IncludeDir.openbarnyard}",
 	}
 	
 	postbuildcommands
