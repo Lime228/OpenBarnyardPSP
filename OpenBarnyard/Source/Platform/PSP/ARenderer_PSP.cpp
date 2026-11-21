@@ -24,6 +24,10 @@ static AFrontEndTerrain_PSP s_FrontEndTerrain_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndTerrainPack_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndGrass_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndGlow_PSP;
+static AFrontEndTerrainPack_PSP s_FrontEndBarnnorthBase_PSP;
+static AFrontEndTerrainPack_PSP s_FrontEndBarnnorthDetail_PSP;
+static AFrontEndTerrainPack_PSP s_FrontEndBarnnorthGrass_PSP;
+static AFrontEndTerrainPack_PSP s_FrontEndBarnnorthGlow_PSP;
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 
 TDEFINE_CLASS( ARenderer );
@@ -85,6 +89,30 @@ TBOOL ARenderer::OnCreate()
 	rReport.uiFrontendGlowTextures = s_FrontEndGlow_PSP.GetTextureCount();
 	if ( !rReport.bFrontendGlowLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_FrontEndGlow_PSP.GetFailedPath() );
+	const TBOOL bBarnnorthBaseLoaded = s_FrontEndBarnnorthBase_PSP.Load( "frontend_barnnorth_base" );
+	if ( !bBarnnorthBaseLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndBarnnorthBase_PSP.GetFailedPath() );
+	const TBOOL bBarnnorthDetailLoaded = s_FrontEndBarnnorthDetail_PSP.Load( "frontend_barnnorth_detail" );
+	if ( !bBarnnorthDetailLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndBarnnorthDetail_PSP.GetFailedPath() );
+	const TBOOL bBarnnorthGrassLoaded = s_FrontEndBarnnorthGrass_PSP.Load( "frontend_barnnorth_grass" );
+	if ( !bBarnnorthGrassLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndBarnnorthGrass_PSP.GetFailedPath() );
+	const TBOOL bBarnnorthGlowLoaded = s_FrontEndBarnnorthGlow_PSP.Load( "frontend_barnnorth_glow" );
+	if ( !bBarnnorthGlowLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndBarnnorthGlow_PSP.GetFailedPath() );
+	rReport.bFrontendBarnnorthLoaded =
+		bBarnnorthBaseLoaded && bBarnnorthDetailLoaded && bBarnnorthGrassLoaded && bBarnnorthGlowLoaded;
+	rReport.uiFrontendBarnnorthModels =
+		s_FrontEndBarnnorthBase_PSP.GetModelCount() +
+		s_FrontEndBarnnorthDetail_PSP.GetModelCount() +
+		s_FrontEndBarnnorthGrass_PSP.GetModelCount() +
+		s_FrontEndBarnnorthGlow_PSP.GetModelCount();
+	rReport.uiFrontendBarnnorthTextures =
+		s_FrontEndBarnnorthBase_PSP.GetTextureCount() +
+		s_FrontEndBarnnorthDetail_PSP.GetTextureCount() +
+		s_FrontEndBarnnorthGrass_PSP.GetTextureCount() +
+		s_FrontEndBarnnorthGlow_PSP.GetTextureCount();
 	rReport.bFrontendCameraLoaded = s_FrontEndCamera_PSP.Load();
 	rReport.uiFrontendCameraFrames = s_FrontEndCamera_PSP.GetFrameCount();
 	rReport.uiFrontendCameraSampleRate = s_FrontEndCamera_PSP.GetSampleRate();
@@ -135,11 +163,31 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 		pFrontEndCamera,
 		s_fFrontEndStartHour_PSP
 	);
+	rReport.uiFrontendBarnnorthDraws += s_FrontEndBarnnorthBase_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
+	);
+	rReport.uiFrontendBarnnorthDraws += s_FrontEndBarnnorthDetail_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
+	);
+	rReport.uiFrontendBarnnorthDraws += s_FrontEndBarnnorthGrass_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
+	);
 	rReport.uiFrontendBarnSignDraws += s_FrontEndBarnSign_PSP.Render(
 		s_RenderInterface_PSP,
 		pFrontEndCamera
 	);
 	rReport.uiFrontendGlowDraws += s_FrontEndGlow_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
+	);
+	rReport.uiFrontendBarnnorthDraws += s_FrontEndBarnnorthGlow_PSP.Render(
 		s_RenderInterface_PSP,
 		pFrontEndCamera,
 		s_fFrontEndStartHour_PSP
@@ -156,6 +204,10 @@ void ARenderer::OnDestroy()
 {
 	s_FrontEndCamera_PSP.Unload();
 	s_FrontEndBarnSign_PSP.Unload();
+	s_FrontEndBarnnorthGlow_PSP.Unload();
+	s_FrontEndBarnnorthGrass_PSP.Unload();
+	s_FrontEndBarnnorthDetail_PSP.Unload();
+	s_FrontEndBarnnorthBase_PSP.Unload();
 	s_FrontEndGlow_PSP.Unload();
 	s_FrontEndGrass_PSP.Unload();
 	s_FrontEndTerrainPack_PSP.Unload();

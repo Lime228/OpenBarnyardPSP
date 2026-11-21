@@ -27,6 +27,9 @@ struct AGameRuntimeReport_PSP
 	TUINT uiFrontendGlowModels;
 	TUINT uiFrontendGlowTextures;
 	TUINT uiFrontendGlowDraws;
+	TUINT uiFrontendBarnnorthModels;
+	TUINT uiFrontendBarnnorthTextures;
+	TUINT uiFrontendBarnnorthDraws;
 	TFLOAT fFrontendHour;
 	TUINT uiFrontendBarnSignMeshes;
 	TUINT uiFrontendBarnSignDraws;
@@ -77,6 +80,7 @@ struct AGameRuntimeReport_PSP
 	TBOOL bFrontendTerrainPackLoaded;
 	TBOOL bFrontendGrassLoaded;
 	TBOOL bFrontendGlowLoaded;
+	TBOOL bFrontendBarnnorthLoaded;
 	TBOOL bFrontendBarnSignLoaded;
 	TBOOL bFrontendCameraLoaded;
 };

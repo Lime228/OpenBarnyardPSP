@@ -98,19 +98,35 @@ static TFLOAT AFrontEndTerrainPackGetLightMagnitude_PSP(
 
 	TFLOAT fStart = 0.0f;
 	TFLOAT fEnd = 0.0f;
-	if ( a_eProfile == AFrontEndTerrainPack_PSP::LIGHTPROFILE_BARN_PSP )
+	switch ( a_eProfile )
 	{
-		fStart = 21.71f;
-		fEnd = 30.0f;
-	}
-	else if ( a_eProfile == AFrontEndTerrainPack_PSP::LIGHTPROFILE_CONE_PSP )
-	{
-		fStart = 20.5f;
-		fEnd = 29.5f;
-	}
-	else
-	{
-		return 0.0f;
+		case AFrontEndTerrainPack_PSP::LIGHTPROFILE_BARN_PSP:
+			fStart = 21.71f;
+			fEnd = 30.0f;
+			break;
+		case AFrontEndTerrainPack_PSP::LIGHTPROFILE_CONE_PSP:
+		case AFrontEndTerrainPack_PSP::LIGHTPROFILE_NIGHTLIGHT_PSP:
+			fStart = 20.5f;
+			fEnd = 29.5f;
+			break;
+		case AFrontEndTerrainPack_PSP::LIGHTPROFILE_FARMHOUSE_PSP:
+			fStart = 20.71f;
+			fEnd = 21.72f;
+			break;
+		case AFrontEndTerrainPack_PSP::LIGHTPROFILE_NEIGHBOUR_PSP:
+			fStart = 20.0f;
+			fEnd = 22.0f;
+			break;
+		case AFrontEndTerrainPack_PSP::LIGHTPROFILE_LODGE_PSP:
+			fStart = 20.0f;
+			fEnd = 23.0f;
+			break;
+		case AFrontEndTerrainPack_PSP::LIGHTPROFILE_BEADY_PSP:
+			fStart = 20.0f;
+			fEnd = 24.0f;
+			break;
+		default:
+			return 0.0f;
 	}
 
 	TFLOAT fTime = a_fHour;
