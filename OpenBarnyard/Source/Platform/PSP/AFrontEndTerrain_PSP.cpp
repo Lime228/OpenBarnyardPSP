@@ -31,24 +31,31 @@ static const TRenderModelTransform_PSP s_FrontEndTerrainOriginalModelTransform_P
 	{ 0.0f, 0.0f, 0.0f },
 };
 
-struct AFrontEndTerrainConfig_PSP
+struct AFrontEndTerrainConfigHeader_PSP
 {
 	TUINT32 uiMagic;
 	TUINT32 uiVersion;
 	TUINT32 uiMeshCount;
-	TUINT32 uiReserved;
+	TUINT32 uiEntrySize;
 };
 
 static constexpr TUINT32 s_uiFrontEndTerrainConfigMagic_PSP = 0x52544650;
-static constexpr TUINT32 s_uiFrontEndTerrainConfigVersion_PSP = 1;
+static constexpr TUINT32 s_uiFrontEndTerrainConfigVersion1_PSP = 1;
+static constexpr TUINT32 s_uiFrontEndTerrainConfigVersion2_PSP = 2;
+static constexpr TUINT32 s_uiFrontEndTerrainConfigEntrySize_PSP = sizeof( TUINT32 );
 
-static_assert( sizeof( AFrontEndTerrainConfig_PSP ) == 16, "Unexpected PSP frontend terrain config layout" );
+static_assert( sizeof( AFrontEndTerrainConfigHeader_PSP ) == 16, "Unexpected PSP frontend terrain config layout" );
+static_assert( TRENDERALPHAMODE_PSP_MASK == 1, "Unexpected PSP mask material value" );
+static_assert( TRENDERALPHAMODE_PSP_BLEND == 2, "Unexpected PSP blend material value" );
+static_assert( TRENDERALPHAMODE_PSP_ADDITIVE == 3, "Unexpected PSP additive material value" );
 
 AFrontEndTerrain_PSP::AFrontEndTerrain_PSP()
     : m_ModelTransform_PSP{ 1.0f, { 0.0f, 0.0f, 0.0f } }
     , m_uiMeshCount_PSP( 0 )
     , m_szFailedPath_PSP{ '\0' }
 {
+	for ( TUINT i = 0; i < MAX_MESHES_PSP; i++ )
+		m_aeAlphaModes_PSP[ i ] = TRENDERALPHAMODE_PSP_MASK;
 }
 
 AFrontEndTerrain_PSP::~AFrontEndTerrain_PSP()
@@ -68,15 +75,35 @@ TBOOL AFrontEndTerrain_PSP::Load()
 	if ( pConfigFile == TNULL )
 		return TFALSE;
 
-	AFrontEndTerrainConfig_PSP oConfig = {};
+	AFrontEndTerrainConfigHeader_PSP oConfig = {};
+	const TSIZE uiConfigSize = pConfigFile->GetSize();
 	TBOOL bConfigValid =
-		pConfigFile->GetSize() == sizeof( oConfig ) &&
 		pConfigFile->Read( &oConfig, sizeof( oConfig ) ) == sizeof( oConfig ) &&
 		oConfig.uiMagic == s_uiFrontEndTerrainConfigMagic_PSP &&
-		oConfig.uiVersion == s_uiFrontEndTerrainConfigVersion_PSP &&
 		oConfig.uiMeshCount >= 1 &&
-		oConfig.uiMeshCount <= MAX_MESHES_PSP &&
-		oConfig.uiReserved == 0;
+		oConfig.uiMeshCount <= MAX_MESHES_PSP;
+	if ( bConfigValid && oConfig.uiVersion == s_uiFrontEndTerrainConfigVersion1_PSP )
+	{
+		bConfigValid = uiConfigSize == sizeof( oConfig ) && oConfig.uiEntrySize == 0;
+	}
+	else if ( bConfigValid && oConfig.uiVersion == s_uiFrontEndTerrainConfigVersion2_PSP )
+	{
+		bConfigValid = oConfig.uiEntrySize == s_uiFrontEndTerrainConfigEntrySize_PSP &&
+			uiConfigSize == sizeof( oConfig ) + TSIZE( oConfig.uiMeshCount ) * oConfig.uiEntrySize;
+		for ( TUINT i = 0; i < oConfig.uiMeshCount && bConfigValid; i++ )
+		{
+			TUINT32 uiAlphaMode = 0;
+			bConfigValid = pConfigFile->Read( &uiAlphaMode, sizeof( uiAlphaMode ) ) == sizeof( uiAlphaMode ) &&
+				uiAlphaMode >= TRENDERALPHAMODE_PSP_MASK &&
+				uiAlphaMode <= TRENDERALPHAMODE_PSP_ADDITIVE;
+			if ( bConfigValid )
+				m_aeAlphaModes_PSP[ i ] = TRenderAlphaMode_PSP( uiAlphaMode );
+		}
+	}
+	else
+	{
+		bConfigValid = TFALSE;
+	}
 	pConfigFile->Destroy();
 	if ( !bConfigValid )
 	{
@@ -138,6 +165,7 @@ void AFrontEndTerrain_PSP::Unload()
 	{
 		m_aTextures_PSP[ i ].Unload();
 		m_aModels_PSP[ i ].Unload();
+		m_aeAlphaModes_PSP[ i ] = TRENDERALPHAMODE_PSP_MASK;
 	}
 
 	m_ModelTransform_PSP = { 1.0f, { 0.0f, 0.0f, 0.0f } };
@@ -159,10 +187,12 @@ TUINT AFrontEndTerrain_PSP::Render(
 
 	for ( TUINT i = 0; i < m_uiMeshCount_PSP; i++ )
 	{
+		TRenderMaterial_PSP oMaterial = s_FrontEndTerrainMaterial_PSP;
+		oMaterial.eAlphaMode = m_aeAlphaModes_PSP[ i ];
 		a_rRenderInterface.DrawModel(
 			m_aModels_PSP[ i ],
 			rSceneTransform,
-			s_FrontEndTerrainMaterial_PSP,
+			oMaterial,
 			&m_aTextures_PSP[ i ],
 			rModelTransform,
 			a_pCamera

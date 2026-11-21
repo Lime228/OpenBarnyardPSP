@@ -33,6 +33,7 @@ private:
 	Toshi::TTextureFactory_PSP       m_TextureFactory_PSP;
 	Toshi::TModel_PSP                m_aModels_PSP[ MAX_MESHES_PSP ];
 	Toshi::T2Texture                 m_aTextures_PSP[ MAX_MESHES_PSP ];
+	Toshi::TRenderAlphaMode_PSP      m_aeAlphaModes_PSP[ MAX_MESHES_PSP ];
 	Toshi::TRenderModelTransform_PSP m_ModelTransform_PSP;
 	TUINT                            m_uiMeshCount_PSP;
 	TCHAR                            m_szFailedPath_PSP[ 64 ];
