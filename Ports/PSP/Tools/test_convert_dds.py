@@ -46,7 +46,7 @@ class DDSConversionTests(unittest.TestCase):
             source.write_bytes(dds_header(4, 4, b"DXT3", len(block)) + block)
             summary = convert(source, destination, linear=True)
             payload = destination.read_bytes()
-            self.assertEqual("blend", summary["alpha_mode"])
+            self.assertEqual("mask", summary["alpha_mode"])
             self.assertEqual(struct.unpack_from("<6I", payload), (0x58455450, 1, 4, 4, 4, 0))
             self.assertEqual(payload[24:28], bytes((255, 0, 0, 255)))
 
@@ -56,6 +56,13 @@ class DDSConversionTests(unittest.TestCase):
             block = struct.pack("<HHI", 0x0000, 0xFFFF, 0xFFFFFFFF)
             source.write_bytes(dds_header(4, 4, b"DXT1", len(block)) + block)
             self.assertEqual("mask", retail_alpha_mode(source))
+
+    def test_matches_retail_dxt5_blend_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            source = pathlib.Path(temporary_name) / "source.dds"
+            block = bytes((255, 0)) + b"\0" * 6 + struct.pack("<HHI", 0x0000, 0xFFFF, 0)
+            source.write_bytes(dds_header(4, 4, b"DXT5", len(block)) + block)
+            self.assertEqual("blend", retail_alpha_mode(source))
 
     def test_converts_a1r5g5b5_to_rgba(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_name:

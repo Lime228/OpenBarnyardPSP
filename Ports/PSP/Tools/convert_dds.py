@@ -174,7 +174,10 @@ def retail_alpha_mode(path: pathlib.Path) -> str:
     pixel_format_flags = struct.unpack_from("<I", payload, 80)[0]
     fourcc = payload[84:88]
     alpha_mask = struct.unpack_from("<I", payload, 104)[0]
-    if fourcc in {b"DXT3", b"DXT5"}:
+    # AModelLoader::CreateMaterial classifies only DXT5 as an alpha-blended
+    # retail texture.  DXT3 keeps the normal world-material path and uses the
+    # default alpha test, despite carrying explicit alpha values in the DDS.
+    if fourcc == b"DXT5":
         return "blend"
     if fourcc == b"\0\0\0\0" and pixel_format_flags & 0x40 and alpha_mask != 0:
         return "blend"
