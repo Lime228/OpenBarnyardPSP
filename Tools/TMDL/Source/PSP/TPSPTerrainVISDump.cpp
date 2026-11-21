@@ -23,6 +23,17 @@ static void WriteJSONString_PSPTerrainVIS( std::ostream& a_rOutput, const TCHAR*
 	a_rOutput << '"';
 }
 
+static const TCHAR* GetLODName_PSPTerrainVIS( ATerrainLODType a_eLODType )
+{
+	switch ( a_eLODType )
+	{
+		case ATerrainLODType_None: return "none";
+		case ATerrainLODType_High: return "high";
+		case ATerrainLODType_Low: return "low";
+		default: return TNULL;
+	}
+}
+
 static TBOOL WriteLODArray_PSPTerrainVIS(
 	std::ostream& a_rOutput,
 	ATerrainSection& a_rSection,
@@ -82,7 +93,7 @@ TBOOL ExportPSPTerrainVISDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutput
 	}
 
 	std::ostringstream oOutput;
-	oOutput << "{\n  \"version\": 1,\n  \"sections\": [\n";
+	oOutput << "{\n  \"version\": 2,\n  \"sections\": [\n";
 	for ( TINT32 i = 0; i < oVIS.get()->GetNumSections(); i++ )
 	{
 		ATerrainSection& rSection = oVIS.get()->GetSections()[ i ];
@@ -106,6 +117,20 @@ TBOOL ExportPSPTerrainVISDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutput
 			TERROR( "PSP terrain VIS dump rejected section %d low LODs\n", i );
 			return TFALSE;
 		}
+		oOutput << ",\n      \"visibility\": [";
+		for ( TINT32 k = 0; k < oVIS.get()->GetNumSections(); k++ )
+		{
+			const TCHAR* pLODName = GetLODName_PSPTerrainVIS( rSection.GetOtherSectionVisibility( k ) );
+			if ( pLODName == TNULL )
+			{
+				TERROR( "PSP terrain VIS dump rejected section %d visibility %d\n", i, k );
+				return TFALSE;
+			}
+			if ( k != 0 )
+				oOutput << ", ";
+			WriteJSONString_PSPTerrainVIS( oOutput, pLODName );
+		}
+		oOutput << ']';
 		oOutput << "\n    }";
 		if ( i + 1 != oVIS.get()->GetNumSections() )
 			oOutput << ',';
