@@ -40,6 +40,41 @@ class FinalizeFrontendTerrainPackTests(unittest.TestCase):
             self.assertEqual((0, 0, 1, 1, 0), values[11:16])
             self.assertEqual((1, 1, 2, 0, 0), values[16:21])
 
+    def test_forces_original_lod_glow_mode_for_every_model(self) -> None:
+        manifest = {
+            "version": 1,
+            "models": [
+                {"material": "lights_barn", "texture_index": 0},
+                {"material": "lightcone_outer", "texture_index": 0},
+                {"material": "lightcone_inner", "texture_index": 0},
+            ],
+            "textures": [{}],
+        }
+        properties = {
+            "version": 1,
+            "clamped": [],
+            "world_start_render": [],
+            "world_end_render": [],
+        }
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            manifest_path = temporary / "manifest.json"
+            properties_path = temporary / "properties.json"
+            output = temporary / "pack.pcfg"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            properties_path.write_text(json.dumps(properties), encoding="utf-8")
+            finalize(
+                manifest_path,
+                properties_path,
+                output,
+                ["mask"],
+                force_alpha_mode="additive",
+            )
+            values = struct.unpack("<21I", output.read_bytes())
+            self.assertEqual((0, 0, 3, 0, 0), values[6:11])
+            self.assertEqual((1, 0, 3, 0, 0), values[11:16])
+            self.assertEqual((2, 0, 3, 0, 0), values[16:21])
+
 
 if __name__ == "__main__":
     unittest.main()

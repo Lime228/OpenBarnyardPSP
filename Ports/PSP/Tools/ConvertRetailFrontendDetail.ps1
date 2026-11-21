@@ -5,6 +5,7 @@ param(
     [string] $RuntimeDirectory = '',
     [string] $SourceModelName = 'Barn_L0Mod1',
     [string] $Prefix = 'frontend_detail',
+    [string] $ForceAlphaMode = '',
     [int] $TextureMaxWidth = 128,
     [switch] $KeepIntermediate
 )
@@ -23,6 +24,9 @@ if (-not $SourceModelName -or $SourceModelName -notmatch '^[A-Za-z0-9_]+$') {
 }
 if (-not $Prefix -or $Prefix -notmatch '^[A-Za-z0-9_]+$') {
     throw 'Prefix must contain only letters, numbers and underscores'
+}
+if ($ForceAlphaMode -and $ForceAlphaMode -notin @('mask', 'blend', 'additive')) {
+    throw 'ForceAlphaMode must be mask, blend or additive'
 }
 $terrainPath = Join-Path $installRoot "Data\Terrain\frontend\$SourceModelName.trb"
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
@@ -139,8 +143,18 @@ for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureInde
     $alphaModes += $textureSummary.alpha_mode
 }
 
-& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'finalize_frontend_terrain_pack.py') `
-    $manifestPath $propertiesDumpPath $configPath --texture-alpha-modes ($alphaModes -join ',')
+$finalizeArguments = @(
+    (Join-Path $PSScriptRoot 'finalize_frontend_terrain_pack.py'),
+    $manifestPath,
+    $propertiesDumpPath,
+    $configPath,
+    '--texture-alpha-modes',
+    ($alphaModes -join ',')
+)
+if ($ForceAlphaMode) {
+    $finalizeArguments += @('--force-alpha-mode', $ForceAlphaMode)
+}
+& $PythonPath @pythonArguments @finalizeArguments
 if ($LASTEXITCODE -ne 0) {
     throw "Original front-end detail material finalization failed with exit code $LASTEXITCODE"
 }
@@ -172,5 +186,10 @@ $geometryBytes = ($manifest.models | Measure-Object bytes -Sum).Sum
     Textures = $manifest.textures.Count
     GeometryBytes = $geometryBytes
     TextureMaxWidth = $TextureMaxWidth
-    AlphaModes = (($alphaModes | Group-Object | ForEach-Object { "$($_.Name):$($_.Count)" }) -join ',')
+    AlphaModes = if ($ForceAlphaMode) {
+        "${ForceAlphaMode}:$($manifest.models.Count)"
+    }
+    else {
+        (($alphaModes | Group-Object | ForEach-Object { "$($_.Name):$($_.Count)" }) -join ',')
+    }
 }

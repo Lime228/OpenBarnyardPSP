@@ -31,6 +31,7 @@ def finalize(
     properties_path: pathlib.Path,
     destination: pathlib.Path,
     texture_alpha_modes: list[str],
+    force_alpha_mode: str | None = None,
 ) -> dict[str, object]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     properties = json.loads(properties_path.read_text(encoding="utf-8"))
@@ -51,6 +52,9 @@ def finalize(
         if mode not in ALPHA_MODES:
             raise ValueError(f"terrain pack texture {texture_index} has invalid alpha mode {mode!r}")
         parsed_alpha_modes.append(ALPHA_MODES[mode])
+    if force_alpha_mode is not None and force_alpha_mode not in ALPHA_MODES:
+        raise ValueError(f"invalid forced terrain pack alpha mode {force_alpha_mode!r}")
+    forced_alpha_mode = ALPHA_MODES[force_alpha_mode] if force_alpha_mode is not None else None
 
     clamped = properties.get("clamped")
     if not isinstance(clamped, list):
@@ -80,7 +84,8 @@ def finalize(
         material_key = model["material"].casefold()
         address_u, address_v = clamped_materials.get(material_key, (ADDRESS_WRAP, ADDRESS_WRAP))
         render_order = ORDER_START if material_key in start_materials else ORDER_END if material_key in end_materials else ORDER_DEFAULT
-        entries.append((render_order, model_index, texture_index, parsed_alpha_modes[texture_index], address_u, address_v))
+        alpha_mode = forced_alpha_mode if forced_alpha_mode is not None else parsed_alpha_modes[texture_index]
+        entries.append((render_order, model_index, texture_index, alpha_mode, address_u, address_v))
     entries.sort(key=lambda entry: (entry[0], entry[1]))
 
     payload = bytearray(
@@ -113,9 +118,21 @@ def main() -> None:
     parser.add_argument("properties", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
     parser.add_argument("--texture-alpha-modes", required=True)
+    parser.add_argument("--force-alpha-mode", choices=sorted(ALPHA_MODES))
     args = parser.parse_args()
     modes = [mode.strip().lower() for mode in args.texture_alpha_modes.split(",") if mode.strip()]
-    print(json.dumps(finalize(args.manifest, args.properties, args.destination, modes), sort_keys=True))
+    print(
+        json.dumps(
+            finalize(
+                args.manifest,
+                args.properties,
+                args.destination,
+                modes,
+                force_alpha_mode=args.force_alpha_mode,
+            ),
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
