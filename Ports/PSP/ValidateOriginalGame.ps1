@@ -31,6 +31,9 @@ foreach ($requiredFile in @(
     $ebootPath,
     (Join-Path $runtimePath 'frontend_camera.pcam'),
     (Join-Path $runtimePath 'barnyard_terrain_0.pmes'),
+    (Join-Path $runtimePath 'frontend_detail.pcfg'),
+    (Join-Path $runtimePath 'frontend_detail_model_0.pmes'),
+    (Join-Path $runtimePath 'frontend_detail_texture_0.ptex'),
     (Join-Path $runtimePath 'frontend_barnsign_0.pmes'),
     (Join-Path $runtimePath 'frontend_barnsign_1.pmes'),
     $ppssppFullPath,
@@ -111,14 +114,17 @@ try {
         'gui_system',
         'controls',
         'frontend_terrain_loaded',
+        'frontend_terrain_pack_loaded',
         'frontend_camera_loaded',
         'frontend_barnsign_loaded'
     )) {
         Assert-ReportValue $report $name '1'
     }
     Assert-ReportValue $report 'frontend_terrain_meshes' '11'
+    Assert-ReportValue $report 'frontend_terrain_pack_models' '36'
+    Assert-ReportValue $report 'frontend_terrain_pack_textures' '34'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
-    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_barnsign_draws')) {
+    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_barnsign_draws')) {
         Assert-ReportPositive $report $name
     }
     if (-not $SkipMenuInput) {
@@ -141,6 +147,7 @@ try {
         Phase = $report.phase
         Frames = [int] $report.renderer_frames
         TerrainDraws = [int] $report.frontend_terrain_draws
+        TerrainPackDraws = [int] $report.frontend_terrain_pack_draws
         BarnSignDraws = [int] $report.frontend_barnsign_draws
         HeapFree = [int] $report.heap_free
         Screenshot = $screenshotPath

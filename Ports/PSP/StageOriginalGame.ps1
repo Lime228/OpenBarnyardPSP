@@ -5,6 +5,7 @@ param(
     [string] $FrontendDirectory = '',
     [string] $FrontendTerrainDirectory = '',
     [string] $FrontendTerrainManifestPath = '',
+    [string] $FrontendTerrainPackDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -31,6 +32,9 @@ if (-not $FrontendTerrainDirectory) {
 if (-not $FrontendTerrainManifestPath) {
     $FrontendTerrainManifestPath = Join-Path $PSScriptRoot 'Assets\original_frontend_terrain.txt'
 }
+if (-not $FrontendTerrainPackDirectory) {
+    $FrontendTerrainPackDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainPack'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -46,6 +50,7 @@ $installPath = [System.IO.Path]::GetFullPath($InstallDirectory)
 $frontendPath = [System.IO.Path]::GetFullPath($FrontendDirectory)
 $frontendTerrainPath = [System.IO.Path]::GetFullPath($FrontendTerrainDirectory)
 $frontendTerrainManifestPath = [System.IO.Path]::GetFullPath($FrontendTerrainManifestPath)
+$frontendTerrainPackPath = [System.IO.Path]::GetFullPath($FrontendTerrainPackDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -92,6 +97,11 @@ if (-not $SkipConversion) {
     if ($PythonPath) { $terrainConversionArguments.PythonPath = $PythonPath }
 
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailTerrain.ps1') @terrainConversionArguments
+
+    $terrainPackConversionArguments = @{ OutputDirectory = $frontendTerrainPackPath }
+    if ($TMDLPath) { $terrainPackConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainPackConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendDetail.ps1') @terrainPackConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -152,6 +162,39 @@ foreach ($fileName in $frontendTerrainFiles) {
     $sourcePath = Join-Path $frontendTerrainPath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail frontend terrain asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendTerrainPackManifest = Join-Path $frontendTerrainPackPath 'frontend_detail.json'
+if (-not (Test-Path -LiteralPath $frontendTerrainPackManifest -PathType Leaf)) {
+    throw "Converted retail front-end detail manifest was not found: $frontendTerrainPackManifest"
+}
+$frontendTerrainPack = Get-Content -LiteralPath $frontendTerrainPackManifest -Raw | ConvertFrom-Json
+if ($frontendTerrainPack.version -ne 1 -or $frontendTerrainPack.source_meshes -ne 94 -or
+    $frontendTerrainPack.models.Count -lt 1 -or $frontendTerrainPack.models.Count -gt 48 -or
+    $frontendTerrainPack.textures.Count -lt 1 -or $frontendTerrainPack.textures.Count -gt 48) {
+    throw "Converted retail front-end detail manifest is invalid: $frontendTerrainPackManifest"
+}
+$frontendTerrainPackFiles = @('frontend_detail.pcfg')
+for ($modelIndex = 0; $modelIndex -lt $frontendTerrainPack.models.Count; $modelIndex++) {
+    $expectedModel = "frontend_detail_model_$modelIndex.pmes"
+    if ($frontendTerrainPack.models[$modelIndex].mesh -ne $expectedModel) {
+        throw "Converted retail front-end detail manifest has an invalid model $modelIndex binding"
+    }
+    $frontendTerrainPackFiles += $expectedModel
+}
+for ($textureIndex = 0; $textureIndex -lt $frontendTerrainPack.textures.Count; $textureIndex++) {
+    $expectedTexture = "frontend_detail_texture_$textureIndex.ptex"
+    if ($frontendTerrainPack.textures[$textureIndex].texture -ne $expectedTexture) {
+        throw "Converted retail front-end detail manifest has an invalid texture $textureIndex binding"
+    }
+    $frontendTerrainPackFiles += $expectedTexture
+}
+foreach ($fileName in $frontendTerrainPackFiles) {
+    $sourcePath = Join-Path $frontendTerrainPackPath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail front-end detail asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
