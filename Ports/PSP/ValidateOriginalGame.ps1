@@ -93,6 +93,9 @@ try {
 
     if (-not $SkipScreenshot) {
         & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key Screenshot
+        # PPSSPP consumes the screenshot hotkey on the following emulated
+        # frame. Keep menu activation/fade from racing that framebuffer copy.
+        Start-Sleep -Milliseconds 750
     }
     if (-not $SkipMenuInput) {
         & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key DpadDown
