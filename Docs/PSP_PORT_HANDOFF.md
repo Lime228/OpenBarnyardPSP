@@ -33,10 +33,11 @@ The same original menu is runtime-confirmed with D-pad focus movement and Cross
 activation through the retail `DialogInputMap`.
 
 The original frontend now also runs a measured 3D slice: all eleven meshes from
-`Terrain/frontend/Barn_L0Mod0.trb`, the shipping `camera_loop` sampled from
-`EnvFrontEnd_Cam.trb`, and the two-mesh `barnsign` object placed from the retail
-`loc_barnsign` transform. This is visibly better than the old flat fallback,
-but it is not the complete frontend environment.
+`Terrain/frontend/Barn_L0Mod0.trb`, all 94 meshes from `Barn_L0Mod1.trb`, the
+shipping `camera_loop` sampled from `EnvFrontEnd_Cam.trb`, and the two-mesh
+`barnsign` object placed from the retail `loc_barnsign` transform. Mod1 is
+batched into 36 draw groups only where the original material and texture are
+identical; no original geometry or world placement is removed.
 
 This is a real original-game frontend milestone, but it is not a playable game
 yet. The menu currently uses a bounded PSP implementation of the original class:
@@ -50,8 +51,8 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete `Barn_L0Mod0` and barn sign run; complete environment/audio and hardware validation remain |
-| Complete playable-game port | 30% | Original application/frontend runs, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete `Barn_L0Mod0`/`Mod1` and barn sign run; Mod2/3, complete environment/audio and hardware validation remain |
+| Complete playable-game port | 31% | Original application/frontend runs with substantially more retail world geometry, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
 ## Non-negotiable repository rules
 
@@ -122,6 +123,7 @@ AppBoot_PSP creates the original application/root task and opens:
 - retail Data/Options/Controls_Win.trb;
 - PSP-converted PTEX files resolved from the original GUI material names.
 - all eleven converted meshes and textures from the original front-end `Barn_L0Mod0` cell;
+- all 94 original `Barn_L0Mod1` meshes, losslessly grouped into 36 PSP material draws with 34 shared textures;
 - the bounded original `camera_loop` as `frontend_camera.pcam`;
 - the original two-mesh barn sign baked at `loc_barnsign`.
 
@@ -135,22 +137,27 @@ The Rekord_Black_26 atlas must remain 512x512 because fonts.trb stores glyph
 coordinates for that exact atlas. Other frontend textures retain the default
 256-pixel conversion cap unless a measured manifest exception is added.
 
-Measured original-menu runtime after expanding the bounded terrain set to all
-eleven `Barn_L0Mod0` meshes (report v10, CI run `44827773449`):
+Measured original-menu runtime after adding complete `Barn_L0Mod0` and
+`Barn_L0Mod1` geometry and correcting the D3D/GU camera-up boundary (report
+v11, CI run `44881024296`):
 
     phase=frontend-menu-selection
-    heap_free=14573600
-    heap_largest_hole=14573268
-    heap_used=6395472
-    render_main_current=3561358
-    render_main_peak=3561358
+    heap_free=13486580
+    heap_largest_hole=13486292
+    heap_used=7481196
+    render_main_current=4646656
+    render_main_peak=4646656
     render_main_budget=16777216
     frontend_terrain_loaded=1
     frontend_terrain_meshes=11
-    frontend_terrain_draws=8580
+    frontend_terrain_draws=9240
+    frontend_terrain_pack_loaded=1
+    frontend_terrain_pack_models=36
+    frontend_terrain_pack_textures=34
+    frontend_terrain_pack_draws=30240
     frontend_barnsign_loaded=1
     frontend_barnsign_meshes=2
-    frontend_barnsign_draws=1560
+    frontend_barnsign_draws=1680
     frontend_camera_loaded=1
     frontend_camera_frames=10
     frontend_camera_sample_rate=30
@@ -168,8 +175,8 @@ also be checked on real 32/64 MiB hardware.
 
 ## Known limitations
 
-- The 3D frontend is incomplete. All eleven meshes from `Barn_L0Mod0`, the
-  original camera loop and barn sign are loaded; `Barn_L0Mod1`/2/3, the
+- The 3D frontend is incomplete. All meshes from `Barn_L0Mod0` and
+  `Barn_L0Mod1`, the original camera loop and barn sign are loaded; `Barn_L0Mod2`/3, the
   remaining landscape cells, windmill helper, lighting and environment layers
   are absent.
 - Menu actions are bounded to a selection checkpoint and menu reopen. New game,
@@ -198,6 +205,7 @@ Converted frontend workspace:
 
     Game/BarnyardPC/Workspace/Frontend/
     Game/BarnyardPC/Workspace/FrontendTerrain/
+    Game/BarnyardPC/Workspace/FrontendTerrainPack/
     Game/BarnyardPC/Workspace/FrontendCamera/
     Game/BarnyardPC/Workspace/FrontendBarnSign/
 
@@ -213,6 +221,7 @@ Never hand-edit generated assets. Main entry points:
 | StageOriginalGame.ps1 | Assemble an ignored original-game runtime from a CI/local build and retail files |
 | ConvertRetailPreview.ps1 | Manifest-driven retail model/skeleton/animation/texture preview |
 | ConvertRetailTerrain.ps1 | Manifest-driven bounded terrain cell conversion |
+| ConvertRetailFrontendDetail.ps1 | Complete original Barn_L0Mod1 conversion, material grouping and retail property finalization |
 | ConvertRetailFrontendCamera.ps1 | Export and reduce the original camera hierarchy/loop to PCAM |
 | ConvertRetailBarnSign.ps1 | Export the world-model meshes/textures and bake the original locator transform |
 | ValidateOriginalGame.ps1 | One-process validation of a staged runtime through PPSSPP report/input/screenshot evidence |
@@ -233,10 +242,12 @@ GitHub workflow: .github/workflows/psp.yaml.
 - bootstrap runs converter tests, generates the Premake PSP workspace, builds
   the diagnostic and original-game targets, and publishes separate artifacts.
 
-Current green original-menu/3D-slice artifact: PSP run `44826253217`, commit
-`336a5563`. Its report v10 proves terrain, camera and barn-sign residency plus
-Down and Cross through the complete PPSSPP/sceCtrl/Toshi/retail-input-map/menu
-path.
+Current green original-menu/3D-slice artifact: PSP run `44881024296`, commit
+`539b04dc`. Its report v11 proves complete Mod0/Mod1 residency, camera and
+barn-sign residency plus Down and Cross through the complete
+PPSSPP/sceCtrl/Toshi/retail-input-map/menu path. The matching one-process
+validation captured the correctly oriented `EBOO00649_00028.jpg`, exercised
+Down/Cross, and stopped PID `13960` cleanly.
 
 Install the pinned official PPSSPP development build once:
 

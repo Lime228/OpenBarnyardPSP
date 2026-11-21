@@ -72,11 +72,13 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
 | `Tools/TMDL -psp-animation` | Samples one explicitly named retail sequence without adding the relocatable parser to the EBOOT; `-keylib-symbol` selects a bounded key library embedded in an asset-pack TRB. |
 | `Tools/TMDL -psp-texture` | Relocates one retail TTL on the host and extracts an explicitly named embedded DDS. |
-| `Tools/TMDL -psp-terrain` / `-psp-terrain-cell` | Relocates one terrain TRB, selects one mesh or up to sixteen meshes in a cell and resolves every material to its exact retail texture name. |
+| `Tools/TMDL -psp-terrain` / `-psp-terrain-cell` | Relocates one terrain TRB, selects one mesh or exports a bounded complete cell of up to 128 meshes and resolves every material to its exact retail texture name. |
+| `Tools/TMDL -psp-material-properties` | Exports the retail glow, double-sided, clamp, render-order and UV-animation lists as a bounded host JSON contract. |
 | `Tools/TMDL -psp-locator` | Extracts one explicitly named locator from a retail terrain skeleton without adding the relocatable TRB parser to the EBOOT. |
 | `convert_terrain_dump.py` / `convert_terrain_cell.py` | Triangulates bounded terrain strips, preserves vertex colours/UVs and emits static textured PMES files with shared cell bounds plus an exact-count PCFG. |
 | `convert_placed_terrain_cell.py` | Bakes the original terrain-locator/global-axis matrix into one bounded world-model cell for a PSP static draw path. |
 | `Tools/ConvertRetailTerrain.ps1` | Repeats terrain export, searches declared TTLs, deduplicates repeated source textures, converts PMES/PTEX sets and publishes only the complete generated set into a runtime directory. |
+| `Tools/ConvertRetailFrontendDetail.ps1` | Converts every mesh in the original `Barn_L0Mod1` cell, merges only identical material/texture bindings, preserves original coordinates/addressing and emits the bounded 36-model/34-texture detail pack. |
 | `Tools/ConvertRetailFrontendCamera.ps1` | Samples the shipping `camera_loop` hierarchy and reduces it to the bounded PCAM runtime contract. |
 | `Tools/ConvertRetailBarnSign.ps1` | Converts the shipping two-mesh barn-sign `WorldDatabase`, its original `loc_barnsign` placement and both declared textures. |
 | `convert_animation.py` | Quantizes the sampled clip into a maximum of 64 bounded PANM frames. |
@@ -97,6 +99,7 @@ Game/BarnyardPC/Workspace/Dumps/
 Game/BarnyardPC/Workspace/Converted/
 Game/BarnyardPC/Workspace/Frontend/
 Game/BarnyardPC/Workspace/FrontendTerrain/
+Game/BarnyardPC/Workspace/FrontendTerrainPack/
 Game/BarnyardPC/Workspace/FrontendCamera/
 Game/BarnyardPC/Workspace/FrontendBarnSign/
 ```
