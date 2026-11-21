@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import pathlib
 import struct
 
@@ -166,6 +167,20 @@ def read_dds(path: pathlib.Path) -> tuple[int, int, bytes]:
     return width, height, bytes(pixels)
 
 
+def retail_alpha_mode(path: pathlib.Path) -> str:
+    payload = path.read_bytes()
+    if len(payload) < 128 or payload[:4] != b"DDS ":
+        raise ValueError("input is not a supported DDS file")
+    pixel_format_flags = struct.unpack_from("<I", payload, 80)[0]
+    fourcc = payload[84:88]
+    alpha_mask = struct.unpack_from("<I", payload, 104)[0]
+    if fourcc in {b"DXT3", b"DXT5"}:
+        return "blend"
+    if fourcc == b"\0\0\0\0" and pixel_format_flags & 0x40 and alpha_mask != 0:
+        return "blend"
+    return "mask"
+
+
 def downsample_rgba_2x(pixels: bytes, width: int, height: int) -> tuple[int, int, bytes]:
     if width < 2 or height < 2 or width % 2 != 0 or height % 2 != 0:
         raise ValueError("2x PSP texture reduction requires even dimensions of at least 2x2")
@@ -191,7 +206,8 @@ def convert(
     destination: pathlib.Path,
     linear: bool = False,
     max_width: int | None = None,
-) -> None:
+) -> dict[str, object]:
+    alpha_mode = retail_alpha_mode(source)
     width, height, pixels = read_dds(source)
     if max_width is not None:
         if not is_power_of_two(max_width) or max_width > 512:
@@ -205,6 +221,12 @@ def convert(
     header = struct.pack("<6I", PTEX_MAGIC, PTEX_VERSION, width, height, width, texture_format)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(header + pixels)
+    return {
+        "width": width,
+        "height": height,
+        "bytes": len(header) + len(pixels),
+        "alpha_mode": alpha_mode,
+    }
 
 
 def main() -> None:
@@ -214,7 +236,7 @@ def main() -> None:
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
     args = parser.parse_args()
-    convert(args.source, args.destination, args.linear, args.max_width)
+    print(json.dumps(convert(args.source, args.destination, args.linear, args.max_width), sort_keys=True))
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ import struct
 import tempfile
 import unittest
 
-from convert_dds import convert, decode_dxt_block, downsample_rgba_2x
+from convert_dds import convert, decode_dxt_block, downsample_rgba_2x, retail_alpha_mode
 
 
 def dds_header(width: int, height: int, fourcc: bytes, data_size: int) -> bytes:
@@ -44,10 +44,18 @@ class DDSConversionTests(unittest.TestCase):
             destination = temporary / "output.ptex"
             block = b"\xff" * 8 + struct.pack("<HHI", 0xF800, 0x07E0, 0)
             source.write_bytes(dds_header(4, 4, b"DXT3", len(block)) + block)
-            convert(source, destination, linear=True)
+            summary = convert(source, destination, linear=True)
             payload = destination.read_bytes()
+            self.assertEqual("blend", summary["alpha_mode"])
             self.assertEqual(struct.unpack_from("<6I", payload), (0x58455450, 1, 4, 4, 4, 0))
             self.assertEqual(payload[24:28], bytes((255, 0, 0, 255)))
+
+    def test_matches_retail_dxt1_mask_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            source = pathlib.Path(temporary_name) / "source.dds"
+            block = struct.pack("<HHI", 0x0000, 0xFFFF, 0xFFFFFFFF)
+            source.write_bytes(dds_header(4, 4, b"DXT1", len(block)) + block)
+            self.assertEqual("mask", retail_alpha_mode(source))
 
     def test_converts_a1r5g5b5_to_rgba(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_name:

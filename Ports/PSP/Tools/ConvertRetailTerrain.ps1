@@ -184,6 +184,7 @@ else {
     Remove-Item -LiteralPath (Join-Path $outputPath 'barnyard_terrain.pcfg') -Force -ErrorAction SilentlyContinue
 }
 
+$convertedTextureModes = @{}
 $texturesRequired = @($textureSelections | Where-Object { $_.Source })
 if ($texturesRequired.Count -gt 0) {
     $libraries = [System.Collections.Generic.List[string]]::new()
@@ -235,11 +236,41 @@ if ($texturesRequired.Count -gt 0) {
         }
         $ddsArguments = @()
         if ($textureMaxWidth -gt 0) { $ddsArguments = @('--max-width', $textureMaxWidth) }
-        & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') @ddsArguments $selection.DDS $selection.Output
+        $ddsOutput = @(& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') @ddsArguments $selection.DDS $selection.Output)
         if ($LASTEXITCODE -ne 0) {
             throw "Retail terrain texture conversion failed with exit code $LASTEXITCODE"
         }
+        if ($ddsOutput.Count -eq 0) {
+            throw "Retail terrain texture conversion returned no material metadata for '$($selection.Source)'"
+        }
+        $ddsSummary = $ddsOutput[-1] | ConvertFrom-Json
+        if ($ddsSummary.alpha_mode -notin @('mask', 'blend')) {
+            throw "Retail terrain texture conversion returned invalid alpha mode for '$($selection.Source)'"
+        }
         $convertedTextures[$textureKey] = $selection.Output
+        $convertedTextureModes[$textureKey] = $ddsSummary.alpha_mode
+    }
+}
+
+if ($multiMeshes) {
+    $meshAlphaModes = @()
+    foreach ($selection in $textureSelections) {
+        if (-not $selection.Source) {
+            $meshAlphaModes += 'mask'
+            continue
+        }
+        $textureKey = $selection.Source.ToLowerInvariant()
+        if (-not $convertedTextureModes.ContainsKey($textureKey)) {
+            throw "Retail terrain alpha mode was not resolved for '$($selection.Source)'"
+        }
+        $meshAlphaModes += $convertedTextureModes[$textureKey]
+    }
+    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'finalize_terrain_config.py') `
+        (Join-Path $outputPath 'barnyard_terrain.json') `
+        (Join-Path $outputPath 'barnyard_terrain.pcfg') `
+        --alpha-modes ($meshAlphaModes -join ',')
+    if ($LASTEXITCODE -ne 0) {
+        throw "Retail terrain material config finalization failed with exit code $LASTEXITCODE"
     }
 }
 
