@@ -394,10 +394,12 @@ void TRenderInterface_PSP::DrawModel(
 			a_pCamera->aPosition[ 2 ] + a_pCamera->aDirection[ 2 ],
 		};
 		ScePspFVector3 oUp = {
-			a_pCamera->aUp[ 0 ],
-			a_pCamera->aUp[ 1 ],
-			a_pCamera->aUp[ 2 ],
+			-a_pCamera->aUp[ 0 ],
+			-a_pCamera->aUp[ 1 ],
+			-a_pCamera->aUp[ 2 ],
 		};
+		// Toshi stores the second camera basis as the inverse of visual world-up
+		// for the retail D3D view convention. GU look-at expects visual up.
 		sceGumLookAt( &oEye, &oCenter, &oUp );
 	}
 	sceGumMatrixMode( GU_MODEL );
