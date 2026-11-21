@@ -6,6 +6,7 @@ param(
     [string] $SourceModelName = 'Barn_L0Mod1',
     [string] $Prefix = 'frontend_detail',
     [string] $ForceAlphaMode = '',
+    [string[]] $LightProfiles = @(),
     [int] $TextureMaxWidth = 128,
     [switch] $KeepIntermediate
 )
@@ -27,6 +28,11 @@ if (-not $Prefix -or $Prefix -notmatch '^[A-Za-z0-9_]+$') {
 }
 if ($ForceAlphaMode -and $ForceAlphaMode -notin @('mask', 'blend', 'additive')) {
     throw 'ForceAlphaMode must be mask, blend or additive'
+}
+foreach ($lightProfile in $LightProfiles) {
+    if ($lightProfile -notmatch '^[A-Za-z0-9_]+=(barn|cone)$') {
+        throw "LightProfiles entry '$lightProfile' must use Material=barn or Material=cone"
+    }
 }
 $terrainPath = Join-Path $installRoot "Data\Terrain\frontend\$SourceModelName.trb"
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
@@ -153,6 +159,9 @@ $finalizeArguments = @(
 )
 if ($ForceAlphaMode) {
     $finalizeArguments += @('--force-alpha-mode', $ForceAlphaMode)
+}
+foreach ($lightProfile in $LightProfiles) {
+    $finalizeArguments += @('--light-profile', $lightProfile)
 }
 & $PythonPath @pythonArguments @finalizeArguments
 if ($LASTEXITCODE -ne 0) {

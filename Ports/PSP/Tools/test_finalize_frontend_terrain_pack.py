@@ -69,11 +69,39 @@ class FinalizeFrontendTerrainPackTests(unittest.TestCase):
                 output,
                 ["mask"],
                 force_alpha_mode="additive",
+                light_profiles={
+                    "lights_barn": "barn",
+                    "lightcone_outer": "cone",
+                    "lightcone_inner": "cone",
+                },
             )
-            values = struct.unpack("<21I", output.read_bytes())
-            self.assertEqual((0, 0, 3, 0, 0), values[6:11])
-            self.assertEqual((1, 0, 3, 0, 0), values[11:16])
-            self.assertEqual((2, 0, 3, 0, 0), values[16:21])
+            values = struct.unpack("<24I", output.read_bytes())
+            self.assertEqual((0x50444650, 2, 3, 1, 24, 0), values[:6])
+            self.assertEqual((0, 0, 3, 0, 0, 1), values[6:12])
+            self.assertEqual((1, 0, 3, 0, 0, 2), values[12:18])
+            self.assertEqual((2, 0, 3, 0, 0, 2), values[18:24])
+
+    def test_rejects_unknown_original_light_profile(self) -> None:
+        manifest = {
+            "version": 1,
+            "models": [{"material": "lights_barn", "texture_index": 0}],
+            "textures": [{}],
+        }
+        properties = {"version": 1, "clamped": [], "world_start_render": [], "world_end_render": []}
+        with tempfile.TemporaryDirectory() as temporary_name:
+            temporary = pathlib.Path(temporary_name)
+            manifest_path = temporary / "manifest.json"
+            properties_path = temporary / "properties.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            properties_path.write_text(json.dumps(properties), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "invalid terrain pack light profile"):
+                finalize(
+                    manifest_path,
+                    properties_path,
+                    temporary / "pack.pcfg",
+                    ["mask"],
+                    light_profiles={"lights_barn": "invented"},
+                )
 
 
 if __name__ == "__main__":

@@ -19,6 +19,11 @@ $arguments = @{
     SourceModelName = 'Barn_L0Mod3'
     Prefix = 'frontend_glow'
     ForceAlphaMode = 'additive'
+    LightProfiles = @(
+        'lights_barn=barn',
+        'lightcone_outer=cone',
+        'lightcone_inner=cone'
+    )
     TextureMaxWidth = $TextureMaxWidth
 }
 if ($TMDLPath) { $arguments.TMDLPath = $TMDLPath }
