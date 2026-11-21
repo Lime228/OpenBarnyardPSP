@@ -22,6 +22,7 @@ static AFrontEndBarnSign_PSP s_FrontEndBarnSign_PSP;
 static AFrontEndCamera_PSP s_FrontEndCamera_PSP;
 static AFrontEndTerrain_PSP s_FrontEndTerrain_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndTerrainPack_PSP;
+static AFrontEndTerrainPack_PSP s_FrontEndGrass_PSP;
 
 TDEFINE_CLASS( ARenderer );
 
@@ -66,11 +67,16 @@ TBOOL ARenderer::OnCreate()
 	rReport.fFrontendTerrainScale = s_FrontEndTerrain_PSP.GetModelTransform().fScale;
 	if ( !rReport.bFrontendTerrainLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_FrontEndTerrain_PSP.GetFailedPath() );
-	rReport.bFrontendTerrainPackLoaded = s_FrontEndTerrainPack_PSP.Load();
+	rReport.bFrontendTerrainPackLoaded = s_FrontEndTerrainPack_PSP.Load( "frontend_detail" );
 	rReport.uiFrontendTerrainPackModels = s_FrontEndTerrainPack_PSP.GetModelCount();
 	rReport.uiFrontendTerrainPackTextures = s_FrontEndTerrainPack_PSP.GetTextureCount();
 	if ( !rReport.bFrontendTerrainPackLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_FrontEndTerrainPack_PSP.GetFailedPath() );
+	rReport.bFrontendGrassLoaded = s_FrontEndGrass_PSP.Load( "frontend_grass" );
+	rReport.uiFrontendGrassModels = s_FrontEndGrass_PSP.GetModelCount();
+	rReport.uiFrontendGrassTextures = s_FrontEndGrass_PSP.GetTextureCount();
+	if ( !rReport.bFrontendGrassLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndGrass_PSP.GetFailedPath() );
 	rReport.bFrontendCameraLoaded = s_FrontEndCamera_PSP.Load();
 	rReport.uiFrontendCameraFrames = s_FrontEndCamera_PSP.GetFrameCount();
 	rReport.uiFrontendCameraSampleRate = s_FrontEndCamera_PSP.GetSampleRate();
@@ -115,6 +121,10 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 		s_RenderInterface_PSP,
 		pFrontEndCamera
 	);
+	rReport.uiFrontendGrassDraws += s_FrontEndGrass_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera
+	);
 	rReport.uiFrontendBarnSignDraws += s_FrontEndBarnSign_PSP.Render(
 		s_RenderInterface_PSP,
 		pFrontEndCamera
@@ -131,6 +141,7 @@ void ARenderer::OnDestroy()
 {
 	s_FrontEndCamera_PSP.Unload();
 	s_FrontEndBarnSign_PSP.Unload();
+	s_FrontEndGrass_PSP.Unload();
 	s_FrontEndTerrainPack_PSP.Unload();
 	s_FrontEndTerrain_PSP.Unload();
 	s_RenderInterface_PSP.DestroyDisplay();

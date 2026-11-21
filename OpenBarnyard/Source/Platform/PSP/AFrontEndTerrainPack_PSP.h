@@ -14,7 +14,7 @@ public:
 	AFrontEndTerrainPack_PSP();
 	~AFrontEndTerrainPack_PSP();
 
-	TBOOL Load();
+	TBOOL Load( const TCHAR* a_szPrefix );
 	void  Unload();
 	TUINT Render(
 		Toshi::TRenderInterface_PSP& a_rRenderInterface,
@@ -44,5 +44,6 @@ private:
 	MaterialEntry_PSP          m_aEntries_PSP[ MAX_MODELS_PSP ];
 	TUINT                      m_uiModelCount_PSP;
 	TUINT                      m_uiTextureCount_PSP;
+	TCHAR                      m_szPrefix_PSP[ 32 ];
 	TCHAR                      m_szFailedPath_PSP[ 80 ];
 };

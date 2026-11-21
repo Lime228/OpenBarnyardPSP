@@ -94,7 +94,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=11\n"
+		"version=12\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -120,6 +120,10 @@ void AWriteGameRuntimeReport_PSP()
 		"frontend_terrain_pack_models=%u\n"
 		"frontend_terrain_pack_textures=%u\n"
 		"frontend_terrain_pack_draws=%u\n"
+		"frontend_grass_loaded=%d\n"
+		"frontend_grass_models=%u\n"
+		"frontend_grass_textures=%u\n"
+		"frontend_grass_draws=%u\n"
 		"frontend_barnsign_loaded=%d\n"
 		"frontend_barnsign_meshes=%u\n"
 		"frontend_barnsign_draws=%u\n"
@@ -180,6 +184,10 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiFrontendTerrainPackModels,
 		s_GameRuntimeReport_PSP.uiFrontendTerrainPackTextures,
 		s_GameRuntimeReport_PSP.uiFrontendTerrainPackDraws,
+		s_GameRuntimeReport_PSP.bFrontendGrassLoaded,
+		s_GameRuntimeReport_PSP.uiFrontendGrassModels,
+		s_GameRuntimeReport_PSP.uiFrontendGrassTextures,
+		s_GameRuntimeReport_PSP.uiFrontendGrassDraws,
 		s_GameRuntimeReport_PSP.bFrontendBarnSignLoaded,
 		s_GameRuntimeReport_PSP.uiFrontendBarnSignMeshes,
 		s_GameRuntimeReport_PSP.uiFrontendBarnSignDraws,

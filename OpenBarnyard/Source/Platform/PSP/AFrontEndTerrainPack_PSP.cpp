@@ -54,9 +54,33 @@ static_assert( sizeof( AFrontEndTerrainPackEntry_PSP ) == 20, "Unexpected PSP fr
 static_assert( TRENDERTEXTUREADDRESS_PSP_WRAP == 0, "Unexpected PSP wrap material value" );
 static_assert( TRENDERTEXTUREADDRESS_PSP_CLAMP == 1, "Unexpected PSP clamp material value" );
 
+static TBOOL AFrontEndTerrainPackValidatePrefix_PSP( const TCHAR* a_szPrefix )
+{
+	if ( a_szPrefix == TNULL || a_szPrefix[ 0 ] == '\0' )
+		return TFALSE;
+
+	for ( TSIZE i = 0; a_szPrefix[ i ] != '\0'; i++ )
+	{
+		if ( i + 1 >= 32 )
+			return TFALSE;
+
+		const TCHAR c = a_szPrefix[ i ];
+		if ( !( c >= 'a' && c <= 'z' ) &&
+		     !( c >= 'A' && c <= 'Z' ) &&
+		     !( c >= '0' && c <= '9' ) &&
+		     c != '_' )
+		{
+			return TFALSE;
+		}
+	}
+
+	return TTRUE;
+}
+
 AFrontEndTerrainPack_PSP::AFrontEndTerrainPack_PSP()
     : m_uiModelCount_PSP( 0 )
     , m_uiTextureCount_PSP( 0 )
+	, m_szPrefix_PSP{ '\0' }
     , m_szFailedPath_PSP{ '\0' }
 {
 }
@@ -66,13 +90,25 @@ AFrontEndTerrainPack_PSP::~AFrontEndTerrainPack_PSP()
 	Unload();
 }
 
-TBOOL AFrontEndTerrainPack_PSP::Load()
+TBOOL AFrontEndTerrainPack_PSP::Load( const TCHAR* a_szPrefix )
 {
 	Unload();
-	TStringManager::String8Copy(
+	if ( !AFrontEndTerrainPackValidatePrefix_PSP( a_szPrefix ) )
+	{
+		TStringManager::String8Copy(
+			m_szFailedPath_PSP,
+			"frontend-terrain-pack-prefix",
+			TARRAYSIZE( m_szFailedPath_PSP )
+		);
+		return TFALSE;
+	}
+
+	TStringManager::String8Copy( m_szPrefix_PSP, a_szPrefix, TARRAYSIZE( m_szPrefix_PSP ) );
+	TStringManager::String8Format(
 		m_szFailedPath_PSP,
-		"local:frontend_detail.pcfg",
-		TARRAYSIZE( m_szFailedPath_PSP )
+		TARRAYSIZE( m_szFailedPath_PSP ),
+		"local:%s.pcfg",
+		m_szPrefix_PSP
 	);
 	TFile* pConfigFile = TFile::Create( m_szFailedPath_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
 	if ( pConfigFile == TNULL )
@@ -132,7 +168,8 @@ TBOOL AFrontEndTerrainPack_PSP::Load()
 		TStringManager::String8Format(
 			m_szFailedPath_PSP,
 			TARRAYSIZE( m_szFailedPath_PSP ),
-			"local:frontend_detail_model_%u.pmes",
+			"local:%s_model_%u.pmes",
+			m_szPrefix_PSP,
 			i
 		);
 		if ( !m_ModelFactory_PSP.CreateModelFromFile( m_aModels_PSP[ i ], m_szFailedPath_PSP ) )
@@ -148,7 +185,8 @@ TBOOL AFrontEndTerrainPack_PSP::Load()
 		TStringManager::String8Format(
 			m_szFailedPath_PSP,
 			TARRAYSIZE( m_szFailedPath_PSP ),
-			"local:frontend_detail_texture_%u.ptex",
+			"local:%s_texture_%u.ptex",
+			m_szPrefix_PSP,
 			i
 		);
 		if ( !m_TextureFactory_PSP.CreateTextureFromFile( m_aTextures_PSP[ i ], m_szFailedPath_PSP ) )
