@@ -118,7 +118,8 @@ public:
 	    const TRenderMaterial_PSP& a_rMaterial,
 	    const T2Texture* a_pTexture,
 	    const TRenderModelTransform_PSP& a_rModelTransform,
-	    const TRenderCamera_PSP* a_pCamera = TNULL
+	    const TRenderCamera_PSP* a_pCamera = TNULL,
+	    TUINT32 a_uiColour = 0xffffffff
 	);
 	void DrawSkinnedModel(
 	    const TModel_PSP& a_rModel,

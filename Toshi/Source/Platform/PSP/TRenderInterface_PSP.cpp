@@ -108,6 +108,57 @@ static TINT TRenderGetTextureFunction_PSP( TRenderTextureFunction_PSP a_eTexture
 	return a_eTextureFunction == TRENDERTEXTUREFUNCTION_PSP_REPLACE ? GU_TFX_REPLACE : GU_TFX_MODULATE;
 }
 
+static TUINT32 TRenderModulateColour_PSP( TUINT32 a_uiSource, TUINT32 a_uiModulation )
+{
+	TUINT32 uiResult = 0;
+	for ( TUINT uiShift = 0; uiShift < 32; uiShift += 8 )
+	{
+		const TUINT32 uiSourceChannel = ( a_uiSource >> uiShift ) & 0xff;
+		const TUINT32 uiModulationChannel = ( a_uiModulation >> uiShift ) & 0xff;
+		const TUINT32 uiChannel = ( uiSourceChannel * uiModulationChannel + 127 ) / 255;
+		uiResult |= uiChannel << uiShift;
+	}
+	return uiResult;
+}
+
+static const void* TRenderCreateModulatedVertices_PSP(
+	const TModel_PSP& a_rModel,
+	TUINT32 a_uiColour
+)
+{
+	const TVertexPoolResource_PSP& rVertices = a_rModel.GetVertices();
+	if ( a_uiColour == 0xffffffff )
+		return rVertices.GetData();
+
+	const TSIZE uiBufferSize = TSIZE( rVertices.GetVertexSize() ) * rVertices.GetNumVertices();
+	void* pBuffer = sceGuGetMemory( uiBufferSize );
+	if ( pBuffer == TNULL )
+		return TNULL;
+
+	if ( a_rModel.GetFormat() == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ )
+	{
+		const TModelTextureVertex_PSP* pSource = TSTATICCAST( const TModelTextureVertex_PSP, rVertices.GetData() );
+		TModelTextureVertex_PSP* pTarget = TSTATICCAST( TModelTextureVertex_PSP, pBuffer );
+		for ( TUINT i = 0; i < rVertices.GetNumVertices(); i++ )
+		{
+			pTarget[ i ] = pSource[ i ];
+			pTarget[ i ].uiColour = TRenderModulateColour_PSP( pSource[ i ].uiColour, a_uiColour );
+		}
+	}
+	else
+	{
+		const TModelVertex_PSP* pSource = TSTATICCAST( const TModelVertex_PSP, rVertices.GetData() );
+		TModelVertex_PSP* pTarget = TSTATICCAST( TModelVertex_PSP, pBuffer );
+		for ( TUINT i = 0; i < rVertices.GetNumVertices(); i++ )
+		{
+			pTarget[ i ] = pSource[ i ];
+			pTarget[ i ].uiColour = TRenderModulateColour_PSP( pSource[ i ].uiColour, a_uiColour );
+		}
+	}
+
+	return pBuffer;
+}
+
 static void TRenderSetAlphaMode_PSP( TRenderAlphaMode_PSP a_eAlphaMode )
 {
 	sceGuDepthMask( GU_FALSE );
@@ -339,7 +390,8 @@ void TRenderInterface_PSP::DrawModel(
     const TRenderMaterial_PSP& a_rMaterial,
     const T2Texture* a_pTexture,
     const TRenderModelTransform_PSP& a_rModelTransform,
-    const TRenderCamera_PSP* a_pCamera
+    const TRenderCamera_PSP* a_pCamera,
+    TUINT32 a_uiColour
 )
 {
 	const auto& rVertices = a_rModel.GetVertices();
@@ -354,6 +406,9 @@ void TRenderInterface_PSP::DrawModel(
 	{
 		return;
 	}
+	const void* pVertexData = TRenderCreateModulatedVertices_PSP( a_rModel, a_uiColour );
+	if ( pVertexData == TNULL )
+		return;
 
 	if ( a_rMaterial.bTextureEnabled )
 	{
@@ -436,7 +491,7 @@ void TRenderInterface_PSP::DrawModel(
 	    iVertexFormat,
 	    rIndices.GetNumIndices(),
 	    rIndices.GetData(),
-	    rVertices.GetData()
+	    pVertexData
 	);
 
 	sceGuDisable( GU_DEPTH_TEST );
