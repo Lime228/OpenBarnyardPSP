@@ -14,7 +14,16 @@ FRONTEND_TERRAIN_PACK_ENTRY_SIZE_2 = 24
 MAX_PACK_MODELS = 48
 MAX_PACK_TEXTURES = 48
 ALPHA_MODES = {"mask": 1, "blend": 2, "additive": 3}
-LIGHT_PROFILES = {"none": 0, "barn": 1, "cone": 2}
+LIGHT_PROFILES = {
+    "none": 0,
+    "barn": 1,
+    "cone": 2,
+    "farmhouse": 3,
+    "neighbour": 4,
+    "lodge": 5,
+    "beady": 6,
+    "nightlight": 7,
+}
 ADDRESS_WRAP = 0
 ADDRESS_CLAMP = 1
 ORDER_START = 0
@@ -150,7 +159,7 @@ def main() -> None:
         action="append",
         default=[],
         metavar="MATERIAL=PROFILE",
-        help="assign an original light schedule (barn or cone) to a material",
+        help="assign an original terrain light schedule to a material",
     )
     args = parser.parse_args()
     modes = [mode.strip().lower() for mode in args.texture_alpha_modes.split(",") if mode.strip()]

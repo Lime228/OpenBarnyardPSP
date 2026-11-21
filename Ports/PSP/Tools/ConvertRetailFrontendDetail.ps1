@@ -4,6 +4,7 @@ param(
     [string] $OutputDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $SourceModelName = 'Barn_L0Mod1',
+    [string] $SourceMaterialLibraryName = 'Barn_L0Mat',
     [string] $Prefix = 'frontend_detail',
     [string] $ForceAlphaMode = '',
     [string[]] $LightProfiles = @(),
@@ -23,6 +24,9 @@ if (-not $OutputDirectory) {
 if (-not $SourceModelName -or $SourceModelName -notmatch '^[A-Za-z0-9_]+$') {
     throw 'SourceModelName must contain only letters, numbers and underscores'
 }
+if (-not $SourceMaterialLibraryName -or $SourceMaterialLibraryName -notmatch '^[A-Za-z0-9_]+$') {
+    throw 'SourceMaterialLibraryName must contain only letters, numbers and underscores'
+}
 if (-not $Prefix -or $Prefix -notmatch '^[A-Za-z0-9_]+$') {
     throw 'Prefix must contain only letters, numbers and underscores'
 }
@@ -30,14 +34,14 @@ if ($ForceAlphaMode -and $ForceAlphaMode -notin @('mask', 'blend', 'additive')) 
     throw 'ForceAlphaMode must be mask, blend or additive'
 }
 foreach ($lightProfile in $LightProfiles) {
-    if ($lightProfile -notmatch '^[A-Za-z0-9_]+=(barn|cone)$') {
-        throw "LightProfiles entry '$lightProfile' must use Material=barn or Material=cone"
+    if ($lightProfile -notmatch '^[A-Za-z0-9_]+=(barn|cone|farmhouse|neighbour|lodge|beady|nightlight)$') {
+        throw "LightProfiles entry '$lightProfile' has an invalid original light schedule"
     }
 }
 $terrainPath = Join-Path $installRoot "Data\Terrain\frontend\$SourceModelName.trb"
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
 $textureLibraries = @(
-    (Join-Path $installRoot 'Data\Terrain\frontend\Barn_L0Mat.ttl'),
+    (Join-Path $installRoot "Data\Terrain\frontend\$SourceMaterialLibraryName.ttl"),
     (Join-Path $installRoot 'Data\Terrain\frontend\frontend_Common.ttl')
 )
 foreach ($requiredPath in @($terrainPath, $materialPropertiesPath) + $textureLibraries) {
@@ -136,7 +140,7 @@ for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureInde
         }
     }
     if (-not $textureFound) {
-        throw "Original texture '$($texture.source_texture)' was not found in the Barn front-end libraries"
+        throw "Original texture '$($texture.source_texture)' was not found in the $SourceMaterialLibraryName front-end libraries"
     }
 
     $conversionOutput = @(& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') `
