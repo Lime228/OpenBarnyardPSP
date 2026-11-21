@@ -37,11 +37,20 @@ enum TRenderTextureFunction_PSP : TUINT32
 	TRENDERTEXTUREFUNCTION_PSP_MODULATE,
 };
 
+enum TRenderAlphaMode_PSP : TUINT32
+{
+	TRENDERALPHAMODE_PSP_OPAQUE,
+	TRENDERALPHAMODE_PSP_MASK,
+	TRENDERALPHAMODE_PSP_BLEND,
+	TRENDERALPHAMODE_PSP_ADDITIVE,
+};
+
 struct TRenderMaterial_PSP
 {
 	TBOOL                      bTextureEnabled;
 	TRenderTextureFunction_PSP eTextureFunction;
 	TRenderCullMode_PSP        eCullMode;
+	TRenderAlphaMode_PSP       eAlphaMode;
 };
 
 struct TRenderModelTransform_PSP

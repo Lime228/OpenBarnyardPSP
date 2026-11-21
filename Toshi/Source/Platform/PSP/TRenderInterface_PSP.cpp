@@ -95,6 +95,44 @@ static TINT TRenderGetTextureFunction_PSP( TRenderTextureFunction_PSP a_eTexture
 	return a_eTextureFunction == TRENDERTEXTUREFUNCTION_PSP_REPLACE ? GU_TFX_REPLACE : GU_TFX_MODULATE;
 }
 
+static void TRenderSetAlphaMode_PSP( TRenderAlphaMode_PSP a_eAlphaMode )
+{
+	sceGuDepthMask( GU_FALSE );
+	sceGuDisable( GU_ALPHA_TEST );
+	sceGuDisable( GU_BLEND );
+
+	switch ( a_eAlphaMode )
+	{
+		case TRENDERALPHAMODE_PSP_MASK:
+			sceGuAlphaFunc( GU_GREATER, 127, 0xff );
+			sceGuEnable( GU_ALPHA_TEST );
+			break;
+		case TRENDERALPHAMODE_PSP_BLEND:
+			sceGuAlphaFunc( GU_GREATER, 0, 0xff );
+			sceGuEnable( GU_ALPHA_TEST );
+			sceGuEnable( GU_BLEND );
+			sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0 );
+			sceGuDepthMask( GU_TRUE );
+			break;
+		case TRENDERALPHAMODE_PSP_ADDITIVE:
+			sceGuAlphaFunc( GU_GREATER, 0, 0xff );
+			sceGuEnable( GU_ALPHA_TEST );
+			sceGuEnable( GU_BLEND );
+			sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE, 0, 0 );
+			sceGuDepthMask( GU_TRUE );
+			break;
+		default:
+			break;
+	}
+}
+
+static void TRenderResetAlphaMode_PSP()
+{
+	sceGuDepthMask( GU_FALSE );
+	sceGuDisable( GU_ALPHA_TEST );
+	sceGuDisable( GU_BLEND );
+}
+
 TRenderInterface_PSP::TRenderInterface_PSP()
     : m_bDisplayCreated( TFALSE )
 {
@@ -251,6 +289,7 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 	    a_rModel.GetFormat() == TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ && a_pTexture != TNULL,
 	    TRENDERTEXTUREFUNCTION_PSP_MODULATE,
 	    TRENDERCULLMODE_PSP_BACK,
+	    TRENDERALPHAMODE_PSP_OPAQUE,
 	};
 	DrawModel( a_rModel, a_fRotation, oMaterial, a_pTexture );
 }
@@ -309,6 +348,7 @@ void TRenderInterface_PSP::DrawModel(
 	else
 		sceGuDisable( GU_TEXTURE_2D );
 	TRenderSetCullMode_PSP( a_rMaterial.eCullMode );
+	TRenderSetAlphaMode_PSP( a_rMaterial.eAlphaMode );
 	sceGuEnable( GU_DEPTH_TEST );
 
 	sceGumMatrixMode( GU_PROJECTION );
@@ -379,6 +419,7 @@ void TRenderInterface_PSP::DrawModel(
 
 	sceGuDisable( GU_DEPTH_TEST );
 	sceGuDisable( GU_CULL_FACE );
+	TRenderResetAlphaMode_PSP();
 	if ( a_rMaterial.bTextureEnabled )
 		sceGuDisable( GU_TEXTURE_2D );
 }
@@ -411,6 +452,7 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 	else
 		sceGuDisable( GU_TEXTURE_2D );
 	TRenderSetCullMode_PSP( a_rMaterial.eCullMode );
+	TRenderSetAlphaMode_PSP( a_rMaterial.eAlphaMode );
 	sceGuEnable( GU_DEPTH_TEST );
 
 	sceGumMatrixMode( GU_PROJECTION );
@@ -443,6 +485,7 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 
 	sceGuDisable( GU_DEPTH_TEST );
 	sceGuDisable( GU_CULL_FACE );
+	TRenderResetAlphaMode_PSP();
 	if ( a_rMaterial.bTextureEnabled )
 		sceGuDisable( GU_TEXTURE_2D );
 }

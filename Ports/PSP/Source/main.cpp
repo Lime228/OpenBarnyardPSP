@@ -131,6 +131,7 @@ static const Toshi::TRenderMaterial_PSP g_ProbeMaterial_PSP = {
 	TTRUE,
 	Toshi::TRENDERTEXTUREFUNCTION_PSP_MODULATE,
 	Toshi::TRENDERCULLMODE_PSP_BACK,
+	Toshi::TRENDERALPHAMODE_PSP_OPAQUE,
 };
 
 static const ProbeWorldData_PSP g_ProbeWorldData_PSP = {

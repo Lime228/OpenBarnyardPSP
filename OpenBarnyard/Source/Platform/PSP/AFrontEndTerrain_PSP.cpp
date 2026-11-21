@@ -10,7 +10,8 @@ TOSHI_NAMESPACE_USING
 static const TRenderMaterial_PSP s_FrontEndTerrainMaterial_PSP = {
 	TTRUE,
 	TRENDERTEXTUREFUNCTION_PSP_MODULATE,
-	TRENDERCULLMODE_PSP_BACK,
+	TRENDERCULLMODE_PSP_NONE,
+	TRENDERALPHAMODE_PSP_MASK,
 };
 
 static const TRenderSceneTransform_PSP s_FrontEndTerrainSceneTransform_PSP = {
