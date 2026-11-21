@@ -27,6 +27,7 @@ struct AGameRuntimeReport_PSP
 	TUINT uiFrontendGlowModels;
 	TUINT uiFrontendGlowTextures;
 	TUINT uiFrontendGlowDraws;
+	TFLOAT fFrontendHour;
 	TUINT uiFrontendBarnSignMeshes;
 	TUINT uiFrontendBarnSignDraws;
 	TUINT uiFrontendCameraFrames;

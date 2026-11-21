@@ -9,6 +9,13 @@ class AFrontEndTerrainPack_PSP
 public:
 	static constexpr TUINT MAX_MODELS_PSP = 48;
 	static constexpr TUINT MAX_TEXTURES_PSP = 48;
+	enum LightProfile_PSP : TUINT32
+	{
+		LIGHTPROFILE_NONE_PSP,
+		LIGHTPROFILE_BARN_PSP,
+		LIGHTPROFILE_CONE_PSP,
+		LIGHTPROFILE_NUMOF_PSP,
+	};
 
 public:
 	AFrontEndTerrainPack_PSP();
@@ -18,7 +25,8 @@ public:
 	void  Unload();
 	TUINT Render(
 		Toshi::TRenderInterface_PSP& a_rRenderInterface,
-		const Toshi::TRenderCamera_PSP* a_pCamera
+		const Toshi::TRenderCamera_PSP* a_pCamera,
+		TFLOAT a_fHour
 	) const;
 
 	TBOOL IsLoaded() const { return m_uiModelCount_PSP != 0; }
@@ -34,6 +42,7 @@ private:
 		Toshi::TRenderAlphaMode_PSP      eAlphaMode;
 		Toshi::TRenderTextureAddress_PSP eAddressU;
 		Toshi::TRenderTextureAddress_PSP eAddressV;
+		LightProfile_PSP                  eLightProfile;
 	};
 
 private:

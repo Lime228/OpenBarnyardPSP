@@ -46,11 +46,20 @@ struct AFrontEndTerrainPackEntry_PSP
 	TUINT32 uiAddressV;
 };
 
+struct AFrontEndTerrainPackLightEntry_PSP
+{
+	AFrontEndTerrainPackEntry_PSP oMaterial;
+	TUINT32 uiLightProfile;
+};
+
 static constexpr TUINT32 s_uiFrontEndTerrainPackMagic_PSP = 0x50444650;
-static constexpr TUINT32 s_uiFrontEndTerrainPackVersion_PSP = 1;
+static constexpr TUINT32 s_uiFrontEndTerrainPackVersion1_PSP = 1;
+static constexpr TUINT32 s_uiFrontEndTerrainPackVersion2_PSP = 2;
+static constexpr TFLOAT s_fFrontEndLightFadeTime_PSP = 0.2f;
 
 static_assert( sizeof( AFrontEndTerrainPackHeader_PSP ) == 24, "Unexpected PSP frontend terrain pack header" );
 static_assert( sizeof( AFrontEndTerrainPackEntry_PSP ) == 20, "Unexpected PSP frontend terrain pack entry" );
+static_assert( sizeof( AFrontEndTerrainPackLightEntry_PSP ) == 24, "Unexpected PSP frontend terrain light entry" );
 static_assert( TRENDERTEXTUREADDRESS_PSP_WRAP == 0, "Unexpected PSP wrap material value" );
 static_assert( TRENDERTEXTUREADDRESS_PSP_CLAMP == 1, "Unexpected PSP clamp material value" );
 
@@ -75,6 +84,56 @@ static TBOOL AFrontEndTerrainPackValidatePrefix_PSP( const TCHAR* a_szPrefix )
 	}
 
 	return TTRUE;
+}
+
+static TFLOAT AFrontEndTerrainPackGetLightMagnitude_PSP(
+	AFrontEndTerrainPack_PSP::LightProfile_PSP a_eProfile,
+	TFLOAT a_fHour
+)
+{
+	if ( a_eProfile == AFrontEndTerrainPack_PSP::LIGHTPROFILE_NONE_PSP )
+		return 1.0f;
+	if ( !TMath::IsFinite( a_fHour ) || a_fHour < 0.0f || a_fHour >= 24.0f )
+		return 0.0f;
+
+	TFLOAT fStart = 0.0f;
+	TFLOAT fEnd = 0.0f;
+	if ( a_eProfile == AFrontEndTerrainPack_PSP::LIGHTPROFILE_BARN_PSP )
+	{
+		fStart = 21.71f;
+		fEnd = 30.0f;
+	}
+	else if ( a_eProfile == AFrontEndTerrainPack_PSP::LIGHTPROFILE_CONE_PSP )
+	{
+		fStart = 20.5f;
+		fEnd = 29.5f;
+	}
+	else
+	{
+		return 0.0f;
+	}
+
+	TFLOAT fTime = a_fHour;
+	if ( fTime < fStart )
+		fTime += 24.0f;
+
+	TFLOAT fMagnitude = 1.0f;
+	if ( fTime < fStart || fTime > fEnd )
+		fMagnitude = 0.0f;
+	else if ( fTime < fStart + s_fFrontEndLightFadeTime_PSP )
+		fMagnitude = ( fTime - fStart ) / s_fFrontEndLightFadeTime_PSP;
+	else if ( fTime >= fEnd - s_fFrontEndLightFadeTime_PSP )
+		fMagnitude = ( fEnd - fTime ) / s_fFrontEndLightFadeTime_PSP;
+
+	return fMagnitude * 0.6f;
+}
+
+static TUINT32 AFrontEndTerrainPackGetLightColour_PSP( TFLOAT a_fMagnitude )
+{
+	const TUINT32 uiRed = TUINT32( 0.3f * a_fMagnitude * 255.0f + 0.5f );
+	const TUINT32 uiGreen = TUINT32( 0.3f * a_fMagnitude * 255.0f + 0.5f );
+	const TUINT32 uiBlue = TUINT32( 0.1952941f * a_fMagnitude * 255.0f + 0.5f );
+	return 0xff000000 | ( uiBlue << 16 ) | ( uiGreen << 8 ) | uiRed;
 }
 
 AFrontEndTerrainPack_PSP::AFrontEndTerrainPack_PSP()
@@ -118,12 +177,14 @@ TBOOL AFrontEndTerrainPack_PSP::Load( const TCHAR* a_szPrefix )
 	TBOOL bConfigValid =
 		pConfigFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
 		oHeader.uiMagic == s_uiFrontEndTerrainPackMagic_PSP &&
-		oHeader.uiVersion == s_uiFrontEndTerrainPackVersion_PSP &&
+		( oHeader.uiVersion == s_uiFrontEndTerrainPackVersion1_PSP ||
+		  oHeader.uiVersion == s_uiFrontEndTerrainPackVersion2_PSP ) &&
 		oHeader.uiModelCount >= 1 &&
 		oHeader.uiModelCount <= MAX_MODELS_PSP &&
 		oHeader.uiTextureCount >= 1 &&
 		oHeader.uiTextureCount <= MAX_TEXTURES_PSP &&
-		oHeader.uiEntrySize == sizeof( AFrontEndTerrainPackEntry_PSP ) &&
+		oHeader.uiEntrySize == ( oHeader.uiVersion == s_uiFrontEndTerrainPackVersion1_PSP ?
+			sizeof( AFrontEndTerrainPackEntry_PSP ) : sizeof( AFrontEndTerrainPackLightEntry_PSP ) ) &&
 		oHeader.uiReserved == 0 &&
 		pConfigFile->GetSize() == sizeof( oHeader ) + TSIZE( oHeader.uiModelCount ) * oHeader.uiEntrySize;
 
@@ -131,14 +192,19 @@ TBOOL AFrontEndTerrainPack_PSP::Load( const TCHAR* a_szPrefix )
 	for ( TUINT i = 0; i < oHeader.uiModelCount && bConfigValid; i++ )
 	{
 		AFrontEndTerrainPackEntry_PSP oSourceEntry = {};
+		TUINT32 uiLightProfile = LIGHTPROFILE_NONE_PSP;
 		bConfigValid =
-			pConfigFile->Read( &oSourceEntry, sizeof( oSourceEntry ) ) == sizeof( oSourceEntry ) &&
+			pConfigFile->Read( &oSourceEntry, sizeof( oSourceEntry ) ) == sizeof( oSourceEntry );
+		if ( bConfigValid && oHeader.uiVersion == s_uiFrontEndTerrainPackVersion2_PSP )
+			bConfigValid = pConfigFile->Read( &uiLightProfile, sizeof( uiLightProfile ) ) == sizeof( uiLightProfile );
+		bConfigValid = bConfigValid &&
 			oSourceEntry.uiModelIndex < oHeader.uiModelCount &&
 			oSourceEntry.uiTextureIndex < oHeader.uiTextureCount &&
 			oSourceEntry.uiAlphaMode >= TRENDERALPHAMODE_PSP_MASK &&
 			oSourceEntry.uiAlphaMode <= TRENDERALPHAMODE_PSP_ADDITIVE &&
 			oSourceEntry.uiAddressU <= TRENDERTEXTUREADDRESS_PSP_CLAMP &&
 			oSourceEntry.uiAddressV <= TRENDERTEXTUREADDRESS_PSP_CLAMP &&
+			uiLightProfile < LIGHTPROFILE_NUMOF_PSP &&
 			!aModelEntries[ oSourceEntry.uiModelIndex ];
 		if ( bConfigValid )
 		{
@@ -149,6 +215,7 @@ TBOOL AFrontEndTerrainPack_PSP::Load( const TCHAR* a_szPrefix )
 				TRenderAlphaMode_PSP( oSourceEntry.uiAlphaMode ),
 				TRenderTextureAddress_PSP( oSourceEntry.uiAddressU ),
 				TRenderTextureAddress_PSP( oSourceEntry.uiAddressV ),
+				LightProfile_PSP( uiLightProfile ),
 			};
 		}
 	}
@@ -213,15 +280,22 @@ void AFrontEndTerrainPack_PSP::Unload()
 
 TUINT AFrontEndTerrainPack_PSP::Render(
 	TRenderInterface_PSP& a_rRenderInterface,
-	const TRenderCamera_PSP* a_pCamera
+	const TRenderCamera_PSP* a_pCamera,
+	TFLOAT a_fHour
 ) const
 {
 	if ( !IsLoaded() || a_pCamera == TNULL )
 		return 0;
 
+	TUINT uiDraws = 0;
 	for ( TUINT i = 0; i < m_uiModelCount_PSP; i++ )
 	{
 		const MaterialEntry_PSP& rEntry = m_aEntries_PSP[ i ];
+		const TFLOAT fLightMagnitude = AFrontEndTerrainPackGetLightMagnitude_PSP( rEntry.eLightProfile, a_fHour );
+		if ( fLightMagnitude <= 0.0f )
+			continue;
+		const TUINT32 uiColour = rEntry.eLightProfile == LIGHTPROFILE_NONE_PSP ?
+			0xffffffff : AFrontEndTerrainPackGetLightColour_PSP( fLightMagnitude );
 		TRenderMaterial_PSP oMaterial = s_FrontEndTerrainPackMaterial_PSP;
 		oMaterial.eAlphaMode = rEntry.eAlphaMode;
 		oMaterial.eAddressU = rEntry.eAddressU;
@@ -232,9 +306,11 @@ TUINT AFrontEndTerrainPack_PSP::Render(
 			oMaterial,
 			&m_aTextures_PSP[ rEntry.uiTextureIndex ],
 			s_FrontEndTerrainPackModelTransform_PSP,
-			a_pCamera
+			a_pCamera,
+			uiColour
 		);
+		uiDraws++;
 	}
 
-	return m_uiModelCount_PSP;
+	return uiDraws;
 }

@@ -24,6 +24,7 @@ static AFrontEndTerrain_PSP s_FrontEndTerrain_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndTerrainPack_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndGrass_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndGlow_PSP;
+static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 
 TDEFINE_CLASS( ARenderer );
 
@@ -63,6 +64,7 @@ TBOOL ARenderer::OnCreate()
 		return TFALSE;
 
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.fFrontendHour = s_fFrontEndStartHour_PSP;
 	rReport.bFrontendTerrainLoaded = s_FrontEndTerrain_PSP.Load();
 	rReport.uiFrontendTerrainMeshes = s_FrontEndTerrain_PSP.GetMeshCount();
 	rReport.fFrontendTerrainScale = s_FrontEndTerrain_PSP.GetModelTransform().fScale;
@@ -125,11 +127,13 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 	);
 	rReport.uiFrontendTerrainPackDraws += s_FrontEndTerrainPack_PSP.Render(
 		s_RenderInterface_PSP,
-		pFrontEndCamera
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
 	);
 	rReport.uiFrontendGrassDraws += s_FrontEndGrass_PSP.Render(
 		s_RenderInterface_PSP,
-		pFrontEndCamera
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
 	);
 	rReport.uiFrontendBarnSignDraws += s_FrontEndBarnSign_PSP.Render(
 		s_RenderInterface_PSP,
@@ -137,7 +141,8 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 	);
 	rReport.uiFrontendGlowDraws += s_FrontEndGlow_PSP.Render(
 		s_RenderInterface_PSP,
-		pFrontEndCamera
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
 	);
 	if ( m_bRenderGUI && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
 		RenderGUI();
