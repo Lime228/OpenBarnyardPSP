@@ -54,7 +54,17 @@ static TBOOL TRenderHasQuadArea_PSP( const TRenderQuad_PSP& a_rQuad )
 	return TMath::Abs( fArea0 ) + TMath::Abs( fArea1 ) > 0.001f;
 }
 
-static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureFunction )
+static TINT TRenderGetTextureAddress_PSP( TRenderTextureAddress_PSP a_eAddress )
+{
+	return a_eAddress == TRENDERTEXTUREADDRESS_PSP_CLAMP ? GU_CLAMP : GU_REPEAT;
+}
+
+static void TRenderSetTexture_PSP(
+	const T2Texture& a_rTexture,
+	TINT a_iTextureFunction,
+	TRenderTextureAddress_PSP a_eAddressU,
+	TRenderTextureAddress_PSP a_eAddressV
+)
 {
 	sceGuEnable( GU_TEXTURE_2D );
 	sceGuTexMode( GU_PSM_8888, 0, 0, a_rTexture.IsSwizzled() ? GU_TRUE : GU_FALSE );
@@ -67,7 +77,10 @@ static void TRenderSetTexture_PSP( const T2Texture& a_rTexture, TINT a_iTextureF
 	);
 	sceGuTexFunc( a_iTextureFunction, GU_TCC_RGBA );
 	sceGuTexFilter( GU_NEAREST, GU_NEAREST );
-	sceGuTexWrap( GU_CLAMP, GU_CLAMP );
+	sceGuTexWrap(
+		TRenderGetTextureAddress_PSP( a_eAddressU ),
+		TRenderGetTextureAddress_PSP( a_eAddressV )
+	);
 	sceGuTexScale( 1.0f, 1.0f );
 	sceGuTexOffset( 0.0f, 0.0f );
 }
@@ -290,6 +303,8 @@ void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRota
 	    TRENDERTEXTUREFUNCTION_PSP_MODULATE,
 	    TRENDERCULLMODE_PSP_BACK,
 	    TRENDERALPHAMODE_PSP_OPAQUE,
+	    TRENDERTEXTUREADDRESS_PSP_WRAP,
+	    TRENDERTEXTUREADDRESS_PSP_WRAP,
 	};
 	DrawModel( a_rModel, a_fRotation, oMaterial, a_pTexture );
 }
@@ -342,7 +357,12 @@ void TRenderInterface_PSP::DrawModel(
 
 	if ( a_rMaterial.bTextureEnabled )
 	{
-		TRenderSetTexture_PSP( *a_pTexture, TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ) );
+		TRenderSetTexture_PSP(
+			*a_pTexture,
+			TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ),
+			a_rMaterial.eAddressU,
+			a_rMaterial.eAddressV
+		);
 		sceGuTexScale( TFLOAT( a_pTexture->GetWidth() ), TFLOAT( a_pTexture->GetHeight() ) );
 	}
 	else
@@ -446,7 +466,12 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 
 	if ( a_rMaterial.bTextureEnabled )
 	{
-		TRenderSetTexture_PSP( *a_pTexture, TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ) );
+		TRenderSetTexture_PSP(
+			*a_pTexture,
+			TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ),
+			a_rMaterial.eAddressU,
+			a_rMaterial.eAddressV
+		);
 		sceGuTexScale( TFLOAT( a_pTexture->GetWidth() ), TFLOAT( a_pTexture->GetHeight() ) );
 	}
 	else
@@ -493,7 +518,12 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 void TRenderInterface_PSP::DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight )
 {
 	TASSERT( a_rTexture.GetImageData() != TNULL );
-	TRenderSetTexture_PSP( a_rTexture, GU_TFX_REPLACE );
+	TRenderSetTexture_PSP(
+		a_rTexture,
+		GU_TFX_REPLACE,
+		TRENDERTEXTUREADDRESS_PSP_CLAMP,
+		TRENDERTEXTUREADDRESS_PSP_CLAMP
+	);
 
 	auto* pVertices = static_cast<TRenderTextureVertex_PSP*>( sceGuGetMemory( 2 * sizeof( TRenderTextureVertex_PSP ) ) );
 	pVertices[ 0 ]  = { 0.0f, 0.0f, a_fX, a_fY, 0.0f };
@@ -528,7 +558,12 @@ void TRenderInterface_PSP::DrawTextureRegion(
 		return;
 	}
 
-	TRenderSetTexture_PSP( a_rTexture, GU_TFX_MODULATE );
+	TRenderSetTexture_PSP(
+		a_rTexture,
+		GU_TFX_MODULATE,
+		TRENDERTEXTUREADDRESS_PSP_CLAMP,
+		TRENDERTEXTUREADDRESS_PSP_CLAMP
+	);
 	sceGuEnable( GU_BLEND );
 	sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0 );
 
@@ -559,7 +594,12 @@ void TRenderInterface_PSP::DrawTextureQuad( const T2Texture& a_rTexture, const T
 	if ( a_rTexture.GetImageData() == TNULL || !TRenderHasQuadArea_PSP( a_rQuad ) )
 		return;
 
-	TRenderSetTexture_PSP( a_rTexture, GU_TFX_MODULATE );
+	TRenderSetTexture_PSP(
+		a_rTexture,
+		GU_TFX_MODULATE,
+		TRENDERTEXTUREADDRESS_PSP_CLAMP,
+		TRENDERTEXTUREADDRESS_PSP_CLAMP
+	);
 	sceGuDisable( GU_DEPTH_TEST );
 	sceGuDisable( GU_CULL_FACE );
 	sceGuEnable( GU_BLEND );
