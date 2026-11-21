@@ -3,6 +3,8 @@ param(
     [string] $PythonPath = '',
     [string] $OutputDirectory = '',
     [string] $RuntimeDirectory = '',
+    [string] $SourceModelName = 'Barn_L0Mod1',
+    [string] $Prefix = 'frontend_detail',
     [int] $TextureMaxWidth = 128,
     [switch] $KeepIntermediate
 )
@@ -16,7 +18,13 @@ if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $assetRoot 'Workspace\FrontendTerrainPack'
 }
 
-$terrainPath = Join-Path $installRoot 'Data\Terrain\frontend\Barn_L0Mod1.trb'
+if (-not $SourceModelName -or $SourceModelName -notmatch '^[A-Za-z0-9_]+$') {
+    throw 'SourceModelName must contain only letters, numbers and underscores'
+}
+if (-not $Prefix -or $Prefix -notmatch '^[A-Za-z0-9_]+$') {
+    throw 'Prefix must contain only letters, numbers and underscores'
+}
+$terrainPath = Join-Path $installRoot "Data\Terrain\frontend\$SourceModelName.trb"
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
 $textureLibraries = @(
     (Join-Path $installRoot 'Data\Terrain\frontend\Barn_L0Mat.ttl'),
@@ -69,17 +77,17 @@ if ($TextureMaxWidth -notin @(32, 64, 128, 256, 512)) {
 }
 
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
-$terrainDumpPath = Join-Path $outputPath 'Barn_L0Mod1.json'
+$terrainDumpPath = Join-Path $outputPath "$SourceModelName.json"
 $propertiesDumpPath = Join-Path $outputPath 'material_properties.json'
-$manifestPath = Join-Path $outputPath 'frontend_detail.json'
-$configPath = Join-Path $outputPath 'frontend_detail.pcfg'
+$manifestPath = Join-Path $outputPath "$Prefix.json"
+$configPath = Join-Path $outputPath "$Prefix.pcfg"
 New-Item -ItemType Directory -Force -Path $outputPath,(Join-Path (Split-Path -Parent $TMDLPath) 'Logs') | Out-Null
 
 Push-Location (Split-Path -Parent $TMDLPath)
 try {
     & $TMDLPath -psp-terrain-cell $terrainPath -world 0 -cell 0 -o $terrainDumpPath
     if ($LASTEXITCODE -ne 0) {
-        throw "Original Barn_L0Mod1 export failed with exit code $LASTEXITCODE"
+        throw "Original $SourceModelName export failed with exit code $LASTEXITCODE"
     }
     & $TMDLPath -psp-material-properties $materialPropertiesPath -o $propertiesDumpPath
     if ($LASTEXITCODE -ne 0) {
@@ -91,7 +99,7 @@ finally {
 }
 
 & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_frontend_terrain_pack.py') `
-    $terrainDumpPath $outputPath --prefix frontend_detail
+    $terrainDumpPath $outputPath --prefix $Prefix
 if ($LASTEXITCODE -ne 0) {
     throw "Original front-end detail conversion failed with exit code $LASTEXITCODE"
 }
@@ -101,7 +109,7 @@ $alphaModes = @()
 $intermediatePaths = @()
 for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureIndex++) {
     $texture = $manifest.textures[$textureIndex]
-    $ddsPath = Join-Path $outputPath "frontend_detail_texture_$textureIndex.dds"
+    $ddsPath = Join-Path $outputPath "${Prefix}_texture_$textureIndex.dds"
     $ptexPath = Join-Path $outputPath $texture.texture
     $intermediatePaths += $ddsPath
     $textureFound = $false
@@ -140,11 +148,11 @@ if ($LASTEXITCODE -ne 0) {
 if ($RuntimeDirectory) {
     $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
     New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
-    Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_detail*' -File -ErrorAction SilentlyContinue |
+    Get-ChildItem -LiteralPath $runtimePath -Filter "$Prefix*" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force
-    Get-ChildItem -LiteralPath $outputPath -Filter 'frontend_detail*.pmes' -File |
+    Get-ChildItem -LiteralPath $outputPath -Filter "$Prefix*.pmes" -File |
         Copy-Item -Destination $runtimePath -Force
-    Get-ChildItem -LiteralPath $outputPath -Filter 'frontend_detail*.ptex' -File |
+    Get-ChildItem -LiteralPath $outputPath -Filter "$Prefix*.ptex" -File |
         Copy-Item -Destination $runtimePath -Force
     Copy-Item -LiteralPath $configPath -Destination $runtimePath -Force
     Write-Output "Published original front-end detail pack to $runtimePath"
@@ -159,6 +167,7 @@ if (-not $KeepIntermediate) {
 $geometryBytes = ($manifest.models | Measure-Object bytes -Sum).Sum
 [pscustomobject]@{
     SourceMeshes = $manifest.source_meshes
+    Prefix = $Prefix
     Models = $manifest.models.Count
     Textures = $manifest.textures.Count
     GeometryBytes = $geometryBytes
