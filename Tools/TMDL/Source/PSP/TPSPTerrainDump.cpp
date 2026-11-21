@@ -170,9 +170,25 @@ TBOOL ExportPSPTerrainCellDump(
 	if ( !oTRB.ReadFromFile( a_pInputPath ) )
 		return TFALSE;
 	Cell* pCell = FindCell_PSPTerrain( oTRB, a_iWorld, a_iCell );
-	if ( pCell == TNULL || pCell->uiNumMeshes == 0 || pCell->uiNumMeshes > 4 || pCell->ppCellMeshSpheres == TNULL )
+	if ( pCell == TNULL || pCell->uiNumMeshes == 0 || pCell->uiNumMeshes > 128 || pCell->ppCellMeshSpheres == TNULL )
 	{
-		TERROR( "PSP terrain cell requires between 1 and 4 meshes\n" );
+		TERROR( "PSP terrain cell requires between 1 and 128 meshes\n" );
+		return TFALSE;
+	}
+	TUINT64 uiTotalVertices = 0;
+	TUINT64 uiTotalIndices = 0;
+	for ( TUINT32 i = 0; i < pCell->uiNumMeshes; i++ )
+	{
+		CellMeshSphere* pMeshSphere = pCell->ppCellMeshSpheres[ i ];
+		CellMesh* pMesh = pMeshSphere != TNULL ? pMeshSphere->m_pCellMesh : TNULL;
+		if ( pMesh == TNULL )
+			return TFALSE;
+		uiTotalVertices += pMesh->uiNumVertices1;
+		uiTotalIndices += pMesh->uiNumIndices;
+	}
+	if ( uiTotalVertices > 0xffff || uiTotalIndices > 0x20000 )
+	{
+		TERROR( "PSP terrain cell exceeds the bounded full-cell export budget\n" );
 		return TFALSE;
 	}
 	auto oMaterials = oTRB.GetSymbols()->Find<TTMDBase::MaterialsHeader>( oTRB.GetSections(), "Materials" );
