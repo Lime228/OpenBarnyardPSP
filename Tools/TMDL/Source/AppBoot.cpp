@@ -6,6 +6,7 @@
 #include "PSP/TPSPTextureDump.h"
 #include "PSP/TPSPGUISectionDump.h"
 #include "PSP/TPSPLocatorDump.h"
+#include "PSP/TPSPMaterialPropertiesDump.h"
 #include "PSP/TPSPSymbolDump.h"
 #include "PSP/TPSPTerrainDump.h"
 
@@ -95,6 +96,7 @@ int main( int argc, char** argv )
 	auto          strPSPGUISection = commandLine.GetParameterValue( "-psp-gui-section" );
 	auto          strSectionName   = commandLine.GetParameterValue( "-section" );
 	auto          strPSPLocator    = commandLine.GetParameterValue( "-psp-locator" );
+	auto          strPSPMaterialProperties = commandLine.GetParameterValue( "-psp-material-properties" );
 	auto          strLocatorName   = commandLine.GetParameterValue( "-locator" );
 	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
 	auto          strPSPTerrain    = commandLine.GetParameterValue( "-psp-terrain" );
@@ -178,6 +180,24 @@ int main( int argc, char** argv )
 		     ) )
 		{
 			TERROR( "Unable to export PSP locator\n" );
+			return 1;
+		}
+		return 0;
+	}
+
+	if ( strPSPMaterialProperties )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-material-properties requires -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPMaterialPropertiesDump(
+		         strPSPMaterialProperties.GetString(),
+		         strOutPath.GetString()
+		     ) )
+		{
+			TERROR( "Unable to export PSP material properties\n" );
 			return 1;
 		}
 		return 0;
