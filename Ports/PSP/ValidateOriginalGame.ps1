@@ -117,6 +117,7 @@ try {
         $actualPhase = if ($report.ContainsKey('phase')) { $report.phase } else { '<missing>' }
         throw "Runtime report did not reach the original front-end menu: $actualPhase"
     }
+    Assert-ReportValue $report 'version' '14'
     foreach ($name in @(
         'engine',
         'application',
@@ -140,8 +141,10 @@ try {
     Assert-ReportValue $report 'frontend_grass_textures' '1'
     Assert-ReportValue $report 'frontend_glow_models' '3'
     Assert-ReportValue $report 'frontend_glow_textures' '1'
+    Assert-ReportValue $report 'frontend_glow_draws' '0'
+    Assert-ReportValue $report 'frontend_hour' '6.000000'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
-    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_glow_draws', 'frontend_barnsign_draws')) {
+    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnsign_draws')) {
         Assert-ReportPositive $report $name
     }
     if (-not $SkipMenuInput) {

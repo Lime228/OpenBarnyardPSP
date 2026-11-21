@@ -259,13 +259,25 @@ for ($modelIndex = 0; $modelIndex -lt 3; $modelIndex++) {
 $frontendGlowConfigPath = Join-Path $frontendTerrainGlowPath 'frontend_glow.pcfg'
 if (Test-Path -LiteralPath $frontendGlowConfigPath -PathType Leaf) {
     $frontendGlowConfig = [System.IO.File]::ReadAllBytes($frontendGlowConfigPath)
-    if ($frontendGlowConfig.Length -ne 84) {
+    if ($frontendGlowConfig.Length -ne 96 -or
+        [System.BitConverter]::ToUInt32($frontendGlowConfig, 0) -ne 0x50444650 -or
+        [System.BitConverter]::ToUInt32($frontendGlowConfig, 4) -ne 2 -or
+        [System.BitConverter]::ToUInt32($frontendGlowConfig, 8) -ne 3 -or
+        [System.BitConverter]::ToUInt32($frontendGlowConfig, 12) -ne 1 -or
+        [System.BitConverter]::ToUInt32($frontendGlowConfig, 16) -ne 24 -or
+        [System.BitConverter]::ToUInt32($frontendGlowConfig, 20) -ne 0) {
         throw "Converted retail front-end glow config has an invalid size: $frontendGlowConfigPath"
     }
+    $expectedLightProfiles = @(1, 2, 2)
     for ($modelIndex = 0; $modelIndex -lt 3; $modelIndex++) {
-        $alphaMode = [System.BitConverter]::ToUInt32($frontendGlowConfig, 32 + $modelIndex * 20)
+        $entryOffset = 24 + $modelIndex * 24
+        $alphaMode = [System.BitConverter]::ToUInt32($frontendGlowConfig, $entryOffset + 8)
         if ($alphaMode -ne 3) {
             throw "Converted retail front-end glow model $modelIndex is not additive"
+        }
+        $lightProfile = [System.BitConverter]::ToUInt32($frontendGlowConfig, $entryOffset + 20)
+        if ($lightProfile -ne $expectedLightProfiles[$modelIndex]) {
+            throw "Converted retail front-end glow model $modelIndex has an invalid original light profile"
         }
     }
 }
