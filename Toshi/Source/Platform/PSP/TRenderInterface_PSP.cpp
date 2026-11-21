@@ -118,7 +118,7 @@ static void TRenderSetAlphaMode_PSP( TRenderAlphaMode_PSP a_eAlphaMode )
 			sceGuAlphaFunc( GU_GREATER, 0, 0xff );
 			sceGuEnable( GU_ALPHA_TEST );
 			sceGuEnable( GU_BLEND );
-			sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_ONE, 0, 0 );
+			sceGuBlendFunc( GU_ADD, GU_SRC_ALPHA, GU_FIX, 0, 0x00ffffff );
 			sceGuDepthMask( GU_TRUE );
 			break;
 		default:
