@@ -7,6 +7,7 @@ param(
     [string] $FrontendTerrainManifestPath = '',
     [string] $FrontendTerrainPackDirectory = '',
     [string] $FrontendTerrainGrassDirectory = '',
+    [string] $FrontendTerrainGlowDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -39,6 +40,9 @@ if (-not $FrontendTerrainPackDirectory) {
 if (-not $FrontendTerrainGrassDirectory) {
     $FrontendTerrainGrassDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainGrass'
 }
+if (-not $FrontendTerrainGlowDirectory) {
+    $FrontendTerrainGlowDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainGlow'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -56,6 +60,7 @@ $frontendTerrainPath = [System.IO.Path]::GetFullPath($FrontendTerrainDirectory)
 $frontendTerrainManifestPath = [System.IO.Path]::GetFullPath($FrontendTerrainManifestPath)
 $frontendTerrainPackPath = [System.IO.Path]::GetFullPath($FrontendTerrainPackDirectory)
 $frontendTerrainGrassPath = [System.IO.Path]::GetFullPath($FrontendTerrainGrassDirectory)
+$frontendTerrainGlowPath = [System.IO.Path]::GetFullPath($FrontendTerrainGlowDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -112,6 +117,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $terrainGrassConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $terrainGrassConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendGrass.ps1') @terrainGrassConversionArguments
+
+    $terrainGlowConversionArguments = @{ OutputDirectory = $frontendTerrainGlowPath }
+    if ($TMDLPath) { $terrainGlowConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainGlowConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendGlow.ps1') @terrainGlowConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -224,6 +234,45 @@ foreach ($fileName in @('frontend_grass.pcfg', 'frontend_grass_model_0.pmes', 'f
     $sourcePath = Join-Path $frontendTerrainGrassPath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail front-end grass asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendGlowManifest = Join-Path $frontendTerrainGlowPath 'frontend_glow.json'
+if (-not (Test-Path -LiteralPath $frontendGlowManifest -PathType Leaf)) {
+    throw "Converted retail front-end glow manifest was not found: $frontendGlowManifest"
+}
+$frontendGlow = Get-Content -LiteralPath $frontendGlowManifest -Raw | ConvertFrom-Json
+if ($frontendGlow.version -ne 1 -or $frontendGlow.source_meshes -ne 3 -or
+    $frontendGlow.models.Count -ne 3 -or $frontendGlow.textures.Count -ne 1 -or
+    $frontendGlow.textures[0].texture -ne 'frontend_glow_texture_0.ptex') {
+    throw "Converted retail front-end glow manifest is invalid: $frontendGlowManifest"
+}
+$frontendGlowFiles = @('frontend_glow.pcfg', 'frontend_glow_texture_0.ptex')
+for ($modelIndex = 0; $modelIndex -lt 3; $modelIndex++) {
+    $expectedModel = "frontend_glow_model_$modelIndex.pmes"
+    if ($frontendGlow.models[$modelIndex].mesh -ne $expectedModel) {
+        throw "Converted retail front-end glow manifest has an invalid model $modelIndex binding"
+    }
+    $frontendGlowFiles += $expectedModel
+}
+$frontendGlowConfigPath = Join-Path $frontendTerrainGlowPath 'frontend_glow.pcfg'
+if (Test-Path -LiteralPath $frontendGlowConfigPath -PathType Leaf) {
+    $frontendGlowConfig = [System.IO.File]::ReadAllBytes($frontendGlowConfigPath)
+    if ($frontendGlowConfig.Length -ne 84) {
+        throw "Converted retail front-end glow config has an invalid size: $frontendGlowConfigPath"
+    }
+    for ($modelIndex = 0; $modelIndex -lt 3; $modelIndex++) {
+        $alphaMode = [System.BitConverter]::ToUInt32($frontendGlowConfig, 32 + $modelIndex * 20)
+        if ($alphaMode -ne 3) {
+            throw "Converted retail front-end glow model $modelIndex is not additive"
+        }
+    }
+}
+foreach ($fileName in $frontendGlowFiles) {
+    $sourcePath = Join-Path $frontendTerrainGlowPath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail front-end glow asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
