@@ -10,6 +10,7 @@ param(
     [string] $FrontendTerrainGlowDirectory = '',
     [string] $FrontendTerrainBarnnorthDirectory = '',
     [string] $FrontendTerrainBGbarneastDirectory = '',
+    [string] $FrontendTerrainBGbarnwestDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -51,6 +52,9 @@ if (-not $FrontendTerrainBarnnorthDirectory) {
 if (-not $FrontendTerrainBGbarneastDirectory) {
     $FrontendTerrainBGbarneastDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainBGbarneast'
 }
+if (-not $FrontendTerrainBGbarnwestDirectory) {
+    $FrontendTerrainBGbarnwestDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainBGbarnwest'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -71,6 +75,7 @@ $frontendTerrainGrassPath = [System.IO.Path]::GetFullPath($FrontendTerrainGrassD
 $frontendTerrainGlowPath = [System.IO.Path]::GetFullPath($FrontendTerrainGlowDirectory)
 $frontendTerrainBarnnorthPath = [System.IO.Path]::GetFullPath($FrontendTerrainBarnnorthDirectory)
 $frontendTerrainBGbarneastPath = [System.IO.Path]::GetFullPath($FrontendTerrainBGbarneastDirectory)
+$frontendTerrainBGbarnwestPath = [System.IO.Path]::GetFullPath($FrontendTerrainBGbarnwestDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -142,6 +147,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $terrainBGbarneastConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $terrainBGbarneastConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendBGbarneast.ps1') @terrainBGbarneastConversionArguments
+
+    $terrainBGbarnwestConversionArguments = @{ OutputDirectory = $frontendTerrainBGbarnwestPath }
+    if ($TMDLPath) { $terrainBGbarnwestConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainBGbarnwestConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendBGbarnwest.ps1') @terrainBGbarnwestConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -417,6 +427,52 @@ foreach ($fileName in $frontendBGbarneastFiles) {
     $sourcePath = Join-Path $frontendTerrainBGbarneastPath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail BGbarneast asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendBGbarnwestManifestPath = Join-Path $frontendTerrainBGbarnwestPath 'frontend_bgbarnwest.json'
+if (-not (Test-Path -LiteralPath $frontendBGbarnwestManifestPath -PathType Leaf)) {
+    throw "Converted retail BGbarnwest manifest was not found: $frontendBGbarnwestManifestPath"
+}
+$frontendBGbarnwest = Get-Content -LiteralPath $frontendBGbarnwestManifestPath -Raw | ConvertFrom-Json
+if ($frontendBGbarnwest.version -ne 1 -or $frontendBGbarnwest.source_meshes -ne 34 -or
+    $frontendBGbarnwest.models.Count -ne 5 -or $frontendBGbarnwest.textures.Count -ne 5) {
+    throw "Converted retail BGbarnwest manifest is invalid: $frontendBGbarnwestManifestPath"
+}
+$frontendBGbarnwestFiles = @('frontend_bgbarnwest.pcfg')
+for ($modelIndex = 0; $modelIndex -lt 5; $modelIndex++) {
+    $expectedModel = "frontend_bgbarnwest_model_$modelIndex.pmes"
+    if ($frontendBGbarnwest.models[$modelIndex].mesh -ne $expectedModel) {
+        throw "Converted retail BGbarnwest manifest has an invalid model $modelIndex binding"
+    }
+    $frontendBGbarnwestFiles += $expectedModel
+}
+for ($textureIndex = 0; $textureIndex -lt 5; $textureIndex++) {
+    $expectedTexture = "frontend_bgbarnwest_texture_$textureIndex.ptex"
+    if ($frontendBGbarnwest.textures[$textureIndex].texture -ne $expectedTexture) {
+        throw "Converted retail BGbarnwest manifest has an invalid texture $textureIndex binding"
+    }
+    $frontendBGbarnwestFiles += $expectedTexture
+}
+$frontendBGbarnwestConfigPath = Join-Path $frontendTerrainBGbarnwestPath 'frontend_bgbarnwest.pcfg'
+$frontendBGbarnwestConfig = [System.IO.File]::ReadAllBytes($frontendBGbarnwestConfigPath)
+if ($frontendBGbarnwestConfig.Length -ne 124 -or
+    [System.BitConverter]::ToUInt32($frontendBGbarnwestConfig, 0) -ne 0x50444650 -or
+    [System.BitConverter]::ToUInt32($frontendBGbarnwestConfig, 4) -ne 1 -or
+    [System.BitConverter]::ToUInt32($frontendBGbarnwestConfig, 8) -ne 5 -or
+    [System.BitConverter]::ToUInt32($frontendBGbarnwestConfig, 12) -ne 5 -or
+    [System.BitConverter]::ToUInt32($frontendBGbarnwestConfig, 16) -ne 20 -or
+    [System.BitConverter]::ToUInt32($frontendBGbarnwestConfig, 20) -ne 0) {
+    throw "Converted retail BGbarnwest config is invalid: $frontendBGbarnwestConfigPath"
+}
+Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_bgbarnwest_*' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+Remove-Item -LiteralPath (Join-Path $runtimePath 'frontend_bgbarnwest.pcfg') -Force -ErrorAction SilentlyContinue
+foreach ($fileName in $frontendBGbarnwestFiles) {
+    $sourcePath = Join-Path $frontendTerrainBGbarnwestPath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail BGbarnwest asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
