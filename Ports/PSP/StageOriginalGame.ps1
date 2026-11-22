@@ -11,6 +11,7 @@ param(
     [string] $FrontendTerrainBarnnorthDirectory = '',
     [string] $FrontendTerrainBGbarneastDirectory = '',
     [string] $FrontendTerrainBGbarnwestDirectory = '',
+    [string] $FrontendTerrainHillbaseDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -55,6 +56,9 @@ if (-not $FrontendTerrainBGbarneastDirectory) {
 if (-not $FrontendTerrainBGbarnwestDirectory) {
     $FrontendTerrainBGbarnwestDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainBGbarnwest'
 }
+if (-not $FrontendTerrainHillbaseDirectory) {
+    $FrontendTerrainHillbaseDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainHillbase'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -76,6 +80,7 @@ $frontendTerrainGlowPath = [System.IO.Path]::GetFullPath($FrontendTerrainGlowDir
 $frontendTerrainBarnnorthPath = [System.IO.Path]::GetFullPath($FrontendTerrainBarnnorthDirectory)
 $frontendTerrainBGbarneastPath = [System.IO.Path]::GetFullPath($FrontendTerrainBGbarneastDirectory)
 $frontendTerrainBGbarnwestPath = [System.IO.Path]::GetFullPath($FrontendTerrainBGbarnwestDirectory)
+$frontendTerrainHillbasePath = [System.IO.Path]::GetFullPath($FrontendTerrainHillbaseDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -152,6 +157,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $terrainBGbarnwestConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $terrainBGbarnwestConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendBGbarnwest.ps1') @terrainBGbarnwestConversionArguments
+
+    $terrainHillbaseConversionArguments = @{ OutputDirectory = $frontendTerrainHillbasePath }
+    if ($TMDLPath) { $terrainHillbaseConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainHillbaseConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendHillbase.ps1') @terrainHillbaseConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -473,6 +483,52 @@ foreach ($fileName in $frontendBGbarnwestFiles) {
     $sourcePath = Join-Path $frontendTerrainBGbarnwestPath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail BGbarnwest asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendHillbaseManifestPath = Join-Path $frontendTerrainHillbasePath 'frontend_hillbase.json'
+if (-not (Test-Path -LiteralPath $frontendHillbaseManifestPath -PathType Leaf)) {
+    throw "Converted retail Hillbase manifest was not found: $frontendHillbaseManifestPath"
+}
+$frontendHillbase = Get-Content -LiteralPath $frontendHillbaseManifestPath -Raw | ConvertFrom-Json
+if ($frontendHillbase.version -ne 1 -or $frontendHillbase.source_meshes -ne 41 -or
+    $frontendHillbase.models.Count -ne 7 -or $frontendHillbase.textures.Count -ne 7) {
+    throw "Converted retail Hillbase manifest is invalid: $frontendHillbaseManifestPath"
+}
+$frontendHillbaseFiles = @('frontend_hillbase.pcfg')
+for ($modelIndex = 0; $modelIndex -lt 7; $modelIndex++) {
+    $expectedModel = "frontend_hillbase_model_$modelIndex.pmes"
+    if ($frontendHillbase.models[$modelIndex].mesh -ne $expectedModel) {
+        throw "Converted retail Hillbase manifest has an invalid model $modelIndex binding"
+    }
+    $frontendHillbaseFiles += $expectedModel
+}
+for ($textureIndex = 0; $textureIndex -lt 7; $textureIndex++) {
+    $expectedTexture = "frontend_hillbase_texture_$textureIndex.ptex"
+    if ($frontendHillbase.textures[$textureIndex].texture -ne $expectedTexture) {
+        throw "Converted retail Hillbase manifest has an invalid texture $textureIndex binding"
+    }
+    $frontendHillbaseFiles += $expectedTexture
+}
+$frontendHillbaseConfigPath = Join-Path $frontendTerrainHillbasePath 'frontend_hillbase.pcfg'
+$frontendHillbaseConfig = [System.IO.File]::ReadAllBytes($frontendHillbaseConfigPath)
+if ($frontendHillbaseConfig.Length -ne 164 -or
+    [System.BitConverter]::ToUInt32($frontendHillbaseConfig, 0) -ne 0x50444650 -or
+    [System.BitConverter]::ToUInt32($frontendHillbaseConfig, 4) -ne 1 -or
+    [System.BitConverter]::ToUInt32($frontendHillbaseConfig, 8) -ne 7 -or
+    [System.BitConverter]::ToUInt32($frontendHillbaseConfig, 12) -ne 7 -or
+    [System.BitConverter]::ToUInt32($frontendHillbaseConfig, 16) -ne 20 -or
+    [System.BitConverter]::ToUInt32($frontendHillbaseConfig, 20) -ne 0) {
+    throw "Converted retail Hillbase config is invalid: $frontendHillbaseConfigPath"
+}
+Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_hillbase_*' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+Remove-Item -LiteralPath (Join-Path $runtimePath 'frontend_hillbase.pcfg') -Force -ErrorAction SilentlyContinue
+foreach ($fileName in $frontendHillbaseFiles) {
+    $sourcePath = Join-Path $frontendTerrainHillbasePath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail Hillbase asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
