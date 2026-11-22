@@ -232,9 +232,11 @@ packs, preserve their exact geometry groups and deduplicate only textures with
 the same case-insensitive source name and identical bytes. The first integrated
 set contains all 52 `fncw01`, 53 `fncw02` and 21 `fncw03` placements plus all
 31 `fncp01`, 33 `fncp02` and 7 `fncp03` placements, followed by all 40 resident
-border/pigpen/end-fence placements: 237/640 initial-row instances in thirteen
-draw groups. The first two families share their one original texture; the
-border set retains three exact material/texture bindings. Generated inventory and packs remain under the
+border/pigpen/end-fence placements and 176 flower/leafy-plant placements:
+413/640 initial-row instances in 22 draw groups. The first two families share
+their one original texture; the border set retains three exact bindings; the
+flower set retains eight source models, nine groups and four original MASK
+textures. Generated inventory and packs remain under the
 ignored `Game/BarnyardPC/Workspace/FrontendInstances` directory.
 
 ## Bounded world layout
