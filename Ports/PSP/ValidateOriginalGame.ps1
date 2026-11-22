@@ -51,7 +51,8 @@ foreach ($pack in @(
     @{ Prefix = 'frontend_barnnorth_base'; Models = 44; Textures = 44 },
     @{ Prefix = 'frontend_barnnorth_detail'; Models = 8; Textures = 8 },
     @{ Prefix = 'frontend_barnnorth_grass'; Models = 1; Textures = 1 },
-    @{ Prefix = 'frontend_barnnorth_glow'; Models = 2; Textures = 1 }
+    @{ Prefix = 'frontend_barnnorth_glow'; Models = 2; Textures = 1 },
+    @{ Prefix = 'frontend_bgbarneast'; Models = 7; Textures = 7 }
 )) {
     $requiredFiles += Join-Path $runtimePath "$($pack.Prefix).pcfg"
     for ($modelIndex = 0; $modelIndex -lt $pack.Models; $modelIndex++) {
@@ -132,7 +133,7 @@ try {
         $actualPhase = if ($report.ContainsKey('phase')) { $report.phase } else { '<missing>' }
         throw "Runtime report did not reach the original front-end menu: $actualPhase"
     }
-    Assert-ReportValue $report 'version' '15'
+    Assert-ReportValue $report 'version' '16'
     foreach ($name in @(
         'engine',
         'application',
@@ -145,6 +146,7 @@ try {
         'frontend_grass_loaded',
         'frontend_glow_loaded',
         'frontend_barnnorth_loaded',
+        'frontend_bgbarneast_loaded',
         'frontend_camera_loaded',
         'frontend_barnsign_loaded'
     )) {
@@ -160,9 +162,11 @@ try {
     Assert-ReportValue $report 'frontend_glow_draws' '0'
     Assert-ReportValue $report 'frontend_barnnorth_models' '55'
     Assert-ReportValue $report 'frontend_barnnorth_textures' '54'
+    Assert-ReportValue $report 'frontend_bgbarneast_models' '7'
+    Assert-ReportValue $report 'frontend_bgbarneast_textures' '7'
     Assert-ReportValue $report 'frontend_hour' '6.000000'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
-    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnnorth_draws', 'frontend_barnsign_draws')) {
+    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnnorth_draws', 'frontend_bgbarneast_draws', 'frontend_barnsign_draws')) {
         Assert-ReportPositive $report $name
     }
     if (-not $SkipMenuInput) {
@@ -189,6 +193,7 @@ try {
         GrassDraws = [int] $report.frontend_grass_draws
         GlowDraws = [int] $report.frontend_glow_draws
         BarnnorthDraws = [int] $report.frontend_barnnorth_draws
+        BGbarneastDraws = [int] $report.frontend_bgbarneast_draws
         BarnSignDraws = [int] $report.frontend_barnsign_draws
         HeapFree = [int] $report.heap_free
         Screenshot = $screenshotPath
