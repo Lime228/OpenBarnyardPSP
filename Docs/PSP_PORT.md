@@ -8,13 +8,15 @@ AApplication/ARootTask chain and reaches the retail legal/logo presentation and
 the original localized six-entry AFrontEndMainMenuState2 interface in PPSSPP.
 It uses retail fonts.trb, texsec.trb, locale/control resources and offline
 converted PSP textures. The original frontend camera loop, every mesh from the
-shipping `Barn_L0Mod0` through `Barn_L0Mod3` layers and the original barn-sign
-object render behind that menu. Exact material/texture matches are batched for
-PSP, but no original geometry or world placement is removed.
+shipping `Barn_L0Mod0` through `Barn_L0Mod3` and `Barnnorth_L0Mod0` through
+`Barnnorth_L0Mod3` layers, and the original barn-sign object render behind that
+menu. Exact material/texture matches are batched for PSP, but no original
+geometry or world placement is removed.
 
 This is not a complete playable port. The current PSP menu implementation keeps
 the original class, button construction, locale IDs and retail presentation.
-Its 3D environment is still only the complete first Barn section: remaining
+Its 3D environment currently contains the complete high-detail Barn and
+Barnnorth sections selected by the retail initial VIS row; five low-detail
 terrain sections, windmill/helper instances and environment layers are not
 loaded. The initial 06:00 night-light state matches the original schedule, but
 full time progression is not connected. Collision, movies, saves, rooms, player control, downstream menu states
@@ -25,16 +27,16 @@ only as a platform regression harness.
 
 PSP toolchain/packaging is approximately **90%** complete, the original startup
 plus main-menu milestone is approximately **99%** complete, and the
-complete playable-game port is approximately **31%** complete.
+complete playable-game port is approximately **32%** complete.
 
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain and packaging | 90% | Premake, branded PBP, deterministic converters, PSPDEV CI, host tools and separate bootstrap/original-game artifacts work; hardware release validation remains |
 | Portable Toshi/platform core | 75% | allocator, shared 20 MiB game/resource heap, files, TRB, timer, sync, threads, scheduler, input and GUI paths execute in the original-game target |
 | PSP renderer foundation | 55% | GU display, rotated GUI quads, bounded static resources, original camera and original 800x600 GUI mapping work; general material/model/scene closure remains |
-| Real-game asset pipeline | 50% | retail frontend GUI, complete `Barn_L0Mod0`-`Mod3`, exact light profiles, camera and barn sign stage repeatably; remaining frontend sections/instances, rooms, movies and streaming manifests remain |
+| Real-game asset pipeline | 54% | retail frontend GUI, complete Barn and Barnnorth high LODs, exact light profiles, camera and barn sign stage repeatably; remaining frontend sections/instances, rooms, movies and streaming manifests remain |
 | Input integration | 75% | PSP buttons pass through sceCtrl, Toshi events, the retail input map and the original menu; gameplay mappings and real hardware remain |
-| Game bootstrap and frontend | 67% | original application/root task, authentic menu/input and the complete first Barn section run; complete environment, downstream states and new-game flow remain |
+| Game bootstrap and frontend | 70% | original application/root task, authentic menu/input and two complete VIS-selected high-detail sections run; complete environment, downstream states and new-game flow remain |
 | Audio, movies and saves | 20% | bounded diagnostic PSP audio works; retail music/SFX ownership, Bink replacement and save devices are not integrated |
 | World, animation and gameplay | 8% | retail probes render in the harness, but the original world, actors, player, quests, physics and rooms are not running |
 
@@ -1205,6 +1207,12 @@ remain largely unstarted.
   PSP run `44958757644` is green, and one-process validation captures the
   upright original menu/world in `EBOO00649_00031.jpg` without the erroneous
   night-only light cone.
+- Commits `bd2dcae3`, `4a29815e` and `71d9d4d4` add all 141 source meshes from
+  `Barnnorth_L0Mod0`-`Mod3` as 55 exact material/texture groups with 54 textures.
+  CI run `44994616662` is green. Report v15 records 44,520 Barnnorth draws over
+  840 frames, leaves 11,565,220 heap bytes free and uses 6,564,436 of the
+  16,777,216-byte render budget. `EBOO00649_00032.jpg` confirms the original
+  upright farmhouse landscape and the 06:00 schedule suppresses its glow draws.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1212,9 +1220,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Continue the original 3D frontend scene, not another synthetic screen. The
-camera loop, complete `Barn_L0Mod0`-`Mod3` section and barn sign are now running.
-Use the exported retail VIS section order and camera visibility to add the next
-exact landscape section with residency and draw telemetry. Add the
+camera loop, complete Barn and Barnnorth high-detail sections and barn sign are
+now running. The exact next initial-VIS entry is the low-detail BGbarneast
+section: merge all five `BGbarneast_L1Mod0`-`Mod4` source cells and retain all
+49 meshes, then add residency and draw telemetry. Add the
 windmill/helper instances from their original locators after the terrain set is
 visually coherent. Then connect one downstream original menu state at a time
 and preserve memory telemetry.
