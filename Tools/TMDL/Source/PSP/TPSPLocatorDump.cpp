@@ -33,6 +33,19 @@ struct TerrainLocatorHeader_PSPDump
 	const TCHAR**            ppNames;
 };
 
+struct TerrainLocatorVISSection_PSPDump
+{
+	const TCHAR* pName;
+	TUINT32      uiFirstLocator;
+	TUINT32      uiNumLocators;
+};
+
+struct TerrainLocatorVISHeader_PSPDump
+{
+	TINT32                            iNumSections;
+	TerrainLocatorVISSection_PSPDump* pSections;
+};
+
 static void WriteJSONString_PSPLocator( std::ostream& a_rOutput, const TCHAR* a_pValue )
 {
 	a_rOutput << '"';
@@ -57,25 +70,22 @@ static TBOOL IsFinite_PSPLocator( const TerrainLocator_PSPDump& a_rLocator )
 	       std::isfinite( a_rLocator.vecPosition.z );
 }
 
-TBOOL ExportPSPLocatorDump(
-    const TCHAR* a_pInputPath,
-    const TCHAR* a_pLocatorName,
-    const TCHAR* a_pOutputPath
+static TBOOL LoadPSPLocatorHeaders(
+	PTRB& a_rTRB,
+	const TCHAR* a_pInputPath,
+	TerrainLocatorHeader_PSPDump*& a_rLocatorHeader,
+	TerrainLocatorVISHeader_PSPDump*& a_rVISHeader,
+	TBOOL a_bRequireVIS
 )
 {
-	if ( a_pInputPath == TNULL || a_pLocatorName == TNULL || a_pLocatorName[ 0 ] == '\0' ||
-	     a_pOutputPath == TNULL )
-		return TFALSE;
-
-	PTRB oTRB;
-	if ( !oTRB.ReadFromFile( a_pInputPath ) )
+	if ( a_pInputPath == TNULL || !a_rTRB.ReadFromFile( a_pInputPath ) )
 	{
 		TERROR( "PSP locator dump could not read %s\n", a_pInputPath );
 		return TFALSE;
 	}
 
-	auto oHeader = oTRB.GetSymbols()->Find<TerrainLocatorHeader_PSPDump>(
-		oTRB.GetSections(),
+	auto oHeader = a_rTRB.GetSymbols()->Find<TerrainLocatorHeader_PSPDump>(
+		a_rTRB.GetSections(),
 		"Locators"
 	);
 	if ( !oHeader || oHeader.get()->iNumLocators <= 0 || oHeader.get()->iNumLocators > 65535 ||
@@ -86,18 +96,55 @@ TBOOL ExportPSPLocatorDump(
 		return TFALSE;
 	}
 
+	a_rVISHeader = TNULL;
+	if ( a_bRequireVIS )
+	{
+		auto oVISHeader = a_rTRB.GetSymbols()->Find<TerrainLocatorVISHeader_PSPDump>(
+			a_rTRB.GetSections(),
+			"LocatorVIS"
+		);
+		if ( !oVISHeader || oVISHeader.get()->iNumSections <= 0 ||
+		     oVISHeader.get()->iNumSections > 4096 || oVISHeader.get()->pSections == TNULL )
+		{
+			TERROR( "PSP locator dump rejected the locator VIS table\n" );
+			return TFALSE;
+		}
+
+		a_rVISHeader = oVISHeader.get();
+	}
+
+	a_rLocatorHeader = oHeader.get();
+	return TTRUE;
+}
+
+TBOOL ExportPSPLocatorDump(
+    const TCHAR* a_pInputPath,
+    const TCHAR* a_pLocatorName,
+    const TCHAR* a_pOutputPath
+)
+{
+	if ( a_pInputPath == TNULL || a_pLocatorName == TNULL || a_pLocatorName[ 0 ] == '\0' ||
+	     a_pOutputPath == TNULL )
+		return TFALSE;
+
+	PTRB                              oTRB;
+	TerrainLocatorHeader_PSPDump*    pHeader = TNULL;
+	TerrainLocatorVISHeader_PSPDump* pVISHeader = TNULL;
+	if ( !LoadPSPLocatorHeaders( oTRB, a_pInputPath, pHeader, pVISHeader, TFALSE ) )
+		return TFALSE;
+
 	TerrainLocator_PSPDump* pSelectedLocator = TNULL;
 	const TCHAR* pSelectedName = TNULL;
-	for ( TINT32 i = 0; i < oHeader.get()->iNumLocators; i++ )
+	for ( TINT32 i = 0; i < pHeader->iNumLocators; i++ )
 	{
-		TerrainLocator_PSPDump& rLocator = oHeader.get()->pLocators[ i ];
-		if ( rLocator.uiNameId >= oHeader.get()->uiNameCount )
+		TerrainLocator_PSPDump& rLocator = pHeader->pLocators[ i ];
+		if ( rLocator.uiNameId >= pHeader->uiNameCount )
 		{
 			TERROR( "PSP locator dump rejected locator %d name index\n", i );
 			return TFALSE;
 		}
 
-		const TCHAR* pName = oHeader.get()->ppNames[ rLocator.uiNameId ];
+		const TCHAR* pName = pHeader->ppNames[ rLocator.uiNameId ];
 		if ( pName == TNULL )
 		{
 			TERROR( "PSP locator dump rejected locator %d name\n", i );
@@ -150,5 +197,100 @@ TBOOL ExportPSPLocatorDump(
 	}
 
 	TINFO( "PSP locator dump wrote %s to %s\n", pSelectedName, a_pOutputPath );
+	return TTRUE;
+}
+
+TBOOL ExportPSPLocatorTableDump(
+	const TCHAR* a_pInputPath,
+	const TCHAR* a_pOutputPath
+)
+{
+	if ( a_pInputPath == TNULL || a_pOutputPath == TNULL )
+		return TFALSE;
+
+	PTRB                              oTRB;
+	TerrainLocatorHeader_PSPDump*    pHeader = TNULL;
+	TerrainLocatorVISHeader_PSPDump* pVISHeader = TNULL;
+	if ( !LoadPSPLocatorHeaders( oTRB, a_pInputPath, pHeader, pVISHeader, TTRUE ) )
+		return TFALSE;
+
+	for ( TINT32 i = 0; i < pHeader->iNumLocators; i++ )
+	{
+		const TerrainLocator_PSPDump& rLocator = pHeader->pLocators[ i ];
+		if ( rLocator.uiNameId >= pHeader->uiNameCount ||
+		     pHeader->ppNames[ rLocator.uiNameId ] == TNULL ||
+		     !IsFinite_PSPLocator( rLocator ) ||
+		     rLocator.quatRotation.MagnitudeSq() <= TMath::TFLOAT_EPSILON )
+		{
+			TERROR( "PSP locator table dump rejected locator %d\n", i );
+			return TFALSE;
+		}
+	}
+
+	for ( TINT32 i = 0; i < pVISHeader->iNumSections; i++ )
+	{
+		const TerrainLocatorVISSection_PSPDump& rSection = pVISHeader->pSections[ i ];
+		if ( rSection.pName == TNULL || rSection.uiFirstLocator > TUINT32( pHeader->iNumLocators ) ||
+		     rSection.uiNumLocators > TUINT32( pHeader->iNumLocators ) - rSection.uiFirstLocator )
+		{
+			TERROR( "PSP locator table dump rejected VIS section %d\n", i );
+			return TFALSE;
+		}
+	}
+
+	std::ostringstream oOutput;
+	oOutput.imbue( std::locale::classic() );
+	oOutput << std::setprecision( 9 );
+	oOutput << "{\n  \"version\": 1,\n  \"locator_count\": " << pHeader->iNumLocators
+	        << ",\n  \"locators\": [\n";
+	for ( TINT32 i = 0; i < pHeader->iNumLocators; i++ )
+	{
+		const TerrainLocator_PSPDump& rLocator = pHeader->pLocators[ i ];
+		oOutput << "    {\"index\": " << i << ", \"name\": ";
+		WriteJSONString_PSPLocator( oOutput, pHeader->ppNames[ rLocator.uiNameId ] );
+		oOutput << ", \"rotation\": ["
+		        << rLocator.quatRotation.x << ", " << rLocator.quatRotation.y << ", "
+		        << rLocator.quatRotation.z << ", " << rLocator.quatRotation.w << "], "
+		        << "\"position\": [" << rLocator.vecPosition.x << ", "
+		        << rLocator.vecPosition.y << ", " << rLocator.vecPosition.z << "], "
+		        << "\"scale\": " << rLocator.GetScale() << ", "
+		        << "\"scale_index\": " << TUINT( rLocator.uiFlags1 & 0xF ) << ", "
+		        << "\"yaw_index\": " << TUINT( rLocator.uiFlags1 >> 4 ) << ", "
+		        << "\"raw_flags1\": " << TUINT( rLocator.uiFlags1 ) << ", "
+		        << "\"flags2\": " << TINT( rLocator.iFlags2 ) << "}"
+		        << ( i + 1 == pHeader->iNumLocators ? "\n" : ",\n" );
+	}
+	oOutput << "  ],\n  \"vis_section_count\": " << pVISHeader->iNumSections
+	        << ",\n  \"vis_sections\": [\n";
+	for ( TINT32 i = 0; i < pVISHeader->iNumSections; i++ )
+	{
+		const TerrainLocatorVISSection_PSPDump& rSection = pVISHeader->pSections[ i ];
+		oOutput << "    {\"index\": " << i << ", \"name\": ";
+		WriteJSONString_PSPLocator( oOutput, rSection.pName );
+		oOutput << ", \"first_locator\": " << rSection.uiFirstLocator
+		        << ", \"locator_count\": " << rSection.uiNumLocators << "}"
+		        << ( i + 1 == pVISHeader->iNumSections ? "\n" : ",\n" );
+	}
+	oOutput << "  ]\n}\n";
+
+	std::ofstream oFile( a_pOutputPath, std::ios::out | std::ios::trunc );
+	if ( !oFile )
+	{
+		TERROR( "PSP locator table dump could not create %s\n", a_pOutputPath );
+		return TFALSE;
+	}
+	oFile << oOutput.str();
+	if ( !oFile.good() )
+	{
+		TERROR( "PSP locator table dump could not write %s\n", a_pOutputPath );
+		return TFALSE;
+	}
+
+	TINFO(
+		"PSP locator table dump wrote %d locators and %d VIS sections to %s\n",
+		pHeader->iNumLocators,
+		pVISHeader->iNumSections,
+		a_pOutputPath
+	);
 	return TTRUE;
 }

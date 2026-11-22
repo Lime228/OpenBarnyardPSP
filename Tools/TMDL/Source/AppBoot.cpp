@@ -97,6 +97,7 @@ int main( int argc, char** argv )
 	auto          strPSPGUISection = commandLine.GetParameterValue( "-psp-gui-section" );
 	auto          strSectionName   = commandLine.GetParameterValue( "-section" );
 	auto          strPSPLocator    = commandLine.GetParameterValue( "-psp-locator" );
+	auto          strPSPLocators   = commandLine.GetParameterValue( "-psp-locators" );
 	auto          strPSPMaterialProperties = commandLine.GetParameterValue( "-psp-material-properties" );
 	auto          strLocatorName   = commandLine.GetParameterValue( "-locator" );
 	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
@@ -197,6 +198,24 @@ int main( int argc, char** argv )
 		     ) )
 		{
 			TERROR( "Unable to export PSP locator\n" );
+			return 1;
+		}
+		return 0;
+	}
+
+	if ( strPSPLocators )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-locators requires -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPLocatorTableDump(
+		         strPSPLocators.GetString(),
+		         strOutPath.GetString()
+		     ) )
+		{
+			TERROR( "Unable to export PSP locator table\n" );
 			return 1;
 		}
 		return 0;
