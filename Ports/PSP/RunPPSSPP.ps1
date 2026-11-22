@@ -40,14 +40,47 @@ namespace OpenBarnyard
 {
     public static class PPSSPPWindow
     {
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool PostMessage(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
-
-        [DllImport("user32.dll")]
-        public static extern bool IsIconic(IntPtr window);
+        private delegate bool EnumWindowsProc(IntPtr window, IntPtr parameter);
 
         [DllImport("user32.dll")]
         public static extern bool ShowWindowAsync(IntPtr window, int command);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool SetWindowPos(
+            IntPtr window,
+            IntPtr insertAfter,
+            int x,
+            int y,
+            int width,
+            int height,
+            uint flags);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetWindow(IntPtr window, uint command);
+
+        public static IntPtr FindTopLevelWindow(int processId)
+        {
+            IntPtr result = IntPtr.Zero;
+            EnumWindows(delegate(IntPtr window, IntPtr parameter)
+            {
+                uint windowProcessId;
+                GetWindowThreadProcessId(window, out windowProcessId);
+                if (windowProcessId == (uint)processId && GetWindow(window, 4) == IntPtr.Zero)
+                {
+                    result = window;
+                    return false;
+                }
+
+                return true;
+            }, IntPtr.Zero);
+            return result;
+        }
 
     }
 }
@@ -145,6 +178,42 @@ function Enable-PPSSPPDebugger {
     Set-Content -LiteralPath $configPath -Value $config -NoNewline
 }
 
+function Move-PPSSPPWindowOffScreen([System.Diagnostics.Process] $Process) {
+    $window = [IntPtr]::Zero
+    for ($attempt = 0; $attempt -lt 100; $attempt++) {
+        $Process.Refresh()
+        $window = $Process.MainWindowHandle
+        if ($window -eq [IntPtr]::Zero) {
+            $window = [OpenBarnyard.PPSSPPWindow]::FindTopLevelWindow($Process.Id)
+        }
+        if ($window -ne [IntPtr]::Zero) {
+            break
+        }
+
+        Start-Sleep -Milliseconds 20
+    }
+
+    if ($window -eq [IntPtr]::Zero) {
+        throw "PPSSPP process $($Process.Id) has no window handle."
+    }
+
+    $noSizeNoZOrderNoActivate = 0x0015
+    if (-not [OpenBarnyard.PPSSPPWindow]::SetWindowPos(
+        $window,
+        [IntPtr]::Zero,
+        -32000,
+        -32000,
+        0,
+        0,
+        $noSizeNoZOrderNoActivate
+    )) {
+        throw "Could not move PPSSPP process $($Process.Id) off screen."
+    }
+    # D3D11 must see a non-minimised window to keep producing framebuffer
+    # captures. SW_SHOWNOACTIVATE keeps that window off screen and unfocused.
+    [OpenBarnyard.PPSSPPWindow]::ShowWindowAsync($window, 4) | Out-Null
+}
+
 function Start-OpenBarnyardPPSSPP {
     $process = Get-OpenBarnyardPPSSPPProcess
     if ($process) {
@@ -170,7 +239,7 @@ function Start-OpenBarnyardPPSSPP {
         -FilePath $PPSSPPPath `
         -ArgumentList @('--windowed', '--scale=1', $EbootPath) `
         -WorkingDirectory (Split-Path -Parent $PPSSPPPath) `
-        -WindowStyle Minimized `
+        -WindowStyle Hidden `
         -PassThru
 
     Set-Content -LiteralPath $pidPath -Value $process.Id -NoNewline
@@ -178,6 +247,7 @@ function Start-OpenBarnyardPPSSPP {
         Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
         throw "PPSSPP exited during startup with code $($process.ExitCode)."
     }
+    Move-PPSSPPWindowOffScreen $process
     Write-Output "Started PPSSPP in the background (PID $($process.Id))."
 }
 
@@ -264,6 +334,30 @@ function Wait-PPSSPPDebuggerResponse {
     throw "Timed out waiting for the PPSSPP debugger response to $EventName."
 }
 
+function Wait-PPSSPPDebuggerEvent {
+    param(
+        [System.Net.WebSockets.ClientWebSocket] $Socket,
+        [string] $EventName,
+        [int] $TimeoutMilliseconds = 5000
+    )
+
+    $deadline = [System.DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    while ([System.DateTime]::UtcNow -lt $deadline) {
+        $remaining = [int] [System.Math]::Max(1, ($deadline - [System.DateTime]::UtcNow).TotalMilliseconds)
+        $message = Receive-PPSSPPDebuggerText -Socket $Socket -TimeoutMilliseconds $remaining
+        Write-Verbose "PPSSPP debugger: $message"
+        $response = $message | ConvertFrom-Json
+        if ($response.event -eq 'error') {
+            throw "PPSSPP debugger rejected $EventName`: $($response.message)"
+        }
+        if ($response.event -eq $EventName) {
+            return $response
+        }
+    }
+
+    throw "Timed out waiting for the PPSSPP debugger event $EventName."
+}
+
 function Invoke-PPSSPPDebuggerRequest {
     param(
         [System.Net.WebSockets.ClientWebSocket] $Socket,
@@ -343,42 +437,57 @@ function Send-OpenBarnyardPPSSPPKey {
         DpadDown = 'down'
     }
 
+    $window = [IntPtr]::Zero
     for ($attempt = 0; $attempt -lt 50; $attempt++) {
         $Process.Refresh()
-        if ($Process.MainWindowHandle -ne [IntPtr]::Zero) {
+        $window = $Process.MainWindowHandle
+        if ($window -eq [IntPtr]::Zero) {
+            $window = [OpenBarnyard.PPSSPPWindow]::FindTopLevelWindow($Process.Id)
+        }
+        if ($window -ne [IntPtr]::Zero) {
             break
         }
 
         Start-Sleep -Milliseconds 20
     }
 
-    if ($Process.MainWindowHandle -eq [IntPtr]::Zero) {
+    if ($window -eq [IntPtr]::Zero) {
         throw "PPSSPP process $($Process.Id) has no window handle."
     }
 
-    $window = $Process.MainWindowHandle
     if ($Button -eq 'Screenshot') {
-        $wasMinimized = [OpenBarnyard.PPSSPPWindow]::IsIconic($window)
-        if ($wasMinimized) {
-            # D3D11 returns a black capture while PPSSPP is minimised. Restore it
-            # without activation so automated checks never take keyboard focus.
-            [OpenBarnyard.PPSSPPWindow]::ShowWindowAsync($window, 4) | Out-Null
-            Start-Sleep -Milliseconds 600
-        }
-
+        Move-PPSSPPWindowOffScreen $Process
+        $socket = Connect-PPSSPPDebugger -Process $Process
+        $cpuStopped = $false
         try {
-            if (-not [OpenBarnyard.PPSSPPWindow]::PostMessage($window, 0x0111, [UIntPtr]::new(40066), [IntPtr]::Zero)) {
-                throw "Could not request a screenshot from PPSSPP process $($Process.Id)."
+            Send-PPSSPPDebuggerText -Socket $socket -Text '{"event":"cpu.stepping"}'
+            $null = Wait-PPSSPPDebuggerEvent -Socket $socket -EventName 'cpu.stepping'
+            $cpuStopped = $true
+            $response = Invoke-PPSSPPDebuggerRequest `
+                -Socket $socket `
+                -EventName 'gpu.buffer.screenshot' `
+                -Parameters @{ type = 'uri'; alpha = $false } `
+                -Ticket 2 `
+                -TimeoutMilliseconds 10000
+            if (-not $response.uri -or $response.uri -notmatch '^data:image/png;base64,') {
+                throw 'PPSSPP debugger returned an invalid render-buffer screenshot.'
             }
-            Start-Sleep -Milliseconds 400
+
+            $screenshotDirectory = Join-Path (Split-Path -Parent $PPSSPPPath) 'memstick\PSP\SCREENSHOT'
+            New-Item -ItemType Directory -Path $screenshotDirectory -Force | Out-Null
+            $screenshotName = 'OpenBarnyardPSP_{0}.png' -f (Get-Date -Format 'yyyyMMdd_HHmmss_fff')
+            $screenshotPath = Join-Path $screenshotDirectory $screenshotName
+            $base64 = $response.uri.Substring('data:image/png;base64,'.Length)
+            [System.IO.File]::WriteAllBytes($screenshotPath, [System.Convert]::FromBase64String($base64))
         }
         finally {
-            if ($wasMinimized) {
-                [OpenBarnyard.PPSSPPWindow]::ShowWindowAsync($window, 7) | Out-Null
+            if ($cpuStopped) {
+                Send-PPSSPPDebuggerText -Socket $socket -Text '{"event":"cpu.resume"}'
             }
+            $socket.Dispose()
         }
 
-        Write-Output "Requested a screenshot from PPSSPP (PID $($Process.Id))."
+        Write-Output "Saved a debugger screenshot from PPSSPP (PID $($Process.Id)): $screenshotPath"
         return
     }
 

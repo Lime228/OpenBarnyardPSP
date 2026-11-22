@@ -125,6 +125,31 @@ try {
     }
 
     if (-not $SkipScreenshot) {
+        $menuReadyDeadline = (Get-Date).AddSeconds(20)
+        do {
+            $menuReadyReport = Read-RuntimeReport $reportPath
+            if ($menuReadyReport.ContainsKey('phase') -and $menuReadyReport.phase -eq 'frontend-menu-ready') {
+                break
+            }
+            Start-Sleep -Milliseconds 100
+        } while ((Get-Date) -lt $menuReadyDeadline)
+        if (-not $menuReadyReport.ContainsKey('phase') -or $menuReadyReport.phase -ne 'frontend-menu-ready') {
+            throw 'PPSSPP did not reach the stable original menu before the screenshot'
+        }
+
+        $menuVisibleStartFrame = [int] $menuReadyReport.renderer_frames
+        $menuVisibleTargetFrame = $menuVisibleStartFrame + 240
+        $menuVisibleDeadline = (Get-Date).AddSeconds(15)
+        do {
+            Start-Sleep -Milliseconds 100
+            $menuVisibleReport = Read-RuntimeReport $reportPath
+            $menuVisible = $menuVisibleReport.ContainsKey('renderer_frames') -and
+                [int] $menuVisibleReport.renderer_frames -ge $menuVisibleTargetFrame
+        } while (-not $menuVisible -and (Get-Date) -lt $menuVisibleDeadline)
+        if (-not $menuVisible) {
+            throw 'PPSSPP did not finish the original menu fade before the screenshot'
+        }
+
         $screenshotStartReport = Read-RuntimeReport $reportPath
         $screenshotStartFrame = [int] $screenshotStartReport.renderer_frames
         $screenshotFrameTarget = $screenshotStartFrame + 120
@@ -137,8 +162,11 @@ try {
         do {
             Start-Sleep -Milliseconds 100
             if (Test-Path -LiteralPath $screenshotDirectory -PathType Container) {
-                $screenshotPath = Get-ChildItem -LiteralPath $screenshotDirectory -Filter '*.jpg' -File |
-                    Where-Object { $_.LastWriteTime -ge $screenshotRequestedAt.AddSeconds(-1) } |
+                $screenshotPath = Get-ChildItem -LiteralPath $screenshotDirectory -File |
+                    Where-Object {
+                        $_.Extension -in @('.jpg', '.png') -and
+                        $_.LastWriteTime -ge $screenshotRequestedAt.AddSeconds(-1)
+                    } |
                     Sort-Object LastWriteTime -Descending |
                     Select-Object -First 1 -ExpandProperty FullName
             }
