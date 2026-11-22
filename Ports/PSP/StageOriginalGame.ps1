@@ -8,6 +8,7 @@ param(
     [string] $FrontendTerrainPackDirectory = '',
     [string] $FrontendTerrainGrassDirectory = '',
     [string] $FrontendTerrainGlowDirectory = '',
+    [string] $FrontendTerrainBarnnorthDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -43,6 +44,9 @@ if (-not $FrontendTerrainGrassDirectory) {
 if (-not $FrontendTerrainGlowDirectory) {
     $FrontendTerrainGlowDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainGlow'
 }
+if (-not $FrontendTerrainBarnnorthDirectory) {
+    $FrontendTerrainBarnnorthDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainBarnnorth'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -61,6 +65,7 @@ $frontendTerrainManifestPath = [System.IO.Path]::GetFullPath($FrontendTerrainMan
 $frontendTerrainPackPath = [System.IO.Path]::GetFullPath($FrontendTerrainPackDirectory)
 $frontendTerrainGrassPath = [System.IO.Path]::GetFullPath($FrontendTerrainGrassDirectory)
 $frontendTerrainGlowPath = [System.IO.Path]::GetFullPath($FrontendTerrainGlowDirectory)
+$frontendTerrainBarnnorthPath = [System.IO.Path]::GetFullPath($FrontendTerrainBarnnorthDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -122,6 +127,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $terrainGlowConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $terrainGlowConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendGlow.ps1') @terrainGlowConversionArguments
+
+    $terrainBarnnorthConversionArguments = @{ OutputDirectory = $frontendTerrainBarnnorthPath }
+    if ($TMDLPath) { $terrainBarnnorthConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainBarnnorthConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendBarnnorth.ps1') @terrainBarnnorthConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -287,6 +297,72 @@ foreach ($fileName in $frontendGlowFiles) {
         throw "Converted retail front-end glow asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendBarnnorthPacks = @(
+    @{ Prefix = 'frontend_barnnorth_base'; SourceMeshes = 121; Models = 44; Textures = 44 },
+    @{ Prefix = 'frontend_barnnorth_detail'; SourceMeshes = 10; Models = 8; Textures = 8 },
+    @{ Prefix = 'frontend_barnnorth_grass'; SourceMeshes = 8; Models = 1; Textures = 1 },
+    @{ Prefix = 'frontend_barnnorth_glow'; SourceMeshes = 2; Models = 2; Textures = 1 }
+)
+Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_barnnorth_*' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+foreach ($pack in $frontendBarnnorthPacks) {
+    $prefix = $pack.Prefix
+    $manifestPath = Join-Path $frontendTerrainBarnnorthPath "$prefix.json"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "Converted retail Barnnorth manifest was not found: $manifestPath"
+    }
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ($manifest.version -ne 1 -or $manifest.source_meshes -ne $pack.SourceMeshes -or
+        $manifest.models.Count -ne $pack.Models -or $manifest.textures.Count -ne $pack.Textures) {
+        throw "Converted retail Barnnorth manifest is invalid: $manifestPath"
+    }
+
+    $packFiles = @("$prefix.pcfg")
+    for ($modelIndex = 0; $modelIndex -lt $pack.Models; $modelIndex++) {
+        $expectedModel = "${prefix}_model_$modelIndex.pmes"
+        if ($manifest.models[$modelIndex].mesh -ne $expectedModel) {
+            throw "Converted retail Barnnorth pack $prefix has an invalid model $modelIndex binding"
+        }
+        $packFiles += $expectedModel
+    }
+    for ($textureIndex = 0; $textureIndex -lt $pack.Textures; $textureIndex++) {
+        $expectedTexture = "${prefix}_texture_$textureIndex.ptex"
+        if ($manifest.textures[$textureIndex].texture -ne $expectedTexture) {
+            throw "Converted retail Barnnorth pack $prefix has an invalid texture $textureIndex binding"
+        }
+        $packFiles += $expectedTexture
+    }
+    foreach ($fileName in $packFiles) {
+        $sourcePath = Join-Path $frontendTerrainBarnnorthPath $fileName
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            throw "Converted retail Barnnorth asset was not found: $sourcePath"
+        }
+        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+    }
+}
+
+$frontendBarnnorthGlowConfigPath = Join-Path $frontendTerrainBarnnorthPath 'frontend_barnnorth_glow.pcfg'
+$frontendBarnnorthGlowConfig = [System.IO.File]::ReadAllBytes($frontendBarnnorthGlowConfigPath)
+if ($frontendBarnnorthGlowConfig.Length -ne 72 -or
+    [System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, 0) -ne 0x50444650 -or
+    [System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, 4) -ne 2 -or
+    [System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, 8) -ne 2 -or
+    [System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, 12) -ne 1 -or
+    [System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, 16) -ne 24 -or
+    [System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, 20) -ne 0) {
+    throw "Converted retail Barnnorth glow config is invalid: $frontendBarnnorthGlowConfigPath"
+}
+$expectedBarnnorthLightProfiles = @(3, 7)
+for ($modelIndex = 0; $modelIndex -lt 2; $modelIndex++) {
+    $entryOffset = 24 + $modelIndex * 24
+    if ([System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, $entryOffset + 8) -ne 3) {
+        throw "Converted retail Barnnorth glow model $modelIndex is not additive"
+    }
+    if ([System.BitConverter]::ToUInt32($frontendBarnnorthGlowConfig, $entryOffset + 20) -ne $expectedBarnnorthLightProfiles[$modelIndex]) {
+        throw "Converted retail Barnnorth glow model $modelIndex has an invalid original light profile"
+    }
 }
 
 $frontendCameraSource = Join-Path $frontendCameraPath 'frontend_camera.pcam'
