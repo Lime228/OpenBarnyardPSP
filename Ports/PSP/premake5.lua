@@ -170,6 +170,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Platform/PSP/AGUI2Renderer_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndBarnSign_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndCamera_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndInstanceManager_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndTerrain_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndTerrainPack_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AFrontEndMainMenuState2_PSP.cpp",
