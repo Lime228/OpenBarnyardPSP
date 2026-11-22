@@ -125,10 +125,43 @@ try {
     }
 
     if (-not $SkipScreenshot) {
+        $screenshotStartReport = Read-RuntimeReport $reportPath
+        $screenshotStartFrame = [int] $screenshotStartReport.renderer_frames
+        $screenshotFrameTarget = $screenshotStartFrame + 120
+        $screenshotFrameAdvanced = $false
+        $screenshotStableLength = -1L
+        $screenshotStablePolls = 0
+        $screenshotRequestedAt = Get-Date
         & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key Screenshot
-        # PPSSPP consumes the screenshot hotkey on the following emulated
-        # frame. Keep menu activation/fade from racing that framebuffer copy.
-        Start-Sleep -Milliseconds 750
+        $screenshotDeadline = (Get-Date).AddSeconds(15)
+        do {
+            Start-Sleep -Milliseconds 100
+            if (Test-Path -LiteralPath $screenshotDirectory -PathType Container) {
+                $screenshotPath = Get-ChildItem -LiteralPath $screenshotDirectory -Filter '*.jpg' -File |
+                    Where-Object { $_.LastWriteTime -ge $screenshotRequestedAt.AddSeconds(-1) } |
+                    Sort-Object LastWriteTime -Descending |
+                    Select-Object -First 1 -ExpandProperty FullName
+            }
+            if ($screenshotPath) {
+                $screenshotLength = (Get-Item -LiteralPath $screenshotPath).Length
+                if ($screenshotLength -gt 0 -and $screenshotLength -eq $screenshotStableLength) {
+                    $screenshotStablePolls++
+                }
+                else {
+                    $screenshotStableLength = $screenshotLength
+                    $screenshotStablePolls = 0
+                }
+            }
+            $screenshotReport = Read-RuntimeReport $reportPath
+            if ($screenshotReport.ContainsKey('renderer_frames')) {
+                $screenshotFrameAdvanced = [int] $screenshotReport.renderer_frames -ge $screenshotFrameTarget
+            }
+        } while ((-not $screenshotPath -or -not $screenshotFrameAdvanced -or $screenshotStablePolls -lt 2) -and (Get-Date) -lt $screenshotDeadline)
+        if (-not $screenshotPath -or -not $screenshotFrameAdvanced -or $screenshotStablePolls -lt 2) {
+            throw 'PPSSPP did not complete the requested screenshot before menu input'
+        }
+        # A stable fresh file plus two later 60-frame runtime checkpoints keep
+        # asynchronous framebuffer capture ahead of menu activation/fade.
     }
     if (-not $SkipMenuInput) {
         & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key DpadDown
@@ -201,14 +234,8 @@ try {
         }
     }
 
-    if (-not $SkipScreenshot -and (Test-Path -LiteralPath $screenshotDirectory -PathType Container)) {
-        $screenshotPath = Get-ChildItem -LiteralPath $screenshotDirectory -Filter '*.jpg' -File |
-            Where-Object { $_.LastWriteTime -ge $startedAt } |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1 -ExpandProperty FullName
-        if (-not $screenshotPath) {
-            throw 'PPSSPP did not write the requested screenshot'
-        }
+    if (-not $SkipScreenshot -and -not $screenshotPath) {
+        throw 'PPSSPP did not write the requested screenshot'
     }
 
     [pscustomobject]@{
