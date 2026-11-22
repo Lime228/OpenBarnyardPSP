@@ -9,16 +9,17 @@ the original localized six-entry AFrontEndMainMenuState2 interface in PPSSPP.
 It uses retail fonts.trb, texsec.trb, locale/control resources and offline
 converted PSP textures. The original frontend camera loop, every mesh from the
 shipping `Barn_L0Mod0` through `Barn_L0Mod3` and `Barnnorth_L0Mod0` through
-`Barnnorth_L0Mod3` layers, and the original barn-sign object render behind that
-menu. Exact material/texture matches are batched for PSP, but no original
-geometry or world placement is removed.
+`Barnnorth_L0Mod3` layers, all five low-detail landscape sections selected by
+the initial retail VIS row, and the original barn-sign object render behind that
+menu. All 448 source terrain meshes are retained. Exact material/texture matches
+are batched for PSP, but no original geometry or world placement is removed.
 
 This is not a complete playable port. The current PSP menu implementation keeps
 the original class, button construction, locale IDs and retail presentation.
-Its 3D environment currently contains the complete high-detail Barn and
-Barnnorth sections selected by the retail initial VIS row; five low-detail
-terrain sections, windmill/helper instances and environment layers are not
-loaded. The initial 06:00 night-light state matches the original schedule, but
+Its 3D environment contains the complete initial terrain VIS row at its retail
+LODs: Barn and Barnnorth high plus BGbarneast, BGbarnwest, Hillbase, Hilltop and
+Meadowsouth low. Windmill/helper instances and remaining environment layers are
+not loaded. The initial 06:00 night-light state matches the original schedule, but
 full time progression is not connected. Collision, movies, saves, rooms, player control, downstream menu states
 and world streaming remain unfinished. The diagnostic EBOOT stays available
 only as a platform regression harness.
@@ -27,16 +28,16 @@ only as a platform regression harness.
 
 PSP toolchain/packaging is approximately **90%** complete, the original startup
 plus main-menu milestone is approximately **99%** complete, and the
-complete playable-game port is approximately **32%** complete.
+complete playable-game port is approximately **33%** complete.
 
 | Area | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain and packaging | 90% | Premake, branded PBP, deterministic converters, PSPDEV CI, host tools and separate bootstrap/original-game artifacts work; hardware release validation remains |
 | Portable Toshi/platform core | 75% | allocator, shared 20 MiB game/resource heap, files, TRB, timer, sync, threads, scheduler, input and GUI paths execute in the original-game target |
-| PSP renderer foundation | 55% | GU display, rotated GUI quads, bounded static resources, original camera and original 800x600 GUI mapping work; general material/model/scene closure remains |
-| Real-game asset pipeline | 54% | retail frontend GUI, complete Barn and Barnnorth high LODs, exact light profiles, camera and barn sign stage repeatably; remaining frontend sections/instances, rooms, movies and streaming manifests remain |
+| PSP renderer foundation | 58% | GU display, rotated GUI quads, bounded static resources, exact material modes, original camera and original 800x600 GUI mapping work; general material/model/scene closure remains |
+| Real-game asset pipeline | 60% | retail frontend GUI, complete initial terrain VIS row, exact light profiles, camera and barn sign stage repeatably; remaining instances, rooms, movies and streaming manifests remain |
 | Input integration | 75% | PSP buttons pass through sceCtrl, Toshi events, the retail input map and the original menu; gameplay mappings and real hardware remain |
-| Game bootstrap and frontend | 70% | original application/root task, authentic menu/input and two complete VIS-selected high-detail sections run; complete environment, downstream states and new-game flow remain |
+| Game bootstrap and frontend | 75% | original application/root task, authentic menu/input and complete initial retail terrain residency run; instances/environment, downstream states and new-game flow remain |
 | Audio, movies and saves | 20% | bounded diagnostic PSP audio works; retail music/SFX ownership, Bink replacement and save devices are not integrated |
 | World, animation and gameplay | 8% | retail probes render in the harness, but the original world, actors, player, quests, physics and rooms are not running |
 
@@ -1213,6 +1214,14 @@ remain largely unstarted.
   840 frames, leaves 11,565,220 heap bytes free and uses 6,564,436 of the
   16,777,216-byte render budget. `EBOO00649_00032.jpg` confirms the original
   upright farmhouse landscape and the 06:00 schedule suppresses its glow draws.
+- Commits through `4d8d7b04` complete the exported initial terrain VIS row with
+  all 49 BGbarneast, 34 BGbarnwest, 41 Hillbase, 21 Hilltop and 48 Meadowsouth
+  low-LOD meshes. Across all seven sections, 448 source meshes remain resident
+  as 149 bounded PSP models and 144 texture resources. CI run `44997003987` is
+  green. Report v20 leaves 9,968,704 heap bytes free, uses 8,158,504 of the
+  16,777,216-byte render budget and retains zero dawn glow draws. The controlled
+  one-process run captures correctly oriented `EBOO00649_00037.jpg` and stops
+  PID `28404`; a full no-`SkipConversion` staging pass also succeeds.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1220,12 +1229,10 @@ remain largely unstarted.
 ## Immediate next slice
 
 Continue the original 3D frontend scene, not another synthetic screen. The
-camera loop, complete Barn and Barnnorth high-detail sections and barn sign are
-now running. The exact next initial-VIS entry is the low-detail BGbarneast
-section: merge all five `BGbarneast_L1Mod0`-`Mod4` source cells and retain all
-49 meshes, then add residency and draw telemetry. Add the
-windmill/helper instances from their original locators after the terrain set is
-visually coherent. Then connect one downstream original menu state at a time
+camera loop, complete initial retail terrain VIS row and barn sign are now
+running. Add the windmill/helper instances and remaining environment ownership
+from their original locators; do not add synthetic scenery or change the retail
+section LOD choices. Then connect one downstream original menu state at a time
 and preserve memory telemetry.
 
 Movies, collision and retail audio remain separate platform work. Do not claim
