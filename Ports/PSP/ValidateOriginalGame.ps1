@@ -55,7 +55,8 @@ foreach ($pack in @(
     @{ Prefix = 'frontend_bgbarneast'; Models = 7; Textures = 7 },
     @{ Prefix = 'frontend_bgbarnwest'; Models = 5; Textures = 5 },
     @{ Prefix = 'frontend_hillbase'; Models = 7; Textures = 7 },
-    @{ Prefix = 'frontend_hilltop'; Models = 9; Textures = 9 }
+    @{ Prefix = 'frontend_hilltop'; Models = 9; Textures = 9 },
+    @{ Prefix = 'frontend_meadowsouth'; Models = 15; Textures = 15 }
 )) {
     $requiredFiles += Join-Path $runtimePath "$($pack.Prefix).pcfg"
     for ($modelIndex = 0; $modelIndex -lt $pack.Models; $modelIndex++) {
@@ -136,7 +137,7 @@ try {
         $actualPhase = if ($report.ContainsKey('phase')) { $report.phase } else { '<missing>' }
         throw "Runtime report did not reach the original front-end menu: $actualPhase"
     }
-    Assert-ReportValue $report 'version' '19'
+    Assert-ReportValue $report 'version' '20'
     foreach ($name in @(
         'engine',
         'application',
@@ -153,6 +154,7 @@ try {
         'frontend_bgbarnwest_loaded',
         'frontend_hillbase_loaded',
         'frontend_hilltop_loaded',
+        'frontend_meadowsouth_loaded',
         'frontend_camera_loaded',
         'frontend_barnsign_loaded'
     )) {
@@ -176,9 +178,11 @@ try {
     Assert-ReportValue $report 'frontend_hillbase_textures' '7'
     Assert-ReportValue $report 'frontend_hilltop_models' '9'
     Assert-ReportValue $report 'frontend_hilltop_textures' '9'
+    Assert-ReportValue $report 'frontend_meadowsouth_models' '15'
+    Assert-ReportValue $report 'frontend_meadowsouth_textures' '15'
     Assert-ReportValue $report 'frontend_hour' '6.000000'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
-    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnnorth_draws', 'frontend_bgbarneast_draws', 'frontend_bgbarnwest_draws', 'frontend_hillbase_draws', 'frontend_hilltop_draws', 'frontend_barnsign_draws')) {
+    foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnnorth_draws', 'frontend_bgbarneast_draws', 'frontend_bgbarnwest_draws', 'frontend_hillbase_draws', 'frontend_hilltop_draws', 'frontend_meadowsouth_draws', 'frontend_barnsign_draws')) {
         Assert-ReportPositive $report $name
     }
     if (-not $SkipMenuInput) {
@@ -209,6 +213,7 @@ try {
         BGbarnwestDraws = [int] $report.frontend_bgbarnwest_draws
         HillbaseDraws = [int] $report.frontend_hillbase_draws
         HilltopDraws = [int] $report.frontend_hilltop_draws
+        MeadowsouthDraws = [int] $report.frontend_meadowsouth_draws
         BarnSignDraws = [int] $report.frontend_barnsign_draws
         HeapFree = [int] $report.heap_free
         Screenshot = $screenshotPath

@@ -13,6 +13,7 @@ param(
     [string] $FrontendTerrainBGbarnwestDirectory = '',
     [string] $FrontendTerrainHillbaseDirectory = '',
     [string] $FrontendTerrainHilltopDirectory = '',
+    [string] $FrontendTerrainMeadowsouthDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -63,6 +64,9 @@ if (-not $FrontendTerrainHillbaseDirectory) {
 if (-not $FrontendTerrainHilltopDirectory) {
     $FrontendTerrainHilltopDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainHilltop'
 }
+if (-not $FrontendTerrainMeadowsouthDirectory) {
+    $FrontendTerrainMeadowsouthDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainMeadowsouth'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -86,6 +90,7 @@ $frontendTerrainBGbarneastPath = [System.IO.Path]::GetFullPath($FrontendTerrainB
 $frontendTerrainBGbarnwestPath = [System.IO.Path]::GetFullPath($FrontendTerrainBGbarnwestDirectory)
 $frontendTerrainHillbasePath = [System.IO.Path]::GetFullPath($FrontendTerrainHillbaseDirectory)
 $frontendTerrainHilltopPath = [System.IO.Path]::GetFullPath($FrontendTerrainHilltopDirectory)
+$frontendTerrainMeadowsouthPath = [System.IO.Path]::GetFullPath($FrontendTerrainMeadowsouthDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -172,6 +177,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $terrainHilltopConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $terrainHilltopConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendHilltop.ps1') @terrainHilltopConversionArguments
+
+    $terrainMeadowsouthConversionArguments = @{ OutputDirectory = $frontendTerrainMeadowsouthPath }
+    if ($TMDLPath) { $terrainMeadowsouthConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainMeadowsouthConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendMeadowsouth.ps1') @terrainMeadowsouthConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -585,6 +595,52 @@ foreach ($fileName in $frontendHilltopFiles) {
     $sourcePath = Join-Path $frontendTerrainHilltopPath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail Hilltop asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendMeadowsouthManifestPath = Join-Path $frontendTerrainMeadowsouthPath 'frontend_meadowsouth.json'
+if (-not (Test-Path -LiteralPath $frontendMeadowsouthManifestPath -PathType Leaf)) {
+    throw "Converted retail Meadowsouth manifest was not found: $frontendMeadowsouthManifestPath"
+}
+$frontendMeadowsouth = Get-Content -LiteralPath $frontendMeadowsouthManifestPath -Raw | ConvertFrom-Json
+if ($frontendMeadowsouth.version -ne 1 -or $frontendMeadowsouth.source_meshes -ne 48 -or
+    $frontendMeadowsouth.models.Count -ne 15 -or $frontendMeadowsouth.textures.Count -ne 15) {
+    throw "Converted retail Meadowsouth manifest is invalid: $frontendMeadowsouthManifestPath"
+}
+$frontendMeadowsouthFiles = @('frontend_meadowsouth.pcfg')
+for ($modelIndex = 0; $modelIndex -lt 15; $modelIndex++) {
+    $expectedModel = "frontend_meadowsouth_model_$modelIndex.pmes"
+    if ($frontendMeadowsouth.models[$modelIndex].mesh -ne $expectedModel) {
+        throw "Converted retail Meadowsouth manifest has an invalid model $modelIndex binding"
+    }
+    $frontendMeadowsouthFiles += $expectedModel
+}
+for ($textureIndex = 0; $textureIndex -lt 15; $textureIndex++) {
+    $expectedTexture = "frontend_meadowsouth_texture_$textureIndex.ptex"
+    if ($frontendMeadowsouth.textures[$textureIndex].texture -ne $expectedTexture) {
+        throw "Converted retail Meadowsouth manifest has an invalid texture $textureIndex binding"
+    }
+    $frontendMeadowsouthFiles += $expectedTexture
+}
+$frontendMeadowsouthConfigPath = Join-Path $frontendTerrainMeadowsouthPath 'frontend_meadowsouth.pcfg'
+$frontendMeadowsouthConfig = [System.IO.File]::ReadAllBytes($frontendMeadowsouthConfigPath)
+if ($frontendMeadowsouthConfig.Length -ne 324 -or
+    [System.BitConverter]::ToUInt32($frontendMeadowsouthConfig, 0) -ne 0x50444650 -or
+    [System.BitConverter]::ToUInt32($frontendMeadowsouthConfig, 4) -ne 1 -or
+    [System.BitConverter]::ToUInt32($frontendMeadowsouthConfig, 8) -ne 15 -or
+    [System.BitConverter]::ToUInt32($frontendMeadowsouthConfig, 12) -ne 15 -or
+    [System.BitConverter]::ToUInt32($frontendMeadowsouthConfig, 16) -ne 20 -or
+    [System.BitConverter]::ToUInt32($frontendMeadowsouthConfig, 20) -ne 0) {
+    throw "Converted retail Meadowsouth config is invalid: $frontendMeadowsouthConfigPath"
+}
+Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_meadowsouth_*' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+Remove-Item -LiteralPath (Join-Path $runtimePath 'frontend_meadowsouth.pcfg') -Force -ErrorAction SilentlyContinue
+foreach ($fileName in $frontendMeadowsouthFiles) {
+    $sourcePath = Join-Path $frontendTerrainMeadowsouthPath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail Meadowsouth asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
