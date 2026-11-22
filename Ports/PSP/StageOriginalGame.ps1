@@ -188,7 +188,7 @@ if (-not $SkipConversion) {
     if ($PythonPath) { $terrainMeadowsouthConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendMeadowsouth.ps1') @terrainMeadowsouthConversionArguments
 
-    foreach ($modelName in @('fncw01', 'fncw02')) {
+    foreach ($modelName in @('fncw01', 'fncw02', 'fncw03')) {
         $frontendInstanceConversionArguments = @{
             ModelName = $modelName
             OutputDirectory = Join-Path $frontendInstancesPath $modelName
@@ -662,7 +662,8 @@ foreach ($fileName in $frontendMeadowsouthFiles) {
 
 $frontendInstanceDefinitions = @(
     @{ Name = 'fncw01'; Index = 8; Instances = 52; Vertices = 4368; Indices = 9048 },
-    @{ Name = 'fncw02'; Index = 9; Instances = 53; Vertices = 4452; Indices = 9222 }
+    @{ Name = 'fncw02'; Index = 9; Instances = 53; Vertices = 4452; Indices = 9222 },
+    @{ Name = 'fncw03'; Index = 10; Instances = 21; Vertices = 1764; Indices = 3654 }
 )
 Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_instances_*' -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
