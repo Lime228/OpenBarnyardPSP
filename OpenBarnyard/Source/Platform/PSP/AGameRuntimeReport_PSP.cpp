@@ -90,11 +90,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 2944 ];
+	static TCHAR s_aReportBuffer_PSP[ 3200 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=20\n"
+		"version=21\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -152,6 +152,10 @@ void AWriteGameRuntimeReport_PSP()
 		"frontend_meadowsouth_models=%u\n"
 		"frontend_meadowsouth_textures=%u\n"
 		"frontend_meadowsouth_draws=%u\n"
+		"frontend_instances_fncw02_loaded=%d\n"
+		"frontend_instances_fncw02_models=%u\n"
+		"frontend_instances_fncw02_textures=%u\n"
+		"frontend_instances_fncw02_draws=%u\n"
 		"frontend_hour=%.6f\n"
 		"frontend_barnsign_loaded=%d\n"
 		"frontend_barnsign_meshes=%u\n"
@@ -245,6 +249,10 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiFrontendMeadowsouthModels,
 		s_GameRuntimeReport_PSP.uiFrontendMeadowsouthTextures,
 		s_GameRuntimeReport_PSP.uiFrontendMeadowsouthDraws,
+		s_GameRuntimeReport_PSP.bFrontendInstancesFncw02Loaded,
+		s_GameRuntimeReport_PSP.uiFrontendInstancesFncw02Models,
+		s_GameRuntimeReport_PSP.uiFrontendInstancesFncw02Textures,
+		s_GameRuntimeReport_PSP.uiFrontendInstancesFncw02Draws,
 		s_GameRuntimeReport_PSP.fFrontendHour,
 		s_GameRuntimeReport_PSP.bFrontendBarnSignLoaded,
 		s_GameRuntimeReport_PSP.uiFrontendBarnSignMeshes,
