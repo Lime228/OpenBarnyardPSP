@@ -94,6 +94,7 @@ int main( int argc, char** argv )
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
 	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
+	auto          strTextureSymbol = commandLine.GetParameterValue( "-texture-symbol", "TTL" );
 	auto          strPSPGUISection = commandLine.GetParameterValue( "-psp-gui-section" );
 	auto          strSectionName   = commandLine.GetParameterValue( "-section" );
 	auto          strPSPLocator    = commandLine.GetParameterValue( "-psp-locator" );
@@ -283,7 +284,8 @@ int main( int argc, char** argv )
 			return 1;
 		}
 		if ( !ExportPSPTextureDump(
-		         strPSPTexture.GetString(), strTextureName.GetString(), strOutPath.GetString() ) )
+		         strPSPTexture.GetString(), strTextureSymbol.GetString(),
+		         strTextureName.GetString(), strOutPath.GetString() ) )
 		{
 			TERROR( "Unable to export PSP texture source\n" );
 			return 1;

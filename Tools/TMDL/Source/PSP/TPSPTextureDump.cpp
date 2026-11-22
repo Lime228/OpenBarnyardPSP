@@ -25,11 +25,13 @@ struct TPSPTextureLibraryDump
 
 TBOOL ExportPSPTextureDump(
     const TCHAR* a_pLibraryPath,
+    const TCHAR* a_pLibrarySymbol,
     const TCHAR* a_pTextureName,
     const TCHAR* a_pOutputPath
 )
 {
-	if ( a_pLibraryPath == TNULL || a_pTextureName == TNULL || a_pOutputPath == TNULL )
+	if ( a_pLibraryPath == TNULL || a_pLibrarySymbol == TNULL || a_pLibrarySymbol[ 0 ] == '\0' ||
+	     a_pTextureName == TNULL || a_pOutputPath == TNULL )
 		return TFALSE;
 
 	PTRB oTRB;
@@ -39,11 +41,11 @@ TBOOL ExportPSPTextureDump(
 		return TFALSE;
 	}
 
-	auto oLibrary = oTRB.GetSymbols()->Find<TPSPTextureLibraryDump>( oTRB.GetSections(), "TTL" );
+	auto oLibrary = oTRB.GetSymbols()->Find<TPSPTextureLibraryDump>( oTRB.GetSections(), a_pLibrarySymbol );
 	if ( !oLibrary || oLibrary.get()->iNumTextures <= 0 || oLibrary.get()->iNumTextures > 1024 ||
 	     oLibrary.get()->pTextureInfos == TNULL )
 	{
-		TERROR( "PSP texture dump rejected TTL header\n" );
+		TERROR( "PSP texture dump rejected TTL header %s\n", a_pLibrarySymbol );
 		return TFALSE;
 	}
 
