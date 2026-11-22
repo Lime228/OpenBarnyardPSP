@@ -230,9 +230,10 @@ renderer. `Tools/ConvertRetailFrontendInstanceSet.ps1` then invokes
 `combine_frontend_instance_packs.py` to validate and combine selected model
 packs, preserve their exact geometry groups and deduplicate only textures with
 the same case-insensitive source name and identical bytes. The first integrated
-set contains all 52 `fncw01`, 53 `fncw02` and 21 `fncw03` placements: 126/640
-initial-row instances in three draw groups sharing one original
-`World\fencewhite.tga` PTEX. Generated inventory and packs remain under the
+set contains all 52 `fncw01`, 53 `fncw02` and 21 `fncw03` placements plus all
+31 `fncp01`, 33 `fncp02` and 7 `fncp03` placements: 197/640 initial-row
+instances in six draw groups. Each family shares its one original
+`World\fencewhite.tga` or `World\fencepicket.tga` PTEX. Generated inventory and packs remain under the
 ignored `Game/BarnyardPC/Workspace/FrontendInstances` directory.
 
 ## Bounded world layout
