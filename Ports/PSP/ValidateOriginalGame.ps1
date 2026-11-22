@@ -47,12 +47,11 @@ $requiredFiles = @(
     $ppssppFullPath,
     $runnerPath
 )
-foreach ($modelName in @('fncw01', 'fncw02', 'fncw03')) {
-    $prefix = "frontend_instances_$modelName"
-    $requiredFiles += Join-Path $runtimePath "$prefix.pcfg"
-    $requiredFiles += Join-Path $runtimePath "${prefix}_model_0.pmes"
-    $requiredFiles += Join-Path $runtimePath "${prefix}_texture_0.ptex"
+$requiredFiles += Join-Path $runtimePath 'frontend_instances_fncw.pcfg'
+foreach ($modelIndex in 0..2) {
+    $requiredFiles += Join-Path $runtimePath "frontend_instances_fncw_model_$modelIndex.pmes"
 }
+$requiredFiles += Join-Path $runtimePath 'frontend_instances_fncw_texture_0.ptex'
 foreach ($pack in @(
     @{ Prefix = 'frontend_barnnorth_base'; Models = 44; Textures = 44 },
     @{ Prefix = 'frontend_barnnorth_detail'; Models = 8; Textures = 8 },
@@ -187,10 +186,10 @@ try {
     Assert-ReportValue $report 'frontend_hilltop_textures' '9'
     Assert-ReportValue $report 'frontend_meadowsouth_models' '15'
     Assert-ReportValue $report 'frontend_meadowsouth_textures' '15'
-    Assert-ReportValue $report 'frontend_instance_packs' '3'
+    Assert-ReportValue $report 'frontend_instance_packs' '1'
     Assert-ReportValue $report 'frontend_instances' '126'
     Assert-ReportValue $report 'frontend_instance_models' '3'
-    Assert-ReportValue $report 'frontend_instance_textures' '3'
+    Assert-ReportValue $report 'frontend_instance_textures' '1'
     Assert-ReportValue $report 'frontend_hour' '6.000000'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
     foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnnorth_draws', 'frontend_bgbarneast_draws', 'frontend_bgbarnwest_draws', 'frontend_hillbase_draws', 'frontend_hilltop_draws', 'frontend_meadowsouth_draws', 'frontend_instance_draws', 'frontend_barnsign_draws')) {
