@@ -12,6 +12,7 @@ param(
     [string] $FrontendTerrainBGbarneastDirectory = '',
     [string] $FrontendTerrainBGbarnwestDirectory = '',
     [string] $FrontendTerrainHillbaseDirectory = '',
+    [string] $FrontendTerrainHilltopDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -59,6 +60,9 @@ if (-not $FrontendTerrainBGbarnwestDirectory) {
 if (-not $FrontendTerrainHillbaseDirectory) {
     $FrontendTerrainHillbaseDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainHillbase'
 }
+if (-not $FrontendTerrainHilltopDirectory) {
+    $FrontendTerrainHilltopDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainHilltop'
+}
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
 }
@@ -81,6 +85,7 @@ $frontendTerrainBarnnorthPath = [System.IO.Path]::GetFullPath($FrontendTerrainBa
 $frontendTerrainBGbarneastPath = [System.IO.Path]::GetFullPath($FrontendTerrainBGbarneastDirectory)
 $frontendTerrainBGbarnwestPath = [System.IO.Path]::GetFullPath($FrontendTerrainBGbarnwestDirectory)
 $frontendTerrainHillbasePath = [System.IO.Path]::GetFullPath($FrontendTerrainHillbaseDirectory)
+$frontendTerrainHilltopPath = [System.IO.Path]::GetFullPath($FrontendTerrainHilltopDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -162,6 +167,11 @@ if (-not $SkipConversion) {
     if ($TMDLPath) { $terrainHillbaseConversionArguments.TMDLPath = $TMDLPath }
     if ($PythonPath) { $terrainHillbaseConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendHillbase.ps1') @terrainHillbaseConversionArguments
+
+    $terrainHilltopConversionArguments = @{ OutputDirectory = $frontendTerrainHilltopPath }
+    if ($TMDLPath) { $terrainHilltopConversionArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $terrainHilltopConversionArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendHilltop.ps1') @terrainHilltopConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -529,6 +539,52 @@ foreach ($fileName in $frontendHillbaseFiles) {
     $sourcePath = Join-Path $frontendTerrainHillbasePath $fileName
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Converted retail Hillbase asset was not found: $sourcePath"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+}
+
+$frontendHilltopManifestPath = Join-Path $frontendTerrainHilltopPath 'frontend_hilltop.json'
+if (-not (Test-Path -LiteralPath $frontendHilltopManifestPath -PathType Leaf)) {
+    throw "Converted retail Hilltop manifest was not found: $frontendHilltopManifestPath"
+}
+$frontendHilltop = Get-Content -LiteralPath $frontendHilltopManifestPath -Raw | ConvertFrom-Json
+if ($frontendHilltop.version -ne 1 -or $frontendHilltop.source_meshes -ne 21 -or
+    $frontendHilltop.models.Count -ne 9 -or $frontendHilltop.textures.Count -ne 9) {
+    throw "Converted retail Hilltop manifest is invalid: $frontendHilltopManifestPath"
+}
+$frontendHilltopFiles = @('frontend_hilltop.pcfg')
+for ($modelIndex = 0; $modelIndex -lt 9; $modelIndex++) {
+    $expectedModel = "frontend_hilltop_model_$modelIndex.pmes"
+    if ($frontendHilltop.models[$modelIndex].mesh -ne $expectedModel) {
+        throw "Converted retail Hilltop manifest has an invalid model $modelIndex binding"
+    }
+    $frontendHilltopFiles += $expectedModel
+}
+for ($textureIndex = 0; $textureIndex -lt 9; $textureIndex++) {
+    $expectedTexture = "frontend_hilltop_texture_$textureIndex.ptex"
+    if ($frontendHilltop.textures[$textureIndex].texture -ne $expectedTexture) {
+        throw "Converted retail Hilltop manifest has an invalid texture $textureIndex binding"
+    }
+    $frontendHilltopFiles += $expectedTexture
+}
+$frontendHilltopConfigPath = Join-Path $frontendTerrainHilltopPath 'frontend_hilltop.pcfg'
+$frontendHilltopConfig = [System.IO.File]::ReadAllBytes($frontendHilltopConfigPath)
+if ($frontendHilltopConfig.Length -ne 204 -or
+    [System.BitConverter]::ToUInt32($frontendHilltopConfig, 0) -ne 0x50444650 -or
+    [System.BitConverter]::ToUInt32($frontendHilltopConfig, 4) -ne 1 -or
+    [System.BitConverter]::ToUInt32($frontendHilltopConfig, 8) -ne 9 -or
+    [System.BitConverter]::ToUInt32($frontendHilltopConfig, 12) -ne 9 -or
+    [System.BitConverter]::ToUInt32($frontendHilltopConfig, 16) -ne 20 -or
+    [System.BitConverter]::ToUInt32($frontendHilltopConfig, 20) -ne 0) {
+    throw "Converted retail Hilltop config is invalid: $frontendHilltopConfigPath"
+}
+Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_hilltop_*' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+Remove-Item -LiteralPath (Join-Path $runtimePath 'frontend_hilltop.pcfg') -Force -ErrorAction SilentlyContinue
+foreach ($fileName in $frontendHilltopFiles) {
+    $sourcePath = Join-Path $frontendTerrainHilltopPath $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Converted retail Hilltop asset was not found: $sourcePath"
     }
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
