@@ -101,6 +101,32 @@ $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
 $gamePbpPath = Join-Path $buildPath 'EBOOT_GAME.PBP'
 $gameSfoPath = Join-Path $buildPath 'PARAM_GAME.SFO'
+$frontendInstanceSets = @(
+    @{
+        Name = 'fncw'
+        Prefix = 'frontend_instances_fncw'
+        Instances = 126
+        Material = 'fencewhite'
+        Texture = 'World\fencewhite.tga'
+        Models = @(
+            @{ Name = 'fncw01'; Index = 8; Instances = 52; Vertices = 4368; Indices = 9048; Bytes = 122952 },
+            @{ Name = 'fncw02'; Index = 9; Instances = 53; Vertices = 4452; Indices = 9222; Bytes = 125316 },
+            @{ Name = 'fncw03'; Index = 10; Instances = 21; Vertices = 1764; Indices = 3654; Bytes = 49668 }
+        )
+    },
+    @{
+        Name = 'fncp'
+        Prefix = 'frontend_instances_fncp'
+        Instances = 71
+        Material = 'fencepicket'
+        Texture = 'World\fencepicket.tga'
+        Models = @(
+            @{ Name = 'fncp01'; Index = 5; Instances = 31; Vertices = 4092; Indices = 8184; Bytes = 114600 },
+            @{ Name = 'fncp02'; Index = 6; Instances = 33; Vertices = 4818; Indices = 8712; Bytes = 133080 },
+            @{ Name = 'fncp03'; Index = 7; Instances = 7; Vertices = 1190; Indices = 2058; Bytes = 32700 }
+        )
+    }
+)
 
 foreach ($requiredFile in @($gamePbpPath, $gameSfoPath)) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
@@ -188,14 +214,16 @@ if (-not $SkipConversion) {
     if ($PythonPath) { $terrainMeadowsouthConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendMeadowsouth.ps1') @terrainMeadowsouthConversionArguments
 
-    $frontendInstanceConversionArguments = @{
-        ModelNames = @('fncw01', 'fncw02', 'fncw03')
-        Prefix = 'frontend_instances_fncw'
-        OutputDirectory = Join-Path $frontendInstancesPath 'fncw'
+    foreach ($instanceSet in $frontendInstanceSets) {
+        $frontendInstanceConversionArguments = @{
+            ModelNames = @($instanceSet.Models | ForEach-Object { $_.Name })
+            Prefix = $instanceSet.Prefix
+            OutputDirectory = Join-Path $frontendInstancesPath $instanceSet.Name
+        }
+        if ($TMDLPath) { $frontendInstanceConversionArguments.TMDLPath = $TMDLPath }
+        if ($PythonPath) { $frontendInstanceConversionArguments.PythonPath = $PythonPath }
+        & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendInstanceSet.ps1') @frontendInstanceConversionArguments
     }
-    if ($TMDLPath) { $frontendInstanceConversionArguments.TMDLPath = $TMDLPath }
-    if ($PythonPath) { $frontendInstanceConversionArguments.PythonPath = $PythonPath }
-    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendInstanceSet.ps1') @frontendInstanceConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -659,81 +687,78 @@ foreach ($fileName in $frontendMeadowsouthFiles) {
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
 
-$frontendInstanceSetPath = Join-Path $frontendInstancesPath 'fncw'
-$frontendInstanceManifestPath = Join-Path $frontendInstanceSetPath 'frontend_instances_fncw.json'
-if (-not (Test-Path -LiteralPath $frontendInstanceManifestPath -PathType Leaf)) {
-    throw "Converted retail fncw instance manifest was not found: $frontendInstanceManifestPath"
-}
-$frontendInstanceManifest = Get-Content -LiteralPath $frontendInstanceManifestPath -Raw | ConvertFrom-Json
-$frontendInstanceDefinitions = @(
-    @{ Name = 'fncw01'; Index = 8; Instances = 52; Vertices = 4368; Indices = 9048; Bytes = 122952 },
-    @{ Name = 'fncw02'; Index = 9; Instances = 53; Vertices = 4452; Indices = 9222; Bytes = 125316 },
-    @{ Name = 'fncw03'; Index = 10; Instances = 21; Vertices = 1764; Indices = 3654; Bytes = 49668 }
-)
-if ($frontendInstanceManifest.version -ne 1 -or
-    $frontendInstanceManifest.prefix -ne 'frontend_instances_fncw' -or
-    $frontendInstanceManifest.source_model_count -ne 3 -or
-    $frontendInstanceManifest.source_instances -ne 126 -or
-    $frontendInstanceManifest.sources.Count -ne 3 -or
-    $frontendInstanceManifest.models.Count -ne 3 -or
-    $frontendInstanceManifest.textures.Count -ne 1 -or
-    $frontendInstanceManifest.textures[0].texture -ne 'frontend_instances_fncw_texture_0.ptex' -or
-    $frontendInstanceManifest.textures[0].source_texture -ne 'World\fencewhite.tga') {
-    throw "Converted retail fncw instance manifest is invalid: $frontendInstanceManifestPath"
-}
-for ($index = 0; $index -lt $frontendInstanceDefinitions.Count; $index++) {
-    $definition = $frontendInstanceDefinitions[$index]
-    $source = $frontendInstanceManifest.sources[$index]
-    $model = $frontendInstanceManifest.models[$index]
-    if ($source.model_index -ne $definition.Index -or
-        $source.model_name -ne $definition.Name -or
-        $source.model_path -ne "data/models/$($definition.Name).trb" -or
-        $source.source_meshes -ne 1 -or
-        $source.source_instances -ne $definition.Instances -or
-        $model.mesh -ne "frontend_instances_fncw_model_$index.pmes" -or
-        $model.source_model_index -ne $definition.Index -or
-        $model.source_model_name -ne $definition.Name -or
-        $model.material -ne 'fencewhite' -or
-        $model.source_texture -ne 'World\fencewhite.tga' -or
-        $model.texture_index -ne 0 -or
-        $model.vertices -ne $definition.Vertices -or
-        $model.indices -ne $definition.Indices -or
-        $model.bytes -ne $definition.Bytes) {
-        throw "Converted retail $($definition.Name) instance geometry or binding is invalid"
-    }
-}
-$frontendInstanceConfigPath = Join-Path $frontendInstanceSetPath 'frontend_instances_fncw.pcfg'
-$frontendInstanceConfig = [System.IO.File]::ReadAllBytes($frontendInstanceConfigPath)
-if ($frontendInstanceConfig.Length -ne 84 -or
-    [System.BitConverter]::ToUInt32($frontendInstanceConfig, 0) -ne 0x50444650 -or
-    [System.BitConverter]::ToUInt32($frontendInstanceConfig, 4) -ne 1 -or
-    [System.BitConverter]::ToUInt32($frontendInstanceConfig, 8) -ne 3 -or
-    [System.BitConverter]::ToUInt32($frontendInstanceConfig, 12) -ne 1 -or
-    [System.BitConverter]::ToUInt32($frontendInstanceConfig, 16) -ne 20 -or
-    [System.BitConverter]::ToUInt32($frontendInstanceConfig, 20) -ne 0) {
-    throw "Converted retail fncw instance config is invalid: $frontendInstanceConfigPath"
-}
-for ($index = 0; $index -lt 3; $index++) {
-    $entryOffset = 24 + $index * 20
-    if ([System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset) -ne $index -or
-        [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 4) -ne 0) {
-        throw "Converted retail fncw instance config has an invalid model $index binding"
-    }
-}
 Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_instances_*' -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
-foreach ($fileName in @(
-    'frontend_instances_fncw.pcfg',
-    'frontend_instances_fncw_model_0.pmes',
-    'frontend_instances_fncw_model_1.pmes',
-    'frontend_instances_fncw_model_2.pmes',
-    'frontend_instances_fncw_texture_0.ptex'
-)) {
-    $sourcePath = Join-Path $frontendInstanceSetPath $fileName
-    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-        throw "Converted retail fncw instance asset was not found: $sourcePath"
+foreach ($instanceSet in $frontendInstanceSets) {
+    $frontendInstanceSetPath = Join-Path $frontendInstancesPath $instanceSet.Name
+    $frontendInstanceManifestPath = Join-Path $frontendInstanceSetPath "$($instanceSet.Prefix).json"
+    if (-not (Test-Path -LiteralPath $frontendInstanceManifestPath -PathType Leaf)) {
+        throw "Converted retail $($instanceSet.Name) instance manifest was not found: $frontendInstanceManifestPath"
     }
-    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+    $frontendInstanceManifest = Get-Content -LiteralPath $frontendInstanceManifestPath -Raw | ConvertFrom-Json
+    $modelCount = $instanceSet.Models.Count
+    if ($frontendInstanceManifest.version -ne 1 -or
+        $frontendInstanceManifest.prefix -ne $instanceSet.Prefix -or
+        $frontendInstanceManifest.source_model_count -ne $modelCount -or
+        $frontendInstanceManifest.source_instances -ne $instanceSet.Instances -or
+        $frontendInstanceManifest.sources.Count -ne $modelCount -or
+        $frontendInstanceManifest.models.Count -ne $modelCount -or
+        $frontendInstanceManifest.textures.Count -ne 1 -or
+        $frontendInstanceManifest.textures[0].texture -ne "$($instanceSet.Prefix)_texture_0.ptex" -or
+        $frontendInstanceManifest.textures[0].source_texture -ne $instanceSet.Texture) {
+        throw "Converted retail $($instanceSet.Name) instance manifest is invalid: $frontendInstanceManifestPath"
+    }
+    for ($index = 0; $index -lt $modelCount; $index++) {
+        $definition = $instanceSet.Models[$index]
+        $source = $frontendInstanceManifest.sources[$index]
+        $model = $frontendInstanceManifest.models[$index]
+        if ($source.model_index -ne $definition.Index -or
+            $source.model_name -ne $definition.Name -or
+            $source.model_path -ne "data/models/$($definition.Name).trb" -or
+            $source.source_meshes -ne 1 -or
+            $source.source_instances -ne $definition.Instances -or
+            $model.mesh -ne "$($instanceSet.Prefix)_model_$index.pmes" -or
+            $model.source_model_index -ne $definition.Index -or
+            $model.source_model_name -ne $definition.Name -or
+            $model.material -ne $instanceSet.Material -or
+            $model.source_texture -ne $instanceSet.Texture -or
+            $model.texture_index -ne 0 -or
+            $model.vertices -ne $definition.Vertices -or
+            $model.indices -ne $definition.Indices -or
+            $model.bytes -ne $definition.Bytes) {
+            throw "Converted retail $($definition.Name) instance geometry or binding is invalid"
+        }
+    }
+    $frontendInstanceConfigPath = Join-Path $frontendInstanceSetPath "$($instanceSet.Prefix).pcfg"
+    $frontendInstanceConfig = [System.IO.File]::ReadAllBytes($frontendInstanceConfigPath)
+    if ($frontendInstanceConfig.Length -ne (24 + $modelCount * 20) -or
+        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 0) -ne 0x50444650 -or
+        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 4) -ne 1 -or
+        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 8) -ne $modelCount -or
+        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 12) -ne 1 -or
+        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 16) -ne 20 -or
+        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 20) -ne 0) {
+        throw "Converted retail $($instanceSet.Name) instance config is invalid: $frontendInstanceConfigPath"
+    }
+    for ($index = 0; $index -lt $modelCount; $index++) {
+        $entryOffset = 24 + $index * 20
+        if ([System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset) -ne $index -or
+            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 4) -ne 0) {
+            throw "Converted retail $($instanceSet.Name) instance config has an invalid model $index binding"
+        }
+    }
+
+    $frontendInstanceFiles = @("$($instanceSet.Prefix).pcfg", "$($instanceSet.Prefix)_texture_0.ptex")
+    for ($index = 0; $index -lt $modelCount; $index++) {
+        $frontendInstanceFiles += "$($instanceSet.Prefix)_model_$index.pmes"
+    }
+    foreach ($fileName in $frontendInstanceFiles) {
+        $sourcePath = Join-Path $frontendInstanceSetPath $fileName
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            throw "Converted retail $($instanceSet.Name) instance asset was not found: $sourcePath"
+        }
+        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+    }
 }
 
 $frontendCameraSource = Join-Path $frontendCameraPath 'frontend_camera.pcam'

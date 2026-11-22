@@ -47,11 +47,19 @@ $requiredFiles = @(
     $ppssppFullPath,
     $runnerPath
 )
-$requiredFiles += Join-Path $runtimePath 'frontend_instances_fncw.pcfg'
-foreach ($modelIndex in 0..2) {
-    $requiredFiles += Join-Path $runtimePath "frontend_instances_fncw_model_$modelIndex.pmes"
+$frontendInstancePacks = @(
+    @{ Prefix = 'frontend_instances_fncw'; Models = 3; Textures = 1 },
+    @{ Prefix = 'frontend_instances_fncp'; Models = 3; Textures = 1 }
+)
+foreach ($pack in $frontendInstancePacks) {
+    $requiredFiles += Join-Path $runtimePath "$($pack.Prefix).pcfg"
+    for ($modelIndex = 0; $modelIndex -lt $pack.Models; $modelIndex++) {
+        $requiredFiles += Join-Path $runtimePath "$($pack.Prefix)_model_$modelIndex.pmes"
+    }
+    for ($textureIndex = 0; $textureIndex -lt $pack.Textures; $textureIndex++) {
+        $requiredFiles += Join-Path $runtimePath "$($pack.Prefix)_texture_$textureIndex.ptex"
+    }
 }
-$requiredFiles += Join-Path $runtimePath 'frontend_instances_fncw_texture_0.ptex'
 foreach ($pack in @(
     @{ Prefix = 'frontend_barnnorth_base'; Models = 44; Textures = 44 },
     @{ Prefix = 'frontend_barnnorth_detail'; Models = 8; Textures = 8 },
@@ -247,10 +255,10 @@ try {
     Assert-ReportValue $report 'frontend_hilltop_textures' '9'
     Assert-ReportValue $report 'frontend_meadowsouth_models' '15'
     Assert-ReportValue $report 'frontend_meadowsouth_textures' '15'
-    Assert-ReportValue $report 'frontend_instance_packs' '1'
-    Assert-ReportValue $report 'frontend_instances' '126'
-    Assert-ReportValue $report 'frontend_instance_models' '3'
-    Assert-ReportValue $report 'frontend_instance_textures' '1'
+    Assert-ReportValue $report 'frontend_instance_packs' '2'
+    Assert-ReportValue $report 'frontend_instances' '197'
+    Assert-ReportValue $report 'frontend_instance_models' '6'
+    Assert-ReportValue $report 'frontend_instance_textures' '2'
     Assert-ReportValue $report 'frontend_hour' '6.000000'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
     foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnnorth_draws', 'frontend_bgbarneast_draws', 'frontend_bgbarnwest_draws', 'frontend_hillbase_draws', 'frontend_hilltop_draws', 'frontend_meadowsouth_draws', 'frontend_instance_draws', 'frontend_barnsign_draws')) {
