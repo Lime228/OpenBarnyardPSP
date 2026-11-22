@@ -14,7 +14,7 @@ param(
     [string] $FrontendTerrainHillbaseDirectory = '',
     [string] $FrontendTerrainHilltopDirectory = '',
     [string] $FrontendTerrainMeadowsouthDirectory = '',
-    [string] $FrontendInstancesFncw02Directory = '',
+    [string] $FrontendInstancesDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $RuntimeDirectory = '',
@@ -68,8 +68,8 @@ if (-not $FrontendTerrainHilltopDirectory) {
 if (-not $FrontendTerrainMeadowsouthDirectory) {
     $FrontendTerrainMeadowsouthDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendTerrainMeadowsouth'
 }
-if (-not $FrontendInstancesFncw02Directory) {
-    $FrontendInstancesFncw02Directory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendInstances\fncw02'
+if (-not $FrontendInstancesDirectory) {
+    $FrontendInstancesDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendInstances'
 }
 if (-not $FrontendCameraDirectory) {
     $FrontendCameraDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\FrontendCamera'
@@ -95,7 +95,7 @@ $frontendTerrainBGbarnwestPath = [System.IO.Path]::GetFullPath($FrontendTerrainB
 $frontendTerrainHillbasePath = [System.IO.Path]::GetFullPath($FrontendTerrainHillbaseDirectory)
 $frontendTerrainHilltopPath = [System.IO.Path]::GetFullPath($FrontendTerrainHilltopDirectory)
 $frontendTerrainMeadowsouthPath = [System.IO.Path]::GetFullPath($FrontendTerrainMeadowsouthDirectory)
-$frontendInstancesFncw02Path = [System.IO.Path]::GetFullPath($FrontendInstancesFncw02Directory)
+$frontendInstancesPath = [System.IO.Path]::GetFullPath($FrontendInstancesDirectory)
 $frontendCameraPath = [System.IO.Path]::GetFullPath($FrontendCameraDirectory)
 $frontendBarnSignPath = [System.IO.Path]::GetFullPath($FrontendBarnSignDirectory)
 $runtimePath = [System.IO.Path]::GetFullPath($RuntimeDirectory)
@@ -188,13 +188,15 @@ if (-not $SkipConversion) {
     if ($PythonPath) { $terrainMeadowsouthConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendMeadowsouth.ps1') @terrainMeadowsouthConversionArguments
 
-    $frontendInstancesFncw02ConversionArguments = @{
-        ModelName = 'fncw02'
-        OutputDirectory = $frontendInstancesFncw02Path
+    foreach ($modelName in @('fncw01', 'fncw02')) {
+        $frontendInstanceConversionArguments = @{
+            ModelName = $modelName
+            OutputDirectory = Join-Path $frontendInstancesPath $modelName
+        }
+        if ($TMDLPath) { $frontendInstanceConversionArguments.TMDLPath = $TMDLPath }
+        if ($PythonPath) { $frontendInstanceConversionArguments.PythonPath = $PythonPath }
+        & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendInstanceModel.ps1') @frontendInstanceConversionArguments
     }
-    if ($TMDLPath) { $frontendInstancesFncw02ConversionArguments.TMDLPath = $TMDLPath }
-    if ($PythonPath) { $frontendInstancesFncw02ConversionArguments.PythonPath = $PythonPath }
-    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendInstanceModel.ps1') @frontendInstancesFncw02ConversionArguments
 
     $cameraConversionArguments = @{ OutputDirectory = $frontendCameraPath }
     if ($TMDLPath) { $cameraConversionArguments.TMDLPath = $TMDLPath }
@@ -658,53 +660,57 @@ foreach ($fileName in $frontendMeadowsouthFiles) {
     Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
 }
 
-$frontendInstancesFncw02ManifestPath = Join-Path $frontendInstancesFncw02Path 'frontend_instances_fncw02.json'
-if (-not (Test-Path -LiteralPath $frontendInstancesFncw02ManifestPath -PathType Leaf)) {
-    throw "Converted retail fncw02 instance manifest was not found: $frontendInstancesFncw02ManifestPath"
-}
-$frontendInstancesFncw02 = Get-Content -LiteralPath $frontendInstancesFncw02ManifestPath -Raw | ConvertFrom-Json
-if ($frontendInstancesFncw02.version -ne 1 -or
-    $frontendInstancesFncw02.model_index -ne 9 -or
-    $frontendInstancesFncw02.model_name -ne 'fncw02' -or
-    $frontendInstancesFncw02.model_path -ne 'data/models/fncw02.trb' -or
-    $frontendInstancesFncw02.source_meshes -ne 1 -or
-    $frontendInstancesFncw02.source_instances -ne 53 -or
-    $frontendInstancesFncw02.models.Count -ne 1 -or
-    $frontendInstancesFncw02.textures.Count -ne 1) {
-    throw "Converted retail fncw02 instance manifest is invalid: $frontendInstancesFncw02ManifestPath"
-}
-if ($frontendInstancesFncw02.models[0].mesh -ne 'frontend_instances_fncw02_model_0.pmes' -or
-    $frontendInstancesFncw02.models[0].material -ne 'fencewhite' -or
-    $frontendInstancesFncw02.models[0].source_texture -ne 'World\fencewhite.tga' -or
-    $frontendInstancesFncw02.models[0].vertices -ne 4452 -or
-    $frontendInstancesFncw02.models[0].indices -ne 9222 -or
-    $frontendInstancesFncw02.textures[0].texture -ne 'frontend_instances_fncw02_texture_0.ptex') {
-    throw "Converted retail fncw02 instance geometry or texture binding is invalid"
-}
-$frontendInstancesFncw02ConfigPath = Join-Path $frontendInstancesFncw02Path 'frontend_instances_fncw02.pcfg'
-$frontendInstancesFncw02Config = [System.IO.File]::ReadAllBytes($frontendInstancesFncw02ConfigPath)
-if ($frontendInstancesFncw02Config.Length -ne 44 -or
-    [System.BitConverter]::ToUInt32($frontendInstancesFncw02Config, 0) -ne 0x50444650 -or
-    [System.BitConverter]::ToUInt32($frontendInstancesFncw02Config, 4) -ne 1 -or
-    [System.BitConverter]::ToUInt32($frontendInstancesFncw02Config, 8) -ne 1 -or
-    [System.BitConverter]::ToUInt32($frontendInstancesFncw02Config, 12) -ne 1 -or
-    [System.BitConverter]::ToUInt32($frontendInstancesFncw02Config, 16) -ne 20 -or
-    [System.BitConverter]::ToUInt32($frontendInstancesFncw02Config, 20) -ne 0) {
-    throw "Converted retail fncw02 instance config is invalid: $frontendInstancesFncw02ConfigPath"
-}
-Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_instances_fncw02_*' -File -ErrorAction SilentlyContinue |
+$frontendInstanceDefinitions = @(
+    @{ Name = 'fncw01'; Index = 8; Instances = 52; Vertices = 4368; Indices = 9048 },
+    @{ Name = 'fncw02'; Index = 9; Instances = 53; Vertices = 4452; Indices = 9222 }
+)
+Get-ChildItem -LiteralPath $runtimePath -Filter 'frontend_instances_*' -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
-Remove-Item -LiteralPath (Join-Path $runtimePath 'frontend_instances_fncw02.pcfg') -Force -ErrorAction SilentlyContinue
-foreach ($fileName in @(
-    'frontend_instances_fncw02.pcfg',
-    'frontend_instances_fncw02_model_0.pmes',
-    'frontend_instances_fncw02_texture_0.ptex'
-)) {
-    $sourcePath = Join-Path $frontendInstancesFncw02Path $fileName
-    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-        throw "Converted retail fncw02 instance asset was not found: $sourcePath"
+foreach ($definition in $frontendInstanceDefinitions) {
+    $modelName = $definition.Name
+    $prefix = "frontend_instances_$modelName"
+    $modelPath = Join-Path $frontendInstancesPath $modelName
+    $manifestPath = Join-Path $modelPath "$prefix.json"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "Converted retail $modelName instance manifest was not found: $manifestPath"
     }
-    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ($manifest.version -ne 1 -or
+        $manifest.model_index -ne $definition.Index -or
+        $manifest.model_name -ne $modelName -or
+        $manifest.model_path -ne "data/models/$modelName.trb" -or
+        $manifest.source_meshes -ne 1 -or
+        $manifest.source_instances -ne $definition.Instances -or
+        $manifest.models.Count -ne 1 -or
+        $manifest.textures.Count -ne 1) {
+        throw "Converted retail $modelName instance manifest is invalid: $manifestPath"
+    }
+    if ($manifest.models[0].mesh -ne "${prefix}_model_0.pmes" -or
+        $manifest.models[0].material -ne 'fencewhite' -or
+        $manifest.models[0].source_texture -ne 'World\fencewhite.tga' -or
+        $manifest.models[0].vertices -ne $definition.Vertices -or
+        $manifest.models[0].indices -ne $definition.Indices -or
+        $manifest.textures[0].texture -ne "${prefix}_texture_0.ptex") {
+        throw "Converted retail $modelName instance geometry or texture binding is invalid"
+    }
+    $configPath = Join-Path $modelPath "$prefix.pcfg"
+    $config = [System.IO.File]::ReadAllBytes($configPath)
+    if ($config.Length -ne 44 -or
+        [System.BitConverter]::ToUInt32($config, 0) -ne 0x50444650 -or
+        [System.BitConverter]::ToUInt32($config, 4) -ne 1 -or
+        [System.BitConverter]::ToUInt32($config, 8) -ne 1 -or
+        [System.BitConverter]::ToUInt32($config, 12) -ne 1 -or
+        [System.BitConverter]::ToUInt32($config, 16) -ne 20 -or
+        [System.BitConverter]::ToUInt32($config, 20) -ne 0) {
+        throw "Converted retail $modelName instance config is invalid: $configPath"
+    }
+    foreach ($fileName in @("$prefix.pcfg", "${prefix}_model_0.pmes", "${prefix}_texture_0.ptex")) {
+        $sourcePath = Join-Path $modelPath $fileName
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            throw "Converted retail $modelName instance asset was not found: $sourcePath"
+        }
+        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $runtimePath $fileName) -Force
+    }
 }
 
 $frontendCameraSource = Join-Path $frontendCameraPath 'frontend_camera.pcam'
