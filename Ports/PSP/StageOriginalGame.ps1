@@ -138,6 +138,33 @@ $frontendInstanceSets = @(
             @{ Name = 'fncbordere'; Index = 16; Instances = 1; Material = 'fenceborder'; TextureIndex = 1; Vertices = 172; Indices = 345; Bytes = 4842 },
             @{ Name = 'fncwe'; Index = 11; Instances = 6; Material = 'fencewhite'; TextureIndex = 2; Vertices = 624; Indices = 1224; Bytes = 17448 }
         )
+    },
+    @{
+        Name = 'flowers'
+        Prefix = 'frontend_instances_flowers'
+        Instances = 176
+        Textures = @('World\flowerpink.tga', 'World\flowerspath.tga', 'World\large_tuft.tga', 'Prop\leafyplant.tga')
+        Sources = @(
+            @{ Name = 'flwrs01'; Index = 31; Instances = 33; SourceMeshes = 1 },
+            @{ Name = 'flwrs02'; Index = 32; Instances = 29; SourceMeshes = 1 },
+            @{ Name = 'flwrsorange'; Index = 42; Instances = 32; SourceMeshes = 1 },
+            @{ Name = 'flwrsbrown'; Index = 41; Instances = 28; SourceMeshes = 2 },
+            @{ Name = 'flwrswhite'; Index = 43; Instances = 4; SourceMeshes = 1 },
+            @{ Name = 'flwrp02'; Index = 29; Instances = 9; SourceMeshes = 1 },
+            @{ Name = 'flwrp03'; Index = 30; Instances = 10; SourceMeshes = 1 },
+            @{ Name = 'leafyplant'; Index = 38; Instances = 31; SourceMeshes = 1 }
+        )
+        Models = @(
+            @{ Name = 'flwrs01'; Index = 31; Material = 'flowerpink'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 7326; Indices = 18018; Bytes = 211884 },
+            @{ Name = 'flwrs02'; Index = 32; Material = 'flowerpink'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 1566; Indices = 3915; Bytes = 45438 },
+            @{ Name = 'flwrsorange'; Index = 42; Material = 'flowerspath'; TextureIndex = 1; SourceMeshIndex = 0; Vertices = 5888; Indices = 13056; Bytes = 167448 },
+            @{ Name = 'flwrsbrown'; Index = 41; Material = 'flowerspath'; TextureIndex = 1; SourceMeshIndex = 0; Vertices = 3360; Indices = 7896; Bytes = 96456 },
+            @{ Name = 'flwrsbrown'; Index = 41; Material = 'Material_#9421'; TextureIndex = 1; SourceMeshIndex = 1; Vertices = 1344; Indices = 2016; Bytes = 36312 },
+            @{ Name = 'flwrswhite'; Index = 43; Material = 'flowerspath'; TextureIndex = 1; SourceMeshIndex = 0; Vertices = 688; Indices = 1560; Bytes = 19656 },
+            @{ Name = 'flwrp02'; Index = 29; Material = 'large_tuft'; TextureIndex = 2; SourceMeshIndex = 0; Vertices = 1197; Indices = 2349; Bytes = 33450 },
+            @{ Name = 'flwrp03'; Index = 30; Material = 'large_tuft'; TextureIndex = 2; SourceMeshIndex = 0; Vertices = 710; Indices = 1350; Bytes = 19764 },
+            @{ Name = 'leafyplant'; Index = 38; Material = 'leafyplant'; TextureIndex = 3; SourceMeshIndex = 0; Vertices = 4836; Indices = 10974; Bytes = 138036 }
+        )
     }
 )
 
@@ -228,8 +255,9 @@ if (-not $SkipConversion) {
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendMeadowsouth.ps1') @terrainMeadowsouthConversionArguments
 
     foreach ($instanceSet in $frontendInstanceSets) {
+        $sourceDefinitions = if ($instanceSet.ContainsKey('Sources')) { $instanceSet.Sources } else { $instanceSet.Models }
         $frontendInstanceConversionArguments = @{
-            ModelNames = @($instanceSet.Models | ForEach-Object { $_.Name })
+            ModelNames = @($sourceDefinitions | ForEach-Object { $_.Name })
             Prefix = $instanceSet.Prefix
             OutputDirectory = Join-Path $frontendInstancesPath $instanceSet.Name
         }
@@ -709,13 +737,15 @@ foreach ($instanceSet in $frontendInstanceSets) {
         throw "Converted retail $($instanceSet.Name) instance manifest was not found: $frontendInstanceManifestPath"
     }
     $frontendInstanceManifest = Get-Content -LiteralPath $frontendInstanceManifestPath -Raw | ConvertFrom-Json
+    $sourceDefinitions = if ($instanceSet.ContainsKey('Sources')) { $instanceSet.Sources } else { $instanceSet.Models }
+    $sourceModelCount = $sourceDefinitions.Count
     $modelCount = $instanceSet.Models.Count
     $textureCount = $instanceSet.Textures.Count
     if ($frontendInstanceManifest.version -ne 1 -or
         $frontendInstanceManifest.prefix -ne $instanceSet.Prefix -or
-        $frontendInstanceManifest.source_model_count -ne $modelCount -or
+        $frontendInstanceManifest.source_model_count -ne $sourceModelCount -or
         $frontendInstanceManifest.source_instances -ne $instanceSet.Instances -or
-        $frontendInstanceManifest.sources.Count -ne $modelCount -or
+        $frontendInstanceManifest.sources.Count -ne $sourceModelCount -or
         $frontendInstanceManifest.models.Count -ne $modelCount -or
         $frontendInstanceManifest.textures.Count -ne $textureCount) {
         throw "Converted retail $($instanceSet.Name) instance manifest is invalid: $frontendInstanceManifestPath"
@@ -726,18 +756,26 @@ foreach ($instanceSet in $frontendInstanceSets) {
             throw "Converted retail $($instanceSet.Name) instance texture $textureIndex is invalid"
         }
     }
-    for ($index = 0; $index -lt $modelCount; $index++) {
-        $definition = $instanceSet.Models[$index]
-        $source = $frontendInstanceManifest.sources[$index]
-        $model = $frontendInstanceManifest.models[$index]
+    for ($sourceIndex = 0; $sourceIndex -lt $sourceModelCount; $sourceIndex++) {
+        $definition = $sourceDefinitions[$sourceIndex]
+        $source = $frontendInstanceManifest.sources[$sourceIndex]
+        $sourceMeshCount = if ($definition.ContainsKey('SourceMeshes')) { $definition.SourceMeshes } else { 1 }
         if ($source.model_index -ne $definition.Index -or
             $source.model_name -ne $definition.Name -or
             $source.model_path -ne "data/models/$($definition.Name).trb" -or
-            $source.source_meshes -ne 1 -or
-            $source.source_instances -ne $definition.Instances -or
-            $model.mesh -ne "$($instanceSet.Prefix)_model_$index.pmes" -or
+            $source.source_meshes -ne $sourceMeshCount -or
+            $source.source_instances -ne $definition.Instances) {
+            throw "Converted retail $($definition.Name) instance source is invalid"
+        }
+    }
+    for ($index = 0; $index -lt $modelCount; $index++) {
+        $definition = $instanceSet.Models[$index]
+        $model = $frontendInstanceManifest.models[$index]
+        $sourceMeshIndex = if ($definition.ContainsKey('SourceMeshIndex')) { $definition.SourceMeshIndex } else { 0 }
+        if ($model.mesh -ne "$($instanceSet.Prefix)_model_$index.pmes" -or
             $model.source_model_index -ne $definition.Index -or
             $model.source_model_name -ne $definition.Name -or
+            $model.source_mesh -ne "frontend_instances_$($definition.Name)_model_$sourceMeshIndex.pmes" -or
             $model.material -ne $definition.Material -or
             $model.source_texture -ne $instanceSet.Textures[$definition.TextureIndex] -or
             $model.texture_index -ne $definition.TextureIndex -or
@@ -760,8 +798,14 @@ foreach ($instanceSet in $frontendInstanceSets) {
     }
     for ($index = 0; $index -lt $modelCount; $index++) {
         $entryOffset = 24 + $index * 20
+        $expectedAlphaMode = if ($instanceSet.Models[$index].ContainsKey('AlphaMode')) { $instanceSet.Models[$index].AlphaMode } else { 1 }
+        $expectedAddressU = if ($instanceSet.Models[$index].ContainsKey('AddressU')) { $instanceSet.Models[$index].AddressU } else { 0 }
+        $expectedAddressV = if ($instanceSet.Models[$index].ContainsKey('AddressV')) { $instanceSet.Models[$index].AddressV } else { 0 }
         if ([System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset) -ne $index -or
-            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 4) -ne $instanceSet.Models[$index].TextureIndex) {
+            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 4) -ne $instanceSet.Models[$index].TextureIndex -or
+            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 8) -ne $expectedAlphaMode -or
+            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 12) -ne $expectedAddressU -or
+            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 16) -ne $expectedAddressV) {
             throw "Converted retail $($instanceSet.Name) instance config has an invalid model $index binding"
         }
     }
