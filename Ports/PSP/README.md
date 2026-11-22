@@ -84,11 +84,12 @@ installations at other paths are untouched.
 Background input uses PPSSPP's local WebSocket debugger and does not activate
 the emulator window or take keyboard and mouse focus from the current
 application. The debugger identity and process ID are checked before a command
-is sent. Screenshot requests use the emulator window command, temporarily
-restoring a minimized D3D11 window without activation because its minimized
-swap chain is not capturable. The runner keeps the configured graphics backend
-and reports an immediate startup failure instead of launching fallback
-instances.
+is sent. The process starts hidden; its top-level window is found by PID, moved
+off screen and shown without activation so D3D11 can keep rendering. Screenshot
+requests briefly stop the emulated CPU, download the final PSP framebuffer as a
+PNG through the same debugger and resume immediately. No emulator window is
+shown. The runner keeps the configured graphics backend and reports an
+immediate startup failure instead of launching fallback instances.
 
 Run the current original-game frontend gate as one repeatable operation with:
 
@@ -225,9 +226,13 @@ inventory model without changing its geometry or placement. It bakes every
 resident locator quaternion, position and scale offline, groups only identical
 material/texture bindings, extracts shared textures from the original startup
 pack and emits the same bounded PCFG/PMES/PTEX contract used by the terrain-pack
-renderer. The first integrated slice preserves all 53 initial-row `fncw02`
-white fences as one 4,452-vertex/9,222-index group with the original
-`World\fencewhite.tga` texture. Generated inventory and packs remain under the
+renderer. `Tools/ConvertRetailFrontendInstanceSet.ps1` then invokes
+`combine_frontend_instance_packs.py` to validate and combine selected model
+packs, preserve their exact geometry groups and deduplicate only textures with
+the same case-insensitive source name and identical bytes. The first integrated
+set contains all 52 `fncw01`, 53 `fncw02` and 21 `fncw03` placements: 126/640
+initial-row instances in three draw groups sharing one original
+`World\fencewhite.tga` PTEX. Generated inventory and packs remain under the
 ignored `Game/BarnyardPC/Workspace/FrontendInstances` directory.
 
 ## Bounded world layout

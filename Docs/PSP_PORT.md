@@ -11,9 +11,9 @@ converted PSP textures. The original frontend camera loop, every mesh from the
 shipping `Barn_L0Mod0` through `Barn_L0Mod3` and `Barnnorth_L0Mod0` through
 `Barnnorth_L0Mod3` layers, all five low-detail landscape sections selected by
 the initial retail VIS row, and the original barn-sign object render behind that
-menu. The first original type-1 instance slice also retains all 53 resident
-`fncw02` white-fence locators across Barn, Barnnorth, Hillbase, Hilltop and
-Meadowsouth. All 448 source terrain meshes are retained. Exact
+menu. The first original type-1 instance set retains all 126 resident `fncw01`,
+`fncw02` and `fncw03` white-fence locators across Barn, Barnnorth, Hillbase,
+Hilltop and Meadowsouth. All 448 source terrain meshes are retained. Exact
 material/texture matches are batched for PSP, but no original geometry or world
 placement is removed.
 
@@ -21,8 +21,8 @@ This is not a complete playable port. The current PSP menu implementation keeps
 the original class, button construction, locale IDs and retail presentation.
 Its 3D environment contains the complete initial terrain VIS row at its retail
 LODs: Barn and Barnnorth high plus BGbarneast, BGbarnwest, Hillbase, Hilltop and
-Meadowsouth low. Of the 640 type-1 instances selected by that row, the first 53
-original `fncw02` placements are converted and rendered; the remaining 587
+Meadowsouth low. Of the 640 type-1 instances selected by that row, the first 126
+original white-fence placements are converted and rendered; the remaining 514
 instances and remaining environment layers are not loaded. The original frontend creates only the already-running
 barn sign through `AWindmillHelper`; windmills, the weather vane and water wheel
 belong to gameplay `ASimState`. The initial 06:00 night-light state matches the
@@ -42,9 +42,9 @@ complete playable-game port is approximately **33%** complete.
 | PSP toolchain and packaging | 90% | Premake, branded PBP, deterministic converters, PSPDEV CI, host tools and separate bootstrap/original-game artifacts work; hardware release validation remains |
 | Portable Toshi/platform core | 75% | allocator, shared 20 MiB game/resource heap, files, TRB, timer, sync, threads, scheduler, input and GUI paths execute in the original-game target |
 | PSP renderer foundation | 58% | GU display, rotated GUI quads, bounded static resources, exact material modes, original camera and original 800x600 GUI mapping work; general material/model/scene closure remains |
-| Real-game asset pipeline | 61% | retail frontend GUI, complete initial terrain VIS row, exact light profiles, camera, barn sign and the first 53 exact type-1 instances stage repeatably; remaining instances, rooms, movies and streaming manifests remain |
+| Real-game asset pipeline | 62% | retail frontend GUI, complete initial terrain VIS row, exact light profiles, camera, barn sign and 126 exact type-1 instances stage repeatably; remaining instances, rooms, movies and streaming manifests remain |
 | Input integration | 75% | PSP buttons pass through sceCtrl, Toshi events, the retail input map and the original menu; gameplay mappings and real hardware remain |
-| Game bootstrap and frontend | 76% | original application/root task, authentic menu/input, complete initial retail terrain residency and the first original instance slice run; remaining instances/environment, downstream states and new-game flow remain |
+| Game bootstrap and frontend | 77% | original application/root task, authentic menu/input, complete initial retail terrain residency and the first bounded original instance set run; remaining instances/environment, downstream states and new-game flow remain |
 | Audio, movies and saves | 20% | bounded diagnostic PSP audio works; retail music/SFX ownership, Bink replacement and save devices are not integrated |
 | World, animation and gameplay | 8% | retail probes render in the harness, but the original world, actors, player, quests, physics and rooms are not running |
 
@@ -1238,6 +1238,15 @@ remain largely unstarted.
   frames, uses 8,300,180 of 16,777,216 render bytes and leaves 9,827,032 heap
   bytes free. One-process validation captures the upright, visibly fenced
   original scene in `EBOO00649_00038.jpg` and stops PID `12864`.
+- Commits `12a40ff3` through `822a5d85` extend that path to all 52 `fncw01`,
+  53 `fncw02` and 21 `fncw03` locators. The repeatable set combiner retains
+  three exact geometry groups while sharing their byte-identical
+  `World\fencewhite.tga` as one PTEX. CI run `45053311036` is green. Report v22
+  records 3,273 instance draws over 1,091 frames, uses 8,472,752 of 16,777,216
+  render bytes and leaves 9,654,228 heap bytes free. The fully hidden
+  single-process validator captures the upright, fully faded original scene in
+  `OpenBarnyardPSP_20261122_212606_350.png`, validates Down/Cross and stops PID
+  `13488`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1245,9 +1254,9 @@ remain largely unstarted.
 ## Immediate next slice
 
 Continue the original 3D frontend scene, not another synthetic screen. The
-camera loop, complete initial retail terrain VIS row, barn sign and first 53
-resident `fncw02` type-1 instances are now running. Extend the same inventory
-and exact-transform pipeline across the remaining 36 model types and 587
+camera loop, complete initial retail terrain VIS row, barn sign and first 126
+resident `fncw01`/`fncw02`/`fncw03` type-1 instances are now running. Extend the
+same inventory and exact-transform pipeline across the remaining 34 model types and 514
 locators in the initial row; do not add gameplay-owned helper scenery,
 synthetic objects or change the retail section LOD choices. Add bounded
 per-model visibility/LOD handling where batching would otherwise keep distant
