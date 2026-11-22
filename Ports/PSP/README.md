@@ -231,9 +231,10 @@ renderer. `Tools/ConvertRetailFrontendInstanceSet.ps1` then invokes
 packs, preserve their exact geometry groups and deduplicate only textures with
 the same case-insensitive source name and identical bytes. The first integrated
 set contains all 52 `fncw01`, 53 `fncw02` and 21 `fncw03` placements plus all
-31 `fncp01`, 33 `fncp02` and 7 `fncp03` placements: 197/640 initial-row
-instances in six draw groups. Each family shares its one original
-`World\fencewhite.tga` or `World\fencepicket.tga` PTEX. Generated inventory and packs remain under the
+31 `fncp01`, 33 `fncp02` and 7 `fncp03` placements, followed by all 40 resident
+border/pigpen/end-fence placements: 237/640 initial-row instances in thirteen
+draw groups. The first two families share their one original texture; the
+border set retains three exact material/texture bindings. Generated inventory and packs remain under the
 ignored `Game/BarnyardPC/Workspace/FrontendInstances` directory.
 
 ## Bounded world layout

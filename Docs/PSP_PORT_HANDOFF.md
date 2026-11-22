@@ -50,12 +50,12 @@ geometry or world placement is removed.
 
 The type-1 instance inventory reads the original 80-entry frontend model list
 and all 5,806 retail locators. The initial VIS row selects 640 instances across
-37 model types. The first integrated sets contain `fncw01`-`fncw03` and
-`fncp01`-`fncp03`: all 197 resident white/picket-fence locators are baked with
-their exact retail quaternions, positions and scales into six PSP draw groups
-using the original `fencewhite`/`fencepicket` materials and one shared texture
-per family. This is 197/640 resident instances; the remaining 443 are not yet
-ported.
+37 model types. The first integrated sets contain `fncw01`-`fncw03`,
+`fncp01`-`fncp03` and the seven resident border/pigpen/end fence types: all 237
+locators are baked with their exact retail quaternions, positions and scales
+into thirteen PSP draw groups. The first two packs share one original texture
+per family; the third retains its three exact material/texture bindings. This
+is 237/640 resident instances; the remaining 403 are not yet ported.
 
 This is a real original-game frontend milestone, but it is not a playable game
 yet. The menu currently uses a bounded PSP implementation of the original class:
@@ -69,7 +69,7 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete initial terrain VIS row, barn sign and first 197 exact instances run; remaining instances/environment, audio and hardware validation remain |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete initial terrain VIS row, barn sign and first 237 exact instances run; remaining instances/environment, audio and hardware validation remain |
 | Complete playable-game port | 33% | Original application/frontend runs with its complete initial terrain residency, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
 ## Non-negotiable repository rules
@@ -156,6 +156,8 @@ AppBoot_PSP creates the original application/root task and opens:
 - all 71 initial-row `fncp01`/`fncp02`/`fncp03` instances as three exact
   geometry groups sharing one byte-identical `fencepicket` texture, preserving
   every locator transform;
+- all 40 resident border/pigpen/end-fence instances as seven exact geometry
+  groups retaining three original material/texture bindings;
 - the bounded original `camera_loop` as `frontend_camera.pcam`;
 - the original two-mesh barn sign baked at `loc_barnsign`.
 
@@ -170,15 +172,15 @@ coordinates for that exact atlas. Other frontend textures retain the default
 256-pixel conversion cap unless a measured manifest exception is added.
 
 Measured original-menu runtime with the complete initial retail terrain VIS row,
-the first two combined exact instance sets, corrected D3D/GU camera-up boundary
-and original dawn light schedule (report v22, CI run `45064778604`):
+the first three combined exact instance sets, corrected D3D/GU camera-up
+boundary and original dawn light schedule (report v22, CI run `45065518968`):
 
     phase=frontend-menu-selection
-    heap_free=9357436
-    heap_largest_hole=9198484
-    heap_used=11606056
-    render_main_current=8769444
-    render_main_peak=8769444
+    heap_free=9182272
+    heap_largest_hole=9160260
+    heap_used=11780980
+    render_main_current=8944146
+    render_main_peak=8944146
     render_main_budget=16777216
     frontend_terrain_loaded=1
     frontend_terrain_meshes=11
@@ -220,11 +222,11 @@ and original dawn light schedule (report v22, CI run `45064778604`):
     frontend_meadowsouth_textures=15
     frontend_meadowsouth_draws=16380
     frontend_instances_loaded=1
-    frontend_instance_packs=2
-    frontend_instances=197
-    frontend_instance_models=6
-    frontend_instance_textures=2
-    frontend_instance_draws=6552
+    frontend_instance_packs=3
+    frontend_instances=237
+    frontend_instance_models=13
+    frontend_instance_textures=5
+    frontend_instance_draws=14196
     frontend_hour=6.000000
     frontend_barnsign_loaded=1
     frontend_barnsign_meshes=2
@@ -241,19 +243,19 @@ and original dawn light schedule (report v22, CI run `45064778604`):
     menu_activation_count=1
     menu_close_count=1
 
-The controlled one-process run used hidden PID `26112`, captured the upright,
+The controlled one-process run used hidden PID `23192`, captured the upright,
 fully faded original scene and expanded white fences in
-`OpenBarnyardPSP_20261122_231227_175.png`, then stopped the same PID. The
+`OpenBarnyardPSP_20261122_232037_385.png`, then stopped the same PID. The
 512x512 font atlas is therefore currently acceptable, but the
 figures must also be checked on real 32/64 MiB hardware.
 
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
-  with the original camera loop, barn sign and 197/640 original type-1 instances.
-  The `fncw`/`fncp` sets use LOD0 and offline exact-transform batching; per-instance
+  with the original camera loop, barn sign and 237/640 original type-1 instances.
+  The current instance sets use LOD0 and offline exact-transform batching; per-instance
   distance culling/LOD selection is not yet reproduced. The initial 06:00 light
-  state matches retail, but time-driven frontend re-entry, the remaining 443
+  state matches retail, but time-driven frontend re-entry, the remaining 403
   frontend instances and remaining environment layers are absent. The original frontend
   states create only the barn sign through `AWindmillHelper`; windmills, the
   weather vane and the water wheel belong to gameplay `ASimState`.
@@ -342,14 +344,14 @@ GitHub workflow: .github/workflows/psp.yaml.
 - bootstrap runs converter tests, generates the Premake PSP workspace, builds
   the diagnostic and original-game targets, and publishes separate artifacts.
 
-Current green original-menu/3D-slice artifact: PSP run `45064778604`, commit
-`9a6a827b`. Its report v22 proves all 448 source terrain meshes and the first
-197/640 original type-1 instances are resident, together with the 06:00 light
+Current green original-menu/3D-slice artifact: PSP run `45065518968`, commit
+`d146a2fd`. Its report v22 proves all 448 source terrain meshes and the first
+237/640 original type-1 instances are resident, together with the 06:00 light
 state, camera and barn sign. Down and Cross traverse the complete
 PPSSPP/sceCtrl/Toshi/retail-input-map/menu path. The matching hidden
 one-process validation captured correctly oriented, fully faded
-`OpenBarnyardPSP_20261122_231227_175.png`, exercised input and stopped PID
-`26112` cleanly. A full staging pass without `SkipConversion` also regenerated
+`OpenBarnyardPSP_20261122_232037_385.png`, exercised input and stopped PID
+`23192` cleanly. A full staging pass without `SkipConversion` also regenerated
 every retail frontend pack successfully from `Install`.
 
 Install the pinned official PPSSPP development build once:
@@ -384,8 +386,8 @@ Runtime evidence:
 
 ## Next implementation order
 
-1. Extend the exact combined type-1 path across the remaining 31 model types and
-   443 locators selected by the initial VIS row, preserving model IDs,
+1. Extend the exact combined type-1 path across the remaining 24 model types and
+   403 locators selected by the initial VIS row, preserving model IDs,
    transforms, material ownership and bounded visibility/LOD behaviour.
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
@@ -437,6 +439,8 @@ Runtime evidence:
   the WebSocket debugger while its single window remains hidden and off screen.
 - 3132fef5, 9a6a827b: render, stage and validate all 71 original picket-fence
   locators as a second bounded, texture-deduplicated set.
+- 79e63d83, d146a2fd: preserve three exact material/texture bindings while
+  rendering, staging and validating the remaining 40 resident fence locators.
 
 ## Claims that must not be made
 
