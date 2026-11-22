@@ -90,11 +90,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 2560 ];
+	static TCHAR s_aReportBuffer_PSP[ 2688 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=17\n"
+		"version=18\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -140,6 +140,10 @@ void AWriteGameRuntimeReport_PSP()
 		"frontend_bgbarnwest_models=%u\n"
 		"frontend_bgbarnwest_textures=%u\n"
 		"frontend_bgbarnwest_draws=%u\n"
+		"frontend_hillbase_loaded=%d\n"
+		"frontend_hillbase_models=%u\n"
+		"frontend_hillbase_textures=%u\n"
+		"frontend_hillbase_draws=%u\n"
 		"frontend_hour=%.6f\n"
 		"frontend_barnsign_loaded=%d\n"
 		"frontend_barnsign_meshes=%u\n"
@@ -221,6 +225,10 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiFrontendBGbarnwestModels,
 		s_GameRuntimeReport_PSP.uiFrontendBGbarnwestTextures,
 		s_GameRuntimeReport_PSP.uiFrontendBGbarnwestDraws,
+		s_GameRuntimeReport_PSP.bFrontendHillbaseLoaded,
+		s_GameRuntimeReport_PSP.uiFrontendHillbaseModels,
+		s_GameRuntimeReport_PSP.uiFrontendHillbaseTextures,
+		s_GameRuntimeReport_PSP.uiFrontendHillbaseDraws,
 		s_GameRuntimeReport_PSP.fFrontendHour,
 		s_GameRuntimeReport_PSP.bFrontendBarnSignLoaded,
 		s_GameRuntimeReport_PSP.uiFrontendBarnSignMeshes,
