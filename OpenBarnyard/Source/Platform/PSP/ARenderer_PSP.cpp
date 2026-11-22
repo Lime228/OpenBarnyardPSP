@@ -31,6 +31,7 @@ static AFrontEndTerrainPack_PSP s_FrontEndBarnnorthGlow_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndBGbarneast_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndBGbarnwest_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndHillbase_PSP;
+static AFrontEndTerrainPack_PSP s_FrontEndHilltop_PSP;
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 
 TDEFINE_CLASS( ARenderer );
@@ -131,6 +132,11 @@ TBOOL ARenderer::OnCreate()
 	rReport.uiFrontendHillbaseTextures = s_FrontEndHillbase_PSP.GetTextureCount();
 	if ( !rReport.bFrontendHillbaseLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_FrontEndHillbase_PSP.GetFailedPath() );
+	rReport.bFrontendHilltopLoaded = s_FrontEndHilltop_PSP.Load( "frontend_hilltop" );
+	rReport.uiFrontendHilltopModels = s_FrontEndHilltop_PSP.GetModelCount();
+	rReport.uiFrontendHilltopTextures = s_FrontEndHilltop_PSP.GetTextureCount();
+	if ( !rReport.bFrontendHilltopLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_FrontEndHilltop_PSP.GetFailedPath() );
 	rReport.bFrontendCameraLoaded = s_FrontEndCamera_PSP.Load();
 	rReport.uiFrontendCameraFrames = s_FrontEndCamera_PSP.GetFrameCount();
 	rReport.uiFrontendCameraSampleRate = s_FrontEndCamera_PSP.GetSampleRate();
@@ -211,6 +217,11 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 		pFrontEndCamera,
 		s_fFrontEndStartHour_PSP
 	);
+	rReport.uiFrontendHilltopDraws += s_FrontEndHilltop_PSP.Render(
+		s_RenderInterface_PSP,
+		pFrontEndCamera,
+		s_fFrontEndStartHour_PSP
+	);
 	rReport.uiFrontendBarnSignDraws += s_FrontEndBarnSign_PSP.Render(
 		s_RenderInterface_PSP,
 		pFrontEndCamera
@@ -237,6 +248,7 @@ void ARenderer::OnDestroy()
 {
 	s_FrontEndCamera_PSP.Unload();
 	s_FrontEndBarnSign_PSP.Unload();
+	s_FrontEndHilltop_PSP.Unload();
 	s_FrontEndHillbase_PSP.Unload();
 	s_FrontEndBGbarnwest_PSP.Unload();
 	s_FrontEndBGbarneast_PSP.Unload();
