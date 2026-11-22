@@ -132,6 +132,25 @@ static TBOOL ValidateSubMesh_PSP( const TTMDWin::SubMesh& a_rSubMesh, TINT a_iBo
 	return TTRUE;
 }
 
+static const TCHAR* FindTexture_PSPModel(
+	TTMDBase::MaterialsHeader* a_pMaterials,
+	const TCHAR* a_pMaterialName
+)
+{
+	if ( a_pMaterials == TNULL || a_pMaterialName == TNULL ||
+	     a_pMaterials->iNumMaterials <= 0 || a_pMaterials->iNumMaterials > 4096 )
+		return TNULL;
+
+	for ( TINT i = 0; i < a_pMaterials->iNumMaterials; i++ )
+	{
+		TTMDBase::Material* pMaterial = a_pMaterials->GetMaterial( i );
+		if ( TStringManager::String8CompareNoCase( pMaterial->szMatName, a_pMaterialName ) == 0 )
+			return pMaterial->szTextureFile;
+	}
+
+	return TNULL;
+}
+
 TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath )
 {
 	if ( a_pInputPath == TNULL || a_pOutputPath == TNULL )
@@ -148,9 +167,11 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 	auto oFileHeader = pSymbols->Find<TTMDBase::FileHeader>( pSections, "FileHeader" );
 	auto oHeader = pSymbols->Find<TTMDWin::TRBWinHeader>( pSections, "Header" );
 	auto oSkeleton = pSymbols->Find<TSkeleton>( pSections, "Skeleton" );
-	if ( !oFileHeader || !oHeader || !oSkeleton ||
+	auto oMaterials = pSymbols->Find<TTMDBase::MaterialsHeader>( pSections, "Materials" );
+	if ( !oFileHeader || !oHeader || !oSkeleton || !oMaterials ||
 	     oFileHeader.get()->m_uiMagic != TFourCC( "TMDL" ) ||
 	     oHeader.get()->m_iNumLODs <= 0 ||
+	     oMaterials.get()->iNumMaterials <= 0 || oMaterials.get()->iNumMaterials > 4096 ||
 	     !ValidateSkeleton_PSP( *oSkeleton.get() ) )
 	{
 		TERROR( "PSP model dump rejected required TMD symbols, magic, LODs or skeleton\n" );
@@ -199,7 +220,15 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 
 		oOutput << "      { \"material\": ";
 		const TCHAR* pMaterialName = oMesh.get()->m_szMaterialName;
+		const TCHAR* pTextureName = FindTexture_PSPModel( oMaterials.get(), pMaterialName );
+		if ( pMaterialName == TNULL || pTextureName == TNULL || pTextureName[ 0 ] == '\0' )
+		{
+			TERROR( "PSP model dump could not resolve mesh %d material texture\n", mesh );
+			return TFALSE;
+		}
 		WriteJSONString_PSP( oOutput, pMaterialName, pMaterialName != TNULL ? TStringManager::String8Length( pMaterialName ) : 0 );
+		oOutput << ", \"texture\": ";
+		WriteJSONString_PSP( oOutput, pTextureName, TStringManager::String8Length( pTextureName ) );
 		oOutput << ", \"submeshes\": [\n";
 		for ( TUINT32 submesh = 0; submesh < oMesh.get()->m_uiNumSubMeshes; submesh++ )
 		{
