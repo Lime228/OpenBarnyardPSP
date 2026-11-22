@@ -15,7 +15,7 @@ $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $assetRoot = Join-Path $repositoryRoot 'Game\BarnyardPC'
 $installRoot = Join-Path $assetRoot 'Install'
 $locatorPath = Join-Path $installRoot 'Data\Terrain\frontend\frontend_skel.trb'
-$materialLibraryPath = Join-Path $installRoot 'Data\Assets\lib_frontend.trb'
+$materialLibraryPath = Join-Path $installRoot 'Data\Assets\lib_startup.trb'
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
 
 if (-not $ModelName -or $ModelName -notmatch '^[A-Za-z0-9_]+$') {
@@ -123,10 +123,10 @@ for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureInde
     $intermediatePaths += $ddsPath
     Push-Location (Split-Path -Parent $TMDLPath)
     try {
-        & $TMDLPath -psp-texture $materialLibraryPath -texture-symbol 'instancessh_TTL' `
+        & $TMDLPath -psp-texture $materialLibraryPath -texture-symbol 'instances_TTL' `
             -texture $texture.source_texture -o $ddsPath
         if ($LASTEXITCODE -ne 0) {
-            throw "Original instance texture '$($texture.source_texture)' was not found in lib_frontend/instancessh_TTL"
+            throw "Original instance texture '$($texture.source_texture)' was not found in lib_startup/instances_TTL"
         }
     }
     finally {
