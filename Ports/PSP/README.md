@@ -211,6 +211,25 @@ declared textures from `Matlibs/windmillhelper.ttl`. The ignored output is kept
 under `Game/BarnyardPC/Workspace/FrontendBarnSign` and staged as two numbered
 PMES/PTEX pairs.
 
+## Original frontend instances
+
+`Tools/InventoryRetailFrontendInstances.ps1` exports the complete locator and
+`LocatorVIS` tables from `Terrain/frontend/frontend_skel.trb`, reads the
+original type-1 model lists from the game source and applies the retail
+case-insensitive prefix rule. The current retail input contains 5,806 locators,
+43 VIS sections and 80 declared frontend model IDs. The exact initial row
+selects 640 instances across 37 models.
+
+`Tools/ConvertRetailFrontendInstanceModel.ps1 -ModelName fncw02` converts one
+inventory model without changing its geometry or placement. It bakes every
+resident locator quaternion, position and scale offline, groups only identical
+material/texture bindings, extracts shared textures from the original startup
+pack and emits the same bounded PCFG/PMES/PTEX contract used by the terrain-pack
+renderer. The first integrated slice preserves all 53 initial-row `fncw02`
+white fences as one 4,452-vertex/9,222-index group with the original
+`World\fencewhite.tga` texture. Generated inventory and packs remain under the
+ignored `Game/BarnyardPC/Workspace/FrontendInstances` directory.
+
 ## Bounded world layout
 
 `AWorld_PSP` accepts PWLD v3 layouts containing at most 16 fixed-size model

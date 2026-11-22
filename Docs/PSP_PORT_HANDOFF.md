@@ -48,6 +48,14 @@ resident as 149 bounded PSP models with 144 texture resources. Batching occurs
 only where the original material and texture are identical; no original
 geometry or world placement is removed.
 
+The type-1 instance inventory reads the original 80-entry frontend model list
+and all 5,806 retail locators. The initial VIS row selects 640 instances across
+37 model types. The first integrated slice is model `fncw02` (original model ID
+`0x09`): all 53 resident white-fence locators are baked with their exact retail
+quaternions, positions and scales into one PSP draw group using the original
+`fencewhite` material and `World\fencewhite.tga` texture. This is 53/640
+resident instances; the remaining 587 are not yet ported.
+
 This is a real original-game frontend milestone, but it is not a playable game
 yet. The menu currently uses a bounded PSP implementation of the original class:
 the original button construction, locale IDs, panels, colours, transforms and
@@ -60,7 +68,7 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete initial terrain VIS row and barn sign run; remaining instances/environment, audio and hardware validation remain |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete initial terrain VIS row, barn sign and first exact instance slice run; remaining instances/environment, audio and hardware validation remain |
 | Complete playable-game port | 33% | Original application/frontend runs with its complete initial terrain residency, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
 ## Non-negotiable repository rules
@@ -141,6 +149,7 @@ AppBoot_PSP creates the original application/root task and opens:
 - all 41 `Hillbase_L1Mod0`-`Mod3` meshes as 7 exact material/texture groups, preserving its one blended material;
 - all 21 `Hilltop_L1Mod0`-`Mod2` meshes as 9 exact material/texture groups;
 - all 48 `Meadowsouth_L1Mod0`-`Mod2` meshes as 15 exact material/texture groups;
+- all 53 initial-row `fncw02` instances as one exact `fencewhite` material/texture group, preserving every locator transform;
 - the bounded original `camera_loop` as `frontend_camera.pcam`;
 - the original two-mesh barn sign baked at `loc_barnsign`.
 
@@ -155,27 +164,27 @@ coordinates for that exact atlas. Other frontend textures retain the default
 256-pixel conversion cap unless a measured manifest exception is added.
 
 Measured original-menu runtime with the complete initial retail terrain VIS row,
-corrected D3D/GU camera-up boundary and original dawn light schedule (report
-v20, CI run `44997003987`):
+the first exact instance slice, corrected D3D/GU camera-up boundary and original
+dawn light schedule (report v21, CI run `45033577601`):
 
     phase=frontend-menu-selection
-    heap_free=9968704
-    heap_largest_hole=9965780
-    heap_used=10995052
-    render_main_current=8158504
-    render_main_peak=8158504
+    heap_free=9827032
+    heap_largest_hole=9821140
+    heap_used=11136664
+    render_main_current=8300180
+    render_main_peak=8300180
     render_main_budget=16777216
     frontend_terrain_loaded=1
     frontend_terrain_meshes=11
-    frontend_terrain_draws=8723
+    frontend_terrain_draws=9240
     frontend_terrain_pack_loaded=1
     frontend_terrain_pack_models=36
     frontend_terrain_pack_textures=34
-    frontend_terrain_pack_draws=28548
+    frontend_terrain_pack_draws=30240
     frontend_grass_loaded=1
     frontend_grass_models=1
     frontend_grass_textures=1
-    frontend_grass_draws=793
+    frontend_grass_draws=840
     frontend_glow_loaded=1
     frontend_glow_models=3
     frontend_glow_textures=1
@@ -183,52 +192,60 @@ v20, CI run `44997003987`):
     frontend_barnnorth_loaded=1
     frontend_barnnorth_models=55
     frontend_barnnorth_textures=54
-    frontend_barnnorth_draws=42029
+    frontend_barnnorth_draws=44520
     frontend_bgbarneast_loaded=1
     frontend_bgbarneast_models=7
     frontend_bgbarneast_textures=7
-    frontend_bgbarneast_draws=5551
+    frontend_bgbarneast_draws=5880
     frontend_bgbarnwest_loaded=1
     frontend_bgbarnwest_models=5
     frontend_bgbarnwest_textures=5
-    frontend_bgbarnwest_draws=3965
+    frontend_bgbarnwest_draws=4200
     frontend_hillbase_loaded=1
     frontend_hillbase_models=7
     frontend_hillbase_textures=7
-    frontend_hillbase_draws=5551
+    frontend_hillbase_draws=5880
     frontend_hilltop_loaded=1
     frontend_hilltop_models=9
     frontend_hilltop_textures=9
-    frontend_hilltop_draws=7137
+    frontend_hilltop_draws=7560
     frontend_meadowsouth_loaded=1
     frontend_meadowsouth_models=15
     frontend_meadowsouth_textures=15
-    frontend_meadowsouth_draws=11895
+    frontend_meadowsouth_draws=12600
+    frontend_instances_fncw02_loaded=1
+    frontend_instances_fncw02_models=1
+    frontend_instances_fncw02_textures=1
+    frontend_instances_fncw02_draws=840
     frontend_hour=6.000000
     frontend_barnsign_loaded=1
     frontend_barnsign_meshes=2
-    frontend_barnsign_draws=1586
+    frontend_barnsign_draws=1680
     frontend_camera_loaded=1
     frontend_camera_frames=10
     frontend_camera_sample_rate=30
     controller_observed_buttons=00004040
-    controller_nonzero_button_samples=30
+    controller_nonzero_button_samples=29
     menu_focus=1
     menu_command_down_count=1
     menu_command_ok_count=1
     menu_activated_button=1
     menu_activation_count=1
-    menu_close_count=0
+    menu_close_count=1
 
-The 512x512 font atlas is therefore currently acceptable, but the figures must
-also be checked on real 32/64 MiB hardware.
+The controlled one-process run used PID `12864`, captured the upright original
+scene and newly visible white fences in `EBOO00649_00038.jpg`, then stopped the
+same PID. The 512x512 font atlas is therefore currently acceptable, but the
+figures must also be checked on real 32/64 MiB hardware.
 
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
-  with the original camera loop and barn sign. The initial 06:00 light state
-  matches retail, but time-driven frontend re-entry, the frontend instance
-  library and remaining environment layers are absent. The original frontend
+  with the original camera loop, barn sign and 53/640 original type-1 instances.
+  The `fncw02` slice uses LOD0 and offline exact-transform batching; per-instance
+  distance culling/LOD selection is not yet reproduced. The initial 06:00 light
+  state matches retail, but time-driven frontend re-entry, the remaining 587
+  frontend instances and remaining environment layers are absent. The original frontend
   states create only the barn sign through `AWindmillHelper`; windmills, the
   weather vane and the water wheel belong to gameplay `ASimState`.
 - Menu actions are bounded to a selection checkpoint and menu reopen. New game,
@@ -266,6 +283,7 @@ Converted frontend workspace:
     Game/BarnyardPC/Workspace/FrontendTerrainHillbase/
     Game/BarnyardPC/Workspace/FrontendTerrainHilltop/
     Game/BarnyardPC/Workspace/FrontendTerrainMeadowsouth/
+    Game/BarnyardPC/Workspace/FrontendInstances/
     Game/BarnyardPC/Workspace/FrontendCamera/
     Game/BarnyardPC/Workspace/FrontendBarnSign/
 
@@ -290,6 +308,8 @@ Never hand-edit generated assets. Main entry points:
 | ConvertRetailFrontendHillbase.ps1 | Merge and convert every original Hillbase low-LOD cell |
 | ConvertRetailFrontendHilltop.ps1 | Merge and convert every original Hilltop low-LOD cell |
 | ConvertRetailFrontendMeadowsouth.ps1 | Merge and convert every original Meadowsouth low-LOD cell |
+| InventoryRetailFrontendInstances.ps1 | Export all retail locator/VIS tables and match the original type-1 model list and prefix rules |
+| ConvertRetailFrontendInstanceModel.ps1 | Bake every initial-row locator of one original model into bounded exact-material PSP groups |
 | merge_frontend_terrain_cells.py | Validate and concatenate complete version-2 terrain cells without changing source order |
 | ConvertRetailFrontendCamera.ps1 | Export and reduce the original camera hierarchy/loop to PCAM |
 | ConvertRetailBarnSign.ps1 | Export the world-model meshes/textures and bake the original locator transform |
@@ -351,8 +371,9 @@ Runtime evidence:
 
 ## Next implementation order
 
-1. Reproduce the original frontend type-1 `AInstanceManager` model list and
-   locator placement, preserving model IDs, transforms and material ownership.
+1. Extend the exact `fncw02` type-1 path across the remaining 36 model types and
+   587 locators selected by the initial VIS row, preserving model IDs,
+   transforms, material ownership and bounded visibility/LOD behaviour.
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
 3. Connect the original menu's downstream states one at a time, beginning with
@@ -390,6 +411,12 @@ Runtime evidence:
 - c39a0211, 500b5fa5, 63b8ff38: preserve Mod3 light profiles and the original
   dawn/night schedule through conversion, runtime and validation.
 - ceaa7dc5: resolve the newest PSP host tool consistently for all converters.
+- 29ee7e5e, 13aebffe: export complete locator/VIS tables and inventory the
+  original frontend type-1 instances.
+- 8bf0b32f, 9370ad99, e7588eab: resolve exact model textures, batch original
+  locator transforms and select the correct shared startup texture owner.
+- ca5d8548, 93634128: render, stage and validate the first 53 original
+  `fncw02` instances.
 
 ## Claims that must not be made
 
