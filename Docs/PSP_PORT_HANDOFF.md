@@ -51,7 +51,7 @@ geometry or world placement is removed.
 This is a real original-game frontend milestone, but it is not a playable game
 yet. The menu currently uses a bounded PSP implementation of the original class:
 the original button construction, locale IDs, panels, colours, transforms and
-focus are retained, while the complete world/windmill/music/save closure and
+focus are retained, while the complete world/instance/music/save closure and
 downstream state transitions are intentionally deferred. Activating an item
 records frontend-menu-selection and reopens the menu.
 
@@ -227,8 +227,10 @@ also be checked on real 32/64 MiB hardware.
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
   with the original camera loop and barn sign. The initial 06:00 light state
-  matches retail, but time-driven frontend re-entry, windmill/helper instances
-  and remaining environment layers are absent.
+  matches retail, but time-driven frontend re-entry, the frontend instance
+  library and remaining environment layers are absent. The original frontend
+  states create only the barn sign through `AWindmillHelper`; windmills, the
+  weather vane and the water wheel belong to gameplay `ASimState`.
 - Menu actions are bounded to a selection checkpoint and menu reopen. New game,
   load game, options, extras, antics and quit do not enter their retail states.
 - AMoviePlayer_PSP does not decode Bink. Startup images currently follow the
@@ -349,8 +351,8 @@ Runtime evidence:
 
 ## Next implementation order
 
-1. Add the original windmill/helper pieces and remaining frontend instances,
-   preserving their locators and material ownership.
+1. Reproduce the original frontend type-1 `AInstanceManager` model list and
+   locator placement, preserving model IDs, transforms and material ownership.
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
 3. Connect the original menu's downstream states one at a time, beginning with
@@ -359,8 +361,9 @@ Runtime evidence:
    audio interfaces.
 5. Design and implement offline movie conversion plus bounded PSP playback.
 6. Implement a bounded collision representation before any gameplay claim.
-7. Advance to one reduced playable room, then add actor/player control, saves
-   and zone streaming with memory telemetry.
+7. Advance to one reduced playable room, then add its gameplay-owned windmills,
+   weather vane, water wheel, actor/player control, saves and zone streaming
+   with memory telemetry.
 
 ## Recent logical commit boundary
 

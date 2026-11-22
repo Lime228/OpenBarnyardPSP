@@ -18,11 +18,14 @@ This is not a complete playable port. The current PSP menu implementation keeps
 the original class, button construction, locale IDs and retail presentation.
 Its 3D environment contains the complete initial terrain VIS row at its retail
 LODs: Barn and Barnnorth high plus BGbarneast, BGbarnwest, Hillbase, Hilltop and
-Meadowsouth low. Windmill/helper instances and remaining environment layers are
-not loaded. The initial 06:00 night-light state matches the original schedule, but
-full time progression is not connected. Collision, movies, saves, rooms, player control, downstream menu states
-and world streaming remain unfinished. The diagnostic EBOOT stays available
-only as a platform regression harness.
+Meadowsouth low. The frontend type-1 instance library and remaining environment
+layers are not loaded. The original frontend creates only the already-running
+barn sign through `AWindmillHelper`; windmills, the weather vane and water wheel
+belong to gameplay `ASimState`. The initial 06:00 night-light state matches the
+original schedule, but full time progression is not connected. Collision,
+movies, saves, rooms, player control, downstream menu states and world streaming
+remain unfinished. The diagnostic EBOOT stays available only as a platform
+regression harness.
 
 ## Progress snapshot (2026-11-22)
 
@@ -1230,10 +1233,10 @@ remain largely unstarted.
 
 Continue the original 3D frontend scene, not another synthetic screen. The
 camera loop, complete initial retail terrain VIS row and barn sign are now
-running. Add the windmill/helper instances and remaining environment ownership
-from their original locators; do not add synthetic scenery or change the retail
-section LOD choices. Then connect one downstream original menu state at a time
-and preserve memory telemetry.
+running. Reproduce the frontend type-1 `AInstanceManager` model list and its
+original locator transforms; do not add gameplay-owned helper scenery, synthetic
+objects or change the retail section LOD choices. Then connect one downstream
+original menu state at a time and preserve memory telemetry.
 
 Movies, collision and retail audio remain separate platform work. Do not claim
 playable gameplay until the PSP collision backend, one reduced room, player
