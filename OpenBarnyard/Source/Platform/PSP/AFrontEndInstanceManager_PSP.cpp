@@ -15,6 +15,7 @@ struct AFrontEndInstancePackDefinition_PSP
 static const AFrontEndInstancePackDefinition_PSP s_aFrontEndInstancePackDefinitions_PSP[] = {
 	{ "frontend_instances_fncw01", 52 },
 	{ "frontend_instances_fncw02", 53 },
+	{ "frontend_instances_fncw03", 21 },
 };
 
 static_assert(
