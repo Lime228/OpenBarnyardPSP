@@ -4,6 +4,7 @@ param(
     [string] $OutputDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $SourceModelName = 'Barn_L0Mod1',
+    [string[]] $AdditionalSourceModelNames = @(),
     [string] $SourceMaterialLibraryName = 'Barn_L0Mat',
     [string] $Prefix = 'frontend_detail',
     [string] $ForceAlphaMode = '',
@@ -21,8 +22,11 @@ if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $assetRoot 'Workspace\FrontendTerrainPack'
 }
 
-if (-not $SourceModelName -or $SourceModelName -notmatch '^[A-Za-z0-9_]+$') {
-    throw 'SourceModelName must contain only letters, numbers and underscores'
+$sourceModelNames = @($SourceModelName) + @($AdditionalSourceModelNames)
+foreach ($sourceName in $sourceModelNames) {
+    if (-not $sourceName -or $sourceName -notmatch '^[A-Za-z0-9_]+$') {
+        throw 'Source model names must contain only letters, numbers and underscores'
+    }
 }
 if (-not $SourceMaterialLibraryName -or $SourceMaterialLibraryName -notmatch '^[A-Za-z0-9_]+$') {
     throw 'SourceMaterialLibraryName must contain only letters, numbers and underscores'
@@ -38,13 +42,15 @@ foreach ($lightProfile in $LightProfiles) {
         throw "LightProfiles entry '$lightProfile' has an invalid original light schedule"
     }
 }
-$terrainPath = Join-Path $installRoot "Data\Terrain\frontend\$SourceModelName.trb"
+$terrainPaths = @($sourceModelNames | ForEach-Object {
+    Join-Path $installRoot "Data\Terrain\frontend\$_.trb"
+})
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
 $textureLibraries = @(
     (Join-Path $installRoot "Data\Terrain\frontend\$SourceMaterialLibraryName.ttl"),
     (Join-Path $installRoot 'Data\Terrain\frontend\frontend_Common.ttl')
 )
-foreach ($requiredPath in @($terrainPath, $materialPropertiesPath) + $textureLibraries) {
+foreach ($requiredPath in @($terrainPaths) + @($materialPropertiesPath) + $textureLibraries) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required original Barnyard asset was not found: $requiredPath"
     }
@@ -90,7 +96,13 @@ if ($TextureMaxWidth -notin @(32, 64, 128, 256, 512)) {
 }
 
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
-$terrainDumpPath = Join-Path $outputPath "$SourceModelName.json"
+$terrainDumpPaths = @($sourceModelNames | ForEach-Object { Join-Path $outputPath "$_.json" })
+$terrainDumpPath = if ($terrainDumpPaths.Count -eq 1) {
+    $terrainDumpPaths[0]
+}
+else {
+    Join-Path $outputPath "${Prefix}_source.json"
+}
 $propertiesDumpPath = Join-Path $outputPath 'material_properties.json'
 $manifestPath = Join-Path $outputPath "$Prefix.json"
 $configPath = Join-Path $outputPath "$Prefix.pcfg"
@@ -98,9 +110,11 @@ New-Item -ItemType Directory -Force -Path $outputPath,(Join-Path (Split-Path -Pa
 
 Push-Location (Split-Path -Parent $TMDLPath)
 try {
-    & $TMDLPath -psp-terrain-cell $terrainPath -world 0 -cell 0 -o $terrainDumpPath
-    if ($LASTEXITCODE -ne 0) {
-        throw "Original $SourceModelName export failed with exit code $LASTEXITCODE"
+    for ($sourceIndex = 0; $sourceIndex -lt $sourceModelNames.Count; $sourceIndex++) {
+        & $TMDLPath -psp-terrain-cell $terrainPaths[$sourceIndex] -world 0 -cell 0 -o $terrainDumpPaths[$sourceIndex]
+        if ($LASTEXITCODE -ne 0) {
+            throw "Original $($sourceModelNames[$sourceIndex]) export failed with exit code $LASTEXITCODE"
+        }
     }
     & $TMDLPath -psp-material-properties $materialPropertiesPath -o $propertiesDumpPath
     if ($LASTEXITCODE -ne 0) {
@@ -109,6 +123,14 @@ try {
 }
 finally {
     Pop-Location
+}
+
+if ($terrainDumpPaths.Count -gt 1) {
+    & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'merge_frontend_terrain_cells.py') `
+        --output $terrainDumpPath @terrainDumpPaths
+    if ($LASTEXITCODE -ne 0) {
+        throw "Original front-end terrain cell merge failed with exit code $LASTEXITCODE"
+    }
 }
 
 & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_frontend_terrain_pack.py') `
