@@ -106,24 +106,37 @@ $frontendInstanceSets = @(
         Name = 'fncw'
         Prefix = 'frontend_instances_fncw'
         Instances = 126
-        Material = 'fencewhite'
-        Texture = 'World\fencewhite.tga'
+        Textures = @('World\fencewhite.tga')
         Models = @(
-            @{ Name = 'fncw01'; Index = 8; Instances = 52; Vertices = 4368; Indices = 9048; Bytes = 122952 },
-            @{ Name = 'fncw02'; Index = 9; Instances = 53; Vertices = 4452; Indices = 9222; Bytes = 125316 },
-            @{ Name = 'fncw03'; Index = 10; Instances = 21; Vertices = 1764; Indices = 3654; Bytes = 49668 }
+            @{ Name = 'fncw01'; Index = 8; Instances = 52; Material = 'fencewhite'; TextureIndex = 0; Vertices = 4368; Indices = 9048; Bytes = 122952 },
+            @{ Name = 'fncw02'; Index = 9; Instances = 53; Material = 'fencewhite'; TextureIndex = 0; Vertices = 4452; Indices = 9222; Bytes = 125316 },
+            @{ Name = 'fncw03'; Index = 10; Instances = 21; Material = 'fencewhite'; TextureIndex = 0; Vertices = 1764; Indices = 3654; Bytes = 49668 }
         )
     },
     @{
         Name = 'fncp'
         Prefix = 'frontend_instances_fncp'
         Instances = 71
-        Material = 'fencepicket'
-        Texture = 'World\fencepicket.tga'
+        Textures = @('World\fencepicket.tga')
         Models = @(
-            @{ Name = 'fncp01'; Index = 5; Instances = 31; Vertices = 4092; Indices = 8184; Bytes = 114600 },
-            @{ Name = 'fncp02'; Index = 6; Instances = 33; Vertices = 4818; Indices = 8712; Bytes = 133080 },
-            @{ Name = 'fncp03'; Index = 7; Instances = 7; Vertices = 1190; Indices = 2058; Bytes = 32700 }
+            @{ Name = 'fncp01'; Index = 5; Instances = 31; Material = 'fencepicket'; TextureIndex = 0; Vertices = 4092; Indices = 8184; Bytes = 114600 },
+            @{ Name = 'fncp02'; Index = 6; Instances = 33; Material = 'fencepicket'; TextureIndex = 0; Vertices = 4818; Indices = 8712; Bytes = 133080 },
+            @{ Name = 'fncp03'; Index = 7; Instances = 7; Material = 'fencepicket'; TextureIndex = 0; Vertices = 1190; Indices = 2058; Bytes = 32700 }
+        )
+    },
+    @{
+        Name = 'fncborder'
+        Prefix = 'frontend_instances_fncborder'
+        Instances = 40
+        Textures = @('World\fencepigpen.tga', 'World\fenceborder.tga', 'World\fencewhite.tga')
+        Models = @(
+            @{ Name = 'fncb02'; Index = 1; Instances = 1; Material = 'fencepigpen'; TextureIndex = 0; Vertices = 84; Indices = 174; Bytes = 2388 },
+            @{ Name = 'fncb03'; Index = 2; Instances = 1; Material = 'fencepigpen'; TextureIndex = 0; Vertices = 84; Indices = 174; Bytes = 2388 },
+            @{ Name = 'fncborder01'; Index = 12; Instances = 9; Material = 'fenceborder'; TextureIndex = 1; Vertices = 756; Indices = 1566; Bytes = 21300 },
+            @{ Name = 'fncborder02'; Index = 13; Instances = 4; Material = 'fenceborder'; TextureIndex = 1; Vertices = 428; Indices = 900; Bytes = 12096 },
+            @{ Name = 'fncborder03'; Index = 14; Instances = 18; Material = 'fenceborder'; TextureIndex = 1; Vertices = 2322; Indices = 4752; Bytes = 65256 },
+            @{ Name = 'fncbordere'; Index = 16; Instances = 1; Material = 'fenceborder'; TextureIndex = 1; Vertices = 172; Indices = 345; Bytes = 4842 },
+            @{ Name = 'fncwe'; Index = 11; Instances = 6; Material = 'fencewhite'; TextureIndex = 2; Vertices = 624; Indices = 1224; Bytes = 17448 }
         )
     }
 )
@@ -697,16 +710,21 @@ foreach ($instanceSet in $frontendInstanceSets) {
     }
     $frontendInstanceManifest = Get-Content -LiteralPath $frontendInstanceManifestPath -Raw | ConvertFrom-Json
     $modelCount = $instanceSet.Models.Count
+    $textureCount = $instanceSet.Textures.Count
     if ($frontendInstanceManifest.version -ne 1 -or
         $frontendInstanceManifest.prefix -ne $instanceSet.Prefix -or
         $frontendInstanceManifest.source_model_count -ne $modelCount -or
         $frontendInstanceManifest.source_instances -ne $instanceSet.Instances -or
         $frontendInstanceManifest.sources.Count -ne $modelCount -or
         $frontendInstanceManifest.models.Count -ne $modelCount -or
-        $frontendInstanceManifest.textures.Count -ne 1 -or
-        $frontendInstanceManifest.textures[0].texture -ne "$($instanceSet.Prefix)_texture_0.ptex" -or
-        $frontendInstanceManifest.textures[0].source_texture -ne $instanceSet.Texture) {
+        $frontendInstanceManifest.textures.Count -ne $textureCount) {
         throw "Converted retail $($instanceSet.Name) instance manifest is invalid: $frontendInstanceManifestPath"
+    }
+    for ($textureIndex = 0; $textureIndex -lt $textureCount; $textureIndex++) {
+        if ($frontendInstanceManifest.textures[$textureIndex].texture -ne "$($instanceSet.Prefix)_texture_$textureIndex.ptex" -or
+            $frontendInstanceManifest.textures[$textureIndex].source_texture -ne $instanceSet.Textures[$textureIndex]) {
+            throw "Converted retail $($instanceSet.Name) instance texture $textureIndex is invalid"
+        }
     }
     for ($index = 0; $index -lt $modelCount; $index++) {
         $definition = $instanceSet.Models[$index]
@@ -720,9 +738,9 @@ foreach ($instanceSet in $frontendInstanceSets) {
             $model.mesh -ne "$($instanceSet.Prefix)_model_$index.pmes" -or
             $model.source_model_index -ne $definition.Index -or
             $model.source_model_name -ne $definition.Name -or
-            $model.material -ne $instanceSet.Material -or
-            $model.source_texture -ne $instanceSet.Texture -or
-            $model.texture_index -ne 0 -or
+            $model.material -ne $definition.Material -or
+            $model.source_texture -ne $instanceSet.Textures[$definition.TextureIndex] -or
+            $model.texture_index -ne $definition.TextureIndex -or
             $model.vertices -ne $definition.Vertices -or
             $model.indices -ne $definition.Indices -or
             $model.bytes -ne $definition.Bytes) {
@@ -735,7 +753,7 @@ foreach ($instanceSet in $frontendInstanceSets) {
         [System.BitConverter]::ToUInt32($frontendInstanceConfig, 0) -ne 0x50444650 -or
         [System.BitConverter]::ToUInt32($frontendInstanceConfig, 4) -ne 1 -or
         [System.BitConverter]::ToUInt32($frontendInstanceConfig, 8) -ne $modelCount -or
-        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 12) -ne 1 -or
+        [System.BitConverter]::ToUInt32($frontendInstanceConfig, 12) -ne $textureCount -or
         [System.BitConverter]::ToUInt32($frontendInstanceConfig, 16) -ne 20 -or
         [System.BitConverter]::ToUInt32($frontendInstanceConfig, 20) -ne 0) {
         throw "Converted retail $($instanceSet.Name) instance config is invalid: $frontendInstanceConfigPath"
@@ -743,14 +761,17 @@ foreach ($instanceSet in $frontendInstanceSets) {
     for ($index = 0; $index -lt $modelCount; $index++) {
         $entryOffset = 24 + $index * 20
         if ([System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset) -ne $index -or
-            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 4) -ne 0) {
+            [System.BitConverter]::ToUInt32($frontendInstanceConfig, $entryOffset + 4) -ne $instanceSet.Models[$index].TextureIndex) {
             throw "Converted retail $($instanceSet.Name) instance config has an invalid model $index binding"
         }
     }
 
-    $frontendInstanceFiles = @("$($instanceSet.Prefix).pcfg", "$($instanceSet.Prefix)_texture_0.ptex")
+    $frontendInstanceFiles = @("$($instanceSet.Prefix).pcfg")
     for ($index = 0; $index -lt $modelCount; $index++) {
         $frontendInstanceFiles += "$($instanceSet.Prefix)_model_$index.pmes"
+    }
+    for ($textureIndex = 0; $textureIndex -lt $textureCount; $textureIndex++) {
+        $frontendInstanceFiles += "$($instanceSet.Prefix)_texture_$textureIndex.ptex"
     }
     foreach ($fileName in $frontendInstanceFiles) {
         $sourcePath = Join-Path $frontendInstanceSetPath $fileName

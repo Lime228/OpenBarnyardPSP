@@ -49,7 +49,8 @@ $requiredFiles = @(
 )
 $frontendInstancePacks = @(
     @{ Prefix = 'frontend_instances_fncw'; Models = 3; Textures = 1 },
-    @{ Prefix = 'frontend_instances_fncp'; Models = 3; Textures = 1 }
+    @{ Prefix = 'frontend_instances_fncp'; Models = 3; Textures = 1 },
+    @{ Prefix = 'frontend_instances_fncborder'; Models = 7; Textures = 3 }
 )
 foreach ($pack in $frontendInstancePacks) {
     $requiredFiles += Join-Path $runtimePath "$($pack.Prefix).pcfg"
@@ -255,10 +256,10 @@ try {
     Assert-ReportValue $report 'frontend_hilltop_textures' '9'
     Assert-ReportValue $report 'frontend_meadowsouth_models' '15'
     Assert-ReportValue $report 'frontend_meadowsouth_textures' '15'
-    Assert-ReportValue $report 'frontend_instance_packs' '2'
-    Assert-ReportValue $report 'frontend_instances' '197'
-    Assert-ReportValue $report 'frontend_instance_models' '6'
-    Assert-ReportValue $report 'frontend_instance_textures' '2'
+    Assert-ReportValue $report 'frontend_instance_packs' '3'
+    Assert-ReportValue $report 'frontend_instances' '237'
+    Assert-ReportValue $report 'frontend_instance_models' '13'
+    Assert-ReportValue $report 'frontend_instance_textures' '5'
     Assert-ReportValue $report 'frontend_hour' '6.000000'
     Assert-ReportValue $report 'frontend_barnsign_meshes' '2'
     foreach ($name in @('renderer_frames', 'frontend_terrain_draws', 'frontend_terrain_pack_draws', 'frontend_grass_draws', 'frontend_barnnorth_draws', 'frontend_bgbarneast_draws', 'frontend_bgbarnwest_draws', 'frontend_hillbase_draws', 'frontend_hilltop_draws', 'frontend_meadowsouth_draws', 'frontend_instance_draws', 'frontend_barnsign_draws')) {
