@@ -3,7 +3,7 @@ param(
     [string] $RuntimeDirectory = '',
     [string] $PPSSPPPath = '',
     [ValidateRange(5, 60)]
-    [int] $TimeoutSeconds = 20,
+    [int] $TimeoutSeconds = 60,
     [switch] $SkipMenuInput,
     [switch] $SkipScreenshot
 )
