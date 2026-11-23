@@ -208,7 +208,40 @@ The largest JPEG is 23,203 bytes. The busiest 30 consecutive records total
 rereads each final container before publishing it. The batch includes the
 original startup inputs `NickMovs`, `THQ`, `BTE` and `Attract`. This
 installation only supplies the default `Attract`, so the language-specific
-names need an explicit fallback when the PSP player is wired into startup.
+states fall back to `Attract.pmvf` when their localized file is missing.
+
+`StageOriginalGame.ps1` stages all converted PMVF v2 files in `Data/Movies`
+inside the game runtime. It looks for the converted cache in `Workspace/Movies`
+by default. Use `-MoviesDirectory` when the cache is elsewhere. The original
+startup state chain controls movie order, skipping and transitions. The player
+streams the original first stereo track to a PSP audio channel and uses its
+played sample count to select the frame. Movies without audio use a monotonic
+clock. At 29.97 FPS the player can read four compressed frames ahead while
+retaining one decoded image. The PCM queue records an underrun when it had to
+wait for input and the PSP channel was empty before the next submission. The
+game writes frame counts, audio samples and underruns to
+`openbarnyard_psp_movies.log` next to the EBOOT.
+
+Validate the original game end to end with a staged EBOOT:
+
+~~~powershell
+.\Ports\PSP\Tools\TestOriginalStartupMovies.ps1 -RuntimeDirectory Runtime/OpenBarnyardPSPGame -RequireSteadyAudio
+~~~
+
+The script verifies the four movies in order, matches the PCM duration to each
+PMVF header and waits for the visible main menu. `-SkipAttract` also verifies
+that Cross stops the last movie and transitions to the menu. Use
+`-CaptureAttract` to inspect the framebuffer in a separate run from timing
+checks, because the PPSSPP debugger briefly pauses emulation during capture.
+
+Original-game CI run `45224435038` was tested in one hidden PPSSPP instance.
+`NickMovs`, `THQ`, `BTE` and `Attract` reached their final frames and the
+original main menu opened. The player read 3,815 video records and presented
+3,814 distinct frames. It played all 5,613,649 source stereo sample frames
+and recorded zero PCM underruns. The largest movie buffer footprint was
+662,784 bytes. An earlier render capture matched frame 98 of `Attract` at
+3.27 seconds with the same orientation as the source. In a separate run,
+Cross stopped `Attract` after frame 118 and the same main menu opened.
 
 Run the optional bootstrap decoder probe in a single hidden PPSSPP instance:
 

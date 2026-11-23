@@ -71,8 +71,8 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original main/options GUI input, camera, complete initial terrain VIS row, barn sign and all 640 exact instances run; nested options, remaining environment ownership, audio and hardware validation remain |
-| Complete playable-game port | 33% | Original application/frontend runs with its complete initial terrain residency, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens and original startup movies, main/options GUI input, camera, complete initial terrain VIS row, barn sign and all 640 exact instances run; nested options, remaining environment ownership, menu audio and hardware validation remain |
+| Complete playable-game port | 33% | Original startup movies and frontend run with the complete initial terrain residency. Rooms, player, world streaming, collision, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
 
@@ -129,7 +129,7 @@ Important PSP platform implementations include:
 - ARenderer_PSP and AGUI2Renderer_PSP: GU display, resource budget and original
   GUI rendering;
 - AInputHandler_PSP: PSP controller events through the game input layer;
-- AMoviePlayer_PSP: platform movie interface without proprietary Bink;
+- AMoviePlayer_PSP: streamed original movies using the PMVF decoder and PSP audio;
 - ACollisionModel_PSP: platform collision interface without x86 Opcode;
 - PSP file, allocator, time, sync, thread, input and texture implementations.
 
@@ -280,9 +280,11 @@ menu close. Its original localized `Audio`/`Controls` layout is captured in
   still bounded checkpoints. New game, load game, extras, antics and quit do not
   yet enter their retail states.
 - Startup images currently follow the original GUI presentation path. The 15
-  PMVF v2 movies preserve all original frames at about 29.97 FPS. The optional
-  bootstrap probe exercises PSP JPEG decoding and reports frame timing.
-  `AMoviePlayer_PSP` still needs timed presentation and audio playback.
+  PMVF v2 movies preserve all original frames at about 29.97 FPS. The game
+  streams `NickMovs`, `THQ`, `BTE` and `Attract` with their original audio and
+  reaches the visible main menu. Build `92112565` played all four tracks with
+  zero PCM underruns in PPSSPP. Physical PSP playback performance still needs
+  measurement.
 - ACollisionModel_PSP preserves the interface but returns no hits. Gameplay must
   not start until a bounded collision backend exists.
 - Retail FMOD banks/music are not integrated. The diagnostic mixer proves PSP
@@ -423,8 +425,7 @@ Runtime evidence:
    continue through other menu states before new-game world loading.
 4. Convert/integrate the retail menu cue/music ownership behind the existing PSP
    audio interfaces.
-5. Connect the bounded PMVF stream to `AMoviePlayer_PSP` and the original
-   startup states. Present frames with audio and measure the complete path.
+5. Measure the complete movie playback path on physical PSP hardware.
 6. Implement a bounded collision representation before any gameplay claim.
 7. Advance to one reduced playable room, then add its gameplay-owned windmills,
    weather vane, water wheel, actor/player control, saves and zone streaming
