@@ -155,6 +155,13 @@ TWCHAR* T2String16::FindString( TWCHAR* str, const TWCHAR* substr )
 	return wcsstr( str, substr );
 }
 
+// $Barnyard: FUNCTION 006bb3c0
+TSIZE T2String16::Length( const TWCHAR* str )
+{
+	if ( str != TNULL ) return wcslen( str );
+	return 0;
+}
+
 TBOOL T2String16::IsLowerCase( const TWCHAR* str )
 {
 	while ( *str != L'\0' && T2Char16::IsLowerCase( *str ) )
