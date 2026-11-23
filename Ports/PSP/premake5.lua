@@ -90,6 +90,8 @@ project "OpenBarnyardPSPBootstrap"
 	links
 	{
 		"pspaudio",
+		"pspjpeg",
+		"psputility",
 		"pspgum",
 		"pspgu",
 		"pspge",
@@ -363,6 +365,8 @@ project "OpenBarnyardPSPGame"
 	{
 		"OpenBarnyardPSPGameSlice",
 		"pspaudio",
+		"pspjpeg",
+		"psputility",
 		"pspgum",
 		"pspgu",
 		"pspge",

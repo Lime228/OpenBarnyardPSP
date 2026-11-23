@@ -12,6 +12,7 @@
 #include <Platform/PSP/TSkeletonFactory_PSP.h>
 #include <Platform/PSP/TSkeletonInstance_PSP.h>
 #include <Platform/PSP/TAnimationClipFactory_PSP.h>
+#include <Platform/PSP/TMovieStream_PSP.h>
 #include <Render/TBackend.h>
 
 #include "Assets/APreviewSet_PSP.h"
@@ -35,6 +36,58 @@ PSP_MAIN_THREAD_ATTR( PSP_THREAD_ATTR_USER );
 PSP_HEAP_SIZE_KB( -1024 );
 
 static volatile TBOOL g_Running = TTRUE;
+
+static void ProbeMovie_PSP()
+{
+	using namespace Toshi;
+	TFile* pMovie = TFile::Create( "local:probe_movie.pmvf", TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	if ( pMovie == TNULL )
+		return;
+
+	TMovieStream_PSP oMovie;
+	const TBOOL bOpened = oMovie.Open( *pMovie );
+	TUINT32 uiFrames = 0;
+	TUINT32 uiLate = 0;
+	TUINT32 uiSlowest = 0;
+	TUINT32 uiFingerprint = 0;
+	TUINT64 uiTotal = 0;
+	const TUINT32 uiFrameBudget = bOpened ?
+	    ( 1000000ull * oMovie.GetRateDenominator() ) / oMovie.GetRateNumerator() : 0;
+	while ( g_Running && uiFrames < oMovie.GetFrameCount() )
+	{
+		const TUINT64 uiStart = sceKernelGetSystemTimeWide();
+		if ( !oMovie.DecodeNextFrame() )
+			break;
+		const TUINT32 uiElapsed = sceKernelGetSystemTimeWide() - uiStart;
+		uiTotal += uiElapsed;
+		if ( uiElapsed > uiSlowest )
+			uiSlowest = uiElapsed;
+		if ( uiElapsed > uiFrameBudget )
+			uiLate++;
+		const auto pPixels = oMovie.GetPixels();
+		uiFingerprint = uiFingerprint * 33 + pPixels[ TMovieStream_PSP::WIDTH * TMovieStream_PSP::HEIGHT / 2 + 80 ];
+		uiFrames++;
+	}
+
+	TFile* pReport = TFile::Create(
+	    "local:probe_movie.log", TFILEMODE_WRITE | TFILEMODE_CREATENEW | TFILEMODE_NOBUFFER );
+	if ( pReport != TNULL )
+	{
+		pReport->CPrintf( "movie_decode=%s\n", bOpened && uiFrames == oMovie.GetFrameCount() ? "OK" : "FAILED" );
+		pReport->CPrintf( "movie_stage=%s\n", oMovie.GetStage() );
+		pReport->CPrintf( "movie_rate=%u/%u\n", oMovie.GetRateNumerator(), oMovie.GetRateDenominator() );
+		pReport->CPrintf( "movie_frames=%u/%u\n", uiFrames, oMovie.GetFrameCount() );
+		pReport->CPrintf( "movie_frame_budget_us=%u\n", uiFrameBudget );
+		pReport->CPrintf( "movie_decode_average_us=%u\n", TUINT( uiFrames != 0 ? uiTotal / uiFrames : 0 ) );
+		pReport->CPrintf( "movie_decode_max_us=%u\n", uiSlowest );
+		pReport->CPrintf( "movie_slow_frames=%u\n", uiLate );
+		pReport->CPrintf( "movie_buffers_bytes=%u\n", TUINT( oMovie.GetBufferBytes() ) );
+		pReport->CPrintf( "movie_fingerprint=%08x\n", uiFingerprint );
+		pReport->Destroy();
+	}
+	oMovie.Close();
+	pMovie->Destroy();
+}
 
 enum APreviewLoadStage_PSP
 {
@@ -2057,6 +2110,8 @@ int main()
 	const TBOOL bAudioDeviceReady = g_SoundManager_PSP.Create();
 	const TBOOL bToshiReady     = RunToshiPortabilitySmokeTest();
 	const TBOOL bFileReady      = Toshi::TFileManager::Create();
+	if ( bFileReady )
+		ProbeMovie_PSP();
 	const TBOOL bAudioBankReady = bAudioDeviceReady && bFileReady &&
 	                              g_WaveBankLoader_PSP.Load(
 	                                  g_WaveBank_PSP,
