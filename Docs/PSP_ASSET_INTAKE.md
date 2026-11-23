@@ -74,6 +74,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `Tools/encode_retail_fsb.py` | Reads the complete WAV cache, emits 44.1 kHz PSP streams or resident cues, and reports the channel and segment mapping for every track. |
 | `Tools/map_retail_sound_cues.py` | Exports ordered TRB properties with TMDL, resolves cue and multiplex references to the encoded cache, and verifies the linked files. |
 | `Tools/convert_retail_movies.py` | Converts all installed Bink movies to bounded PMVF, verifies every JPEG and records stream sizes and timing adjustments. |
+| `Tools/convert_retail_model_animations.py` | Resolves installed key libraries by their original internal names and key ranges, then bakes supported model sequences to bounded PANM. |
 | `Tools/inventory_retail_models.py` | Inventories all model TRB and TKL containers and attempts the skin exporter for every TMD geometry entry. |
 | `Tools/convert_retail_model_geometry.py` | Bakes exported skins to one PSKL and one PMES per material, preserving original texture names in the report. |
 | `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
@@ -199,7 +200,10 @@ The full batch converted all 15 movies into 67,271,066 bytes. The largest
 JPEG is 23,203 bytes and the highest sum over 15 consecutive records is
 446,713 bytes. The encoder decoded the full MJPEG streams on the host and
 reread each final container before publishing it. In-game PMVF playback
-still requires a PSP player.
+still requires a PSP player. The batch includes the original startup sequence
+inputs `NickMovs`, `THQ`, `BTE` and `Attract`. This installation only supplies
+the default `Attract`, so the language-specific names need an explicit fallback
+when the PSP player is wired into the startup states.
 
 Inventory the model and animation files and bake the supported skin geometry:
 
@@ -212,8 +216,34 @@ The pass read all 1,172 model TRBs and 247 animation key libraries. TMDL
 exported 620 LOD0 skin dumps, and all 620 produced a total of 909 PMES
 material meshes and 620 skeletons. The output reports list entries without
 a compatible skin dump, including alternate geometry, skeleton-only data
-and files rejected by the skin exporter. Additional LODs, key-library binding,
-animation conversion and texture staging remain separate.
+and files rejected by the skin exporter. Additional LODs and runtime texture
+staging remain separate.
+
+Use a TMDL build with `-psp-animation-info` to convert model sequences:
+
+~~~powershell
+python Ports/PSP/Tools/convert_retail_model_animations.py --tmdl <TMDL.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/Models/models.inventory.json Game/BarnyardPC/Workspace/Models/Animations
+~~~
+
+The script indexes every installed TKL, including particle key libraries.
+It matches the internal library ID and translation, quaternion and scale
+ranges from each retail skeleton. The matching same-stem library takes
+precedence, and equivalent copies are recognised by SHA-256. Ambiguous
+matches with distinct contents are reported for further investigation.
+PANM filenames use sequence order. `model_animations.json` retains the
+original clip name, loop or clamp mode, retail duration, sampled duration,
+source model and library paths. An upper rate of 30 Hz and a maximum of
+64 samples keep a clip at or below 65,568 bytes. Overlay modes and clips beyond
+the PANM v1 limits are listed in the report. Runtime selection and layering
+of the original clips still need to be connected.
+
+The full pass read 261 TKLs and 1,172 model headers, resolving the libraries
+for all 496 models that define clips. It converted 3,511 of 4,028 sequences
+across 493 models. The verified PANM output totals 81,373,248 bytes and the
+largest clip is 64,544 bytes. The remaining entries are 499 overlay clips,
+12 sequences on two skeletons exceeding 64 bones, and six `beeSwarm2` clips
+whose rig contains duplicate bone names. The script writes the full report
+before returning a nonzero exit code for exporter rejections.
 
 ## Generated data
 

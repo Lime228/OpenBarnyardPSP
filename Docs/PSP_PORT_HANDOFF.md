@@ -288,6 +288,11 @@ menu close. Its original localized `Audio`/`Controls` layout is captured in
   audio only.
 - The texture cache holds at most 16 unique GUI textures. The current menu fits;
   future screens need measured lifetime/reuse or a larger justified budget.
+- The offline model animation batch resolves the retail model-to-library
+  relation and has emitted 3,511 bounded PANM clips. Runtime state-to-clip
+  mapping, overlay blending and particle animation still need to be integrated.
+  Two rigs exceed the 64-bone limit. `beeSwarm2` needs bone-index binding
+  that preserves its duplicated retail identifiers.
 - Rekord18 and Bremen25 are not staged for the current menu because it only uses
   Rekord26.
 - Save data, memory-stick UI, rooms, actors, player control, quests and streaming
