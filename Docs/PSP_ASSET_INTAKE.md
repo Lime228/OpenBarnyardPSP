@@ -72,6 +72,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `Tools/inventory_retail_fsb.py` | Indexes all FSB3.1 audio banks and records original track indices, channel counts, rates and loop fields. |
 | `Tools/decode_retail_fsb.py` | Uses vgmstream CLI to decode the indexed tracks once at their native rates and channel counts, then verifies each PCM WAV header. |
 | `Tools/encode_retail_fsb.py` | Reads the complete WAV cache, emits 44.1 kHz PSP streams or resident cues, and reports the channel and segment mapping for every track. |
+| `Tools/map_retail_sound_cues.py` | Exports ordered TRB properties with TMDL, resolves cue and multiplex references to the encoded cache, and verifies the linked files. |
 | `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
@@ -160,8 +161,21 @@ the current 300-second stream limit are split at aligned block boundaries.
 `fsb.encode.json` records segment order, source channel assignments, original
 loop fields, exact resampled loop positions and block-aligned PADP loop
 positions. Use the source mode and game cue settings to decide when to loop.
-The grouped output still needs cue mapping, paired playback for the 25
-four-channel tracks and ordered playback for the three split tracks.
+The grouped output still needs paired playback for the 25 four-channel tracks
+and ordered playback for the three split tracks.
+
+Build the offline cue map with the TMDL host-tools artifact that supports
+`-psp-properties`:
+
+```powershell
+python Ports/PSP/Tools/map_retail_sound_cues.py --tmdl <TMDL.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/AudioBanks/Encoded/fsb.encode.json Game/BarnyardPC/Workspace/AudioBanks/Cues
+```
+
+`Cues/sound_cues.json` maps all 722 cues from 36 sound bank files through 46
+wave-bank definitions. It retains the order of the 2,065 sample references
+and their original cue settings. It also maps all 17 multiplex streams and
+their channel routing. The run verified all 1,466 distinct referenced cache
+files against the encoding report. This map is input for future playback work.
 
 ## Generated data
 

@@ -69,6 +69,8 @@ committed.
 
 | Retail audio stream limits | A direct batch using the bootstrap encoder would reject native rates, mono and 25 four-channel tracks. Three streams also exceed the PSP loader's 300-second limit. | The current PSP formats expect 44.1 kHz stereo with bounded file duration and 1,024-frame ADPCM blocks. | Resample audio offline, duplicate mono, preserve both channel pairs in separate files and split long streams on block boundaries. Record exact resampled and packed loop positions for future cue mapping. | The full pass writes 3,105 files from all 3,071 original tracks. Host tests match accelerated ADPCM blocks against the reference encoder and check a synthetic four-channel split. |
 
+| Retail cue mapping | An encoded FSB catalogue does not identify the clip to play for a sound event. | Cue banks contain ordered `Sound` rows with zero-based bank indices. The WAV and PSP cache use one-based subsong indices. Multiplex streams have separate per-channel routing. | Export ordered TRB properties, resolve against the retail wave-bank paths, and verify the referenced files. Preserve playback settings and original channel routing in the report. | The full audit maps 722 cues, 2,065 sample references and 17 multiplex streams. The 1,466 distinct referenced files all match their encoded sizes. |
+
 When a new recurring failure is found, add it here only after the root cause is
 confirmed. Include the validation signal (test, CI run or PSP report), not just
 the attempted change.
