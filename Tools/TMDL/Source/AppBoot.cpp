@@ -8,6 +8,7 @@
 #include "PSP/TPSPLocatorDump.h"
 #include "PSP/TPSPMaterialPropertiesDump.h"
 #include "PSP/TPSPSymbolDump.h"
+#include "PSP/TPSPPropertyDump.h"
 #include "PSP/TPSPTerrainDump.h"
 #include "PSP/TPSPTerrainVISDump.h"
 
@@ -104,6 +105,7 @@ int main( int argc, char** argv )
 	auto          strPSPMaterialProperties = commandLine.GetParameterValue( "-psp-material-properties" );
 	auto          strLocatorName   = commandLine.GetParameterValue( "-locator" );
 	auto          strPSPSymbols    = commandLine.GetParameterValue( "-psp-symbols" );
+	auto          strPSPProperties = commandLine.GetParameterValue( "-psp-properties" );
 	auto          strPSPTerrain    = commandLine.GetParameterValue( "-psp-terrain" );
 	auto          strPSPTerrainCell = commandLine.GetParameterValue( "-psp-terrain-cell" );
 	auto          strPSPTerrainInventory = commandLine.GetParameterValue( "-psp-terrain-inventory" );
@@ -115,6 +117,16 @@ int main( int argc, char** argv )
 	auto          strSampleRate    = commandLine.GetParameterValue( "-sample-rate", "30" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPProperties )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-properties requires -o\n" );
+			return 1;
+		}
+		return ExportPSPPropertyDump( strPSPProperties.GetString(), strOutPath.GetString() ) ? 0 : 1;
+	}
 
 	if ( strPSPTextures )
 	{
