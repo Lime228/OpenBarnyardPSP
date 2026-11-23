@@ -13,7 +13,7 @@ public:
 	AMovieAudio_PSP( const AMovieAudio_PSP& ) = delete;
 	AMovieAudio_PSP& operator=( const AMovieAudio_PSP& ) = delete;
 
-	TBOOL Open( TUINT32 a_uiMaxRecordFrames );
+	TBOOL Open( TUINT32 a_uiMaxRecordFrames, TUINT32 a_uiBufferedRecords );
 	void Close();
 	TBOOL Queue( const TINT16* a_pPCM, TUINT32 a_uiFrames );
 	void FinishInput();
@@ -22,6 +22,7 @@ public:
 	TBOOL IsOpen() const { return m_iChannel >= 0; }
 	TBOOL IsHealthy();
 	TUINT32 GetPlayedFrames();
+	TUINT32 GetUnderruns();
 	TUINT32 GetQueuedFrames() const { return m_uiWritten; }
 	TUINT32 GetPeak() const { return m_uiPeak; }
 	TSIZE GetBufferBytes() const;
@@ -43,6 +44,7 @@ private:
 	TUINT32 m_uiRead = 0;
 	TUINT32 m_uiSubmitted = 0;
 	TUINT32 m_uiPeak = 0;
+	TUINT32 m_uiUnderruns = 0;
 	TBOOL m_bClosed = TFALSE;
 	TBOOL m_bPaused = TTRUE;
 	TBOOL m_bMuted = TFALSE;

@@ -15,10 +15,10 @@ AMovieAudio_PSP::~AMovieAudio_PSP()
 	Close();
 }
 
-TBOOL AMovieAudio_PSP::Open( TUINT32 a_uiMaxRecordFrames )
+TBOOL AMovieAudio_PSP::Open( TUINT32 a_uiMaxRecordFrames, TUINT32 a_uiBufferedRecords )
 {
 	Close();
-	m_uiCapacity = TMath::Max( 8u * OUTPUT_FRAMES, 2 * a_uiMaxRecordFrames + OUTPUT_FRAMES );
+	m_uiCapacity = TMath::Max( 8u * OUTPUT_FRAMES, a_uiBufferedRecords * a_uiMaxRecordFrames + OUTPUT_FRAMES );
 	m_pRing = TSTATICCAST( TINT16, TMemalign( m_uiCapacity * CHANNELS * sizeof( TINT16 ), 64 ) );
 	m_pOutput = TSTATICCAST( TINT16, TMemalign( 2 * OUTPUT_FRAMES * CHANNELS * sizeof( TINT16 ), 64 ) );
 	if ( m_pRing == TNULL || m_pOutput == TNULL || !m_Lock.Create() || !m_Wake.Create( 0, 1 ) )
@@ -77,6 +77,7 @@ void AMovieAudio_PSP::Close()
 	m_uiRead = 0;
 	m_uiSubmitted = 0;
 	m_uiPeak = 0;
+	m_uiUnderruns = 0;
 	m_bClosed = TFALSE;
 	m_bPaused = TTRUE;
 	m_bMuted = TFALSE;
@@ -145,6 +146,14 @@ TUINT32 AMovieAudio_PSP::GetPlayedFrames()
 	return uiResult;
 }
 
+TUINT32 AMovieAudio_PSP::GetUnderruns()
+{
+	m_Lock.Lock();
+	const TUINT32 uiResult = m_uiUnderruns;
+	m_Lock.Unlock();
+	return uiResult;
+}
+
 TSIZE AMovieAudio_PSP::GetBufferBytes() const
 {
 	return IsOpen() ? ( m_uiCapacity + 2 * OUTPUT_FRAMES ) * CHANNELS * sizeof( TINT16 ) : 0;
@@ -161,6 +170,7 @@ TINT AMovieAudio_PSP::ThreadEntry( SceSize a_uiArgs, void* a_pArgs )
 void AMovieAudio_PSP::Output()
 {
 	TUINT32 uiSlot = 0;
+	TBOOL bWaitingForPCM = TFALSE;
 	while ( TTRUE )
 	{
 		m_Lock.Lock();
@@ -172,10 +182,14 @@ void AMovieAudio_PSP::Output()
 		const TUINT32 uiAvailable = m_uiWritten - m_uiRead;
 		if ( m_bPaused || uiAvailable == 0 || ( uiAvailable < OUTPUT_FRAMES && !m_bInputFinished ) )
 		{
+			bWaitingForPCM = !m_bPaused && !m_bInputFinished && m_uiSubmitted != 0;
 			m_Lock.Unlock();
 			m_Wake.Wait();
 			continue;
 		}
+		if ( bWaitingForPCM && sceAudioGetChannelRestLen( m_iChannel ) == 0 )
+			m_uiUnderruns++;
+		bWaitingForPCM = TFALSE;
 		TINT16* pBlock = m_pOutput + uiSlot * OUTPUT_FRAMES * CHANNELS;
 		const TUINT32 uiFrames = TMath::Min( uiAvailable, OUTPUT_FRAMES );
 		const TUINT32 uiStart = m_uiRead % m_uiCapacity;

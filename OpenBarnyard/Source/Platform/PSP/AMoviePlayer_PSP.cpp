@@ -83,7 +83,8 @@ TBOOL AMoviePlayer_PSP::OnUpdate( TFLOAT )
 	{
 		m_uiCurrentFrame++;
 		// Read expired frames to keep their PCM, then decode the frame due for display.
-		if ( ( m_uiCurrentFrame == uiTarget && !m_Movie.DecodeFrame() ) || !ReadAhead() )
+		const TBOOL bFrameReady = m_uiCurrentFrame == uiTarget ? m_Movie.DecodeFrame() : m_Movie.SkipFrame();
+		if ( !bFrameReady || !ReadAhead() )
 		{
 			CloseMovie( "stream-failed" );
 			break;
@@ -110,7 +111,7 @@ TBOOL AMoviePlayer_PSP::PlayMovie( const TCHAR* a_szFileName, PLAYFLAGS )
 		TStringManager::String8Copy( m_szMoviePath, "local:Data/Movies/Attract.pmvf", sizeof( m_szMoviePath ) );
 		m_pMovieFile = TFile::Create( m_szMoviePath, TFILEMODE_READ | TFILEMODE_NOBUFFER );
 	}
-	if ( m_pMovieFile == TNULL || !m_Movie.Open( *m_pMovieFile ) )
+	if ( m_pMovieFile == TNULL || !m_Movie.Open( *m_pMovieFile, TMovieStream_PSP::MAX_BUFFERED_FRAMES ) )
 	{
 		CloseMovie( m_pMovieFile == TNULL ? "missing" : "open-failed" );
 		return TFALSE;
@@ -119,7 +120,7 @@ TBOOL AMoviePlayer_PSP::PlayMovie( const TCHAR* a_szFileName, PLAYFLAGS )
 	if ( uiMaxPCM != 0 )
 	{
 		m_pPCM = TSTATICCAST( TINT16, TMemalign( uiMaxPCM, 64 ) );
-		if ( m_pPCM == TNULL || !m_Audio.Open( uiMaxPCM / MOVIE_STEREO_FRAME_BYTES_PSP ) )
+		if ( m_pPCM == TNULL || !m_Audio.Open( uiMaxPCM / MOVIE_STEREO_FRAME_BYTES_PSP, m_Movie.GetBufferFrames() + 1 ) )
 		{
 			CloseMovie( "audio-open-failed" );
 			return TFALSE;
@@ -139,14 +140,15 @@ TBOOL AMoviePlayer_PSP::PlayMovie( const TCHAR* a_szFileName, PLAYFLAGS )
 
 TBOOL AMoviePlayer_PSP::ReadAhead()
 {
-	if ( m_uiReadFrames == m_Movie.GetFrameCount() )
-		return TTRUE;
-	if ( !m_Movie.ReadNextFrame( m_pPCM, m_Movie.GetMaxPCMBytes() ) ||
-	     ( m_Audio.IsOpen() && !m_Audio.Queue( m_pPCM, m_Movie.GetPCMFrames() ) ) )
-		return TFALSE;
-	m_uiReadFrames++;
-	if ( m_uiReadFrames == m_Movie.GetFrameCount() && m_Audio.IsOpen() )
-		m_Audio.FinishInput();
+	while ( m_uiReadFrames < m_Movie.GetFrameCount() && m_Movie.HasFreeFrameSlot() )
+	{
+		if ( !m_Movie.ReadNextFrame( m_pPCM, m_Movie.GetMaxPCMBytes() ) ||
+		     ( m_Audio.IsOpen() && !m_Audio.Queue( m_pPCM, m_Movie.GetPCMFrames() ) ) )
+			return TFALSE;
+		m_uiReadFrames++;
+		if ( m_uiReadFrames == m_Movie.GetFrameCount() && m_Audio.IsOpen() )
+			m_Audio.FinishInput();
+	}
 	return TTRUE;
 }
 
@@ -231,10 +233,11 @@ void AMoviePlayer_PSP::WriteMovieReport( const TCHAR* a_szResult )
 		return;
 	if ( pReport->Seek( 0, TSEEK_END ) )
 	{
-		pReport->CPrintf( "movie=%s result=%s stage=%s rate=%u/%u frames=%u read=%u presented=%u last=%u pcm_queued=%u pcm_played=%u pcm_peak=%u buffers=%u\n",
+		pReport->CPrintf( "movie=%s result=%s stage=%s rate=%u/%u frames=%u read=%u presented=%u last=%u pcm_queued=%u pcm_played=%u pcm_peak=%u underruns=%u buffers=%u\n",
 		    m_szMoviePath, a_szResult, m_Movie.GetStage(), m_Movie.GetRateNumerator(), m_Movie.GetRateDenominator(),
 		    m_Movie.GetFrameCount(), m_uiReadFrames, m_uiPresentedFrames, m_uiPresentedFrame, m_Audio.GetQueuedFrames(),
 		    m_Audio.IsOpen() ? TMath::Max( m_uiAudioClock, m_Audio.GetPlayedFrames() ) : 0, m_Audio.GetPeak(),
+		    m_Audio.IsOpen() ? m_Audio.GetUnderruns() : 0,
 		    TUINT( m_Movie.GetBufferBytes() + m_Audio.GetBufferBytes() + m_Movie.GetMaxPCMBytes() ) );
 	}
 	pReport->Destroy();
