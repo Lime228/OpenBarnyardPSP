@@ -2,6 +2,8 @@
 
 #include <Toshi/Defines.h>
 
+TBOOL ExportPSPAnimationInfo( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath );
+
 TBOOL ExportPSPAnimationDump(
     const TCHAR* a_pModelPath,
     const TCHAR* a_pKeyLibraryPath,

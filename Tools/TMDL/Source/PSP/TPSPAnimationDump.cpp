@@ -44,6 +44,91 @@ static TBOOL IsKeyRangeValid_PSPAnimation( TINT a_iBase, TINT a_iCount, TINT a_i
 	return a_iBase >= 0 && a_iCount >= 0 && a_iBase <= a_iTotal && a_iCount <= a_iTotal - a_iBase;
 }
 
+static TSIZE GetBytesRemaining_PSPAnimation( PTRBSections& a_rSections, const void* a_pValue )
+{
+	const TUINTPTR uiAddress = TREINTERPRETCAST( TUINTPTR, a_pValue );
+	for ( TUINT i = 0; i < a_rSections.GetStackCount(); i++ )
+	{
+		auto pStack = a_rSections.GetStack( i );
+		const TUINTPTR uiStart = TREINTERPRETCAST( TUINTPTR, pStack->GetBuffer() );
+		const TSIZE uiSize = pStack->GetUsedSize();
+		if ( uiAddress >= uiStart && uiAddress - uiStart < uiSize )
+			return uiSize - ( uiAddress - uiStart );
+	}
+	return 0;
+}
+
+static TSIZE GetNameLength_PSPAnimation( const TCHAR* a_pName, TSIZE a_uiMaxLength )
+{
+	TSIZE uiLength = 0;
+	while ( uiLength < a_uiMaxLength && a_pName[ uiLength ] != '\0' )
+		uiLength++;
+	return uiLength;
+}
+
+TBOOL ExportPSPAnimationInfo( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath )
+{
+	PTRB oTRB;
+	if ( a_pInputPath == TNULL || a_pOutputPath == TNULL || !oTRB.ReadFromFile( a_pInputPath ) )
+		return TFALSE;
+
+	auto pSections = oTRB.GetSections();
+	auto pSymbols = oTRB.GetSymbols();
+	auto oKeyLibrary = pSymbols->Find<TKeyframeLibrary::TRBHeader>( pSections, "keylib" );
+	std::ostringstream oOutput;
+	oOutput.imbue( std::locale::classic() );
+	oOutput << std::setprecision( 9 ) << "{\n  \"version\": 1,\n  \"library\": ";
+	if ( oKeyLibrary )
+	{
+		if ( GetBytesRemaining_PSPAnimation( *pSections, oKeyLibrary.get() ) < sizeof( *oKeyLibrary ) )
+			return TFALSE;
+		const TKeyframeLibrary::TRBHeader& rLibrary = *oKeyLibrary;
+		const TSIZE uiAvailable = TMath::Min( GetBytesRemaining_PSPAnimation( *pSections, rLibrary.m_szName ), TSIZE( 32 ) );
+		const TSIZE uiLength = GetNameLength_PSPAnimation( rLibrary.m_szName, uiAvailable );
+		if ( uiLength == 0 || uiLength == uiAvailable || rLibrary.m_iNumTranslations < 0 ||
+		     rLibrary.m_iNumQuaternions < 0 || rLibrary.m_iNumScales < 0 )
+			return TFALSE;
+		WriteJSONString_PSPAnimation( oOutput, rLibrary.m_szName, uiLength );
+		oOutput << ",\n  \"translations\": " << rLibrary.m_iNumTranslations
+		        << ",\n  \"quaternions\": " << rLibrary.m_iNumQuaternions
+		        << ",\n  \"scales\": " << rLibrary.m_iNumScales;
+	}
+	else
+	{
+		auto oSkeleton = pSymbols->Find<TSkeleton>( pSections, "Skeleton" );
+		auto oHeader = pSymbols->Find<TTMDBase::SkeletonHeader>( pSections, "SkeletonHeader" );
+		if ( !oSkeleton || !oHeader || GetBytesRemaining_PSPAnimation( *pSections, oSkeleton.get() ) < sizeof( TSkeleton ) ||
+		     GetBytesRemaining_PSPAnimation( *pSections, oHeader.get() ) < sizeof( TTMDBase::SkeletonHeader ) )
+			return TFALSE;
+		TSkeleton& rSkeleton = *oSkeleton;
+		const TTMDBase::SkeletonHeader& rHeader = *oHeader;
+		const TINT iCount = rSkeleton.GetSequenceCount();
+		if ( iCount < 0 || ( iCount > 0 && TSIZE( iCount ) > GetBytesRemaining_PSPAnimation( *pSections, rSkeleton.GetSequences() ) / sizeof( TSkeletonSequence ) ) )
+			return TFALSE;
+		WriteJSONString_PSPAnimation( oOutput, rHeader.m_szTKLName, GetNameLength_PSPAnimation( rHeader.m_szTKLName, sizeof( rHeader.m_szTKLName ) ) );
+		oOutput << ",\n  \"bones\": " << rSkeleton.GetBoneCount()
+		        << ",\n  \"translations\": [" << rHeader.m_iTBaseIndex << ", " << rHeader.m_iTKeyCount << ']'
+		        << ",\n  \"quaternions\": [" << rHeader.m_iQBaseIndex << ", " << rHeader.m_iQKeyCount << ']'
+		        << ",\n  \"scales\": [" << rHeader.m_iSBaseIndex << ", " << rHeader.m_iSKeyCount << ']'
+		        << ",\n  \"sequences\": [";
+		for ( TINT i = 0; i < iCount; i++ )
+		{
+			const TSkeletonSequence& rSequence = *rSkeleton.GetSequence( i );
+			if ( rSequence.GetNameLength() > sizeof( rSequence.m_szName ) || !std::isfinite( rSequence.GetDuration() ) )
+				return TFALSE;
+			oOutput << ( i == 0 ? "\n" : ",\n" ) << "    { \"name\": ";
+			WriteJSONString_PSPAnimation( oOutput, rSequence.GetName(), rSequence.GetNameLength() );
+			oOutput << ", \"duration\": " << rSequence.GetDuration() << ", \"mode\": " << rSequence.GetMode()
+			        << ", \"overlay\": " << ( rSequence.IsOverlay() ? "true" : "false" ) << " }";
+		}
+		oOutput << ( iCount == 0 ? "]" : "\n  ]" );
+	}
+
+	std::ofstream oFile( a_pOutputPath, std::ios::out | std::ios::trunc );
+	oFile << oOutput.str() << "\n}\n";
+	return oFile.good();
+}
+
 static TBOOL IsPoseFinite_PSPAnimation( const TQuaternion& a_rRotation, const TVector3& a_rTranslation )
 {
 	return std::isfinite( a_rRotation.x ) && std::isfinite( a_rRotation.y ) &&
@@ -174,8 +259,7 @@ TBOOL ExportPSPAnimationDump(
 		const TUINT8 uiNameLength = pBone->GetNameLength();
 		const TINT iParentBone = pBone->GetParentBone();
 		if ( uiNameLength == 0 || uiNameLength > 31 ||
-		     ( bone == 0 && iParentBone != -1 ) ||
-		     ( bone != 0 && ( iParentBone < 0 || iParentBone >= bone ) ) ||
+		     iParentBone < -1 || iParentBone >= bone ||
 		     rSkeleton.GetBoneID( pBone->GetName(), uiNameLength ) != bone )
 		{
 			return TFALSE;
@@ -210,7 +294,9 @@ TBOOL ExportPSPAnimationDump(
 	TAnimVector* pTranslations = rKeyLibrary.m_pTranslations != TNULL
 	    ? rKeyLibrary.m_pTranslations + rSkeletonHeader.m_iTBaseIndex
 	    : TNULL;
-	TAnimQuaternion* pQuaternions = rKeyLibrary.m_pQuaternions + rSkeletonHeader.m_iQBaseIndex;
+	TAnimQuaternion* pQuaternions = rKeyLibrary.m_pQuaternions != TNULL
+	    ? rKeyLibrary.m_pQuaternions + rSkeletonHeader.m_iQBaseIndex
+	    : TNULL;
 	std::ostringstream oOutput;
 	oOutput.imbue( std::locale::classic() );
 	oOutput << std::setprecision( 9 );

@@ -93,6 +93,7 @@ int main( int argc, char** argv )
 	auto          strKeyLibSymbol  = commandLine.GetParameterValue( "-keylib-symbol", "keylib" );
 	auto          strPSPDumpFile   = commandLine.GetParameterValue( "-psp-dump" );
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
+	auto          strPSPAnimationInfo = commandLine.GetParameterValue( "-psp-animation-info" );
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
 	auto          strPSPTextures   = commandLine.GetParameterValue( "-psp-textures" );
 	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
@@ -334,6 +335,16 @@ int main( int argc, char** argv )
 		         strTextureName.GetString(), strOutPath.GetString() ) )
 		{
 			TERROR( "Unable to export PSP texture source\n" );
+			return 1;
+		}
+		return 0;
+	}
+
+	if ( strPSPAnimationInfo )
+	{
+		if ( !strOutPath || !ExportPSPAnimationInfo( strPSPAnimationInfo.GetString(), strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP animation inventory\n" );
 			return 1;
 		}
 		return 0;
