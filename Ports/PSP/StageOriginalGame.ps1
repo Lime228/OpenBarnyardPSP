@@ -165,6 +165,71 @@ $frontendInstanceSets = @(
             @{ Name = 'flwrp03'; Index = 30; Material = 'large_tuft'; TextureIndex = 2; SourceMeshIndex = 0; Vertices = 710; Indices = 1350; Bytes = 19764 },
             @{ Name = 'leafyplant'; Index = 38; Material = 'leafyplant'; TextureIndex = 3; SourceMeshIndex = 0; Vertices = 4836; Indices = 10974; Bytes = 138036 }
         )
+    },
+    @{
+        Name = 'rocks'
+        Prefix = 'frontend_instances_rocks'
+        Instances = 86
+        Textures = @('World\rock_pebble.tga', 'World\sandy_pebble.tga', 'World\rock_ground.tga', 'World\granite_rock.tga')
+        Sources = @(
+            @{ Name = 'rockpeb03'; Index = 70; Instances = 26; SourceMeshes = 1 },
+            @{ Name = 'sandypeb04'; Index = 75; Instances = 25; SourceMeshes = 1 },
+            @{ Name = 'rockmedium'; Index = 90; Instances = 14; SourceMeshes = 1 },
+            @{ Name = 'rocklarge'; Index = 89; Instances = 8; SourceMeshes = 1 },
+            @{ Name = 'pebblebig'; Index = 49; Instances = 13; SourceMeshes = 1 }
+        )
+        Models = @(
+            @{ Name = 'rockpeb03'; Index = 70; Material = 'rock_pebble'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 2028; Indices = 7722; Bytes = 64140 },
+            @{ Name = 'sandypeb04'; Index = 75; Material = 'sandy_pebble'; TextureIndex = 1; SourceMeshIndex = 0; Vertices = 2275; Indices = 9075; Bytes = 72774 },
+            @{ Name = 'rockmedium'; Index = 90; Material = 'rock_ground'; TextureIndex = 2; SourceMeshIndex = 0; Vertices = 588; Indices = 3360; Bytes = 20856 },
+            @{ Name = 'rocklarge'; Index = 89; Material = 'granite_rock'; TextureIndex = 3; SourceMeshIndex = 0; Vertices = 768; Indices = 2688; Bytes = 23832 },
+            @{ Name = 'pebblebig'; Index = 49; Material = 'rock_pebble'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 2041; Indices = 4992; Bytes = 58992 }
+        )
+    },
+    @{
+        Name = 'props'
+        Prefix = 'frontend_instances_props'
+        Instances = 97
+        Textures = @('World\fencepicket.tga', 'Prop\mushy.tga', 'World\straw.tga', 'World\metal_tank.tga', 'Prop\dessert_bush2.tga', 'Prop\Trees\trunk_brown.tga', 'World\root.tga')
+        Sources = @(
+            @{ Name = 'fncveg01'; Index = 17; Instances = 30; SourceMeshes = 1; Path = 'data/models/fncveg01sim.trb' },
+            @{ Name = 'veggiestake'; Index = 130; Instances = 30; SourceMeshes = 1 },
+            @{ Name = 'mush_small'; Index = 133; Instances = 13; SourceMeshes = 1 },
+            @{ Name = 'mush_big'; Index = 134; Instances = 13; SourceMeshes = 1 },
+            @{ Name = 'bale01'; Index = 18; Instances = 5; SourceMeshes = 1 },
+            @{ Name = 'oilbarrel'; Index = 132; Instances = 3; SourceMeshes = 1; Path = 'data/models/destruct_oilbarrel.trb' },
+            @{ Name = 'desertbush'; Index = 129; Instances = 2; SourceMeshes = 2 },
+            @{ Name = 'roots2'; Index = 73; Instances = 1; SourceMeshes = 1 }
+        )
+        Models = @(
+            @{ Name = 'fncveg01'; Index = 17; Material = 'fencepicket'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 6480; Indices = 10620; Bytes = 176784 },
+            @{ Name = 'veggiestake'; Index = 130; Material = 'fencepicket'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 600; Indices = 900; Bytes = 16224 },
+            @{ Name = 'mush_small'; Index = 133; Material = 'mushy'; TextureIndex = 1; SourceMeshIndex = 0; Vertices = 5005; Indices = 13806; Bytes = 147756 },
+            @{ Name = 'mush_big'; Index = 134; Material = 'mushy'; TextureIndex = 1; SourceMeshIndex = 0; Vertices = 4069; Indices = 11466; Bytes = 120612 },
+            @{ Name = 'bale01'; Index = 18; Material = 'strawnew'; TextureIndex = 2; SourceMeshIndex = 0; Vertices = 1070; Indices = 2280; Bytes = 30264 },
+            @{ Name = 'oilbarrel'; Index = 132; Material = 'metal_tank'; TextureIndex = 3; SourceMeshIndex = 0; Vertices = 465; Indices = 1413; Bytes = 14010 },
+            @{ Name = 'desertbush'; Index = 129; Material = 'dessert_bush2'; TextureIndex = 4; SourceMeshIndex = 0; Vertices = 168; Indices = 528; Bytes = 5112 },
+            @{ Name = 'desertbush'; Index = 129; Material = 'trunk_brown'; TextureIndex = 5; SourceMeshIndex = 1; Vertices = 212; Indices = 672; Bytes = 6456 },
+            @{ Name = 'roots2'; Index = 73; Material = 'root'; TextureIndex = 6; SourceMeshIndex = 0; Vertices = 56; Indices = 180; Bytes = 1728 }
+        )
+    },
+    @{
+        Name = 'trees'
+        Prefix = 'frontend_instances_trees'
+        Instances = 44
+        Textures = @('Prop\Trees\branches.tga', 'Prop\Trees\test3.tga', 'Prop\Trees\trunk3_10.tga', 'Prop\leafyplant.tga')
+        Sources = @(
+            @{ Name = 'treemidsize'; Index = 117; Instances = 15; SourceMeshes = 1 },
+            @{ Name = 'treemidleaf'; Index = 118; Instances = 15; SourceMeshes = 2; Path = 'data/models/treeleaves.trb' },
+            @{ Name = 'treetwiggy'; Index = 76; Instances = 14; SourceMeshes = 2 }
+        )
+        Models = @(
+            @{ Name = 'treemidsize'; Index = 117; Material = 'body'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 2880; Indices = 10710; Bytes = 90564 },
+            @{ Name = 'treemidleaf'; Index = 118; Material = 'bodyz'; TextureIndex = 0; SourceMeshIndex = 0; Vertices = 480; Indices = 720; Bytes = 12984 },
+            @{ Name = 'treemidleaf'; Index = 118; Material = 'treeeuc4'; TextureIndex = 1; SourceMeshIndex = 1; Vertices = 4515; Indices = 11250; Bytes = 130884 },
+            @{ Name = 'treetwiggy'; Index = 76; Material = 'tree2H'; TextureIndex = 2; SourceMeshIndex = 0; Vertices = 1960; Indices = 3066; Bytes = 53196 },
+            @{ Name = 'treetwiggy'; Index = 76; Material = 'leafyplant'; TextureIndex = 3; SourceMeshIndex = 1; Vertices = 2576; Indices = 3864; Bytes = 69576 }
+        )
     }
 )
 
@@ -254,12 +319,18 @@ if (-not $SkipConversion) {
     if ($PythonPath) { $terrainMeadowsouthConversionArguments.PythonPath = $PythonPath }
     & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendMeadowsouth.ps1') @terrainMeadowsouthConversionArguments
 
+    $frontendInstanceBatchArguments = @{ OutputDirectory = $frontendInstancesPath }
+    if ($TMDLPath) { $frontendInstanceBatchArguments.TMDLPath = $TMDLPath }
+    if ($PythonPath) { $frontendInstanceBatchArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\ConvertRetailFrontendInstanceModels.ps1') @frontendInstanceBatchArguments
+
     foreach ($instanceSet in $frontendInstanceSets) {
         $sourceDefinitions = if ($instanceSet.ContainsKey('Sources')) { $instanceSet.Sources } else { $instanceSet.Models }
         $frontendInstanceConversionArguments = @{
             ModelNames = @($sourceDefinitions | ForEach-Object { $_.Name })
             Prefix = $instanceSet.Prefix
             OutputDirectory = Join-Path $frontendInstancesPath $instanceSet.Name
+            ReuseConvertedModels = $true
         }
         if ($TMDLPath) { $frontendInstanceConversionArguments.TMDLPath = $TMDLPath }
         if ($PythonPath) { $frontendInstanceConversionArguments.PythonPath = $PythonPath }
@@ -760,9 +831,10 @@ foreach ($instanceSet in $frontendInstanceSets) {
         $definition = $sourceDefinitions[$sourceIndex]
         $source = $frontendInstanceManifest.sources[$sourceIndex]
         $sourceMeshCount = if ($definition.ContainsKey('SourceMeshes')) { $definition.SourceMeshes } else { 1 }
+        $sourceModelPath = if ($definition.ContainsKey('Path')) { $definition.Path } else { "data/models/$($definition.Name).trb" }
         if ($source.model_index -ne $definition.Index -or
             $source.model_name -ne $definition.Name -or
-            $source.model_path -ne "data/models/$($definition.Name).trb" -or
+            $source.model_path -ne $sourceModelPath -or
             $source.source_meshes -ne $sourceMeshCount -or
             $source.source_instances -ne $definition.Instances) {
             throw "Converted retail $($definition.Name) instance source is invalid"
