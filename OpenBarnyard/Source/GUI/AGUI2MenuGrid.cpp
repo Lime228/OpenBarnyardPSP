@@ -43,6 +43,7 @@ AGUI2MenuGrid::AGUI2MenuGrid()
 	m_fPaddingLeft         = 0.0f;
 	m_fMaxItemWidth        = 0.0f;
 	m_bBlockActivation     = TFALSE;
+	m_bMouseStateDirty      = TFALSE;
 	m_pHoveredMenuItem     = TNULL;
 	m_eActionFlags         = ACTIONFLAGS_NONE;
 }
