@@ -7,6 +7,7 @@ param(
     [string] $RuntimeDirectory = '',
     [ValidateRange(16, 256)]
     [int] $TextureMaxWidth = 64,
+    [switch] $SkipInventory,
     [switch] $KeepIntermediate
 )
 
@@ -74,10 +75,15 @@ if (-not $PythonPath -or -not (Test-Path -LiteralPath $PythonPath -PathType Leaf
 }
 $PythonPath = (Resolve-Path -LiteralPath $PythonPath).Path
 
-& (Join-Path $PSScriptRoot 'InventoryRetailFrontendInstances.ps1') `
-    -TMDLPath $TMDLPath `
-    -PythonPath $PythonPath | Out-Null
 $inventoryPath = Join-Path $assetRoot 'Workspace\FrontendInstances\frontend_instances.inventory.json'
+if (-not $SkipInventory) {
+    & (Join-Path $PSScriptRoot 'InventoryRetailFrontendInstances.ps1') `
+        -TMDLPath $TMDLPath `
+        -PythonPath $PythonPath | Out-Null
+}
+if (-not (Test-Path -LiteralPath $inventoryPath -PathType Leaf)) {
+    throw "Original frontend instance inventory was not found: $inventoryPath"
+}
 $inventory = Get-Content -LiteralPath $inventoryPath -Raw | ConvertFrom-Json
 $model = @($inventory.frontend_models | Where-Object { $_.name -ieq $ModelName })
 if ($model.Count -ne 1) {
