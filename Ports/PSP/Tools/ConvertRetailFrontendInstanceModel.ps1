@@ -18,6 +18,7 @@ $installRoot = Join-Path $assetRoot 'Install'
 $locatorPath = Join-Path $installRoot 'Data\Terrain\frontend\frontend_skel.trb'
 $materialLibraryPath = Join-Path $installRoot 'Data\Assets\lib_startup.trb'
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
+$frontendTerrainPath = Join-Path $installRoot 'Data\Terrain\frontend'
 
 if (-not $ModelName -or $ModelName -notmatch '^[A-Za-z0-9_]+$') {
     throw 'ModelName must contain only ASCII letters, digits and underscores'
@@ -33,6 +34,36 @@ foreach ($requiredFile in @($locatorPath, $materialLibraryPath, $materialPropert
         throw "Required retail frontend input was not found: $requiredFile"
     }
 }
+if (-not (Test-Path -LiteralPath $frontendTerrainPath -PathType Container)) {
+    throw "Required retail frontend terrain directory was not found: $frontendTerrainPath"
+}
+
+$textureLibraries = @(
+    [pscustomobject]@{
+        Path = $materialLibraryPath
+        Symbol = 'instances_TTL'
+        Label = 'lib_startup.trb/instances_TTL'
+    }
+)
+$frontendCommonPath = Join-Path $frontendTerrainPath 'frontend_Common.ttl'
+if (Test-Path -LiteralPath $frontendCommonPath -PathType Leaf) {
+    $textureLibraries += [pscustomobject]@{
+        Path = $frontendCommonPath
+        Symbol = ''
+        Label = 'frontend_Common.ttl/TTL'
+    }
+}
+$textureLibraries += @(
+    Get-ChildItem -LiteralPath $frontendTerrainPath -Filter '*Mat.ttl' -File |
+        Sort-Object Name |
+        ForEach-Object {
+            [pscustomobject]@{
+                Path = $_.FullName
+                Symbol = ''
+                Label = "$($_.Name)/TTL"
+            }
+        }
+)
 
 if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $assetRoot "Workspace\FrontendInstances\$ModelName"
@@ -121,23 +152,42 @@ if ($LASTEXITCODE -ne 0) {
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $alphaModes = @()
+$resolvedTextureLibraries = @()
 $intermediatePaths = @($modelDumpPath, $propertiesDumpPath)
 for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureIndex++) {
     $texture = $manifest.textures[$textureIndex]
     $ddsPath = Join-Path $outputPath "${Prefix}_texture_$textureIndex.dds"
     $ptexPath = Join-Path $outputPath $texture.texture
     $intermediatePaths += $ddsPath
-    Push-Location (Split-Path -Parent $TMDLPath)
-    try {
-        & $TMDLPath -psp-texture $materialLibraryPath -texture-symbol 'instances_TTL' `
-            -texture $texture.source_texture -o $ddsPath
-        if ($LASTEXITCODE -ne 0) {
-            throw "Original instance texture '$($texture.source_texture)' was not found in lib_startup/instances_TTL"
+    $resolvedTextureLibrary = $null
+    foreach ($textureLibrary in $textureLibraries) {
+        Remove-Item -LiteralPath $ddsPath -Force -ErrorAction SilentlyContinue
+        $textureArguments = @(
+            '-psp-texture', $textureLibrary.Path,
+            '-texture', $texture.source_texture,
+            '-o', $ddsPath
+        )
+        if ($textureLibrary.Symbol) {
+            $textureArguments += @('-texture-symbol', $textureLibrary.Symbol)
+        }
+        Push-Location (Split-Path -Parent $TMDLPath)
+        try {
+            & $TMDLPath @textureArguments
+            if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $ddsPath -PathType Leaf)) {
+                $resolvedTextureLibrary = $textureLibrary
+            }
+        }
+        finally {
+            Pop-Location
+        }
+        if ($resolvedTextureLibrary) {
+            break
         }
     }
-    finally {
-        Pop-Location
+    if (-not $resolvedTextureLibrary) {
+        throw "Original instance texture '$($texture.source_texture)' was not found in: $($textureLibraries.Label -join ', ')"
     }
+    $resolvedTextureLibraries += $resolvedTextureLibrary.Label
 
     $conversionOutput = @(& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') `
         --max-width $TextureMaxWidth $ddsPath $ptexPath)
@@ -181,4 +231,5 @@ $geometryBytes = ($manifest.models | Measure-Object bytes -Sum).Sum
     GeometryBytes = $geometryBytes
     TextureMaxWidth = $TextureMaxWidth
     AlphaModes = (($alphaModes | Group-Object | ForEach-Object { "$($_.Name):$($_.Count)" }) -join ',')
+    TextureLibraries = (($resolvedTextureLibraries | Sort-Object -Unique) -join ',')
 }
