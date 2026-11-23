@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Stage the original front-end UI samples as a bounded resident PSP bank."""
+"""Package the original frontend UI samples and streamed music for PSP."""
 
 import argparse
 import json
+import shutil
 import struct
 import wave
 from pathlib import Path
 
 from encode_retail_fsb import PCM_WIDTH, audioop, resampled_blocks, scaled_frames
-from generate_bootstrap_adpcm import SAMPLE_RATE
+from generate_bootstrap_adpcm import BLOCK_BYTES, BLOCK_SAMPLE_FRAMES, PADP_MAGIC, PADP_VERSION, SAMPLE_RATE
 from generate_bootstrap_audio import PPCM_MAGIC, PPCM_VERSION
 from generate_wave_bank import generate
 
@@ -20,6 +21,7 @@ CUE_NAMES = (
 WAVE_NAMES = {"negative", "click", "back", "harp02", "harp03", "harp_strum"}
 MAX_WAVE_FRAMES = 57344
 MAX_BANK_BYTES = 400 * 1024
+PADP_HEADER = struct.Struct("<10I")
 
 
 def read_wave(path: Path) -> bytes:
@@ -31,6 +33,38 @@ def read_wave(path: Path) -> bytes:
             raise ValueError(f"UI sample exceeds its resident limit: {path}")
         header = struct.pack("<5I", PPCM_MAGIC, PPCM_VERSION, SAMPLE_RATE, 1, frames)
         return header + b"".join(resampled_blocks(wav, frames))
+
+
+def copy_music(root: Path, destination: Path, cue: dict) -> None:
+    samples = cue["samples"]
+    if (cue["status"] != "mapped" or cue["category"] != "Music" or
+            dict(cue["settings"]).get("trackloop") != [1] or len(samples) != 1):
+        raise ValueError("unexpected original MUSIC_START_SCREEN cue")
+    sample = samples[0]
+    if (sample["status"] != "mapped" or sample["source_channels"] != 2 or
+            sample["requires_chaining"] or len(sample["files"]) != 1):
+        raise ValueError("MUSIC_START_SCREEN needs one stereo stream")
+
+    source = root / "Encoded" / sample["files"][0]
+    with source.open("rb") as stream:
+        header = stream.read(PADP_HEADER.size)
+    if len(header) != PADP_HEADER.size:
+        raise ValueError(f"truncated PADP header: {source}")
+    magic, version, rate, channels, frames, block_frames, block_bytes, blocks, loop_start, loop_end = (
+        PADP_HEADER.unpack(header)
+    )
+    if (
+        (magic, version, rate, channels) != (PADP_MAGIC, PADP_VERSION, SAMPLE_RATE, 2)
+        or (block_frames, block_bytes) != (BLOCK_SAMPLE_FRAMES, BLOCK_BYTES)
+        or blocks != (frames + block_frames - 1) // block_frames
+        or not 0 <= loop_start < loop_end <= frames <= SAMPLE_RATE * 300
+        or loop_start % block_frames or loop_end % block_frames
+        or source.stat().st_size != PADP_HEADER.size + blocks * block_bytes
+    ):
+        raise ValueError(f"invalid PADP loop: {source}")
+
+    shutil.copyfile(source, destination / "start_screen.padp")
+    print(f"Copied original MUSIC_START_SCREEN ({frames * 1000 // rate} ms, {source.stat().st_size} bytes)")
 
 
 def convert(root: Path, destination: Path) -> None:
@@ -68,6 +102,7 @@ def convert(root: Path, destination: Path) -> None:
         [],
     )
     print(f"Converted {len(waves)} original UI samples ({total_bytes} bytes)")
+    copy_music(root, destination, cues["MUSIC_START_SCREEN"])
 
 
 if __name__ == "__main__":

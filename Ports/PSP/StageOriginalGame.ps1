@@ -961,6 +961,14 @@ if (Test-Path -LiteralPath (Join-Path $menuAudioSource 'ui.pbnk') -PathType Leaf
         Copy-Item -LiteralPath (Join-Path $menuAudioSource $name) -Destination $menuAudioDestination -Force
     }
     Write-Output 'Staged six original menu audio samples'
+    $menuMusic = Join-Path $menuAudioSource 'start_screen.padp'
+    if (Test-Path -LiteralPath $menuMusic -PathType Leaf) {
+        Copy-Item -LiteralPath $menuMusic -Destination $menuAudioDestination -Force
+        Write-Output 'Staged original main-menu music'
+    }
+    else {
+        Write-Warning 'Original main-menu music is missing. Run convert_frontend_audio.py to refresh the audio cache.'
+    }
 }
 elseif ($audioBanksDirectoryRequired) {
     throw "Converted original menu audio was not found: $menuAudioSource"
