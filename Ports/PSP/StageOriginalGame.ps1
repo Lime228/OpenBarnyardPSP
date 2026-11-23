@@ -949,7 +949,7 @@ if (-not $SkipConversion -and (Test-Path -LiteralPath (Join-Path $AudioBanksDire
     if ($LASTEXITCODE -ne 0) { throw 'Original menu audio conversion failed.' }
 }
 if (Test-Path -LiteralPath (Join-Path $menuAudioSource 'ui.pbnk') -PathType Leaf) {
-    $menuAudioFiles = @('ui.pbnk', 'negative.ppcm', 'click.ppcm', 'back.ppcm', 'harp02.ppcm', 'harp03.ppcm')
+    $menuAudioFiles = @('ui.pbnk', 'negative.ppcm', 'click.ppcm', 'back.ppcm', 'harp02.ppcm', 'harp03.ppcm', 'harp_strum.ppcm')
     foreach ($name in $menuAudioFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $menuAudioSource $name) -PathType Leaf)) {
             throw "Converted original menu audio is missing: $name"
@@ -960,7 +960,7 @@ if (Test-Path -LiteralPath (Join-Path $menuAudioSource 'ui.pbnk') -PathType Leaf
     foreach ($name in $menuAudioFiles) {
         Copy-Item -LiteralPath (Join-Path $menuAudioSource $name) -Destination $menuAudioDestination -Force
     }
-    Write-Output 'Staged five original menu audio samples'
+    Write-Output 'Staged six original menu audio samples'
 }
 elseif ($audioBanksDirectoryRequired) {
     throw "Converted original menu audio was not found: $menuAudioSource"

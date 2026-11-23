@@ -2,24 +2,24 @@
 """Stage the original front-end UI samples as a bounded resident PSP bank."""
 
 import argparse
-import io
 import json
 import struct
 import wave
 from pathlib import Path
 
-from encode_retail_fsb import PCM_WIDTH, audioop, resampled_blocks, scaled_frames, write_audio_block
+from encode_retail_fsb import PCM_WIDTH, audioop, resampled_blocks, scaled_frames
 from generate_bootstrap_adpcm import SAMPLE_RATE
 from generate_bootstrap_audio import PPCM_MAGIC, PPCM_VERSION
 from generate_wave_bank import generate
 
 
 CUE_NAMES = (
-    "UI_NEGATIVE", "UI_MENUCLICK", "UI_MENUBACK", "UI_MENUOK", "UI_VO_CLICK"
+    "UI_NEGATIVE", "UI_MENUCLICK", "UI_MENUBACK", "UI_MENUOK",
+    "UI_FE_MOVE", "UI_FE_SELECT", "UI_VO_CLICK",
 )
-WAVE_NAMES = {"negative", "click", "back", "harp02", "harp03"}
-MAX_WAVE_FRAMES = 49152
-MAX_BANK_BYTES = 576 * 1024
+WAVE_NAMES = {"negative", "click", "back", "harp02", "harp03", "harp_strum"}
+MAX_WAVE_FRAMES = 57344
+MAX_BANK_BYTES = 400 * 1024
 
 
 def read_wave(path: Path) -> bytes:
@@ -29,11 +29,8 @@ def read_wave(path: Path) -> bytes:
         frames = scaled_frames(wav.getnframes(), wav.getframerate())
         if not 1 <= frames <= MAX_WAVE_FRAMES:
             raise ValueError(f"UI sample exceeds its resident limit: {path}")
-        output = io.BytesIO()
-        output.write(struct.pack("<5I", PPCM_MAGIC, PPCM_VERSION, SAMPLE_RATE, 2, frames))
-        for block in resampled_blocks(wav, frames):
-            write_audio_block([output], block, 1, resident=True)
-        return output.getvalue()
+        header = struct.pack("<5I", PPCM_MAGIC, PPCM_VERSION, SAMPLE_RATE, 1, frames)
+        return header + b"".join(resampled_blocks(wav, frames))
 
 
 def convert(root: Path, destination: Path) -> None:
