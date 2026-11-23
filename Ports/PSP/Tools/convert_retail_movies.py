@@ -7,18 +7,21 @@ import struct
 import subprocess
 import tempfile
 from contextlib import ExitStack
+from fractions import Fraction
 from pathlib import Path
 
 
 MAGIC = b"PMVF"
-VERSION = 1
+VERSION = 2
 WIDTH, HEIGHT = 480, 272
-FPS = 15
+MAX_FPS = 30
 SAMPLE_RATE = 44100
-PCM_PER_FRAME = SAMPLE_RATE // FPS * 4  # Stereo signed PCM16.
+PCM_SAMPLE_BYTES = 4  # Stereo signed PCM16.
 MAX_JPEG_BYTES = 64 * 1024
 MAX_AUDIO_TRACKS = 4
-HEADER = struct.Struct("<4s10I")
+HEADER_V1 = struct.Struct("<4s10I")
+HEADER = struct.Struct("<4s11I")
+PREFIX = struct.Struct("<4s2I")
 FRAME_SIZE = struct.Struct("<I")
 
 
@@ -83,56 +86,86 @@ def index_packets(document: dict, file_bytes: int) -> list[tuple[int, int]]:
     return packets
 
 
+def psp_frame_rate(value: str, max_fps: int) -> Fraction:
+    try:
+        rate = min(Fraction(value), max_fps)
+    except (TypeError, ValueError, ZeroDivisionError) as error:
+        raise ValueError(f"invalid source video rate: {value!r}") from error
+    rate = Fraction(rate)
+    if not 1 <= rate <= MAX_FPS or max(rate.numerator, rate.denominator) >= 2**32:
+        raise ValueError(f"unsupported PMVF video rate: {rate}")
+    return rate
+
+
+def audio_bytes_at(frame: int, fps: Fraction) -> int:
+    return frame * SAMPLE_RATE * fps.denominator // fps.numerator * PCM_SAMPLE_BYTES
+
+
+def max_pcm_bytes(fps: Fraction) -> int:
+    return ((SAMPLE_RATE * fps.denominator + fps.numerator - 1) // fps.numerator) * PCM_SAMPLE_BYTES
+
+
 def verify_movie(path: Path) -> None:
     with path.open("rb") as movie:
         try:
-            magic, version, header_bytes, width, height, fps, frames, max_jpeg, tracks, rate, pcm = (
-                HEADER.unpack(movie.read(HEADER.size))
-            )
-        except struct.error as error:
+            magic, version, header_bytes = PREFIX.unpack(movie.read(PREFIX.size))
+            layout = {1: HEADER_V1, VERSION: HEADER}.get(version)
+            if magic != MAGIC or layout is None or header_bytes != layout.size:
+                raise ValueError("unsupported PMVF header")
+            movie.seek(0)
+            _, _, _, width, height, fps_num, *fields = layout.unpack(movie.read(header_bytes))
+            fps_den = fields.pop(0) if version == VERSION else 1
+            frames, max_jpeg, tracks, rate, pcm = fields
+            fps = Fraction(fps_num, fps_den)
+        except (struct.error, ZeroDivisionError) as error:
             raise ValueError("truncated PMVF header") from error
-        if (magic, version, header_bytes, width, height, fps) != (MAGIC, VERSION, HEADER.size, WIDTH, HEIGHT, FPS):
+        if (width, height) != (WIDTH, HEIGHT) or not 1 <= fps <= MAX_FPS or (version == 1 and fps != 15):
             raise ValueError("unsupported PMVF header")
         if not (tracks <= MAX_AUDIO_TRACKS and 0 < max_jpeg <= MAX_JPEG_BYTES):
             raise ValueError("invalid PMVF frame or track bounds")
-        if (rate, pcm) != ((SAMPLE_RATE, PCM_PER_FRAME) if tracks else (0, 0)):
+        if (rate, pcm) != ((SAMPLE_RATE, max_pcm_bytes(fps)) if tracks else (0, 0)):
             raise ValueError("invalid PMVF PCM layout")
         file_bytes = path.stat().st_size
-        frame_overhead = FRAME_SIZE.size + tracks * pcm
-        if not 0 < frames <= (file_bytes - header_bytes) // (frame_overhead + 1):
+        minimum_bytes = header_bytes + frames * (FRAME_SIZE.size + 1) + tracks * audio_bytes_at(frames, fps)
+        if not frames or minimum_bytes > file_bytes:
             raise ValueError("invalid PMVF frame count")
         observed_max = 0
-        for _ in range(frames):
+        audio_offset = 0
+        for frame in range(1, frames + 1):
+            next_audio_offset = audio_bytes_at(frame, fps)
+            audio_bytes = tracks * (next_audio_offset - audio_offset)
+            audio_offset = next_audio_offset
             size_data = movie.read(FRAME_SIZE.size)
             if len(size_data) != FRAME_SIZE.size:
                 raise ValueError("truncated PMVF frame length")
             size = FRAME_SIZE.unpack(size_data)[0]
-            if not 0 < size <= max_jpeg or movie.tell() + size + tracks * pcm > file_bytes:
+            if not 0 < size <= max_jpeg or movie.tell() + size + audio_bytes > file_bytes:
                 raise ValueError("invalid or truncated PMVF frame")
             data = movie.read(size)
             validate_jpeg(data)
-            movie.seek(tracks * pcm, 1)
+            movie.seek(audio_bytes, 1)
             observed_max = max(size, observed_max)
         if movie.tell() != file_bytes or observed_max != max_jpeg:
             raise ValueError("PMVF length or declared maximum frame size differs from its records")
 
 
-def pack_movie(jpeg: Path, packets: list[tuple[int, int]], audio: list[Path], output: Path) -> dict:
+def pack_movie(jpeg: Path, packets: list[tuple[int, int]], audio: list[Path], output: Path, fps: Fraction) -> dict:
     frame_count = len(packets)
     max_frame = max(size for _, size in packets)
     if max_frame > MAX_JPEG_BYTES or len(audio) > MAX_AUDIO_TRACKS:
         raise ValueError("movie exceeds the PMVF frame or track budget")
     pcm_sizes = [path.stat().st_size for path in audio]
-    if any(size % 4 for size in pcm_sizes):
+    if any(size % PCM_SAMPLE_BYTES for size in pcm_sizes):
         raise ValueError("audio contains an incomplete PCM sample frame")
-    audio_frame_bytes = len(audio) * PCM_PER_FRAME
     header = HEADER.pack(
-        MAGIC, VERSION, HEADER.size, WIDTH, HEIGHT, FPS, frame_count, max_frame,
-        len(audio), SAMPLE_RATE if audio else 0, PCM_PER_FRAME if audio else 0,
+        MAGIC, VERSION, HEADER.size, WIDTH, HEIGHT, fps.numerator, fps.denominator, frame_count, max_frame,
+        len(audio), SAMPLE_RATE if audio else 0, max_pcm_bytes(fps) if audio else 0,
     )
-    expected_size = HEADER.size + sum(size + FRAME_SIZE.size + audio_frame_bytes for _, size in packets)
+    target_audio_bytes = audio_bytes_at(frame_count, fps)
+    expected_size = HEADER.size + jpeg.stat().st_size + frame_count * FRAME_SIZE.size + len(audio) * target_audio_bytes
     peak_window = 0
     window = 0
+    frames_per_window = (fps.numerator + fps.denominator - 1) // fps.denominator
     with ExitStack() as stack:
         video = stack.enter_context(jpeg.open("rb"))
         tracks = [stack.enter_context(track.open("rb")) for track in audio]
@@ -147,20 +180,22 @@ def pack_movie(jpeg: Path, packets: list[tuple[int, int]], audio: list[Path], ou
             validate_jpeg(data)
             movie.write(FRAME_SIZE.pack(size))
             movie.write(data)
+            pcm_bytes = audio_bytes_at(frame + 1, fps) - audio_bytes_at(frame, fps)
             for track in tracks:
-                pcm = track.read(PCM_PER_FRAME)
+                pcm = track.read(pcm_bytes)
                 movie.write(pcm)
-                movie.write(bytes(PCM_PER_FRAME - len(pcm)))
-            window += size + FRAME_SIZE.size + audio_frame_bytes
-            if frame >= FPS:
-                window -= packets[frame - FPS][1] + FRAME_SIZE.size + audio_frame_bytes
+                movie.write(bytes(pcm_bytes - len(pcm)))
+            window += size + FRAME_SIZE.size + len(audio) * pcm_bytes
+            if frame >= frames_per_window:
+                first = frame - frames_per_window
+                discarded_pcm = audio_bytes_at(first + 1, fps) - audio_bytes_at(first, fps)
+                window -= packets[first][1] + FRAME_SIZE.size + len(audio) * discarded_pcm
             peak_window = max(peak_window, window)
         if movie.tell() != expected_size:
             raise ValueError("PMVF length disagrees with its frame index")
 
-    target_audio_bytes = frame_count * PCM_PER_FRAME
     return {
-        "width": WIDTH, "height": HEIGHT, "fps": FPS, "frames": frame_count,
+        "width": WIDTH, "height": HEIGHT, "fps": float(fps), "frame_rate": str(fps), "frames": frame_count,
         "max_jpeg_bytes": max_frame, "peak_window_bytes": peak_window, "bytes": expected_size,
         "audio": [
             {
@@ -173,27 +208,32 @@ def pack_movie(jpeg: Path, packets: list[tuple[int, int]], audio: list[Path], ou
     }
 
 
-def convert_movie(ffmpeg: Path, ffprobe: Path, source: Path, output: Path) -> dict:
+def convert_movie(ffmpeg: Path, ffprobe: Path, source: Path, output: Path, max_fps: int) -> dict:
     source_info = json.loads(command(
-        ffprobe, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(source),
+        ffprobe, "-v", "error", "-count_packets", "-show_streams", "-of", "json", str(source),
     ))
     video = [stream for stream in source_info["streams"] if stream["codec_type"] == "video"]
     audio = [stream for stream in source_info["streams"] if stream["codec_type"] == "audio"]
     if len(video) != 1 or len(audio) > MAX_AUDIO_TRACKS:
         raise ValueError("expected one video stream and at most four audio streams")
+    fps = psp_frame_rate(video[0]["avg_frame_rate"], max_fps)
+    source_frames = int(video[0]["nb_read_packets"])
+    preserve_frames = fps == Fraction(video[0]["avg_frame_rate"])
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="movie-", dir=output.parent) as directory:
         scratch = Path(directory)
         images = scratch / "video.mjpeg"
         filters = (
-            f"fps={FPS},scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=decrease:"
+            f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=decrease:"
             f"force_divisible_by=2,pad={WIDTH}:{HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1"
         )
+        if not preserve_frames:
+            filters = f"fps={fps},{filters}"
         for quality in (5, 7, 9):
             command(
                 ffmpeg, "-v", "error", "-xerror", "-nostdin", "-y", "-threads", "2", "-i", str(source),
                 "-map", "0:v:0", "-an", "-vf", filters, "-c:v", "mjpeg", "-pix_fmt", "yuvj420p",
-                "-q:v", str(quality), "-threads", "2", "-f", "mjpeg", str(images),
+                "-fps_mode", "passthrough", "-q:v", str(quality), "-threads", "2", "-f", "mjpeg", str(images),
             )
             packet_info = json.loads(command(
                 ffprobe, "-v", "error", "-f", "mjpeg", "-show_packets",
@@ -204,6 +244,8 @@ def convert_movie(ffmpeg: Path, ffprobe: Path, source: Path, output: Path) -> di
                 break
         else:
             raise ValueError("JPEG frames exceed the 64 KiB PSP cache limit")
+        if preserve_frames and len(packets) != source_frames:
+            raise ValueError(f"encoder changed the number of original frames: {source_frames} to {len(packets)}")
 
         # Verify the complete encoded picture stream with an independent decoder.
         command(ffmpeg, "-v", "error", "-xerror", "-nostdin", "-f", "mjpeg", "-i", str(images),
@@ -218,13 +260,14 @@ def convert_movie(ffmpeg: Path, ffprobe: Path, source: Path, output: Path) -> di
             )
             tracks.append(path)
         pending = scratch / "packed.pmvf"
-        details = pack_movie(images, packets, tracks, pending)
+        details = pack_movie(images, packets, tracks, pending, fps)
         verify_movie(pending)
         pending.replace(output)
     details["jpeg_quality"] = quality
     details["source_video"] = {
         key: video[0].get(key) for key in ("codec_name", "width", "height", "avg_frame_rate", "duration")
     }
+    details["source_video"]["frames"] = source_frames
     for packed, original in zip(details["audio"], audio, strict=True):
         packed.update(source_stream=original["index"], source_channels=original.get("channels"),
                       source_sample_rate=original.get("sample_rate"))
@@ -235,9 +278,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--ffprobe", default="ffprobe")
+    parser.add_argument("--max-fps", type=int, default=MAX_FPS,
+                        help=f"keep the source rate up to this ceiling (default: {MAX_FPS})")
     parser.add_argument("install", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
+    if not 1 <= args.max_fps <= MAX_FPS:
+        parser.error(f"--max-fps must be between 1 and {MAX_FPS}")
     install = args.install.resolve(strict=True)
     output = args.output.resolve()
     if output.is_relative_to(install):
@@ -256,14 +303,14 @@ def main() -> int:
         destination = relative.with_suffix(".pmvf")
         result = {"source": relative.as_posix(), "status": "failed"}
         try:
-            result.update(convert_movie(ffmpeg, ffprobe, source, output / destination))
+            result.update(convert_movie(ffmpeg, ffprobe, source, output / destination, args.max_fps))
             result.update(status="converted", path=destination.as_posix())
         except (KeyError, OSError, ValueError, subprocess.TimeoutExpired) as error:
             result["error"] = str(error)
         movies.append(result)
     converted = [movie for movie in movies if movie["status"] == "converted"]
     report = {
-        "version": VERSION, "ffmpeg": version, "movie_count": len(files),
+        "version": VERSION, "ffmpeg": version, "max_fps": args.max_fps, "movie_count": len(files),
         "converted_count": len(converted), "bytes": sum(movie["bytes"] for movie in converted),
         "movies": movies,
     }
