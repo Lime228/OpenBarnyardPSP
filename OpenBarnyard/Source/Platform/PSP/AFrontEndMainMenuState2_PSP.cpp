@@ -1,6 +1,8 @@
 #include "pch.h"
 
 #include "GameInterface/AFrontEndMainMenuState2.h"
+#include "GameInterface/AGameStateController.h"
+#include "GameInterface/AOptionsState.h"
 #include "GUI/AGUI2.h"
 #include "Locale/ALocaleManager.h"
 #include "Platform/PSP/AGameRuntimeReport_PSP.h"
@@ -220,8 +222,15 @@ void AFrontEndMainMenuState2::OnMenuClose()
 	if ( m_iActivatedButtonID == -1 )
 		return;
 
-	ASetGameRuntimePhase_PSP( "frontend-menu-selection" );
 	AGetGameRuntimeReport_PSP().uiMenuCloseCount++;
+	if ( m_iActivatedButtonID == FRONTENDBUTTON_OPTIONS )
+	{
+		ASetGameRuntimePhase_PSP( "frontend-options-pending" );
+		AGameStateController::GetSingleton()->PushState( new AOptionsState() );
+		return;
+	}
+
+	ASetGameRuntimePhase_PSP( "frontend-menu-selection" );
 	m_iActivatedButtonID = -1;
 	m_bIgnoreInputs      = TFALSE;
 	m_fMenuOpacity       = 0.0f;
