@@ -206,15 +206,27 @@ try {
     }
     if (-not $SkipMenuInput) {
         & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key DpadDown
-        Start-Sleep -Milliseconds 500
+        Start-Sleep -Milliseconds 350
+        & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key DpadDown
+        Start-Sleep -Milliseconds 350
         & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key Cross
-        Start-Sleep -Milliseconds 750
+        $optionsDeadline = (Get-Date).AddSeconds(10)
+        do {
+            Start-Sleep -Milliseconds 100
+            $optionsReport = Read-RuntimeReport $reportPath
+        } while ((!$optionsReport.ContainsKey('phase') -or $optionsReport.phase -ne 'frontend-options-ready') -and
+            (Get-Date) -lt $optionsDeadline)
+        if (-not $optionsReport.ContainsKey('phase') -or $optionsReport.phase -ne 'frontend-options-ready') {
+            $actualPhase = if ($optionsReport.ContainsKey('phase')) { $optionsReport.phase } else { '<missing>' }
+            throw "Original options state did not open: $actualPhase"
+        }
     }
 
     $report = Read-RuntimeReport $reportPath
-    if (-not $report.ContainsKey('phase') -or $report.phase -notlike 'frontend-menu*') {
+    $expectedPhase = if ($SkipMenuInput) { 'frontend-menu-ready' } else { 'frontend-options-ready' }
+    if (-not $report.ContainsKey('phase') -or $report.phase -ne $expectedPhase) {
         $actualPhase = if ($report.ContainsKey('phase')) { $report.phase } else { '<missing>' }
-        throw "Runtime report did not reach the original front-end menu: $actualPhase"
+        throw "Runtime report expected $expectedPhase but found $actualPhase"
     }
     Assert-ReportValue $report 'version' '22'
     foreach ($name in @(
@@ -273,6 +285,11 @@ try {
         foreach ($name in @('menu_command_down_count', 'menu_command_ok_count', 'menu_activation_count')) {
             Assert-ReportPositive $report $name
         }
+        Assert-ReportValue $report 'menu_command_down_count' '2'
+        Assert-ReportValue $report 'menu_activated_button' '2'
+        Assert-ReportValue $report 'menu_activation_count' '1'
+        Assert-ReportValue $report 'menu_close_count' '1'
+        Assert-ReportValue $report 'menu_focus' '0'
     }
 
     if (-not $SkipScreenshot -and -not $screenshotPath) {
