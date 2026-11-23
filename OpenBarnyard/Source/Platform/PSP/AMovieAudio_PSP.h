@@ -3,6 +3,8 @@
 #include <Thread/TMutex.h>
 #include <Thread/TSemaphore.h>
 
+#include <pspthreadman.h>
+
 class AMovieAudio_PSP
 {
 public:
@@ -27,7 +29,7 @@ public:
 private:
 	static constexpr TUINT32 CHANNELS = 2;
 	static constexpr TUINT32 OUTPUT_FRAMES = 1024;
-	static TINT ThreadEntry( TUINT32 a_uiArgs, void* a_pArgs );
+	static TINT ThreadEntry( SceSize a_uiArgs, void* a_pArgs );
 	void Output();
 
 	Toshi::TMutex m_Lock;

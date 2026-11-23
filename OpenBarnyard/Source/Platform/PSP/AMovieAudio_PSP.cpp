@@ -150,8 +150,10 @@ TSIZE AMovieAudio_PSP::GetBufferBytes() const
 	return IsOpen() ? ( m_uiCapacity + 2 * OUTPUT_FRAMES ) * CHANNELS * sizeof( TINT16 ) : 0;
 }
 
-TINT AMovieAudio_PSP::ThreadEntry( TUINT32, void* a_pArgs )
+TINT AMovieAudio_PSP::ThreadEntry( SceSize a_uiArgs, void* a_pArgs )
 {
+	if ( a_uiArgs != sizeof( AMovieAudio_PSP* ) || a_pArgs == TNULL )
+		return -1;
 	( *TSTATICCAST( AMovieAudio_PSP*, a_pArgs ) )->Output();
 	return 0;
 }
