@@ -15,8 +15,7 @@ static constexpr TUINT32 MOVIE_VERSION_PSP = 2;
 static constexpr TUINT32 MOVIE_RATE_LIMIT_PSP = 30;
 static constexpr TUINT32 MOVIE_MAX_JPEG_PSP = 64 * 1024;
 static constexpr TUINT32 MOVIE_MAX_TRACKS_PSP = 4;
-static constexpr TUINT32 MOVIE_AUDIO_RATE_PSP = 44100;
-static constexpr TUINT32 MOVIE_PCM_SAMPLE_BYTES_PSP = 4;
+static constexpr TSIZE MOVIE_PCM_SAMPLE_BYTES_PSP = TMovieStream_PSP::AUDIO_CHANNELS * sizeof( TINT16 );
 
 struct TMovieHeader_PSP
 {
@@ -88,7 +87,7 @@ TBOOL TMovieStream_PSP::Open( TFile& a_rFile )
 	     oHeader.uiFrames == 0 || uiFileSize < sizeof( oHeader ) || oHeader.uiFrames > ( uiFileSize - sizeof( oHeader ) ) / 5 ||
 	     oHeader.uiMaxJPEG == 0 || oHeader.uiMaxJPEG > MOVIE_MAX_JPEG_PSP || oHeader.uiTracks > MOVIE_MAX_TRACKS_PSP )
 		return TFALSE;
-	const TUINT32 uiAudioRate = oHeader.uiTracks != 0 ? MOVIE_AUDIO_RATE_PSP : 0;
+	const TUINT32 uiAudioRate = oHeader.uiTracks != 0 ? AUDIO_RATE : 0;
 	const TUINT64 uiAudioStep = TUINT64( uiAudioRate ) * oHeader.uiRateDenominator;
 	const TUINT32 uiPCM = ( ( uiAudioStep + oHeader.uiRateNumerator - 1 ) / oHeader.uiRateNumerator ) * MOVIE_PCM_SAMPLE_BYTES_PSP;
 	if ( oHeader.uiAudioRate != uiAudioRate || oHeader.uiMaxPCM != uiPCM )
@@ -119,6 +118,7 @@ TBOOL TMovieStream_PSP::Open( TFile& a_rFile )
 	m_uiRateDenominator = oHeader.uiRateDenominator;
 	m_uiMaxJPEG = oHeader.uiMaxJPEG;
 	m_uiAudioTracks = oHeader.uiTracks;
+	m_uiMaxPCMBytes = uiPCM;
 	m_pStage = "ready";
 	return TTRUE;
 }
@@ -142,7 +142,10 @@ void TMovieStream_PSP::Close()
 	m_uiRateNumerator = 0;
 	m_uiRateDenominator = 0;
 	m_uiMaxJPEG = 0;
+	m_uiJPEGBytes = 0;
 	m_uiAudioTracks = 0;
+	m_uiMaxPCMBytes = 0;
+	m_uiPCMFrames = 0;
 	m_uiAudioPhase = 0;
 	m_bJPEGCreated = TFALSE;
 	m_bJPEGInitialised = TFALSE;
@@ -151,6 +154,13 @@ void TMovieStream_PSP::Close()
 
 TBOOL TMovieStream_PSP::DecodeNextFrame()
 {
+	return ReadNextFrame( TNULL, 0 ) && DecodeFrame();
+}
+
+TBOOL TMovieStream_PSP::ReadNextFrame( TINT16* a_pPCM, TSIZE a_uiPCMCapacity )
+{
+	m_uiJPEGBytes = 0;
+	m_uiPCMFrames = 0;
 	if ( m_pFile == TNULL || m_uiFrame >= m_uiFrameCount )
 		return TFALSE;
 	m_pStage = "frame-record";
@@ -158,16 +168,22 @@ TBOOL TMovieStream_PSP::DecodeNextFrame()
 	if ( m_uiBytesLeft < sizeof( uiJPEGSize ) || m_pFile->Read( &uiJPEGSize, sizeof( uiJPEGSize ) ) != sizeof( uiJPEGSize ) )
 		return TFALSE;
 	m_uiBytesLeft -= sizeof( uiJPEGSize );
-	TSIZE uiAudioBytes = 0;
+	TUINT32 uiPCMFrames = 0;
 	if ( m_uiAudioTracks != 0 )
 	{
-		m_uiAudioPhase += TUINT64( MOVIE_AUDIO_RATE_PSP ) * m_uiRateDenominator;
-		uiAudioBytes = ( m_uiAudioPhase / m_uiRateNumerator ) * MOVIE_PCM_SAMPLE_BYTES_PSP * m_uiAudioTracks;
+		m_uiAudioPhase += TUINT64( AUDIO_RATE ) * m_uiRateDenominator;
+		uiPCMFrames = m_uiAudioPhase / m_uiRateNumerator;
 		m_uiAudioPhase %= m_uiRateNumerator;
 	}
+	const TSIZE uiTrackBytes = uiPCMFrames * MOVIE_PCM_SAMPLE_BYTES_PSP;
+	const TSIZE uiAudioBytes = uiTrackBytes * m_uiAudioTracks;
 	if ( uiJPEGSize == 0 || uiJPEGSize > m_uiMaxJPEG || uiJPEGSize + uiAudioBytes > m_uiBytesLeft ||
-	     m_pFile->Read( m_pJPEG, uiJPEGSize ) != uiJPEGSize ||
-	     ( uiAudioBytes != 0 && !m_pFile->Seek( TINT( uiAudioBytes ), TSEEK_CUR ) ) )
+	     ( a_pPCM != TNULL && uiTrackBytes > a_uiPCMCapacity ) || m_pFile->Read( m_pJPEG, uiJPEGSize ) != uiJPEGSize )
+		return TFALSE;
+	// Select the first original audio track and advance past the others.
+	const TSIZE uiReadAudioBytes = a_pPCM != TNULL ? uiTrackBytes : 0;
+	if ( ( uiReadAudioBytes != 0 && m_pFile->Read( a_pPCM, uiReadAudioBytes ) != uiReadAudioBytes ) ||
+	     ( uiAudioBytes > uiReadAudioBytes && !m_pFile->Seek( TINT( uiAudioBytes - uiReadAudioBytes ), TSEEK_CUR ) ) )
 		return TFALSE;
 	m_uiBytesLeft -= uiJPEGSize + uiAudioBytes;
 	if ( m_uiFrame + 1 == m_uiFrameCount && m_uiBytesLeft != 0 )
@@ -176,11 +192,22 @@ TBOOL TMovieStream_PSP::DecodeNextFrame()
 	m_pStage = "jpeg-profile";
 	if ( !IsMovieJPEG_PSP( m_pJPEG, uiJPEGSize ) )
 		return TFALSE;
-	m_pStage = "jpeg-decode";
-	sceKernelDcacheWritebackRange( m_pJPEG, uiJPEGSize );
-	if ( sceJpegDecodeMJpeg( m_pJPEG, uiJPEGSize, TREINTERPRETCAST( TUINT8*, m_pPixels ), 0 ) != TINT( ( WIDTH << 16 ) | HEIGHT ) )
-		return TFALSE;
+	m_uiJPEGBytes = uiJPEGSize;
+	m_uiPCMFrames = uiPCMFrames;
 	m_uiFrame++;
+	m_pStage = "ready";
+	return TTRUE;
+}
+
+TBOOL TMovieStream_PSP::DecodeFrame()
+{
+	if ( m_uiJPEGBytes == 0 )
+		return TFALSE;
+	m_pStage = "jpeg-decode";
+	sceKernelDcacheWritebackRange( m_pJPEG, m_uiJPEGBytes );
+	if ( sceJpegDecodeMJpeg( m_pJPEG, m_uiJPEGBytes, TREINTERPRETCAST( TUINT8*, m_pPixels ), 0 ) != TINT( ( WIDTH << 16 ) | HEIGHT ) )
+		return TFALSE;
+	sceKernelDcacheWritebackRange( m_pPixels, PIXEL_BYTES );
 	m_pStage = "ready";
 	return TTRUE;
 }

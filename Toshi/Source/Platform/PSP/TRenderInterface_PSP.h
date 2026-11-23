@@ -143,12 +143,14 @@ public:
 	    TUINT32 a_uiColour
 	);
 	void DrawTextureQuad( const T2Texture& a_rTexture, const TRenderQuad_PSP& a_rQuad, TUINT32 a_uiColour );
+	void DrawMovieFrame( const TUINT32* a_pPixels );
 	void EndScene();
 
 	TBOOL IsDisplayCreated() const { return m_bDisplayCreated; }
 
 private:
 	alignas( 16 ) TUINT32 m_aDisplayList[ 262144 ];
+	void*                 m_pDrawBuffer = TNULL;
 	TBOOL                 m_bDisplayCreated;
 };
 

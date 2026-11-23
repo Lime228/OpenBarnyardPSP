@@ -6,6 +6,7 @@
 #include <Render/TRenderInterface.h>
 
 #include <pspdisplay.h>
+#include <pspge.h>
 #include <pspgu.h>
 #include <pspgum.h>
 
@@ -215,6 +216,7 @@ TBOOL TRenderInterface_PSP::CreateDisplay()
 		return TFALSE;
 
 	sceGuInit();
+	m_pDrawBuffer = TNULL;
 	sceGuStart( GU_DIRECT, m_aDisplayList );
 	sceGuDrawBuffer( GU_PSM_8888, reinterpret_cast<void*>( 0 ), BUFFER_WIDTH );
 	sceGuDispBuffer( SCREEN_WIDTH, SCREEN_HEIGHT, reinterpret_cast<void*>( FRAME_BYTES ), BUFFER_WIDTH );
@@ -686,12 +688,21 @@ void TRenderInterface_PSP::DrawTextureQuad( const T2Texture& a_rTexture, const T
 	sceGuDisable( GU_TEXTURE_2D );
 }
 
+void TRenderInterface_PSP::DrawMovieFrame( const TUINT32* a_pPixels )
+{
+	void* pDrawBuffer = TREINTERPRETCAST( void*, TREINTERPRETCAST( TUINTPTR, sceGeEdramGetAddr() ) +
+	                                        TREINTERPRETCAST( TUINTPTR, m_pDrawBuffer ) );
+	sceGuCopyImage( GU_PSM_8888, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH,
+	                const_cast<TUINT32*>( a_pPixels ), 0, 0, BUFFER_WIDTH, pDrawBuffer );
+	sceGuTexSync();
+}
+
 void TRenderInterface_PSP::EndScene()
 {
 	sceGuFinish();
 	sceGuSync( GU_SYNC_FINISH, GU_SYNC_WHAT_DONE );
 	sceDisplayWaitVblankStart();
-	sceGuSwapBuffers();
+	m_pDrawBuffer = sceGuSwapBuffers();
 }
 
 TOSHI_NAMESPACE_END
