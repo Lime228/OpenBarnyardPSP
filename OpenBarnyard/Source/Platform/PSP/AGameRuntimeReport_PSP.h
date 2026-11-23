@@ -100,6 +100,11 @@ struct AGameRuntimeReport_PSP
 	TUINT uiMenuAudioCueCount;
 	TUINT uiMenuAudioVOCueCount;
 	TUINT uiMenuAudioNonSilentBlocks;
+	TBOOL bMenuMusicReady;
+	TINT iMenuMusicPositionMs;
+	TUINT uiMenuMusicLoops;
+	TUINT uiMenuMusicUnderruns;
+	TUINT uiMenuMusicGain;
 	TBOOL bEngineCreated;
 	TBOOL bApplicationCreated;
 	TBOOL bRootCreated;

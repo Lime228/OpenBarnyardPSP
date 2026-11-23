@@ -90,4 +90,7 @@ private:
 	TBOOL                                                                                            m_bFlag;
 	TFLOAT                                                                                           m_fAFKTime;
 	Toshi::TListener<AFade, TBOOL, AFrontEndMainMenuState2>                                          m_oFadeOverListener;
+#ifdef TOSHI_SKU_PSP
+	TINT m_iBackgroundMusicCue_PSP = -1;
+#endif
 };

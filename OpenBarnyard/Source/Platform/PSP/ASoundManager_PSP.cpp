@@ -4,6 +4,7 @@
 #include "ARandom.h"
 #include "Memory/AMemory.h"
 #include "Sound/ASoundManager.h"
+#include "SoundBank/music.h"
 #include "SoundBank/ui.h"
 
 #include <Source/Sound/ASoundUpdateTask_PSP.h>
@@ -18,6 +19,7 @@
 TOSHI_NAMESPACE_USING
 
 TPSTRING8_DECLARE( Ingame );
+TPSTRING8_DECLARE( Music );
 TPSTRING8_DECLARE( VO );
 
 static constexpr TINT s_iSoundPoolCapacity_PSP = 1;
@@ -37,15 +39,18 @@ static constexpr ASoundCueMapping_PSP s_aMenuCueMappings_PSP[] = {
 	{ soundbank::UI_FE_SELECT, "harp_strum" },
 	{ AMenuWaveId_PSP_Harp02, "harp02" },
 	{ AMenuWaveId_PSP_Harp03, "harp03" },
+	{ soundbank::MUSIC_START_SCREEN, "start_screen", TTRUE, TFALSE },
 };
 
 static AWave_PSP                   s_aMenuWaves_PSP[ 6 ];
+static AStreamWave_PSP             s_StartScreenMusic_PSP;
 static AWaveBank_PSP               s_MenuBank_PSP;
 static AWaveBankLoader_PSP         s_MenuBankLoader_PSP;
 static ASoundMixer_PSP              s_MenuMixer_PSP;
 static ASoundCommandQueue_PSP       s_MenuCommands_PSP;
 static ASoundDelayedEventQueue_PSP  s_MenuEvents_PSP;
 static ASoundManager_PSP            s_MenuSoundManager_PSP;
+static TINT                        s_iMenuMusicCue_PSP = -1;
 
 struct AMenuCueLayer_PSP
 {
@@ -79,9 +84,13 @@ static void AUnloadMenuBank_PSP()
 	s_MenuEvents_PSP.Clear();
 	s_MenuCommands_PSP.Clear();
 	s_MenuBankLoader_PSP.Unload( s_MenuBank_PSP, s_aMenuWaves_PSP, TARRAYSIZE( s_aMenuWaves_PSP ), TNULL, 0 );
+	s_StartScreenMusic_PSP.Destroy();
+	s_iMenuMusicCue_PSP = -1;
 	for ( AMenuCueLayer_PSP& rLayer : s_aMenuCueLayers_PSP )
 		rLayer = {};
 	AGetGameRuntimeReport_PSP().bMenuAudioReady = TFALSE;
+	AGetGameRuntimeReport_PSP().bMenuMusicReady = TFALSE;
+	AGetGameRuntimeReport_PSP().iMenuMusicPositionMs = -1;
 }
 
 TDEFINE_CLASS( ASoundManager );
@@ -132,11 +141,18 @@ TBOOL ASoundManager::OnCreate()
 {
 	TUINT uiLoadedWaves;
 	TUINT uiLoadedStreams;
-	const TBOOL bReady = s_MenuBankLoader_PSP.Load(
+	const TBOOL bBankLoaded = s_MenuBankLoader_PSP.Load(
 		s_MenuBank_PSP, s_aMenuWaves_PSP, TARRAYSIZE( s_aMenuWaves_PSP ), TNULL, 0,
 		"local:Data/Sound/Menu/ui.pbnk", uiLoadedWaves, uiLoadedStreams
-	) &&
-		s_MenuSoundManager_PSP.Create() &&
+	);
+	const TBOOL bMusicReady = bBankLoaded &&
+	    s_StartScreenMusic_PSP.Create( "local:Data/Sound/Menu/start_screen.padp" ) &&
+	    s_StartScreenMusic_PSP.IsLoopAligned() &&
+	    s_MenuBank_PSP.RegisterStream( "start_screen", &s_StartScreenMusic_PSP );
+	if ( !bMusicReady )
+		s_StartScreenMusic_PSP.Destroy();
+
+	const TBOOL bReady = bBankLoaded && s_MenuSoundManager_PSP.Create() &&
 		s_MenuSoundManager_PSP.BindCueBank(
 			&s_MenuBank_PSP, &s_MenuMixer_PSP, &s_MenuCommands_PSP, &s_MenuEvents_PSP,
 			s_aMenuCueMappings_PSP, TARRAYSIZE( s_aMenuCueMappings_PSP )
@@ -147,6 +163,7 @@ TBOOL ASoundManager::OnCreate()
 	else
 		s_MenuSoundManager_PSP.SetGlobalVolume( s_fGlobalVolume_PSP );
 	AGetGameRuntimeReport_PSP().bMenuAudioReady = bReady;
+	AGetGameRuntimeReport_PSP().bMenuMusicReady = bReady && bMusicReady;
 
 	return TTRUE;
 }
@@ -154,6 +171,7 @@ TBOOL ASoundManager::OnCreate()
 TBOOL ASoundManager::OnUpdate( TFLOAT a_fDeltaTime )
 {
 	m_fCurrentTime += a_fDeltaTime;
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	// Four blocks cover a frame even when the front end runs at 15 Hz.
 	for ( TUINT i = 0; i < ASoundManager_PSP::OUTPUT_BUFFER_COUNT && s_MenuSoundManager_PSP.GetManagedCueCount() > 0; i++ )
 	{
@@ -163,8 +181,14 @@ TBOOL ASoundManager::OnUpdate( TFLOAT a_fDeltaTime )
 		     ) )
 			break;
 		if ( bNonSilent )
-			AGetGameRuntimeReport_PSP().uiMenuAudioNonSilentBlocks++;
+			rReport.uiMenuAudioNonSilentBlocks++;
 	}
+	const TINT iMusicPosition = s_MenuSoundManager_PSP.GetStreamCueTime( s_iMenuMusicCue_PSP );
+	if ( iMusicPosition >= 0 && rReport.iMenuMusicPositionMs > iMusicPosition )
+		rReport.uiMenuMusicLoops++;
+	rReport.iMenuMusicPositionMs = iMusicPosition;
+	rReport.uiMenuMusicUnderruns = s_StartScreenMusic_PSP.GetUnderrunCount();
+	rReport.uiMenuMusicGain = TUINT( s_MenuSoundManager_PSP.GetCueVolume( s_iMenuMusicCue_PSP ) * 1000.0f + 0.5f );
 	return TTRUE;
 }
 
@@ -184,7 +208,9 @@ TINT ASoundManager::PlayCueEx( ASoundId a_iSound, TFLOAT a_fVolume, TBOOL a_bPau
 	if ( !s_MenuSoundManager_PSP.IsCueBankBound() || !ARandom::IsSingletonCreated() )
 		return -1;
 
-	const auto pCategory = m_CategoryIndices.Find( a_iSound == soundbank::UI_VO_CLICK ? TPS8( VO ) : TPS8( Ingame ) );
+	const TBOOL bMenuMusic = a_iSound == soundbank::MUSIC_START_SCREEN;
+	const TPString8& rCategory = bMenuMusic ? TPS8( Music ) : a_iSound == soundbank::UI_VO_CLICK ? TPS8( VO ) : TPS8( Ingame );
+	const auto pCategory = m_CategoryIndices.Find( rCategory );
 	if ( !m_CategoryIndices.IsValid( pCategory ) )
 		return -1;
 
@@ -193,6 +219,20 @@ TINT ASoundManager::PlayCueEx( ASoundId a_iSound, TFLOAT a_fVolume, TBOOL a_bPau
 	const TFLOAT fCategoryVolume = m_aCategories[ uiCategory ].fVolumeMultiplier;
 	TRandom& rRandom = ARandom::GetSingleton()->m_oRandom;
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	if ( bMenuMusic )
+	{
+		if ( ( a_iTrack != -1 && a_iTrack != 0 ) || !rReport.bMenuMusicReady )
+			return -1;
+		const TINT iMusicCue = s_MenuSoundManager_PSP.PlayCueEx( a_iSound, a_fVolume * fCategoryVolume, a_bPaused, a_fDelay, -1 );
+		ATrackMenuCueLayer_PSP( iMusicCue, iMusicCue, uiCategory, a_fVolume );
+		if ( iMusicCue >= 0 )
+		{
+			s_iMenuMusicCue_PSP = iMusicCue;
+			rReport.iMenuMusicPositionMs = -1;
+			rReport.uiMenuMusicLoops = 0;
+		}
+		return iMusicCue;
+	}
 	TINT iCue = -1;
 
 	// Sample volumes, pitch ranges and track timing from SoundBank_ui.trb.

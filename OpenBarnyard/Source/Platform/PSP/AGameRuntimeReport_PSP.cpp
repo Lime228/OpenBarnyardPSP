@@ -94,7 +94,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=24\n"
+		"version=25\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -203,7 +203,12 @@ void AWriteGameRuntimeReport_PSP()
 		"menu_audio_last_cue=%d\n"
 		"menu_audio_cues=%u\n"
 		"menu_audio_vo_cues=%u\n"
-		"menu_audio_non_silent_blocks=%u\n",
+		"menu_audio_non_silent_blocks=%u\n"
+		"menu_music_ready=%d\n"
+		"menu_music_position_ms=%d\n"
+		"menu_music_loops=%u\n"
+		"menu_music_underruns=%u\n"
+		"menu_music_gain_per_mille=%u\n",
 		s_GameRuntimeReport_PSP.szPhase,
 		s_GameRuntimeReport_PSP.bEngineCreated,
 		s_GameRuntimeReport_PSP.bApplicationCreated,
@@ -318,7 +323,12 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.iMenuAudioLastCue,
 		s_GameRuntimeReport_PSP.uiMenuAudioCueCount,
 		s_GameRuntimeReport_PSP.uiMenuAudioVOCueCount,
-		s_GameRuntimeReport_PSP.uiMenuAudioNonSilentBlocks
+		s_GameRuntimeReport_PSP.uiMenuAudioNonSilentBlocks,
+		s_GameRuntimeReport_PSP.bMenuMusicReady,
+		s_GameRuntimeReport_PSP.iMenuMusicPositionMs,
+		s_GameRuntimeReport_PSP.uiMenuMusicLoops,
+		s_GameRuntimeReport_PSP.uiMenuMusicUnderruns,
+		s_GameRuntimeReport_PSP.uiMenuMusicGain
 	);
 
 	if ( iLength <= 0 )

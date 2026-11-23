@@ -6,6 +6,8 @@
 #include "GUI/AGUI2.h"
 #include "Locale/ALocaleManager.h"
 #include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#include "Sound/ASoundManager.h"
+#include "SoundBank/music.h"
 #include "SoundBank/ui.h"
 
 #include <GUI/T2GUIFontManager.h>
@@ -161,6 +163,7 @@ void AFrontEndMainMenuState2::OnInsertion()
 	m_Rectangle2.Hide();
 
 	AGUI2::GetRootElement()->AddChildTail( m_Rectangle2 );
+	m_iBackgroundMusicCue_PSP = ASoundManager::GetSingleton()->PlayCue( soundbank::MUSIC_START_SCREEN );
 	AGUI2::GetRootElement()->AddChildTail( m_Rectangle1 );
 	ASetGameRuntimePhase_PSP( "frontend-menu-base-inserting" );
 	BaseClass::OnInsertion();
@@ -181,6 +184,8 @@ void AFrontEndMainMenuState2::OnInsertion()
 void AFrontEndMainMenuState2::OnRemoval()
 {
 	ms_bIsInserted = TFALSE;
+	if ( ASoundManager::IsSingletonCreated() )
+		ASoundManager::GetSingleton()->StopCue( m_iBackgroundMusicCue_PSP );
 	for ( TINT i = 0; i < FRONTENDBUTTON_NUMOF; i++ )
 		m_aButtons[ i ].RemoveSelf();
 
