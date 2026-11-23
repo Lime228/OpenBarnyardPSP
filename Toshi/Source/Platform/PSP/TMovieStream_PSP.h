@@ -13,6 +13,7 @@ public:
 	static constexpr TUINT32 HEIGHT = 272;
 	static constexpr TUINT32 AUDIO_RATE = 44100;
 	static constexpr TUINT32 AUDIO_CHANNELS = 2;
+	static constexpr TUINT32 MAX_BUFFERED_FRAMES = 4;
 	static constexpr TSIZE PIXEL_BYTES = WIDTH * HEIGHT * sizeof( TUINT32 );
 
 	TMovieStream_PSP() = default;
@@ -21,18 +22,21 @@ public:
 	TMovieStream_PSP& operator=( const TMovieStream_PSP& ) = delete;
 
 	// The caller keeps the file alive and owns closing it.
-	TBOOL Open( TFile& a_rFile );
+	TBOOL Open( TFile& a_rFile, TUINT32 a_uiBufferFrames = 1 );
 	void Close();
 	TBOOL DecodeNextFrame();
 	TBOOL ReadNextFrame( TINT16* a_pPCM, TSIZE a_uiPCMCapacity );
 	TBOOL DecodeFrame();
+	TBOOL SkipFrame();
+	TBOOL HasFreeFrameSlot() const { return m_uiQueuedJPEG < m_uiJPEGCapacity; }
+	TUINT32 GetBufferFrames() const { return m_uiJPEGCapacity; }
 	TUINT32 GetFrameCount() const { return m_uiFrameCount; }
 	TUINT32 GetRateNumerator() const { return m_uiRateNumerator; }
 	TUINT32 GetRateDenominator() const { return m_uiRateDenominator; }
 	TSIZE GetMaxPCMBytes() const { return m_uiMaxPCMBytes; }
 	TUINT32 GetPCMFrames() const { return m_uiPCMFrames; }
 	const TUINT32* GetPixels() const { return m_pPixels; }
-	TSIZE GetBufferBytes() const { return m_pPixels != TNULL ? PIXEL_BYTES + m_uiMaxJPEG : 0; }
+	TSIZE GetBufferBytes() const { return m_pPixels != TNULL ? PIXEL_BYTES + m_uiJPEGStride * m_uiJPEGCapacity : 0; }
 	const TCHAR* GetStage() const { return m_pStage; }
 
 private:
@@ -45,7 +49,11 @@ private:
 	TUINT32 m_uiRateNumerator = 0;
 	TUINT32 m_uiRateDenominator = 0;
 	TUINT32 m_uiMaxJPEG = 0;
-	TUINT32 m_uiJPEGBytes = 0;
+	TSIZE m_uiJPEGStride = 0;
+	TUINT32 m_uiJPEGCapacity = 0;
+	TUINT32 m_uiNextJPEG = 0;
+	TUINT32 m_uiQueuedJPEG = 0;
+	TUINT32 m_aJPEGBytes[ MAX_BUFFERED_FRAMES ] = {};
 	TUINT32 m_uiAudioTracks = 0;
 	TSIZE m_uiMaxPCMBytes = 0;
 	TUINT32 m_uiPCMFrames = 0;

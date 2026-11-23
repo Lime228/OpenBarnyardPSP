@@ -3,6 +3,7 @@
 
 #include <Core/TMemory.h>
 #include <File/TFile.h>
+#include <Math/TMathInline.h>
 
 #include <pspjpeg.h>
 #include <pspkernel.h>
@@ -71,7 +72,7 @@ TMovieStream_PSP::~TMovieStream_PSP()
 	Close();
 }
 
-TBOOL TMovieStream_PSP::Open( TFile& a_rFile )
+TBOOL TMovieStream_PSP::Open( TFile& a_rFile, TUINT32 a_uiBufferFrames )
 {
 	Close();
 	m_pStage = "header";
@@ -81,7 +82,8 @@ TBOOL TMovieStream_PSP::Open( TFile& a_rFile )
 		return TFALSE;
 
 	const TSIZE uiFileSize = a_rFile.GetSize();
-	if ( oHeader.uiWidth != WIDTH || oHeader.uiHeight != HEIGHT || oHeader.uiRateDenominator == 0 ||
+	if ( a_uiBufferFrames == 0 || a_uiBufferFrames > MAX_BUFFERED_FRAMES ||
+	     oHeader.uiWidth != WIDTH || oHeader.uiHeight != HEIGHT || oHeader.uiRateDenominator == 0 ||
 	     oHeader.uiRateNumerator < oHeader.uiRateDenominator ||
 	     oHeader.uiRateNumerator > TUINT64( oHeader.uiRateDenominator ) * MOVIE_RATE_LIMIT_PSP ||
 	     oHeader.uiFrames == 0 || uiFileSize < sizeof( oHeader ) || oHeader.uiFrames > ( uiFileSize - sizeof( oHeader ) ) / 5 ||
@@ -94,7 +96,12 @@ TBOOL TMovieStream_PSP::Open( TFile& a_rFile )
 		return TFALSE;
 
 	m_pStage = "buffers";
-	m_pJPEG = TSTATICCAST( TUINT8, TMemalign( oHeader.uiMaxJPEG, 64 ) );
+	// At lower rates a single PCM record already covers a longer read-ahead interval.
+	const TUINT64 uiWindowDivisor = 8ull * oHeader.uiRateDenominator;
+	const TUINT32 uiWindowFrames = ( oHeader.uiRateNumerator + uiWindowDivisor - 1 ) / uiWindowDivisor;
+	m_uiJPEGCapacity = TMath::Min( a_uiBufferFrames, uiWindowFrames );
+	m_uiJPEGStride = ( oHeader.uiMaxJPEG + 63 ) & ~TSIZE( 63 );
+	m_pJPEG = TSTATICCAST( TUINT8, TMemalign( m_uiJPEGStride * m_uiJPEGCapacity, 64 ) );
 	m_pPixels = TSTATICCAST( TUINT32, TMemalign( PIXEL_BYTES, 64 ) );
 	if ( m_pJPEG == TNULL || m_pPixels == TNULL )
 	{
@@ -142,7 +149,10 @@ void TMovieStream_PSP::Close()
 	m_uiRateNumerator = 0;
 	m_uiRateDenominator = 0;
 	m_uiMaxJPEG = 0;
-	m_uiJPEGBytes = 0;
+	m_uiJPEGStride = 0;
+	m_uiJPEGCapacity = 0;
+	m_uiNextJPEG = 0;
+	m_uiQueuedJPEG = 0;
 	m_uiAudioTracks = 0;
 	m_uiMaxPCMBytes = 0;
 	m_uiPCMFrames = 0;
@@ -159,9 +169,8 @@ TBOOL TMovieStream_PSP::DecodeNextFrame()
 
 TBOOL TMovieStream_PSP::ReadNextFrame( TINT16* a_pPCM, TSIZE a_uiPCMCapacity )
 {
-	m_uiJPEGBytes = 0;
 	m_uiPCMFrames = 0;
-	if ( m_pFile == TNULL || m_uiFrame >= m_uiFrameCount )
+	if ( m_pFile == TNULL || m_uiFrame >= m_uiFrameCount || !HasFreeFrameSlot() )
 		return TFALSE;
 	m_pStage = "frame-record";
 	TUINT32 uiJPEGSize = 0;
@@ -177,8 +186,10 @@ TBOOL TMovieStream_PSP::ReadNextFrame( TINT16* a_pPCM, TSIZE a_uiPCMCapacity )
 	}
 	const TSIZE uiTrackBytes = uiPCMFrames * MOVIE_PCM_SAMPLE_BYTES_PSP;
 	const TSIZE uiAudioBytes = uiTrackBytes * m_uiAudioTracks;
+	const TUINT32 uiSlot = ( m_uiNextJPEG + m_uiQueuedJPEG ) % m_uiJPEGCapacity;
+	TUINT8* pJPEG = m_pJPEG + uiSlot * m_uiJPEGStride;
 	if ( uiJPEGSize == 0 || uiJPEGSize > m_uiMaxJPEG || uiJPEGSize + uiAudioBytes > m_uiBytesLeft ||
-	     ( a_pPCM != TNULL && uiTrackBytes > a_uiPCMCapacity ) || m_pFile->Read( m_pJPEG, uiJPEGSize ) != uiJPEGSize )
+	     ( a_pPCM != TNULL && uiTrackBytes > a_uiPCMCapacity ) || m_pFile->Read( pJPEG, uiJPEGSize ) != uiJPEGSize )
 		return TFALSE;
 	// Select the first original audio track and advance past the others.
 	const TSIZE uiReadAudioBytes = a_pPCM != TNULL ? uiTrackBytes : 0;
@@ -190,9 +201,10 @@ TBOOL TMovieStream_PSP::ReadNextFrame( TINT16* a_pPCM, TSIZE a_uiPCMCapacity )
 		return TFALSE;
 
 	m_pStage = "jpeg-profile";
-	if ( !IsMovieJPEG_PSP( m_pJPEG, uiJPEGSize ) )
+	if ( !IsMovieJPEG_PSP( pJPEG, uiJPEGSize ) )
 		return TFALSE;
-	m_uiJPEGBytes = uiJPEGSize;
+	m_aJPEGBytes[ uiSlot ] = uiJPEGSize;
+	m_uiQueuedJPEG++;
 	m_uiPCMFrames = uiPCMFrames;
 	m_uiFrame++;
 	m_pStage = "ready";
@@ -201,14 +213,25 @@ TBOOL TMovieStream_PSP::ReadNextFrame( TINT16* a_pPCM, TSIZE a_uiPCMCapacity )
 
 TBOOL TMovieStream_PSP::DecodeFrame()
 {
-	if ( m_uiJPEGBytes == 0 )
+	if ( m_uiQueuedJPEG == 0 )
 		return TFALSE;
+	TUINT8* pJPEG = m_pJPEG + m_uiNextJPEG * m_uiJPEGStride;
+	const TUINT32 uiJPEGBytes = m_aJPEGBytes[ m_uiNextJPEG ];
 	m_pStage = "jpeg-decode";
-	sceKernelDcacheWritebackRange( m_pJPEG, m_uiJPEGBytes );
-	if ( sceJpegDecodeMJpeg( m_pJPEG, m_uiJPEGBytes, TREINTERPRETCAST( TUINT8*, m_pPixels ), 0 ) != TINT( ( WIDTH << 16 ) | HEIGHT ) )
+	sceKernelDcacheWritebackRange( pJPEG, uiJPEGBytes );
+	if ( sceJpegDecodeMJpeg( pJPEG, uiJPEGBytes, TREINTERPRETCAST( TUINT8*, m_pPixels ), 0 ) != TINT( ( WIDTH << 16 ) | HEIGHT ) )
 		return TFALSE;
 	sceKernelDcacheWritebackRange( m_pPixels, PIXEL_BYTES );
 	m_pStage = "ready";
+	return SkipFrame();
+}
+
+TBOOL TMovieStream_PSP::SkipFrame()
+{
+	if ( m_uiQueuedJPEG == 0 )
+		return TFALSE;
+	m_uiNextJPEG = ( m_uiNextJPEG + 1 ) % m_uiJPEGCapacity;
+	m_uiQueuedJPEG--;
 	return TTRUE;
 }
 
