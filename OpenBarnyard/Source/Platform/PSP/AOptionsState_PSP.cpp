@@ -105,7 +105,8 @@ void AOptionsState::OnActivate()
 {
 	m_iActivatedButtonID = -1;
 	BaseClass::OnActivate();
-	ASetGameRuntimePhase_PSP( "frontend-options-ready" );
+	if ( m_oMenu.GetFocusedMenuItem() != TNULL )
+		ASetGameRuntimePhase_PSP( "frontend-options-ready" );
 }
 
 void AOptionsState::OnMenuItemActivated( AGUI2MenuItem* a_pMenuItem )

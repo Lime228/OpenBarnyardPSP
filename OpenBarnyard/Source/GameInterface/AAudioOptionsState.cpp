@@ -528,7 +528,7 @@ void AVolumeSlider::OnUpdate( TFLOAT a_fDeltaTime )
 
 			if ( m_aArrows[ i ].IsPointInside( vecElementRelCursorPos.x, vecElementRelCursorPos.y ) )
 			{
-				TVALIDPTR( m_fnArrowFocusCallback );
+				TASSERT( m_fnArrowFocusCallback != TNULL );
 				m_fnArrowFocusCallback( m_pCallbackUserData, m_iID );
 				m_iLastPressedArrowIndex = i;
 			}
