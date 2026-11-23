@@ -279,9 +279,10 @@ menu close. Its original localized `Audio`/`Controls` layout is captured in
 - Options enters its original landing state; its Audio and Controls children are
   still bounded checkpoints. New game, load game, extras, antics and quit do not
   yet enter their retail states.
-- Startup images currently follow the original GUI presentation path. The
-  offline batch produced 15 bounded PMVF movies. AMoviePlayer_PSP still needs
-  frame decoding, rendering and audio playback.
+- Startup images currently follow the original GUI presentation path. The 15
+  PMVF v2 movies preserve all original frames at about 29.97 FPS. The optional
+  bootstrap probe exercises PSP JPEG decoding and reports frame timing.
+  `AMoviePlayer_PSP` still needs timed presentation and audio playback.
 - ACollisionModel_PSP preserves the interface but returns no hits. Gameplay must
   not start until a bounded collision backend exists.
 - Retail FMOD banks/music are not integrated. The diagnostic mixer proves PSP
@@ -422,7 +423,8 @@ Runtime evidence:
    continue through other menu states before new-game world loading.
 4. Convert/integrate the retail menu cue/music ownership behind the existing PSP
    audio interfaces.
-5. Implement bounded playback for the verified offline PMVF movie batch.
+5. Connect the bounded PMVF stream to `AMoviePlayer_PSP` and the original
+   startup states. Present frames with audio and measure the complete path.
 6. Implement a bounded collision representation before any gameplay claim.
 7. Advance to one reduced playable room, then add its gameplay-owned windmills,
    weather vane, water wheel, actor/player control, saves and zone streaming

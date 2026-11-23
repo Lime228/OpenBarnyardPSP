@@ -187,23 +187,52 @@ To convert movies, pass the paths to a [Windows FFmpeg build](https://ffmpeg.org
 python Ports/PSP/Tools/convert_retail_movies.py --ffmpeg <ffmpeg.exe> --ffprobe <ffprobe.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/Movies
 ~~~
 
-The PMVF v1 header contains the four-byte magic and ten little-endian
-32-bit fields in order: version, header size, width, height, FPS, frame count,
-maximum JPEG bytes, audio track count, audio sample rate and PCM bytes per
-frame per track. Each frame contains a 32-bit JPEG length, a self-contained
-baseline JPEG and fixed-size PCM blocks in source track order. The profile
-uses 480×272 JPEG 4:2:0 at 15 FPS with a 64 KiB frame cap. Audio uses 44.1 kHz
-stereo PCM16. The report records any audio trim or silence added to match the
-video timeline.
+PMVF v2 uses a 48-byte header. The four-byte `PMVF` signature is followed by
+little-endian 32-bit words for version, header size, width, height, frame rate
+numerator and denominator, frame count, maximum JPEG bytes, audio track count,
+audio sample rate and maximum bytes per audio block per track. Each record
+has a 32-bit JPEG length, a self-contained baseline JPEG and a block of stereo
+PCM16 for each original audio track. At frame boundary `n`, the cumulative
+sample frames per track are `floor(n * 44100 * denominator / numerator)`.
+Adjacent boundaries determine the size of that record's audio blocks.
 
-The full batch converted all 15 movies into 67,271,066 bytes. The largest
-JPEG is 23,203 bytes and the highest sum over 15 consecutive records is
-446,713 bytes. The encoder decoded the full MJPEG streams on the host and
-reread each final container before publishing it. In-game PMVF playback
-still requires a PSP player. The batch includes the original startup sequence
-inputs `NickMovs`, `THQ`, `BTE` and `Attract`. This installation only supplies
-the default `Attract`, so the language-specific names need an explicit fallback
-when the PSP player is wired into the startup states.
+The default rate ceiling is 30 FPS. The encoder preserves the exact source
+rate and checks that the frame count matches the source for movies under that
+ceiling. `--max-fps 15` reproduces the lower rate using the v2 container. V1
+caches are accepted by the host verifier. The PSP streaming decoder uses v2.
+
+The full batch kept all 7,274 original frames across 15 movies at about
+29.97 FPS. It produced 100,185,130 bytes, up from 67,271,066 bytes at 15 FPS.
+The largest JPEG is 23,203 bytes. The busiest 30 consecutive records total
+717,196 bytes. The encoder decodes the full MJPEG streams on the host and
+rereads each final container before publishing it. The batch includes the
+original startup inputs `NickMovs`, `THQ`, `BTE` and `Attract`. This
+installation only supplies the default `Attract`, so the language-specific
+names need an explicit fallback when the PSP player is wired into startup.
+
+Run the optional bootstrap decoder probe in a single hidden PPSSPP instance:
+
+~~~powershell
+.\Ports\PSP\Tools\TestMovieProbe.ps1 -BootstrapEboot bin/PSP/Release/EBOOT.PBP -MoviePath Game/BarnyardPC/Workspace/Movies/Data/Movies/NickMovs.pmvf
+~~~
+
+The probe reads one compressed frame at a time into a buffer sized from the
+movie header and keeps one 480×272 RGBA buffer. It logs the exact rate,
+decoded frame count, average and worst frame time and how many frames exceed
+the interval. It skips packed PCM while stepping through the records. The
+measurements capture decoding in the selected environment, without texture
+submission or audible movie playback.
+
+PSP CI run `45180653929` built the decoder. In PPSSPP, `NickMovs` decoded
+151/151 frames with a maximum read-and-decode time of 11,097 µs. `Attract`
+decoded 2,855/2,855 frames with a maximum of 11,169 µs and a 545,443-byte
+JPEG and RGBA buffer allocation. Both runs stayed within their 33,366 µs
+frame budget. A copy of `NickMovs` with its final byte removed was rejected
+at frame record 151. These are emulator measurements.
+
+For a hardware measurement, copy the same bootstrap files to PSP and put a
+local PMVF beside `EBOOT.PBP` under the name `probe_movie.pmvf`. The bootstrap
+writes `probe_movie.log` in the same folder.
 
 Inventory the model and animation files and bake the supported skin geometry:
 
