@@ -66,6 +66,11 @@ jobs:
         with:
           version: "5.0.0"
 
+      - name: Set up Python for asset verification
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Verify converted PSP assets
         run: |
           python3 Ports/PSP/Tools/generate_pooled_strings.py OpenBarnyard/Source/APooledStrings.txt OpenBarnyard/Source/APooledStrings.cpp
@@ -81,6 +86,7 @@ jobs:
           python3 Ports/PSP/Tools/test_convert_dds.py
           python3 Ports/PSP/Tools/test_inventory_retail_install.py
           python3 Ports/PSP/Tools/test_plan_gui_texture_batch.py
+          python3 Ports/PSP/Tools/test_encode_retail_fsb.py
           python3 Ports/PSP/Tools/test_convert_terrain_dump.py
           python3 Ports/PSP/Tools/test_convert_terrain_cell.py
           python3 Ports/PSP/Tools/test_convert_placed_terrain_cell.py
