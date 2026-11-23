@@ -71,7 +71,7 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens and original startup movies, main/options GUI input, camera, complete initial terrain VIS row, barn sign and all 640 exact instances run; nested options, remaining environment ownership, menu audio and hardware validation remain |
+| Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Menu music, remaining environment ownership and hardware validation remain. |
 | Complete playable-game port | 33% | Original startup movies and frontend run with the complete initial terrain residency. Rooms, player, world streaming, collision, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
@@ -285,6 +285,25 @@ original main menu. The Audio and Controls framebuffer captures are
 `OpenBarnyardPSP_20261123_203556_334.png` and
 `OpenBarnyardPSP_20261123_203626_710.png` respectively.
 
+PSP CI build `45232500884` loads seven original UI cues from six retail mono
+samples in `Data/Sound/Menu/ui.pbnk`. The source bank is `UI.fsb`; the
+resident files contain 392,784 bytes of PPCM at 44.1 kHz. Main menu movement
+and selection use the original harp samples. Options uses the original layered
+confirmation, click, back and Speech slider cues. The mixer applies the
+`Ingame` and `VO` category gains and submits 1,024-frame stereo blocks.
+
+```powershell
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OpenBarnyardPSPGame -RequireMenuAudio
+```
+
+The hidden run checked six original cue IDs, mixed 681 non-silent blocks and
+returned from Audio and Controls to the main menu. All four startup movies
+produced PCM with zero reported underruns before the test skipped each one.
+The bootstrap built from the same commit passed the stereo, ADPCM, GUI,
+managed cue and stream checks with zero stream underruns.
+The frontend heap reported about 6.25 MiB free. PPSSPP game volume stayed at
+zero, so sound quality and the reported crackle still need a listening check.
+
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
@@ -297,7 +316,7 @@ original main menu. The Audio and Controls framebuffer captures are
   weather vane and the water wheel belong to gameplay `ASimState`.
 - Options opens the original Audio and Controls states with their localized
   labels and widgets. Settings are applied within the session. Memory Stick
-  persistence, the retail audio preview and gameplay input still need integration.
+  persistence, the music preview and gameplay input still need integration.
   New game, load game, extras, antics and quit still end at frontend checkpoints.
 - Startup images currently follow the original GUI presentation path. The 15
   PMVF v2 movies preserve all original frames at about 29.97 FPS. The game
@@ -442,8 +461,10 @@ Runtime evidence:
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
 3. Continue through other original menu states before new-game world loading.
-4. Convert/integrate the retail menu cue/music ownership behind the existing PSP
-   audio interfaces.
+4. Stream the retail `MUSIC_START_SCREEN` cue used by the original main menu.
+   The converted loop is `Data/Sound/FSB/Music.fsb/000036-00-0.padp` in the
+   encoded audio cache. The original music preview is `MUSIC_MISSION`, track 18
+   in the same bank. Keep both streamed and use the existing Music category.
 5. Measure the complete movie playback path on physical PSP hardware.
 6. Implement a bounded collision representation before any gameplay claim.
 7. Advance to one reduced playable room, then add its gameplay-owned windmills,

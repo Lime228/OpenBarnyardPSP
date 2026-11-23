@@ -186,7 +186,19 @@ python Ports/PSP/Tools/map_retail_sound_cues.py --tmdl <TMDL.exe> Game/BarnyardP
 wave-bank definitions. It retains the order of the 2,065 sample references
 and their original cue settings. It also maps all 17 multiplex streams and
 their channel routing. The run verified all 1,466 distinct referenced cache
-files against the encoding report. This map is input for future playback work.
+files against the encoding report.
+
+Build the resident frontend bank from the mapped original `UI.fsb` and the
+decoded WAV cache:
+
+```powershell
+python Ports/PSP/Tools/convert_frontend_audio.py Game/BarnyardPC/Workspace/AudioBanks Game/BarnyardPC/Workspace/AudioBanks/FrontendMenu
+```
+
+Seven menu cues share six original mono samples. The converter resamples them
+to 44.1 kHz and writes 392,784 bytes of PPCM plus a 708-byte PBNK manifest.
+`StageOriginalGame.ps1` copies the bank to `Data/Sound/Menu`. With
+`-SkipConversion` it uses the existing cache.
 
 To convert movies, pass the paths to a [Windows FFmpeg build](https://ffmpeg.org/download.html#build-windows):
 
