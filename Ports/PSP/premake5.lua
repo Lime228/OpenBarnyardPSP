@@ -200,6 +200,7 @@ project "OpenBarnyardPSPGameSlice"
 
 	includedirs
 	{
+		".",
 		"../../OpenBarnyard/Source",
 		"../../Shared/Source",
 		"../../Toshi/Source",
@@ -254,6 +255,7 @@ project "OpenBarnyardPSPGame"
 
 	files
 	{
+		"Source/Sound/**.cpp",
 		"../../OpenBarnyard/Source/AOptions.cpp",
 		"../../OpenBarnyard/Source/APooledStrings.cpp",
 		"../../OpenBarnyard/Source/ARandom.cpp",

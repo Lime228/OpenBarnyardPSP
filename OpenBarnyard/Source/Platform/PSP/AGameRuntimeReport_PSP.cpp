@@ -94,7 +94,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=23\n"
+		"version=24\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -198,7 +198,12 @@ void AWriteGameRuntimeReport_PSP()
 		"option_music=%d\n"
 		"option_speech=%d\n"
 		"option_inverted=%d\n"
-		"option_sensitivity=%.6f\n",
+		"option_sensitivity=%.6f\n"
+		"menu_audio_ready=%d\n"
+		"menu_audio_last_cue=%d\n"
+		"menu_audio_cues=%u\n"
+		"menu_audio_vo_cues=%u\n"
+		"menu_audio_non_silent_blocks=%u\n",
 		s_GameRuntimeReport_PSP.szPhase,
 		s_GameRuntimeReport_PSP.bEngineCreated,
 		s_GameRuntimeReport_PSP.bApplicationCreated,
@@ -308,7 +313,12 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.iOptionMusic,
 		s_GameRuntimeReport_PSP.iOptionSpeech,
 		s_GameRuntimeReport_PSP.bOptionInverted,
-		s_GameRuntimeReport_PSP.fOptionSensitivity
+		s_GameRuntimeReport_PSP.fOptionSensitivity,
+		s_GameRuntimeReport_PSP.bMenuAudioReady,
+		s_GameRuntimeReport_PSP.iMenuAudioLastCue,
+		s_GameRuntimeReport_PSP.uiMenuAudioCueCount,
+		s_GameRuntimeReport_PSP.uiMenuAudioVOCueCount,
+		s_GameRuntimeReport_PSP.uiMenuAudioNonSilentBlocks
 	);
 
 	if ( iLength <= 0 )

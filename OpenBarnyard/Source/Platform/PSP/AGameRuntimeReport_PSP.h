@@ -95,6 +95,11 @@ struct AGameRuntimeReport_PSP
 	TINT  iOptionSpeech;
 	TBOOL bOptionInverted;
 	TFLOAT fOptionSensitivity;
+	TBOOL bMenuAudioReady;
+	TINT iMenuAudioLastCue;
+	TUINT uiMenuAudioCueCount;
+	TUINT uiMenuAudioVOCueCount;
+	TUINT uiMenuAudioNonSilentBlocks;
 	TBOOL bEngineCreated;
 	TBOOL bApplicationCreated;
 	TBOOL bRootCreated;
