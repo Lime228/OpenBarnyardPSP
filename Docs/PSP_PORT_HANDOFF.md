@@ -266,6 +266,25 @@ menu close. Its original localized `Audio`/`Controls` layout is captured in
 `OpenBarnyardPSP_20261123_095855_084.png`; the same operation stops hidden PID
 `16984`.
 
+The original Audio and Controls dialogs are available in PSP CI build
+`45228400700`. Both run the shipping grid widgets and use the localized text
+from the staged game data. `Controls_Win.trb` supplies the dialog actions.
+On the current PSP controller mapping, Cross confirms and Triangle cancels.
+The background test waits for a visible dialog before capturing it or sending
+the next command:
+
+```powershell
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OpenBarnyardPSPGame -Capture
+```
+
+The hidden PPSSPP run with PID `31128` changed all three Audio rows and
+restored them on Cancel. It then kept the Effects change from 204 to 153 on
+OK. Controls restored inversion and sensitivity on Cancel, then applied both
+on OK with sensitivity moving from 0.5 to 0.6. The run returned to the
+original main menu. The Audio and Controls framebuffer captures are
+`OpenBarnyardPSP_20261123_203556_334.png` and
+`OpenBarnyardPSP_20261123_203626_710.png` respectively.
+
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
@@ -276,9 +295,10 @@ menu close. Its original localized `Audio`/`Controls` layout is captured in
   remaining environment ownership are absent. The original frontend
   states create only the barn sign through `AWindmillHelper`; windmills, the
   weather vane and the water wheel belong to gameplay `ASimState`.
-- Options enters its original landing state; its Audio and Controls children are
-  still bounded checkpoints. New game, load game, extras, antics and quit do not
-  yet enter their retail states.
+- Options opens the original Audio and Controls states with their localized
+  labels and widgets. Settings are applied within the session. Memory Stick
+  persistence, the retail audio preview and gameplay input still need integration.
+  New game, load game, extras, antics and quit still end at frontend checkpoints.
 - Startup images currently follow the original GUI presentation path. The 15
   PMVF v2 movies preserve all original frames at about 29.97 FPS. The game
   streams `NickMovs`, `THQ`, `BTE` and `Attract` with their original audio and
@@ -421,8 +441,7 @@ Runtime evidence:
    exact-transform row without changing model IDs, transforms or materials.
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
-3. Connect the original options Audio and Controls children one at a time, then
-   continue through other menu states before new-game world loading.
+3. Continue through other original menu states before new-game world loading.
 4. Convert/integrate the retail menu cue/music ownership behind the existing PSP
    audio interfaces.
 5. Measure the complete movie playback path on physical PSP hardware.

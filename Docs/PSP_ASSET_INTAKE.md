@@ -77,7 +77,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `Tools/convert_retail_model_animations.py` | Resolves installed key libraries by their original internal names and key ranges, then bakes supported model sequences to bounded PANM. |
 | `Tools/inventory_retail_models.py` | Inventories all model TRB and TKL containers and attempts the skin exporter for every TMD geometry entry. |
 | `Tools/convert_retail_model_geometry.py` | Bakes exported skins to one PSKL and one PMES per material, preserving original texture names in the report. |
-| `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
+| `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping frontend logo, fonts, panels, startup pictures and the original options arrows and stars. It can publish the converted PTEX files beside an EBOOT. |
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
@@ -137,6 +137,13 @@ The full GUI pass from PSP CI run `45169619708` converted all 1,155 source
 variants found for 195 texture names. The 999 sections reference 287 unique
 names. The report lists the 92 names whose sources remain unresolved and the
 two alternate-format TTL libraries that TMDL rejected.
+
+The original Audio and Controls dialogs add two 64×64 textures from
+`Data/Matlibs/gui_HUD.ttl`: `HUD\Left_Arrow.tga` and
+`HUD\Statue_GoldStar.tga`. The `left_arrow2` section reverses the source
+rectangle on the same arrow texture. The frontend conversion produced the
+same PTEX bytes for both textures as the full GUI batch. The staging script
+copies both into the PSP game runtime alongside the existing menu assets.
 
 For audio, use Python 3.12 or later and the
 [vgmstream CLI release](https://github.com/vgmstream/vgmstream/releases/tag/r2168).
