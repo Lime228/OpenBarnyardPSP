@@ -7,3 +7,8 @@ TBOOL ExportPSPGUISectionDump(
     const TCHAR* a_pSectionName,
     const TCHAR* a_pOutputPath
 );
+
+TBOOL ExportPSPGUISectionInventory(
+    const TCHAR* a_pTextureSectionsPath,
+    const TCHAR* a_pOutputPath
+);
