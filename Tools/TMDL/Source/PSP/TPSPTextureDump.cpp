@@ -4,6 +4,7 @@
 #include <Plugins/PTRB.h>
 #include <Render/TTexture.h>
 
+#include <cstring>
 #include <fstream>
 
 TOSHI_NAMESPACE_USING
@@ -41,6 +42,24 @@ static void WriteJSONString_PSP( std::ostream& a_rOutput, const TCHAR* a_pValue 
 	a_rOutput << '"';
 }
 
+static TSIZE GetTextureStreamRemaining_PSP( PTRB& a_rTRB, const void* a_pAddress )
+{
+	const TUINTPTR uiAddress = reinterpret_cast<TUINTPTR>( a_pAddress );
+	for ( auto pStack : *a_rTRB.GetSections() )
+	{
+		const TUINTPTR uiBase = reinterpret_cast<TUINTPTR>( pStack->GetBuffer() );
+		if ( uiAddress >= uiBase && uiAddress - uiBase < pStack->GetUsedSize() )
+			return pStack->GetUsedSize() - ( uiAddress - uiBase );
+	}
+	return 0;
+}
+
+static TBOOL IsTextureString_PSP( PTRB& a_rTRB, const TCHAR* a_szValue )
+{
+	const TSIZE uiRemaining = GetTextureStreamRemaining_PSP( a_rTRB, a_szValue );
+	return uiRemaining != 0 && std::memchr( a_szValue, '\0', uiRemaining ) != TNULL;
+}
+
 static TPSPTextureLibraryDump* OpenPSPTextureLibrary(
     const TCHAR* a_pLibraryPath,
     const TCHAR* a_pLibrarySymbol,
@@ -57,14 +76,30 @@ static TPSPTextureLibraryDump* OpenPSPTextureLibrary(
 	auto oLibrary = a_rTRB.GetSymbols()->Find<TPSPTextureLibraryDump>(
 	    a_rTRB.GetSections(), a_pLibrarySymbol
 	);
-	if ( !oLibrary || oLibrary->iNumTextures < 0 || oLibrary->iNumTextures > 1024 ||
-	     ( oLibrary->iNumTextures != 0 && oLibrary->pTextureInfos == TNULL ) )
+	if ( !oLibrary || GetTextureStreamRemaining_PSP( a_rTRB, oLibrary.get() ) < sizeof( TPSPTextureLibraryDump ) ||
+	     oLibrary->iNumTextures < 0 || oLibrary->iNumTextures > 1024 )
 	{
 		TERROR( "PSP texture dump rejected TTL header %s\n", a_pLibrarySymbol );
 		return TNULL;
 	}
 
-	return oLibrary.get();
+	auto pLibrary = oLibrary.get();
+	if ( GetTextureStreamRemaining_PSP( a_rTRB, pLibrary->pTextureInfos ) <
+	     TSIZE( pLibrary->iNumTextures ) * sizeof( TPSPTextureInfoDump ) ||
+	     ( pLibrary->szPackName != TNULL && !IsTextureString_PSP( a_rTRB, pLibrary->szPackName ) ) )
+		return TNULL;
+
+	for ( TINT i = 0; i < pLibrary->iNumTextures; i++ )
+	{
+		const auto& rTexture = pLibrary->pTextureInfos[ i ];
+		if ( !IsTextureString_PSP( a_rTRB, rTexture.szFileName ) ||
+		     GetTextureStreamRemaining_PSP( a_rTRB, rTexture.pData ) < rTexture.uiDataSize )
+		{
+			TERROR( "PSP texture dump rejected unsupported TTL entry %d in %s\n", i, a_pLibraryPath );
+			return TNULL;
+		}
+	}
+	return pLibrary;
 }
 
 TBOOL ExportPSPTextureDump(
