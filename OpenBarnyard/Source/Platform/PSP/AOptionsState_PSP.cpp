@@ -1,11 +1,16 @@
 #include "pch.h"
 
 #include "GameInterface/AOptionsState.h"
+#include "GameInterface/AAudioOptionsState.h"
+#include "GameInterface/AControlOptionsState.h"
+#include "GameInterface/AGameStateController.h"
+#include "AOptions.h"
 #include "GUI/AGUI2.h"
 #include "Locale/ALocaleManager.h"
 #include "Platform/PSP/AGameRuntimeReport_PSP.h"
 
 #include <GUI/T2GUIFontManager.h>
+#include <GUI/T2GUITextureSectionManager.h>
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -39,6 +44,12 @@ TBOOL AOptionsState::OnUpdate( TFLOAT a_fDeltaTime )
 	rReport.iMenuState              = m_eMenuState;
 	AGUI2MenuItem* pFocusedItem     = m_oMenu.GetFocusedMenuItem();
 	rReport.iMenuFocusID            = pFocusedItem != TNULL ? TSTATICCAST( AGUI2Button, pFocusedItem )->GetId() : -1;
+	const AOptions* pOptions        = AOptions::GetSingleton();
+	rReport.iOptionEffects          = pOptions->GetSfxVolume();
+	rReport.iOptionMusic            = pOptions->GetMusicVolume();
+	rReport.iOptionSpeech           = pOptions->GetVOVolume();
+	rReport.bOptionInverted          = pOptions->IsMouseInverted();
+	rReport.fOptionSensitivity      = pOptions->GetSensitivity();
 
 	return BaseClass::OnUpdate( a_fDeltaTime );
 }
@@ -94,6 +105,7 @@ void AOptionsState::OnActivate()
 {
 	m_iActivatedButtonID = -1;
 	BaseClass::OnActivate();
+	ASetGameRuntimePhase_PSP( "frontend-options-ready" );
 }
 
 void AOptionsState::OnMenuItemActivated( AGUI2MenuItem* a_pMenuItem )
@@ -113,12 +125,21 @@ void AOptionsState::OnMenuClose()
 
 	if ( m_iActivatedButtonID != -1 )
 	{
-		ASetGameRuntimePhase_PSP( "frontend-options-selection" );
-		m_iActivatedButtonID = -1;
-		m_bIgnoreInputs      = TFALSE;
-		m_fMenuOpacity       = 0.0f;
-		m_oRootElement.Show();
-		m_eMenuState = MENUSTATE_MENU_APPEAR;
+		const TCHAR* const aSections[] = { "left_arrow", "left_arrow2", "Statue_GoldStar" };
+		for ( const TCHAR* pName : aSections )
+		{
+			T2GUITextureSection* pSection = T2GUITextureSectionManager::GetTextureSection( pName );
+			if ( pSection == TNULL || pSection->GetMaterial() == TNULL )
+			{
+				OnActivate();
+				ASetGameRuntimeFailedPath_PSP( pName );
+				ASetGameRuntimePhase_PSP( "frontend-options-widgets-missing" );
+				return;
+			}
+		}
+		AGameState* pState = m_iActivatedButtonID == OPTIONSBUTTON_AUDIO ?
+		    static_cast<AGameState*>( new AAudioOptionsState() ) : new AControlOptionsState();
+		AGameStateController::GetSingleton()->PushState( pState );
 		return;
 	}
 

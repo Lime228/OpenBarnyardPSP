@@ -15,6 +15,10 @@
 #include "HUD/AMenuNavHudElement.h"
 #include "Input/AInputHandler.h"
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+#  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#endif
+
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
 // Note: Should be the last include!
@@ -191,6 +195,14 @@ TBOOL AAudioOptionsState::OnUpdate( TFLOAT a_fDeltaTime )
 		UpdateBarColours( i, a_fDeltaTime );
 
 	m_oGridMenu.Update( a_fDeltaTime );
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuState = m_eMenuState;
+	rReport.iMenuFocusID = m_iFocusedItemId;
+	rReport.iOptionEffects = m_aVolumes[ AUDIOOPTIONS_EFFECTS ];
+	rReport.iOptionMusic = m_aVolumes[ AUDIOOPTIONS_MUSIC ];
+	rReport.iOptionSpeech = m_aVolumes[ AUDIOOPTIONS_SPEECH ];
+#endif
 	return BaseClass::OnUpdate( a_fDeltaTime );
 }
 
@@ -290,12 +302,17 @@ void AAudioOptionsState::OnInsertion()
 			m_aVolumeSliders[ i ].GetBar( k ).SetColour( ( k < iNumLitBars ) ? 0xFFFFFFFF : 0xFF000000 );
 	}
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AHudManager::GetSingleton()->FindElement<AMenuNavHudElement>()->SetTexts( 1050, 1051, -1 );
+#endif
 
 	BaseClass::OnInsertion();
 
 	m_oDialog.SetDimensions( m_oGridMenu.GetWidth() + 128.0f, m_oGridMenu.GetHeight() + 150.0f );
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	ASetGameRuntimePhase_PSP( "frontend-audio-ready" );
+#else
 	if ( !AFrontEndMainMenuState2::ms_bIsInserted )
 	{
 		// The music samples aren't always loaded in game, they are needed for the music preview
@@ -309,6 +326,7 @@ void AAudioOptionsState::OnInsertion()
 
 		m_iMusicCue = ASoundManager::GetSingleton()->PlayCueEx( soundbank::MUSIC_MISSION, 1.0f, TTRUE, 0.0f, -1 );
 	}
+#endif
 }
 
 // $Barnyard: FUNCTION 00443240
@@ -322,6 +340,7 @@ void AAudioOptionsState::OnRemoval()
 
 	m_oGridMenu.RemoveSelf();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AMenuNavHudElement::UpdateText();
 
 	if ( !AFrontEndMainMenuState2::ms_bIsInserted )
@@ -335,6 +354,7 @@ void AAudioOptionsState::OnRemoval()
 			AMusicManager::GetSingleton()->SetEnabled( TTRUE, TTRUE );
 		}
 	}
+#endif
 
 	BaseClass::OnRemoval();
 }

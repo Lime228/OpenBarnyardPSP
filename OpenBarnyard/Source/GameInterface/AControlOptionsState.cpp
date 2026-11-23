@@ -12,6 +12,10 @@
 #include "HUD/AMenuNavHudElement.h"
 #include "Input/AInputHandler.h"
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+#  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#endif
+
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
 // Note: Should be the last include!
@@ -156,6 +160,13 @@ TBOOL AControlOptionsState::OnUpdate( TFLOAT a_fDeltaTime )
 	UpdateLabelScale( m_oSensitivityText, a_fDeltaTime );
 
 	m_oGridMenu.Update( a_fDeltaTime );
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuState = m_eMenuState;
+	rReport.iMenuFocusID = m_iFocusedItemId;
+	rReport.bOptionInverted = m_bInvertMouse;
+	rReport.fOptionSensitivity = m_fSensitivity;
+#endif
 	return BaseClass::OnUpdate( a_fDeltaTime );
 }
 
@@ -281,11 +292,16 @@ void AControlOptionsState::OnInsertion()
 	m_oDialogTitle.SetText( g_pLocaleManager->GetString( 285 ) );
 	m_bFocusedElementBloated = TFALSE;
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AHudManager::GetSingleton()->FindElement<AMenuNavHudElement>()->SetTexts( 1050, 1051, -1 );
+#endif
 
 	BaseClass::OnInsertion();
 
 	m_oDialog.SetDimensions( m_oGridMenu.GetWidth() + 128.0f, m_oGridMenu.GetHeight() + 150.0f );
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	ASetGameRuntimePhase_PSP( "frontend-controls-ready" );
+#endif
 }
 
 // $Barnyard: FUNCTION 00444400
@@ -303,7 +319,9 @@ void AControlOptionsState::OnRemoval()
 	m_oSensitivitySlider.GetSlider().RemoveSelf();
 	m_oSensitivitySlider.RemoveSelf();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AMenuNavHudElement::UpdateText();
+#endif
 	BaseClass::OnRemoval();
 }
 

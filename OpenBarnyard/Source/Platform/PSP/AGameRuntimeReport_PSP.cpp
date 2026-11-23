@@ -90,11 +90,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 3328 ];
+	static TCHAR s_aReportBuffer_PSP[ 4096 ];
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=22\n"
+		"version=23\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -193,7 +193,12 @@ void AWriteGameRuntimeReport_PSP()
 		"menu_command_ok_count=%u\n"
 		"menu_activated_button=%d\n"
 		"menu_activation_count=%u\n"
-		"menu_close_count=%u\n",
+		"menu_close_count=%u\n"
+		"option_effects=%d\n"
+		"option_music=%d\n"
+		"option_speech=%d\n"
+		"option_inverted=%d\n"
+		"option_sensitivity=%.6f\n",
 		s_GameRuntimeReport_PSP.szPhase,
 		s_GameRuntimeReport_PSP.bEngineCreated,
 		s_GameRuntimeReport_PSP.bApplicationCreated,
@@ -298,7 +303,12 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiMenuCommandOKCount,
 		s_GameRuntimeReport_PSP.iMenuActivatedButtonID,
 		s_GameRuntimeReport_PSP.uiMenuActivationCount,
-		s_GameRuntimeReport_PSP.uiMenuCloseCount
+		s_GameRuntimeReport_PSP.uiMenuCloseCount,
+		s_GameRuntimeReport_PSP.iOptionEffects,
+		s_GameRuntimeReport_PSP.iOptionMusic,
+		s_GameRuntimeReport_PSP.iOptionSpeech,
+		s_GameRuntimeReport_PSP.bOptionInverted,
+		s_GameRuntimeReport_PSP.fOptionSensitivity
 	);
 
 	if ( iLength <= 0 )
