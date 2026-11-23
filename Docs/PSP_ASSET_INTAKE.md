@@ -189,7 +189,7 @@ their channel routing. The run verified all 1,466 distinct referenced cache
 files against the encoding report.
 
 Build the resident frontend bank from the mapped original `UI.fsb` and the
-decoded WAV cache:
+decoded WAV cache. Use Python 3.12 or a newer Python with `audioop-lts`.
 
 ```powershell
 python Ports/PSP/Tools/convert_frontend_audio.py Game/BarnyardPC/Workspace/AudioBanks Game/BarnyardPC/Workspace/AudioBanks/FrontendMenu

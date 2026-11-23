@@ -286,7 +286,7 @@ original main menu. The Audio and Controls framebuffer captures are
 `OpenBarnyardPSP_20261123_203626_710.png` respectively.
 
 PSP CI build `45232500884` loads seven original UI cues from six retail mono
-samples in `Data/Sound/Menu/ui.pbnk`. The source bank is `UI.fsb`; the
+samples in `Data/Sound/Menu/ui.pbnk`. The source bank is `UI.fsb`. The
 resident files contain 392,784 bytes of PPCM at 44.1 kHz. Main menu movement
 and selection use the original harp samples. Options uses the original layered
 confirmation, click, back and Speech slider cues. The mixer applies the
@@ -296,9 +296,12 @@ confirmation, click, back and Speech slider cues. The mixer applies the
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OpenBarnyardPSPGame -RequireMenuAudio
 ```
 
-The hidden run checked six original cue IDs, mixed 681 non-silent blocks and
-returned from Audio and Controls to the main menu. All four startup movies
-produced PCM with zero reported underruns before the test skipped each one.
+The hidden options run checked six original cue IDs, mixed 681 non-silent
+blocks and returned from Audio and Controls to the main menu. A separate full
+startup run on the same EBOOT completed NickMovs, THQ, BTE and Attract with
+zero PCM underruns and reached the main menu. All four movies played the full
+queued PCM length. NickMovs presented 150 of 151 frames and the other three
+presented every frame.
 The bootstrap built from the same commit passed the stereo, ADPCM, GUI,
 managed cue and stream checks with zero stream underruns.
 The frontend heap reported about 6.25 MiB free. PPSSPP game volume stayed at
@@ -465,6 +468,9 @@ Runtime evidence:
    The converted loop is `Data/Sound/FSB/Music.fsb/000036-00-0.padp` in the
    encoded audio cache. The original music preview is `MUSIC_MISSION`, track 18
    in the same bank. Keep both streamed and use the existing Music category.
+   Exercise the stream cache when the mixer fills several device blocks in
+   one update. The existing cache holds two pages and the mixer releases a
+   stream voice if the requested page is still being prefetched.
 5. Measure the complete movie playback path on physical PSP hardware.
 6. Implement a bounded collision representation before any gameplay claim.
 7. Advance to one reduced playable room, then add its gameplay-owned windmills,
