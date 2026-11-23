@@ -17,6 +17,9 @@ static const AFrontEndInstancePackDefinition_PSP s_aFrontEndInstancePackDefiniti
 	{ "frontend_instances_fncp", 71 },
 	{ "frontend_instances_fncborder", 40 },
 	{ "frontend_instances_flowers", 176 },
+	{ "frontend_instances_rocks", 86 },
+	{ "frontend_instances_props", 97 },
+	{ "frontend_instances_trees", 44 },
 };
 
 static_assert(
