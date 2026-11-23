@@ -57,8 +57,8 @@ static TPSPTextureLibraryDump* OpenPSPTextureLibrary(
 	auto oLibrary = a_rTRB.GetSymbols()->Find<TPSPTextureLibraryDump>(
 	    a_rTRB.GetSections(), a_pLibrarySymbol
 	);
-	if ( !oLibrary || oLibrary.get()->iNumTextures <= 0 || oLibrary.get()->iNumTextures > 1024 ||
-	     oLibrary.get()->pTextureInfos == TNULL )
+	if ( !oLibrary || oLibrary->iNumTextures < 0 || oLibrary->iNumTextures > 1024 ||
+	     ( oLibrary->iNumTextures != 0 && oLibrary->pTextureInfos == TNULL ) )
 	{
 		TERROR( "PSP texture dump rejected TTL header %s\n", a_pLibrarySymbol );
 		return TNULL;
