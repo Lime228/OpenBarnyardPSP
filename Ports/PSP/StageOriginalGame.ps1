@@ -365,6 +365,8 @@ $frontendFiles = @(
     'barnyard_logo.ptex',
     'Rekord_Black_26.ptex',
     'Panel_01.ptex',
+    'Left_Arrow.ptex',
+    'Statue_GoldStar.ptex',
     'Border_Top_Left.ptex',
     'Border_Top_Right.ptex',
     'Border_Horizontal.ptex',
