@@ -18,6 +18,7 @@ param(
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
     [string] $MoviesDirectory = '',
+    [string] $AudioBanksDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
@@ -85,6 +86,10 @@ if (-not $RuntimeDirectory) {
 $moviesDirectoryRequired = [bool]$MoviesDirectory
 if (-not $MoviesDirectory) {
     $MoviesDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\Movies'
+}
+$audioBanksDirectoryRequired = [bool]$AudioBanksDirectory
+if (-not $AudioBanksDirectory) {
+    $AudioBanksDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\AudioBanks'
 }
 
 $buildPath = [System.IO.Path]::GetFullPath($BuildDirectory)
@@ -935,6 +940,33 @@ foreach ($retailFile in $retailFiles) {
     $destinationPath = Join-Path $runtimePath $retailFile.Destination
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destinationPath) | Out-Null
     Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+}
+
+$menuAudioSource = Join-Path $AudioBanksDirectory 'FrontendMenu'
+if (-not $SkipConversion -and (Test-Path -LiteralPath (Join-Path $AudioBanksDirectory 'Cues\sound_cues.json') -PathType Leaf)) {
+    $python = if ($PythonPath) { $PythonPath } else { 'python' }
+    & $python (Join-Path $PSScriptRoot 'Tools\convert_frontend_audio.py') $AudioBanksDirectory $menuAudioSource
+    if ($LASTEXITCODE -ne 0) { throw 'Original menu audio conversion failed.' }
+}
+if (Test-Path -LiteralPath (Join-Path $menuAudioSource 'ui.pbnk') -PathType Leaf) {
+    $menuAudioFiles = @('ui.pbnk', 'negative.ppcm', 'click.ppcm', 'back.ppcm', 'harp02.ppcm', 'harp03.ppcm')
+    foreach ($name in $menuAudioFiles) {
+        if (-not (Test-Path -LiteralPath (Join-Path $menuAudioSource $name) -PathType Leaf)) {
+            throw "Converted original menu audio is missing: $name"
+        }
+    }
+    $menuAudioDestination = Join-Path $runtimePath 'Data\Sound\Menu'
+    New-Item -ItemType Directory -Force -Path $menuAudioDestination | Out-Null
+    foreach ($name in $menuAudioFiles) {
+        Copy-Item -LiteralPath (Join-Path $menuAudioSource $name) -Destination $menuAudioDestination -Force
+    }
+    Write-Output 'Staged five original menu audio samples'
+}
+elseif ($audioBanksDirectoryRequired) {
+    throw "Converted original menu audio was not found: $menuAudioSource"
+}
+else {
+    Write-Warning "Converted menu audio is missing at $menuAudioSource. Run convert_frontend_audio.py to enable it."
 }
 
 $movieSource = Join-Path $MoviesDirectory 'Data\Movies'
