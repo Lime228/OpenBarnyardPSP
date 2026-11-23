@@ -299,6 +299,7 @@ project "OpenBarnyardPSPGame"
 		"../../Toshi/Source/T2Locale/T2Locale.cpp",
 		"../../Toshi/Source/Toshi/T2Allocator.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
+		"../../Toshi/Source/Toshi/T2String16Copy.cpp",
 		"../../Toshi/Source/Toshi/T2String8.cpp",
 		"../../Toshi/Source/Toshi/TApplication.cpp",
 		"../../Toshi/Source/Toshi/TClass.cpp",

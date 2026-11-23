@@ -155,13 +155,6 @@ TWCHAR* T2String16::FindString( TWCHAR* str, const TWCHAR* substr )
 	return wcsstr( str, substr );
 }
 
-// $Barnyard: FUNCTION 006bb3c0
-TSIZE T2String16::Length( const TWCHAR* str )
-{
-	if ( str != TNULL ) return wcslen( str );
-	return 0;
-}
-
 TBOOL T2String16::IsLowerCase( const TWCHAR* str )
 {
 	while ( *str != L'\0' && T2Char16::IsLowerCase( *str ) )
@@ -236,18 +229,6 @@ const TWCHAR* T2String16::SkipSpaces( const TWCHAR* str )
 TWCHAR T2String16::CharToUpperCase( TUINT8 a_uiChar )
 {
 	return TWCHAR( toupper( a_uiChar ) );
-}
-
-// $Barnyard: FUNCTION 006bb450
-TWCHAR* T2String16::CreateCopy( const TWCHAR* a_wszString, TSIZE a_uiSize )
-{
-	TSIZE uiSize = ( a_uiSize == -1 ) ? T2String16::Length( a_wszString ) : a_uiSize;
-
-	TWCHAR* wszBuffer = new TWCHAR[ uiSize + 1 ];
-	TUtil::MemCopy( wszBuffer, a_wszString, uiSize * sizeof( TWCHAR ) );
-	wszBuffer[ uiSize ] = L'\0';
-
-	return wszBuffer;
 }
 
 TOSHI_NAMESPACE_END
