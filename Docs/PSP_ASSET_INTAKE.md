@@ -73,6 +73,9 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `Tools/decode_retail_fsb.py` | Uses vgmstream CLI to decode the indexed tracks once at their native rates and channel counts, then verifies each PCM WAV header. |
 | `Tools/encode_retail_fsb.py` | Reads the complete WAV cache, emits 44.1 kHz PSP streams or resident cues, and reports the channel and segment mapping for every track. |
 | `Tools/map_retail_sound_cues.py` | Exports ordered TRB properties with TMDL, resolves cue and multiplex references to the encoded cache, and verifies the linked files. |
+| `Tools/convert_retail_movies.py` | Converts all installed Bink movies to bounded PMVF, verifies every JPEG and records stream sizes and timing adjustments. |
+| `Tools/inventory_retail_models.py` | Inventories all model TRB and TKL containers and attempts the skin exporter for every TMD geometry entry. |
+| `Tools/convert_retail_model_geometry.py` | Bakes exported skins to one PSKL and one PMES per material, preserving original texture names in the report. |
 | `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
@@ -177,6 +180,41 @@ and their original cue settings. It also maps all 17 multiplex streams and
 their channel routing. The run verified all 1,466 distinct referenced cache
 files against the encoding report. This map is input for future playback work.
 
+To convert movies, pass the paths to a [Windows FFmpeg build](https://ffmpeg.org/download.html#build-windows):
+
+~~~powershell
+python Ports/PSP/Tools/convert_retail_movies.py --ffmpeg <ffmpeg.exe> --ffprobe <ffprobe.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/Movies
+~~~
+
+The PMVF v1 header contains the four-byte magic and ten little-endian
+32-bit fields in order: version, header size, width, height, FPS, frame count,
+maximum JPEG bytes, audio track count, audio sample rate and PCM bytes per
+frame per track. Each frame contains a 32-bit JPEG length, a self-contained
+baseline JPEG and fixed-size PCM blocks in source track order. The profile
+uses 480×272 JPEG 4:2:0 at 15 FPS with a 64 KiB frame cap. Audio uses 44.1 kHz
+stereo PCM16. The report records any audio trim or silence added to match the
+video timeline.
+
+The full batch converted all 15 movies into 67,271,066 bytes. The largest
+JPEG is 23,203 bytes and the highest sum over 15 consecutive records is
+446,713 bytes. The encoder decoded the full MJPEG streams on the host and
+reread each final container before publishing it. In-game PMVF playback
+still requires a PSP player.
+
+Inventory the model and animation files and bake the supported skin geometry:
+
+~~~powershell
+python Ports/PSP/Tools/inventory_retail_models.py --tmdl <TMDL.exe> --dump-skins Game/BarnyardPC/Install Game/BarnyardPC/Workspace/Models
+python Ports/PSP/Tools/convert_retail_model_geometry.py Game/BarnyardPC/Workspace/Models/models.inventory.json Game/BarnyardPC/Workspace/Models/Geometry
+~~~
+
+The pass read all 1,172 model TRBs and 247 animation key libraries. TMDL
+exported 620 LOD0 skin dumps, and all 620 produced a total of 909 PMES
+material meshes and 620 skeletons. The output reports list entries without
+a compatible skin dump, including alternate geometry, skeleton-only data
+and files rejected by the skin exporter. Additional LODs, key-library binding,
+animation conversion and texture staging remain separate.
+
 ## Generated data
 
 Host-tool dumps and converted PSP files belong in the ignored workspace:
@@ -187,6 +225,8 @@ Game/BarnyardPC/Workspace/Inventory/
 Game/BarnyardPC/Workspace/TextureLibraries/
 Game/BarnyardPC/Workspace/GUITextures/
 Game/BarnyardPC/Workspace/AudioBanks/
+Game/BarnyardPC/Workspace/Movies/
+Game/BarnyardPC/Workspace/Models/
 Game/BarnyardPC/Workspace/Converted/
 Game/BarnyardPC/Workspace/Frontend/
 Game/BarnyardPC/Workspace/FrontendTerrain/

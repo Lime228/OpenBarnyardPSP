@@ -71,6 +71,8 @@ committed.
 
 | Retail cue mapping | An encoded FSB catalogue does not identify the clip to play for a sound event. | Cue banks contain ordered `Sound` rows with zero-based bank indices. The WAV and PSP cache use one-based subsong indices. Multiplex streams have separate per-channel routing. | Export ordered TRB properties, resolve against the retail wave-bank paths, and verify the referenced files. Preserve playback settings and original channel routing in the report. | The full audit maps 722 cues, 2,065 sample references and 17 multiplex streams. The 1,466 distinct referenced files all match their encoded sizes. |
 
+| PSKL multi-root rigs | The first full skin bake rejected 151 valid exports. | The PSKL validator and converters allowed only one root even though the PSP bind-pose and animation pose paths already handle independent roots. | Accept parent −1 at any bone and retain earlier-parent validation for descendants. | All 620 exported skins bake after the fix. Tests validate multiple roots and reject a self-parent or forward reference. |
+
 When a new recurring failure is found, add it here only after the root cause is
 confirmed. Include the validation signal (test, CI run or PSP report), not just
 the attempted change.
