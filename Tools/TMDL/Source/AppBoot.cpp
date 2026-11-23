@@ -93,6 +93,7 @@ int main( int argc, char** argv )
 	auto          strPSPDumpFile   = commandLine.GetParameterValue( "-psp-dump" );
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
+	auto          strPSPTextures   = commandLine.GetParameterValue( "-psp-textures" );
 	auto          strTextureName   = commandLine.GetParameterValue( "-texture" );
 	auto          strTextureSymbol = commandLine.GetParameterValue( "-texture-symbol", "TTL" );
 	auto          strPSPGUISection = commandLine.GetParameterValue( "-psp-gui-section" );
@@ -114,6 +115,22 @@ int main( int argc, char** argv )
 	auto          strSampleRate    = commandLine.GetParameterValue( "-sample-rate", "30" );
 	auto          bParamIsBtec     = commandLine.HasParameter( "-btec" );
 	auto          bParamIsTerrain  = commandLine.HasParameter( "-terrain" );
+
+	if ( strPSPTextures )
+	{
+		if ( !strOutPath )
+		{
+			TERROR( "-psp-textures requires -o\n" );
+			return 1;
+		}
+		if ( !ExportPSPTextureInventory(
+		         strPSPTextures.GetString(), strTextureSymbol.GetString(), strOutPath.GetString() ) )
+		{
+			TERROR( "Unable to export PSP texture inventory\n" );
+			return 1;
+		}
+		return 0;
+	}
 
 	if ( strPSPGUISections )
 	{
