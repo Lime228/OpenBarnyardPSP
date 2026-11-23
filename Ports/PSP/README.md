@@ -10,7 +10,8 @@ The Premake workspace produces two runnable packages. The diagnostic
 `OpenBarnyardPSPBootstrap` validates platform paths and remains a regression
 target. The separate `OpenBarnyardPSPGame` links the original
 `AApplication`/`ARootTask` chain and now reaches the retail legal/logo
-presentation and original localized six-entry main menu. It is not yet a
+presentation, original localized six-entry main menu and original two-entry
+options screen. It is not yet a
 playable game: the frontend 3D scene, downstream states, movies, collision,
 saves and rooms remain incomplete. See
 [`Docs/PSP_PORT_HANDOFF.md`](../../Docs/PSP_PORT_HANDOFF.md) for the exact

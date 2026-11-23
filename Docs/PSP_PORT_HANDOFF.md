@@ -21,13 +21,15 @@ There are now two runnable PSP packages:
 - OpenBarnyardPSPGame is the original-game EBOOT. It starts the original
   AApplication/ARootTask chain and reaches the original six-entry
   AFrontEndMainMenuState2 presentation with retail GUI sections, font atlas and
-  localized strings.
+  localized strings. Its Options item pushes the original localized
+  two-entry `AOptionsState` dialog.
 
 The original-game EBOOT has been visually confirmed in PPSSPP through:
 
 1. the retail legal screen;
 2. the retail Bink/logo screen;
-3. the original localized six-entry main menu.
+3. the original localized six-entry main menu;
+4. the original localized Audio/Controls options landing screen.
 
 The same original menu is runtime-confirmed with D-pad focus movement and Cross
 activation through the retail `DialogInputMap`.
@@ -61,14 +63,15 @@ yet. The menu currently uses a bounded PSP implementation of the original class:
 the original button construction, locale IDs, panels, colours, transforms and
 focus are retained, while the complete world/instance/music/save closure and
 downstream state transitions are intentionally deferred. Activating an item
-records frontend-menu-selection and reopens the menu.
+  records a bounded checkpoint and reopens the menu, except Options, which now
+  pushes the real original `AOptionsState`.
 
 Current estimates:
 
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original GUI/input, camera, complete initial terrain VIS row, barn sign and all 640 exact instances run; remaining environment ownership, audio and hardware validation remain |
+| Original startup plus main-menu milestone | 99% | Legal/Bink screens, original main/options GUI input, camera, complete initial terrain VIS row, barn sign and all 640 exact instances run; nested options, remaining environment ownership, audio and hardware validation remain |
 | Complete playable-game port | 33% | Original application/frontend runs with its complete initial terrain residency, but rooms, player, world streaming, collision, movies, saves and most audio are absent |
 
 ## Non-negotiable repository rules
@@ -256,6 +259,13 @@ fully faded original scene with the complete instance row in
 512x512 font atlas is therefore currently acceptable, but the
 figures must also be checked on real 32/64 MiB hardware.
 
+The next controlled run navigates to main-menu item `2` with two Down presses,
+activates it with Cross and reaches `frontend-options-ready`. The visible
+options menu reports state `5`, focus `0`, one activation and one completed main
+menu close. Its original localized `Audio`/`Controls` layout is captured in
+`OpenBarnyardPSP_20261123_095855_084.png`; the same operation stops hidden PID
+`16984`.
+
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
@@ -266,8 +276,9 @@ figures must also be checked on real 32/64 MiB hardware.
   remaining environment ownership are absent. The original frontend
   states create only the barn sign through `AWindmillHelper`; windmills, the
   weather vane and the water wheel belong to gameplay `ASimState`.
-- Menu actions are bounded to a selection checkpoint and menu reopen. New game,
-  load game, options, extras, antics and quit do not enter their retail states.
+- Options enters its original landing state; its Audio and Controls children are
+  still bounded checkpoints. New game, load game, extras, antics and quit do not
+  yet enter their retail states.
 - AMoviePlayer_PSP does not decode Bink. Startup images currently follow the
   original GUI presentation path; full-motion retail movies need offline
   conversion and a bounded PSP stream format.
@@ -362,6 +373,10 @@ one-process validation captured correctly oriented, fully faded
 `26644` cleanly. The full category report converted 37/37 instance model types
 and 640/640 locators before the seven runtime packs were combined.
 
+The next green functional artifact is PSP run `45127026027`, commit `7acc4cbd`.
+It pushes the original `AOptionsState`; validator fix `6100572a` waits for its
+first visible update and captures the stable options framebuffer off screen.
+
 Install the pinned official PPSSPP development build once:
 
     .\Ports\PSP\InstallPPSSPP.ps1
@@ -398,8 +413,8 @@ Runtime evidence:
    exact-transform row without changing model IDs, transforms or materials.
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
-3. Connect the original menu's downstream states one at a time, beginning with
-   the smallest options or extras screen before new-game world loading.
+3. Connect the original options Audio and Controls children one at a time, then
+   continue through other menu states before new-game world loading.
 4. Convert/integrate the retail menu cue/music ownership behind the existing PSP
    audio interfaces.
 5. Design and implement offline movie conversion plus bounded PSP playback.
@@ -456,6 +471,8 @@ Runtime evidence:
   result, then combine only the verified batch outputs.
 - e9bbb70e, 60827bf6: load, stage and validate all 640 original placements as
   41 exact draw groups across seven bounded packs.
+- 7cddd8d9, 7acc4cbd, 6100572a: push the original two-item options state from
+  the main menu and validate its fully visible off-screen framebuffer.
 
 ## Claims that must not be made
 

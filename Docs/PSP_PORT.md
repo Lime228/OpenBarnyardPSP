@@ -6,6 +6,8 @@ The port now has a separate runnable original-game EBOOT in addition to the
 diagnostic bootstrap. OpenBarnyardPSPGame starts the original
 AApplication/ARootTask chain and reaches the retail legal/logo presentation and
 the original localized six-entry AFrontEndMainMenuState2 interface in PPSSPP.
+Selecting its third item now pushes the original localized two-entry
+`AOptionsState` dialog.
 It uses retail fonts.trb, texsec.trb, locale/control resources and offline
 converted PSP textures. The original frontend camera loop, every mesh from the
 shipping `Barn_L0Mod0` through `Barn_L0Mod3` and `Barnnorth_L0Mod0` through
@@ -45,7 +47,7 @@ complete playable-game port is approximately **33%** complete.
 | PSP renderer foundation | 58% | GU display, rotated GUI quads, bounded static resources, exact material modes, original camera and original 800x600 GUI mapping work; general material/model/scene closure remains |
 | Real-game asset pipeline | 70% | retail frontend GUI, complete initial terrain VIS row, exact light profiles, camera, barn sign and all 640 type-1 instances stage repeatably; rooms, movies and streaming manifests remain |
 | Input integration | 75% | PSP buttons pass through sceCtrl, Toshi events, the retail input map and the original menu; gameplay mappings and real hardware remain |
-| Game bootstrap and frontend | 85% | original application/root task, authentic menu/input, complete initial retail terrain residency and seven bounded original instance sets run; remaining environment ownership, downstream states and new-game flow remain |
+| Game bootstrap and frontend | 86% | original application/root task, authentic main/options menu input, complete initial retail terrain residency and seven bounded original instance sets run; nested options, remaining environment ownership and new-game flow remain |
 | Audio, movies and saves | 20% | bounded diagnostic PSP audio works; retail music/SFX ownership, Bink replacement and save devices are not integrated |
 | World, animation and gameplay | 8% | retail probes render in the harness, but the original world, actors, player, quests, physics and rooms are not running |
 
@@ -1283,6 +1285,13 @@ remain largely unstarted.
   Hidden validation captures the upright original scene in
   `OpenBarnyardPSP_20261123_094529_492.png`, validates Down/Cross and stops PID
   `26644`.
+- Commits `7cddd8d9`, `7acc4cbd` and `6100572a` replace the main-menu options
+  checkpoint with a real `AGameStateController::PushState` into the original
+  `AOptionsState`. The PSP slice preserves retail locale IDs 284/282/281,
+  `DialogInputMap`, font, panel and two-button layout. CI run `45127026027` is
+  green. Hidden validation navigates with two Down presses and Cross, waits for
+  the visible options state and captures `OpenBarnyardPSP_20261123_095855_084.png`
+  before stopping PID `16984`.
 - FMOD, compressed codecs and movies remain disabled and no full
   `OpenBarnyard/Source` glob has been added. Scheduler, task, and frontend
   sources remain dependency-ordered in Premake.
@@ -1294,10 +1303,11 @@ screen. The camera loop, complete initial retail terrain VIS row, barn sign and
 all 640 resident type-1 instances are now running. Add bounded per-instance
 visibility/LOD handling where the current exact-transform packs keep distant
 objects resident, then close the remaining original environment ownership and
-time-driven frontend re-entry. Convert every new content category completely by
-script and report before integrating it or fixing individual exceptions. Then
-connect one downstream original menu state at a time and preserve memory
-telemetry.
+time-driven frontend re-entry. The original options landing state now runs;
+connect its Audio and Controls children one at a time before advancing to more
+expensive new-game/save states. Convert every new content category completely
+by script and report before integrating it or fixing individual exceptions,
+and preserve memory telemetry.
 
 Movies, collision and retail audio remain separate platform work. Do not claim
 playable gameplay until the PSP collision backend, one reduced room, player
