@@ -551,6 +551,11 @@ static TBOOL TestProbeSkeletonFile_PSP()
 	oInvalidData.aBones[ 0 ] = *pRoot;
 	oInvalidData.aBones[ 1 ] = *pCenter;
 	oInvalidData.aBones[ 2 ] = *pMarker;
+	oInvalidData.aBones[ 1 ].iParentBone = -1;
+	Toshi::TSkeleton_PSP oMultiRootSkeleton;
+	if ( !g_SkeletonFactory_PSP.CreateSkeletonFromMemory( oMultiRootSkeleton, &oInvalidData, sizeof( oInvalidData ) ) ||
+	     oMultiRootSkeleton.GetBone( 1 )->iParentBone != -1 )
+		return TFALSE;
 	oInvalidData.aBones[ 2 ].iParentBone = 2;
 	Toshi::TSkeleton_PSP oInvalidSkeleton;
 	return !g_SkeletonFactory_PSP.CreateSkeletonFromMemory(

@@ -52,14 +52,12 @@ def read_bones(source: pathlib.Path) -> list[tuple[str, int, list[float], list[f
             raise ValueError(f"duplicate bone name: {name}")
 
         parent_value = value.get("parent")
-        if index == 0:
-            if parent_value is not None:
-                raise ValueError("the first bone must be the root with a null parent")
+        if parent_value is None:
             parent = -1
-        else:
-            if not isinstance(parent_value, str) or parent_value.casefold() not in indices:
-                raise ValueError(f"bone {name} parent must name an earlier bone")
+        elif isinstance(parent_value, str) and parent_value.casefold() in indices:
             parent = indices[parent_value.casefold()]
+        else:
+            raise ValueError(f"bone {name} parent must be null or name an earlier bone")
 
         translation = read_vector(value.get("translation", [0.0, 0.0, 0.0]), 3, f"bone {name} translation")
         rotation = read_vector(value.get("rotation", [0.0, 0.0, 0.0, 1.0]), 4, f"bone {name} rotation")

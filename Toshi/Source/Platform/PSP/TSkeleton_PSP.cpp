@@ -67,10 +67,8 @@ static TBOOL TSkeletonBoneIsValid_PSP( const TSkeletonBone_PSP& a_rBone, TUINT32
 			return TFALSE;
 	}
 
-	if ( a_uiBone == 0 )
-		return a_rBone.iParentBone == -1;
-
-	return a_rBone.iParentBone >= 0 && TUINT32( a_rBone.iParentBone ) < a_uiBone;
+	return a_rBone.iParentBone == -1 ||
+	       ( a_rBone.iParentBone >= 0 && TUINT32( a_rBone.iParentBone ) < a_uiBone );
 }
 
 TSkeleton_PSP::TSkeleton_PSP()

@@ -44,14 +44,12 @@ def build_skeleton(document: dict[str, object]) -> bytes:
         if not encoded_name or len(encoded_name) > MAX_NAME_LENGTH or name.casefold() in names:
             raise ValueError(f"invalid or duplicate bone name: {name}")
         parent_value = value.get("parent")
-        if index == 0:
-            if parent_value is not None:
-                raise ValueError("first bone must have a null parent")
+        if parent_value is None:
             parent = -1
-        elif not isinstance(parent_value, int) or parent_value < 0 or parent_value >= index:
-            raise ValueError(f"bone {name} parent must be an earlier index")
-        else:
+        elif type(parent_value) is int and 0 <= parent_value < index:
             parent = parent_value
+        else:
+            raise ValueError(f"bone {name} parent must be null or an earlier index")
         rotation = vector(value.get("rotation", [0.0, 0.0, 0.0, 1.0]), 4, f"bone {name} rotation")
         length = math.sqrt(sum(component * component for component in rotation))
         if length <= 0.000001:
