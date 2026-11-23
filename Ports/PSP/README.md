@@ -221,23 +221,35 @@ case-insensitive prefix rule. The current retail input contains 5,806 locators,
 43 VIS sections and 80 declared frontend model IDs. The exact initial row
 selects 640 instances across 37 models.
 
-`Tools/ConvertRetailFrontendInstanceModel.ps1 -ModelName fncw02` converts one
-inventory model without changing its geometry or placement. It bakes every
-resident locator quaternion, position and scale offline, groups only identical
-material/texture bindings, extracts shared textures from the original startup
-pack and emits the same bounded PCFG/PMES/PTEX contract used by the terrain-pack
-renderer. `Tools/ConvertRetailFrontendInstanceSet.ps1` then invokes
-`combine_frontend_instance_packs.py` to validate and combine selected model
-packs, preserve their exact geometry groups and deduplicate only textures with
-the same case-insensitive source name and identical bytes. The first integrated
-set contains all 52 `fncw01`, 53 `fncw02` and 21 `fncw03` placements plus all
-31 `fncp01`, 33 `fncp02` and 7 `fncp03` placements, followed by all 40 resident
-border/pigpen/end-fence placements and 176 flower/leafy-plant placements:
-413/640 initial-row instances in 22 draw groups. The first two families share
-their one original texture; the border set retains three exact bindings; the
-flower set retains eight source models, nine groups and four original MASK
-textures. Generated inventory and packs remain under the
-ignored `Game/BarnyardPC/Workspace/FrontendInstances` directory.
+Run the complete category conversion before integrating or debugging an
+individual model:
+
+```powershell
+.\Ports\PSP\Tools\ConvertRetailFrontendInstanceModels.ps1 -TMDLPath <TMDL.exe>
+```
+
+The batch inventories once, converts every model selected by the initial VIS
+row, continues far enough to report every failure, and writes the ignored
+`frontend_instances.batch.json`. The validated retail input produces 37/37
+models, 640/640 locators, 41 geometry groups and 40 per-model texture references
+with zero failures. Only failures from that complete report should receive a
+targeted fix; rerun the entire batch after each fix.
+
+`Tools/ConvertRetailFrontendInstanceModel.ps1` bakes every resident locator
+quaternion, position and scale without changing geometry or placement. It
+groups only identical material/texture bindings and resolves the exact texture
+through the original startup and frontend-terrain owners. The converter emits
+the bounded PCFG/PMES/PTEX contract used by the terrain-pack renderer.
+`Tools/ConvertRetailFrontendInstanceSet.ps1 -ReuseConvertedModels` then invokes
+`combine_frontend_instance_packs.py` on the completed batch outputs. It retains
+source order and exact geometry groups and deduplicates only textures with the
+same case-insensitive retail name and identical bytes.
+
+The seven runtime packs contain all 640 original placements across all 37 model
+types: 41 draw groups and 24 pack-local texture resources. Fences, flowers,
+rocks, props and trees retain every exact material, alpha-mask and wrap binding.
+Generated inventory, reports and packs remain under the ignored
+`Game/BarnyardPC/Workspace/FrontendInstances` directory.
 
 ## Bounded world layout
 
