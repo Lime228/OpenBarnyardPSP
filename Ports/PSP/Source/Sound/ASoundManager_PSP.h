@@ -22,6 +22,12 @@ static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUBACK  = 167;
 static constexpr ASoundId_PSP ASoundId_PSP_UI_MENUOK    = 168;
 static constexpr ASoundId_PSP ASoundId_PSP_BOOTSTRAP_STREAM = 10000;
 
+struct ASoundCueMapping_PSP
+{
+	ASoundId_PSP eSoundID;
+	const TCHAR* pWaveName;
+};
+
 class ASoundOutputThread_PSP : public Toshi::TThread
 {
 public:
@@ -39,6 +45,7 @@ class ASoundManager_PSP
 public:
 	static constexpr TUINT SAMPLE_RATE = 44100;
 	static constexpr TUINT BUFFER_SAMPLE_FRAMES = 1024;
+	static constexpr TUINT OUTPUT_BUFFER_COUNT = 4;
 	static constexpr TUINT OUTPUT_CHANNELS = 2;
 	static constexpr TFLOAT MAX_CUE_DELAY_SECONDS = 300.0f;
 	static constexpr TINT CUE_POSITION_SCALE = 1000;
@@ -54,7 +61,9 @@ public:
 	    const AWaveBank_PSP* a_pWaveBank,
 	    ASoundMixer_PSP* a_pMixer,
 	    ASoundCommandQueue_PSP* a_pCommandQueue,
-	    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue
+	    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue,
+	    const ASoundCueMapping_PSP* a_pCueMappings = TNULL,
+	    TSIZE a_uiCueMappingCount = 0
 	);
 	void UnbindCueBank();
 	TINT PlayCue( ASoundId_PSP a_eSoundID );
@@ -173,7 +182,6 @@ private:
 	void RunOutputThread();
 	friend class ASoundOutputThread_PSP;
 
-	static constexpr TUINT OUTPUT_BUFFER_COUNT = 2;
 	static constexpr TUINT MAX_MANAGED_CUES = 8;
 	static constexpr TUINT32 CUE_INDEX_MASK = 0xff;
 	static constexpr TUINT32 CUE_GENERATION_MASK = 0x007fffff;
@@ -183,7 +191,7 @@ private:
 	Toshi::TSemaphore m_CompletedBuffers;
 	Toshi::TSemaphore m_ThreadStopped;
 	ASoundOutputThread_PSP m_OutputThread;
-	alignas( 64 ) TINT16 m_aOutputBuffers[ 2 ][ BUFFER_SAMPLE_FRAMES * OUTPUT_CHANNELS ];
+	alignas( 64 ) TINT16 m_aOutputBuffers[ OUTPUT_BUFFER_COUNT ][ BUFFER_SAMPLE_FRAMES * OUTPUT_CHANNELS ];
 	TINT m_iChannel;
 	volatile TBOOL m_bRunning;
 	volatile TBOOL m_bOutputHealthy;
@@ -194,6 +202,8 @@ private:
 	ASoundMixer_PSP* m_pMixer;
 	ASoundCommandQueue_PSP* m_pCommandQueue;
 	ASoundDelayedEventQueue_PSP* m_pDelayedEventQueue;
+	const ASoundCueMapping_PSP* m_pCueMappings;
+	TSIZE m_uiCueMappingCount;
 	Cue m_aCues[ MAX_MANAGED_CUES ];
 	TUINT m_uiManagedCues;
 	TUINT m_uiPendingCues;

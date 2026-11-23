@@ -18,24 +18,49 @@ TBOOL ASoundUpdateTask_PSP::OnCreate()
 	       m_pDelayedEventQueue != TNULL;
 }
 
-TBOOL ASoundUpdateTask_PSP::OnUpdate( TFLOAT a_fDeltaTime )
+TBOOL ASoundUpdateTask_PSP::OnUpdate( TFLOAT )
 {
-	(void)a_fDeltaTime;
-	m_pCommandQueue->Process( *m_pSoundMixer );
-	m_pSoundManager->UpdateCues( *m_pSoundMixer );
-	m_pCommandQueue->Process( *m_pSoundMixer );
-	m_pSoundManager->UpdateCues( *m_pSoundMixer );
-	TINT16* pOutput = m_pSoundManager->TryLockOutputBuffer();
-	if ( pOutput == TNULL )
-		return TTRUE;
+	UpdateSound( *m_pSoundManager, *m_pSoundMixer, *m_pCommandQueue, *m_pDelayedEventQueue );
+	return TTRUE;
+}
 
-	m_pDelayedEventQueue->Update( ASoundManager_PSP::BUFFER_SAMPLE_FRAMES, *m_pCommandQueue );
-	m_pSoundManager->UpdateFades( ASoundManager_PSP::BUFFER_SAMPLE_FRAMES );
-	m_pCommandQueue->Process( *m_pSoundMixer );
-	m_pSoundManager->UpdateCues( *m_pSoundMixer );
-	m_pCommandQueue->Process( *m_pSoundMixer );
-	m_pSoundManager->UpdateCues( *m_pSoundMixer );
-	m_pSoundMixer->Mix( pOutput, ASoundManager_PSP::BUFFER_SAMPLE_FRAMES );
-	m_pSoundManager->UpdateCues( *m_pSoundMixer );
-	return m_pSoundManager->UnlockOutputBuffer();
+TBOOL ASoundUpdateTask_PSP::UpdateSound(
+    ASoundManager_PSP& a_rSoundManager,
+    ASoundMixer_PSP& a_rSoundMixer,
+    ASoundCommandQueue_PSP& a_rCommandQueue,
+    ASoundDelayedEventQueue_PSP& a_rDelayedEventQueue,
+    TBOOL* a_pNonSilent
+)
+{
+	a_rCommandQueue.Process( a_rSoundMixer );
+	a_rSoundManager.UpdateCues( a_rSoundMixer );
+	a_rCommandQueue.Process( a_rSoundMixer );
+	a_rSoundManager.UpdateCues( a_rSoundMixer );
+	TINT16* pOutput = a_rSoundManager.TryLockOutputBuffer();
+	if ( pOutput == TNULL )
+		return TFALSE;
+
+	a_rDelayedEventQueue.Update( ASoundManager_PSP::BUFFER_SAMPLE_FRAMES, a_rCommandQueue );
+	a_rSoundManager.UpdateFades( ASoundManager_PSP::BUFFER_SAMPLE_FRAMES );
+	a_rCommandQueue.Process( a_rSoundMixer );
+	a_rSoundManager.UpdateCues( a_rSoundMixer );
+	a_rCommandQueue.Process( a_rSoundMixer );
+	a_rSoundManager.UpdateCues( a_rSoundMixer );
+	a_rSoundMixer.Mix( pOutput, ASoundManager_PSP::BUFFER_SAMPLE_FRAMES );
+	a_rSoundManager.UpdateCues( a_rSoundMixer );
+
+	if ( a_pNonSilent != TNULL )
+	{
+		*a_pNonSilent = TFALSE;
+		for ( TSIZE i = 0; i < ASoundManager_PSP::BUFFER_SAMPLE_FRAMES * ASoundManager_PSP::OUTPUT_CHANNELS; i++ )
+		{
+			if ( pOutput[ i ] != 0 )
+			{
+				*a_pNonSilent = TTRUE;
+				break;
+			}
+		}
+	}
+
+	return a_rSoundManager.UnlockOutputBuffer();
 }

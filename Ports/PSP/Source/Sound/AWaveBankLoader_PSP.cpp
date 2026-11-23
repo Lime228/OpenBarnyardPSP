@@ -18,8 +18,9 @@ TBOOL AWaveBankLoader_PSP::Load(
 {
 	a_rLoadedWaves = 0;
 	a_rLoadedStreams = 0;
-	if ( a_pWaveStorage == TNULL || a_pStreamStorage == TNULL || a_pManifestPath == TNULL ||
-	     a_uiWaveCapacity == 0 || a_uiStreamCapacity == 0 ||
+	if ( ( a_uiWaveCapacity > 0 && a_pWaveStorage == TNULL ) ||
+	     ( a_uiStreamCapacity > 0 && a_pStreamStorage == TNULL ) ||
+	     a_pManifestPath == TNULL || a_uiWaveCapacity + a_uiStreamCapacity == 0 ||
 	     a_uiWaveCapacity + a_uiStreamCapacity > AWaveBank_PSP::MAX_WAVES ||
 	     a_rBank.GetCount() != 0 )
 	{
@@ -89,6 +90,7 @@ TBOOL AWaveBankLoader_PSP::Load(
 
 	pFile->Destroy();
 	if ( !bLoaded )
+	{
 		Unload(
 		    a_rBank,
 		    a_pWaveStorage,
@@ -96,6 +98,9 @@ TBOOL AWaveBankLoader_PSP::Load(
 		    a_pStreamStorage,
 		    a_rLoadedStreams
 		);
+		a_rLoadedWaves = 0;
+		a_rLoadedStreams = 0;
+	}
 	return bLoaded;
 }
 

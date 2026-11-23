@@ -10,12 +10,6 @@
 
 #include <pspaudio.h>
 
-struct ASoundCueMapping_PSP
-{
-	ASoundId_PSP eSoundID;
-	const TCHAR* pWaveName;
-};
-
 static const ASoundCueMapping_PSP g_aSoundCueMappings_PSP[] = {
 	{ ASoundId_PSP_UI_MENUCLICK, "UI_MENUCLICK" },
 	{ ASoundId_PSP_UI_MENUBACK, "UI_MENUBACK" },
@@ -66,6 +60,8 @@ ASoundManager_PSP::ASoundManager_PSP()
 	, m_pMixer( TNULL )
     , m_pCommandQueue( TNULL )
     , m_pDelayedEventQueue( TNULL )
+    , m_pCueMappings( TNULL )
+    , m_uiCueMappingCount( 0 )
     , m_aCues{}
     , m_uiManagedCues( 0 )
     , m_uiPendingCues( 0 )
@@ -145,18 +141,27 @@ TBOOL ASoundManager_PSP::BindCueBank(
     const AWaveBank_PSP* a_pWaveBank,
     ASoundMixer_PSP* a_pMixer,
     ASoundCommandQueue_PSP* a_pCommandQueue,
-    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue
+    ASoundDelayedEventQueue_PSP* a_pDelayedEventQueue,
+    const ASoundCueMapping_PSP* a_pCueMappings,
+    TSIZE a_uiCueMappingCount
 )
 {
 	UnbindCueBank();
 	if ( !IsCreated() || a_pWaveBank == TNULL || a_pMixer == TNULL || a_pCommandQueue == TNULL ||
-	     a_pDelayedEventQueue == TNULL )
+	     a_pDelayedEventQueue == TNULL || ( a_pCueMappings == TNULL ) != ( a_uiCueMappingCount == 0 ) )
 		return TFALSE;
 
-	for ( TSIZE i = 0; i < TARRAYSIZE( g_aSoundCueMappings_PSP ); i++ )
+	if ( a_pCueMappings == TNULL )
 	{
-		if ( a_pWaveBank->FindWave( g_aSoundCueMappings_PSP[ i ].pWaveName ) == TNULL &&
-		     a_pWaveBank->FindStream( g_aSoundCueMappings_PSP[ i ].pWaveName ) == TNULL )
+		a_pCueMappings = g_aSoundCueMappings_PSP;
+		a_uiCueMappingCount = TARRAYSIZE( g_aSoundCueMappings_PSP );
+	}
+
+	for ( TSIZE i = 0; i < a_uiCueMappingCount; i++ )
+	{
+		const TCHAR* pWaveName = a_pCueMappings[ i ].pWaveName;
+		if ( a_pWaveBank->FindWave( pWaveName ) == TNULL &&
+		     a_pWaveBank->FindStream( pWaveName ) == TNULL )
 			return TFALSE;
 	}
 
@@ -164,6 +169,8 @@ TBOOL ASoundManager_PSP::BindCueBank(
 	m_pMixer = a_pMixer;
 	m_pCommandQueue = a_pCommandQueue;
 	m_pDelayedEventQueue = a_pDelayedEventQueue;
+	m_pCueMappings = a_pCueMappings;
+	m_uiCueMappingCount = a_uiCueMappingCount;
 	return TTRUE;
 }
 
@@ -174,6 +181,8 @@ void ASoundManager_PSP::UnbindCueBank()
 	m_pMixer = TNULL;
 	m_pCommandQueue = TNULL;
 	m_pDelayedEventQueue = TNULL;
+	m_pCueMappings = TNULL;
+	m_uiCueMappingCount = 0;
 	m_uiRejectedCues = 0;
 }
 
@@ -803,10 +812,10 @@ TBOOL ASoundManager_PSP::GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoi
 
 const TCHAR* ASoundManager_PSP::ResolveCueName( ASoundId_PSP a_eSoundID ) const
 {
-	for ( TSIZE i = 0; i < TARRAYSIZE( g_aSoundCueMappings_PSP ); i++ )
+	for ( TSIZE i = 0; i < m_uiCueMappingCount; i++ )
 	{
-		if ( g_aSoundCueMappings_PSP[ i ].eSoundID == a_eSoundID )
-			return g_aSoundCueMappings_PSP[ i ].pWaveName;
+		if ( m_pCueMappings[ i ].eSoundID == a_eSoundID )
+			return m_pCueMappings[ i ].pWaveName;
 	}
 
 	return TNULL;

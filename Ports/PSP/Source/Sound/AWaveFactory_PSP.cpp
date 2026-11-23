@@ -2,7 +2,6 @@
 #include "AWaveFactory_PSP.h"
 
 #include <File/TFile.h>
-#include <Toshi/T2Allocator.h>
 
 TBOOL AWaveFactory_PSP::CreateWaveFromFile( AWave_PSP& a_rWave, const TCHAR* a_pFilePath ) const
 {
@@ -10,19 +9,7 @@ TBOOL AWaveFactory_PSP::CreateWaveFromFile( AWave_PSP& a_rWave, const TCHAR* a_p
 	if ( pFile == TNULL )
 		return TFALSE;
 
-	TBOOL bLoaded = TFALSE;
-	const TSIZE uiFileSize = pFile->GetSize();
-	if ( uiFileSize >= sizeof( AWaveDataHeader_PSP ) && uiFileSize <= MAX_WAVE_FILE_SIZE )
-	{
-		void* pData = Toshi::GetGlobalAllocator()->Malloc( uiFileSize, 16 );
-		if ( pData != TNULL )
-		{
-			if ( pFile->Read( pData, uiFileSize ) == uiFileSize )
-				bLoaded = CreateWaveFromMemory( a_rWave, pData, TUINT( uiFileSize ) );
-			Toshi::GetGlobalAllocator()->Free( pData );
-		}
-	}
-
+	const TBOOL bLoaded = a_rWave.Create( *pFile );
 	pFile->Destroy();
 	return bLoaded;
 }

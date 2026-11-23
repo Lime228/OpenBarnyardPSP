@@ -18,6 +18,14 @@ public:
 	virtual TBOOL OnCreate() override;
 	virtual TBOOL OnUpdate( TFLOAT a_fDeltaTime ) override;
 
+	static TBOOL UpdateSound(
+	    ASoundManager_PSP& a_rSoundManager,
+	    ASoundMixer_PSP& a_rSoundMixer,
+	    ASoundCommandQueue_PSP& a_rCommandQueue,
+	    ASoundDelayedEventQueue_PSP& a_rDelayedEventQueue,
+	    TBOOL* a_pNonSilent = TNULL
+	);
+
 	void SetSoundManager( ASoundManager_PSP* a_pSoundManager ) { m_pSoundManager = a_pSoundManager; }
 	void SetSoundMixer( ASoundMixer_PSP* a_pSoundMixer ) { m_pSoundMixer = a_pSoundMixer; }
 	void SetCommandQueue( ASoundCommandQueue_PSP* a_pCommandQueue ) { m_pCommandQueue = a_pCommandQueue; }
