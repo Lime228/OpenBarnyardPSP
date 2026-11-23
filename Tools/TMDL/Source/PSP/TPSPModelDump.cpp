@@ -53,8 +53,7 @@ static TBOOL ValidateSkeleton_PSP( TSkeleton& a_rSkeleton )
 		const TUINT8 uiNameLength = pBone->GetNameLength();
 		const TINT iParentBone = pBone->GetParentBone();
 		if ( uiNameLength == 0 || uiNameLength > 31 ||
-		     ( i == 0 && iParentBone != -1 ) ||
-		     ( i != 0 && ( iParentBone < 0 || iParentBone >= i ) ) ||
+		     iParentBone < -1 || iParentBone >= i ||
 		     a_rSkeleton.GetBoneID( pBone->GetName(), uiNameLength ) != i )
 		{
 			TERROR(
