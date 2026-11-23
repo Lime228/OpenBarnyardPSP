@@ -370,17 +370,17 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 			}
 
 			const TUINT uiSampleFrame = TUINT( rVoice.uiSamplePosition >> 16 );
+			const TUINT uiChannels = rVoice.pWave != TNULL ? rVoice.pWave->GetChannels() : AWave_PSP::OUTPUT_CHANNELS;
 			const TINT16* pSamples = rVoice.pStreamWave != TNULL ?
 			                            rVoice.pStreamWave->GetFrame( uiSampleFrame ) :
-			                            rVoice.pWave->GetSamples() +
-			                                uiSampleFrame * AWave_PSP::OUTPUT_CHANNELS;
+			                            rVoice.pWave->GetSamples() + uiSampleFrame * uiChannels;
 			if ( pSamples == TNULL )
 			{
 				rVoice = {};
 				continue;
 			}
 			iLeft += TINT32( pSamples[ 0 ] ) * TINT32( rVoice.uiLeftVolume ) / TINT32( MAX_VOLUME );
-			iRight += TINT32( pSamples[ 1 ] ) * TINT32( rVoice.uiRightVolume ) / TINT32( MAX_VOLUME );
+			iRight += TINT32( pSamples[ uiChannels - 1 ] ) * TINT32( rVoice.uiRightVolume ) / TINT32( MAX_VOLUME );
 			rVoice.uiSamplePosition += rVoice.uiSampleStep;
 			bMixedVoice = TTRUE;
 		}

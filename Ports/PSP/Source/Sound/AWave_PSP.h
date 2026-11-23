@@ -24,7 +24,7 @@ class TFile;
 class AWave_PSP
 {
 public:
-	static constexpr TUINT MAX_SAMPLE_FRAMES = 49152;
+	static constexpr TUINT MAX_SAMPLE_FRAMES = 57344;
 	static constexpr TUINT OUTPUT_CHANNELS = 2;
 
 public:
@@ -40,6 +40,7 @@ public:
 	const TINT16* GetSamples() const { return m_pSamples; }
 	TUINT GetSampleFrames() const { return m_oHeader.uiSampleFrames; }
 	TUINT GetSampleRate() const { return m_oHeader.uiSampleRate; }
+	TUINT GetChannels() const { return m_oHeader.uiChannels; }
 	TBOOL IsCreated() const { return m_oHeader.uiSampleFrames != 0; }
 
 private:

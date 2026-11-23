@@ -28,7 +28,7 @@ TBOOL AWave_PSP::Create( const void* a_pData, TUINT a_uiDataSize )
 	if ( !AllocateSamples( oHeader, a_uiDataSize ) )
 		return TFALSE;
 
-	Toshi::TUtil::MemCopy( m_pSamples, TSTATICCAST( const TUINT8*, a_pData ) + sizeof( oHeader ),
+	Toshi::TUtil::MemCopy( m_pSamples, TSTATICCAST( const TUINT8, a_pData ) + sizeof( oHeader ),
 	                       a_uiDataSize - sizeof( oHeader ) );
 	return TTRUE;
 }
@@ -55,17 +55,17 @@ TBOOL AWave_PSP::AllocateSamples( const AWaveDataHeader_PSP& a_rcHeader, TSIZE a
 	if ( a_rcHeader.uiMagic != AWaveDataHeader_PSP::MAGIC ||
 	     a_rcHeader.uiVersion != AWaveDataHeader_PSP::VERSION ||
 	     a_rcHeader.uiSampleRate != ASoundManager_PSP::SAMPLE_RATE ||
-	     a_rcHeader.uiChannels != OUTPUT_CHANNELS ||
+	     ( a_rcHeader.uiChannels != 1 && a_rcHeader.uiChannels != OUTPUT_CHANNELS ) ||
 	     a_rcHeader.uiSampleFrames == 0 || a_rcHeader.uiSampleFrames > MAX_SAMPLE_FRAMES )
 	{
 		return TFALSE;
 	}
 
-	const TSIZE uiSampleBytes = a_rcHeader.uiSampleFrames * OUTPUT_CHANNELS * sizeof( TINT16 );
+	const TSIZE uiSampleBytes = a_rcHeader.uiSampleFrames * a_rcHeader.uiChannels * sizeof( TINT16 );
 	if ( a_uiDataSize != sizeof( a_rcHeader ) + uiSampleBytes )
 		return TFALSE;
 
-	m_pSamples = TSTATICCAST( TINT16*, Toshi::GetGlobalAllocator()->Malloc( uiSampleBytes, 64 ) );
+	m_pSamples = TSTATICCAST( TINT16, Toshi::GetGlobalAllocator()->Malloc( uiSampleBytes, 64 ) );
 	if ( m_pSamples == TNULL )
 		return TFALSE;
 

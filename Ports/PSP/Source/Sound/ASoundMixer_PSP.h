@@ -27,7 +27,7 @@ struct ASoundListener_PSP
 class ASoundMixer_PSP
 {
 public:
-	static constexpr TUINT MAX_VOICES = 4;
+	static constexpr TUINT MAX_VOICES = 8;
 	static constexpr TUINT MAX_VOLUME = 4096;
 	static constexpr TINT MAX_PAN = 4096;
 	static constexpr TUINT DEFAULT_FREQUENCY = 44100;
