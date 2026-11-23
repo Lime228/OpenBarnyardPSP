@@ -8,6 +8,7 @@
 #include "AFrontEndTerrainPack_PSP.h"
 #include "AGameRuntimeReport_PSP.h"
 #include "GUI/AGUI2.h"
+#include "Movie/AMoviePlayer.h"
 #include "Render/ARenderer.h"
 
 //-----------------------------------------------------------------------------
@@ -172,6 +173,18 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiRendererFrames++;
+	AMoviePlayer* pMovie = AMoviePlayer::GetSingletonSafe();
+	if ( pMovie != TNULL && pMovie->IsMoviePlaying() )
+	{
+		s_RenderInterface_PSP.BeginScene( 0xff000000 );
+		pMovie->Render( a_fDeltaTime );
+		if ( m_bRenderGUI && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
+			RenderGUI();
+		s_RenderInterface_PSP.EndScene();
+		if ( rReport.uiRendererFrames % 60 == 0 )
+			AWriteGameRuntimeReport_PSP();
+		return TTRUE;
+	}
 	s_FrontEndCamera_PSP.Update( a_fDeltaTime );
 	const TRenderCamera_PSP* pFrontEndCamera = s_FrontEndCamera_PSP.IsLoaded() ?
 		&s_FrontEndCamera_PSP.GetRenderCamera() : TNULL;
