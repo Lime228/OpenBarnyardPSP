@@ -200,6 +200,12 @@ to 44.1 kHz and writes 392,784 bytes of PPCM plus a 708-byte PBNK manifest.
 `StageOriginalGame.ps1` copies the bank to `Data/Sound/Menu`. With
 `-SkipConversion` it uses the existing cache.
 
+The same command resolves `MUSIC_START_SCREEN` through the cue map and
+copies track 36 from the encoded `Music.fsb` cache into the same directory
+as `start_screen.padp`. It validates the stereo PADP stream and the
+block-aligned retail loop. The compressed track occupies 2,529,472 bytes on
+disk. Playback uses two decoded 4,096-frame pages.
+
 To convert movies, pass the paths to a [Windows FFmpeg build](https://ffmpeg.org/download.html#build-windows):
 
 ~~~powershell

@@ -71,7 +71,7 @@ Current estimates:
 | Scope | Estimate | Current boundary |
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
-| Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Menu music, remaining environment ownership and hardware validation remain. |
+| Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
 | Complete playable-game port | 33% | Original startup movies and frontend run with the complete initial terrain residency. Rooms, player, world streaming, collision, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
@@ -307,6 +307,24 @@ managed cue and stream checks with zero stream underruns.
 The frontend heap reported about 6.25 MiB free. PPSSPP game volume stayed at
 zero, so sound quality and the reported crackle still need a listening check.
 
+The game now streams the original `MUSIC_START_SCREEN` cue from
+`Data/Sound/Menu/start_screen.padp`. The cue starts when the original main
+menu is inserted and uses the retail loop while Options is open. The live
+Music slider controls the stream through the original Music category.
+The mixer keeps two 4,096-frame PCM pages and distinguishes a pending
+prefetch from a failed read.
+
+```powershell
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OpenBarnyardPSPGame -RequireMenuAudio -RequireMenuMusic
+```
+
+CI run `45235089627` supplied the EBOOT used for this check. The muted PPSSPP
+session followed the track through Audio and Controls back to the main menu.
+The Music slider changed the gain from 502 to 702 per mille and Cancel
+restored 502. The track crossed its 56.89-second loop boundary with
+`menu_music_loops=1` and `menu_music_underruns=0`. The diagnostic artifact
+from the same run also passed its PCM, ADPCM and stream checks.
+
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
@@ -464,13 +482,9 @@ Runtime evidence:
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
 3. Continue through other original menu states before new-game world loading.
-4. Stream the retail `MUSIC_START_SCREEN` cue used by the original main menu.
-   The converted loop is `Data/Sound/FSB/Music.fsb/000036-00-0.padp` in the
-   encoded audio cache. The original music preview is `MUSIC_MISSION`, track 18
-   in the same bank. Keep both streamed and use the existing Music category.
-   Exercise the stream cache when the mixer fills several device blocks in
-   one update. The existing cache holds two pages and the mixer releases a
-   stream voice if the requested page is still being prefetched.
+4. Restore the in-game Audio dialog's `MUSIC_MISSION` preview when the
+   gameplay path can open that dialog without a main-menu state on the stack.
+   Its encoded stream is `Data/Sound/FSB/Music.fsb/000018-00-0.padp`.
 5. Measure the complete movie playback path on physical PSP hardware.
 6. Implement a bounded collision representation before any gameplay claim.
 7. Advance to one reduced playable room, then add its gameplay-owned windmills,
