@@ -263,6 +263,8 @@ TBOOL ExportPSPAnimationDump(
 	     iAutoBoneCount < 0 || iAutoBoneCount > iBoneCount ||
 	     rSkeleton.m_pBones == TNULL || rSkeleton.m_SkeletonSequences == TNULL )
 	{
+		std::fprintf( stderr, "Invalid animation skeleton: %d bones, %d automatic bones, %d sequences\n",
+		    iBoneCount, iAutoBoneCount, TINT( rSkeleton.GetSequenceCount() ) );
 		return TFALSE;
 	}
 	for ( TINT bone = 0; bone < iBoneCount; bone++ )
@@ -270,10 +272,15 @@ TBOOL ExportPSPAnimationDump(
 		TSkeletonBone* pBone = rSkeleton.GetBone( bone );
 		const TUINT8 uiNameLength = pBone->GetNameLength();
 		const TINT iParentBone = pBone->GetParentBone();
-		if ( uiNameLength == 0 || uiNameLength > 31 ||
-		     iParentBone < -1 || iParentBone >= bone ||
-		     rSkeleton.GetBoneID( pBone->GetName(), uiNameLength ) != bone )
+		if ( uiNameLength == 0 || uiNameLength > 31 || iParentBone < -1 || iParentBone >= bone )
 		{
+			std::fprintf( stderr, "Invalid animation bone %d: name length=%u, parent=%d\n", bone, TUINT( uiNameLength ), iParentBone );
+			return TFALSE;
+		}
+		const TINT iLookup = rSkeleton.GetBoneID( pBone->GetName(), uiNameLength );
+		if ( iLookup != bone )
+		{
+			std::fprintf( stderr, "Animation bone %d aliases bone %d: %.*s\n", bone, iLookup, TINT( uiNameLength ), pBone->GetName() );
 			return TFALSE;
 		}
 	}
