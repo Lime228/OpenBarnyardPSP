@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)] [string] $RuntimeDirectory,
     [switch] $Capture,
-    [switch] $RequireMenuAudio
+    [switch] $RequireMenuAudio,
+    [switch] $RequireMenuMusic
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,6 +59,33 @@ function Wait-MenuCue([int] $Cue, [hashtable] $Before) {
     throw "Failed to verify menu cue $Cue. Last cue $($status.menu_audio_last_cue), accepted $($status.menu_audio_cues), non-silent blocks $($status.menu_audio_non_silent_blocks). See $gameLog"
 }
 
+function Wait-MenuMusic([int] $MinimumLoops, [int] $Volume = -1, [int] $TimeoutSeconds = 8) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $status = Read-GameLog
+        if ($status.menu_music_ready -eq '0' -or [int]$status.menu_music_underruns -ne 0) {
+            throw "Music bank ready: $($status.menu_music_ready). Stream underruns: $($status.menu_music_underruns). See $gameLog"
+        }
+        $gainMatches = $Volume -lt 0 -or [Math]::Abs([int]$status.menu_music_gain_per_mille - $Volume * 1000.0 / 255) -le 1
+        if ($status.menu_music_ready -eq '1' -and $gainMatches -and [int]$status.menu_music_loops -ge $MinimumLoops -and
+            [int]$status.menu_music_position_ms -gt 0 -and [int]$status.menu_audio_non_silent_blocks -gt 0) {
+            return $status
+        }
+        Start-Sleep -Milliseconds 150
+    } while ((Get-Date) -lt $deadline)
+    throw "Expected an active music stream, loops >= $MinimumLoops, volume $Volume. Current position $($status.menu_music_position_ms) ms, loops $($status.menu_music_loops), gain $($status.menu_music_gain_per_mille) per mille. See $gameLog"
+}
+
+function Assert-MenuMusicProgress([hashtable] $Before, [hashtable] $After) {
+    $loopCountBefore = [int]$Before.menu_music_loops
+    $loopCountAfter = [int]$After.menu_music_loops
+    if ($loopCountAfter -lt $loopCountBefore -or
+        ($loopCountAfter -eq $loopCountBefore -and
+            [int]$After.menu_music_position_ms -le [int]$Before.menu_music_position_ms)) {
+        throw "Music stopped or restarted between positions $($Before.menu_music_position_ms) and $($After.menu_music_position_ms) ms. See $gameLog"
+    }
+}
+
 try {
     & $runner -Action Start -EbootPath $eboot
     foreach ($name in @('NickMovs', 'THQ', 'BTE', 'Attract')) {
@@ -76,6 +104,10 @@ try {
     if ($RequireMenuAudio -and $main.menu_audio_ready -ne '1') {
         throw "Original UI wave bank or PSP audio channel did not initialize. See $gameLog"
     }
+    if ($RequireMenuMusic) {
+        $musicStart = Wait-MenuMusic 0
+        "Original main-menu music playing at $($musicStart.menu_music_position_ms) ms."
+    }
     Send-Key DpadDown
     $null = Wait-Menu 'frontend-menu-ready' 1
     if ($RequireMenuAudio) { Wait-MenuCue 174 $main }
@@ -84,6 +116,10 @@ try {
     Send-Key Cross
     $original = Wait-Menu 'frontend-options-ready' 0
     if ($RequireMenuAudio) { Wait-MenuCue 175 $before }
+    if ($RequireMenuMusic) {
+        $musicInOptions = Wait-MenuMusic 0 ([int]$original.option_music)
+        Assert-MenuMusicProgress $musicStart $musicInOptions
+    }
     $effects = [int]$original.option_effects
     $invert = [int]$original.option_inverted
     $sensitivity = $original.option_sensitivity
@@ -114,11 +150,21 @@ try {
         }
         $null = Wait-Menu 'frontend-audio-ready' $row $changedVolumes
         if ($RequireMenuAudio -and $category -eq 'option_speech') { Wait-MenuCue 189 $before }
+        if ($RequireMenuMusic -and $category -eq 'option_music') {
+            $musicChanged = Wait-MenuMusic 0 ([int]$changedVolumes.option_music)
+            Assert-MenuMusicProgress $musicInOptions $musicChanged
+            "Music slider applied gain $($musicChanged.menu_music_gain_per_mille) per mille."
+        }
     }
     $before = Read-GameLog
     Send-Key Triangle
     $null = Wait-Menu 'frontend-options-ready' 0 @{ option_effects = $effects; option_music = $original.option_music; option_speech = $original.option_speech }
     if ($RequireMenuAudio) { Wait-MenuCue 167 $before }
+    if ($RequireMenuMusic) {
+        $musicRestored = Wait-MenuMusic 0 ([int]$original.option_music)
+        Assert-MenuMusicProgress $musicChanged $musicRestored
+        "Cancel restored music gain $($musicRestored.menu_music_gain_per_mille) per mille."
+    }
     Send-Key Cross
     $null = Wait-Menu 'frontend-audio-ready' 0 @{ option_effects = $effects }
     Send-Key $volumeKey
@@ -158,6 +204,12 @@ try {
     Send-Key Triangle
     $null = Wait-Menu 'frontend-options-return' 2
     'Returned to the original main menu.'
+    if ($RequireMenuMusic) {
+        $musicInMainMenu = Wait-MenuMusic 0 ([int]$original.option_music)
+        Assert-MenuMusicProgress $musicRestored $musicInMainMenu
+        $musicLoop = Wait-MenuMusic 1 ([int]$original.option_music) -TimeoutSeconds 75
+        "Original music loop verified. Loops: $($musicLoop.menu_music_loops). Stream underruns: $($musicLoop.menu_music_underruns)."
+    }
 }
 finally {
     & $runner -Action Stop -EbootPath $eboot
