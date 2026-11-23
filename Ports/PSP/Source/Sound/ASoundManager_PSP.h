@@ -46,6 +46,7 @@ public:
 	static constexpr TUINT SAMPLE_RATE = 44100;
 	static constexpr TUINT BUFFER_SAMPLE_FRAMES = 1024;
 	static constexpr TUINT OUTPUT_BUFFER_COUNT = 4;
+	static constexpr TUINT MAX_MANAGED_CUES = 8;
 	static constexpr TUINT OUTPUT_CHANNELS = 2;
 	static constexpr TFLOAT MAX_CUE_DELAY_SECONDS = 300.0f;
 	static constexpr TINT CUE_POSITION_SCALE = 1000;
@@ -182,7 +183,6 @@ private:
 	void RunOutputThread();
 	friend class ASoundOutputThread_PSP;
 
-	static constexpr TUINT MAX_MANAGED_CUES = 8;
 	static constexpr TUINT32 CUE_INDEX_MASK = 0xff;
 	static constexpr TUINT32 CUE_GENERATION_MASK = 0x007fffff;
 

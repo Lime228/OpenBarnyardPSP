@@ -34,17 +34,43 @@ static constexpr ASoundCueMapping_PSP s_aMenuCueMappings_PSP[] = {
 	{ soundbank::UI_MENUCLICK, "click" },
 	{ soundbank::UI_MENUBACK, "back" },
 	{ soundbank::UI_VO_CLICK, "click" },
+	{ soundbank::UI_FE_SELECT, "harp_strum" },
 	{ AMenuWaveId_PSP_Harp02, "harp02" },
 	{ AMenuWaveId_PSP_Harp03, "harp03" },
 };
 
-static AWave_PSP                   s_aMenuWaves_PSP[ 5 ];
+static AWave_PSP                   s_aMenuWaves_PSP[ 6 ];
 static AWaveBank_PSP               s_MenuBank_PSP;
 static AWaveBankLoader_PSP         s_MenuBankLoader_PSP;
 static ASoundMixer_PSP              s_MenuMixer_PSP;
 static ASoundCommandQueue_PSP       s_MenuCommands_PSP;
 static ASoundDelayedEventQueue_PSP  s_MenuEvents_PSP;
 static ASoundManager_PSP            s_MenuSoundManager_PSP;
+
+struct AMenuCueLayer_PSP
+{
+	TINT iHandle = -1;
+	TINT iPrimaryHandle = -1;
+	TSIZE uiCategory = 0;
+	TFLOAT fVolume = 0.0f;
+};
+
+static AMenuCueLayer_PSP s_aMenuCueLayers_PSP[ ASoundManager_PSP::MAX_MANAGED_CUES ];
+
+static void ATrackMenuCueLayer_PSP( TINT a_iHandle, TINT a_iPrimary, TSIZE a_uiCategory, TFLOAT a_fVolume )
+{
+	if ( a_iHandle < 0 )
+		return;
+
+	for ( AMenuCueLayer_PSP& rLayer : s_aMenuCueLayers_PSP )
+	{
+		if ( !s_MenuSoundManager_PSP.IsCueUsed( rLayer.iHandle ) )
+		{
+			rLayer = { a_iHandle, a_iPrimary, a_uiCategory, a_fVolume };
+			return;
+		}
+	}
+}
 
 static void AUnloadMenuBank_PSP()
 {
@@ -53,6 +79,8 @@ static void AUnloadMenuBank_PSP()
 	s_MenuEvents_PSP.Clear();
 	s_MenuCommands_PSP.Clear();
 	s_MenuBankLoader_PSP.Unload( s_MenuBank_PSP, s_aMenuWaves_PSP, TARRAYSIZE( s_aMenuWaves_PSP ), TNULL, 0 );
+	for ( AMenuCueLayer_PSP& rLayer : s_aMenuCueLayers_PSP )
+		rLayer = {};
 	AGetGameRuntimeReport_PSP().bMenuAudioReady = TFALSE;
 }
 
@@ -116,6 +144,8 @@ TBOOL ASoundManager::OnCreate()
 
 	if ( !bReady )
 		AUnloadMenuBank_PSP();
+	else
+		s_MenuSoundManager_PSP.SetGlobalVolume( s_fGlobalVolume_PSP );
 	AGetGameRuntimeReport_PSP().bMenuAudioReady = bReady;
 
 	return TTRUE;
@@ -154,8 +184,13 @@ TINT ASoundManager::PlayCueEx( ASoundId a_iSound, TFLOAT a_fVolume, TBOOL a_bPau
 	if ( !s_MenuSoundManager_PSP.IsCueBankBound() || !ARandom::IsSingletonCreated() )
 		return -1;
 
+	const auto pCategory = m_CategoryIndices.Find( a_iSound == soundbank::UI_VO_CLICK ? TPS8( VO ) : TPS8( Ingame ) );
+	if ( !m_CategoryIndices.IsValid( pCategory ) )
+		return -1;
+
 	TMath::Clip( a_fVolume, 0.0f, 1.0f );
-	const TFLOAT fGain = a_fVolume * GetCategoryVolume( a_iSound == soundbank::UI_VO_CLICK ? TPS8( VO ) : TPS8( Ingame ) );
+	const TSIZE uiCategory = pCategory->GetSecond();
+	const TFLOAT fCategoryVolume = m_aCategories[ uiCategory ].fVolumeMultiplier;
 	TRandom& rRandom = ARandom::GetSingleton()->m_oRandom;
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	TINT iCue = -1;
@@ -169,8 +204,9 @@ TINT ASoundManager::PlayCueEx( ASoundId a_iSound, TFLOAT a_fVolume, TBOOL a_bPau
 		{
 			if ( a_iTrack != -1 && a_iTrack != 0 )
 				break;
-			const TFLOAT fSampleVolume = a_iSound == soundbank::UI_MENUCLICK ? 0.251188993f : 0.501187027f;
-			iCue = s_MenuSoundManager_PSP.PlayCueEx( a_iSound, fGain * fSampleVolume, a_bPaused, a_fDelay, -1 );
+			const TFLOAT fVolume = a_fVolume * ( a_iSound == soundbank::UI_MENUCLICK ? 0.251188993f : 0.501187027f );
+			iCue = s_MenuSoundManager_PSP.PlayCueEx( a_iSound, fCategoryVolume * fVolume, a_bPaused, a_fDelay, -1 );
+			ATrackMenuCueLayer_PSP( iCue, iCue, uiCategory, fVolume );
 			break;
 		}
 		case soundbank::UI_MENUOK:
@@ -185,23 +221,36 @@ TINT ASoundManager::PlayCueEx( ASoundId a_iSound, TFLOAT a_fVolume, TBOOL a_bPau
 				const ASoundId eWave = rRandom.GetInt( 2 ) == 0 ? AMenuWaveId_PSP_Harp02 : AMenuWaveId_PSP_Harp03;
 				const TFLOAT fVariation = i == 0 ? 1.0f : rRandom.GetFloatMinMax( 0.707946002f, 1.41253805f );
 				const TFLOAT fDelay = a_fDelay + ( i == 0 ? 0.0f : rRandom.GetFloatMinMax( 0.0f, 0.1f ) );
-				const TINT iLayer = s_MenuSoundManager_PSP.PlayCueEx(
-					eWave, fGain * 0.177827999f * fVariation, a_bPaused, fDelay, -1
-				);
+				const TFLOAT fVolume = a_fVolume * 0.177827999f * fVariation;
+				const TINT iLayer = s_MenuSoundManager_PSP.PlayCueEx( eWave, fCategoryVolume * fVolume, a_bPaused, fDelay, -1 );
 				if ( iCue < 0 )
 					iCue = iLayer;
+				ATrackMenuCueLayer_PSP( iLayer, iCue, uiCategory, fVolume );
 			}
+			break;
+		}
+		case soundbank::UI_FE_MOVE:
+		case soundbank::UI_FE_SELECT:
+		{
+			if ( a_iTrack != -1 && a_iTrack != 0 )
+				break;
+			ASoundId eWave = a_iSound;
+			if ( a_iSound == soundbank::UI_FE_MOVE )
+				eWave = rRandom.GetInt( 2 ) == 0 ? AMenuWaveId_PSP_Harp02 : AMenuWaveId_PSP_Harp03;
+			const TFLOAT fVolume = a_fVolume * 0.501187027f * rRandom.GetFloatMinMax( 0.501187027f, 0.707946002f );
+			iCue = s_MenuSoundManager_PSP.PlayCueEx( eWave, fCategoryVolume * fVolume, a_bPaused, a_fDelay, -1 );
+			ATrackMenuCueLayer_PSP( iCue, iCue, uiCategory, fVolume );
 			break;
 		}
 		case soundbank::UI_VO_CLICK:
 		{
 			if ( a_iTrack != -1 && a_iTrack != 0 )
 				break;
-			iCue = s_MenuSoundManager_PSP.PlayCueEx(
-				a_iSound, fGain * rRandom.GetFloatMinMax( 0.707946002f, 1.0f ), a_bPaused, a_fDelay, -1
-			);
+			const TFLOAT fVolume = a_fVolume * rRandom.GetFloatMinMax( 0.707946002f, 1.0f );
+			iCue = s_MenuSoundManager_PSP.PlayCueEx( a_iSound, fCategoryVolume * fVolume, a_bPaused, a_fDelay, -1 );
 			if ( iCue >= 0 )
 				s_MenuSoundManager_PSP.SetCueFrequency( iCue, rRandom.GetFloatMinMax( 1.68082201f, 1.68179297f ) );
+			ATrackMenuCueLayer_PSP( iCue, iCue, uiCategory, fVolume );
 			break;
 		}
 		default:
@@ -220,12 +269,23 @@ TINT ASoundManager::PlayCueEx( ASoundId a_iSound, TFLOAT a_fVolume, TBOOL a_bPau
 
 void ASoundManager::StopCue( TINT& a_rCueIndex )
 {
-	s_MenuSoundManager_PSP.StopCue( a_rCueIndex );
+	StopCueAsync( a_rCueIndex, 0.0f );
 }
 
 void ASoundManager::StopCueAsync( TINT& a_rCueIndex, TFLOAT a_fDelay )
 {
-	s_MenuSoundManager_PSP.StopCueAsync( a_rCueIndex, a_fDelay );
+	if ( a_rCueIndex < 0 )
+		return;
+
+	for ( const AMenuCueLayer_PSP& rLayer : s_aMenuCueLayers_PSP )
+	{
+		if ( rLayer.iPrimaryHandle == a_rCueIndex )
+		{
+			TINT iHandle = rLayer.iHandle;
+			s_MenuSoundManager_PSP.StopCueAsync( iHandle, a_fDelay );
+		}
+	}
+	a_rCueIndex = -1;
 }
 
 void ASoundManager::PauseAllCues( TBOOL a_bPause )
@@ -235,7 +295,12 @@ void ASoundManager::PauseAllCues( TBOOL a_bPause )
 
 void ASoundManager::PauseCue( TINT a_iCue, TBOOL a_bPause )
 {
-	s_MenuSoundManager_PSP.PauseCue( a_iCue, a_bPause );
+	if ( a_iCue >= 0 )
+	{
+		for ( const AMenuCueLayer_PSP& rLayer : s_aMenuCueLayers_PSP )
+			if ( rLayer.iPrimaryHandle == a_iCue )
+				s_MenuSoundManager_PSP.PauseCue( rLayer.iHandle, a_bPause );
+	}
 }
 
 TINT ASoundManager::GetAvailableCueIndex()
@@ -245,7 +310,13 @@ TINT ASoundManager::GetAvailableCueIndex()
 
 TBOOL ASoundManager::IsCuePlaying( TINT a_iCue )
 {
-	return s_MenuSoundManager_PSP.IsCuePlaying( a_iCue );
+	if ( a_iCue < 0 )
+		return TFALSE;
+
+	for ( const AMenuCueLayer_PSP& rLayer : s_aMenuCueLayers_PSP )
+		if ( rLayer.iPrimaryHandle == a_iCue && s_MenuSoundManager_PSP.IsCuePlaying( rLayer.iHandle ) )
+			return TTRUE;
+	return TFALSE;
 }
 
 void ASoundManager::SetCueFrequency( TINT, TFLOAT, TFLOAT )
@@ -269,6 +340,7 @@ void ASoundManager::SetGlobalVolume( TFLOAT a_fVolume )
 	if ( a_fVolume < 0.0f ) a_fVolume = 0.0f;
 	if ( a_fVolume > 1.0f ) a_fVolume = 1.0f;
 	s_fGlobalVolume_PSP = a_fVolume;
+	s_MenuSoundManager_PSP.SetGlobalVolume( a_fVolume );
 }
 
 void ASoundManager::SetCategoryVolume( const TPString8& a_rcName, TFLOAT a_fVolume, TFLOAT a_fDelay )
@@ -292,7 +364,7 @@ void ASoundManager::SetCategoryVolume( const TPString8& a_rcName, TFLOAT a_fVolu
 	SetCategoryVolume( iCategory, a_fVolume, a_fDelay );
 }
 
-void ASoundManager::SetCategoryVolume( TINT a_iCategory, TFLOAT a_fVolume, TFLOAT )
+void ASoundManager::SetCategoryVolume( TINT a_iCategory, TFLOAT a_fVolume, TFLOAT a_fDelay )
 {
 	if ( a_iCategory < 0 || a_iCategory >= TINT( MAX_NUM_CATEGORIES ) )
 		return;
@@ -303,6 +375,10 @@ void ASoundManager::SetCategoryVolume( TINT a_iCategory, TFLOAT a_fVolume, TFLOA
 	Category& rCategory             = m_aCategories[ a_iCategory ];
 	rCategory.fPrevVolumeMultiplier = rCategory.fVolumeMultiplier;
 	rCategory.fVolumeMultiplier     = a_fVolume;
+
+	for ( const AMenuCueLayer_PSP& rLayer : s_aMenuCueLayers_PSP )
+		if ( rLayer.uiCategory == TSIZE( a_iCategory ) && s_MenuSoundManager_PSP.IsCueUsed( rLayer.iHandle ) )
+			s_MenuSoundManager_PSP.SetCueVolume( rLayer.iHandle, rLayer.fVolume * a_fVolume, a_fDelay );
 }
 
 TFLOAT ASoundManager::GetCategoryVolume( const TPString8& a_rcName )
