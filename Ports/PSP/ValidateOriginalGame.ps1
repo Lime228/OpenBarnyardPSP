@@ -214,11 +214,51 @@ try {
         do {
             Start-Sleep -Milliseconds 100
             $optionsReport = Read-RuntimeReport $reportPath
-        } while ((!$optionsReport.ContainsKey('phase') -or $optionsReport.phase -ne 'frontend-options-ready') -and
-            (Get-Date) -lt $optionsDeadline)
-        if (-not $optionsReport.ContainsKey('phase') -or $optionsReport.phase -ne 'frontend-options-ready') {
+            $optionsReady = $optionsReport.ContainsKey('phase') -and
+                $optionsReport.phase -eq 'frontend-options-ready' -and
+                $optionsReport.ContainsKey('menu_state') -and
+                $optionsReport.menu_state -eq '5' -and
+                $optionsReport.ContainsKey('menu_focus') -and
+                $optionsReport.menu_focus -eq '0'
+        } while (-not $optionsReady -and (Get-Date) -lt $optionsDeadline)
+        if (-not $optionsReady) {
             $actualPhase = if ($optionsReport.ContainsKey('phase')) { $optionsReport.phase } else { '<missing>' }
-            throw "Original options state did not open: $actualPhase"
+            $actualFocus = if ($optionsReport.ContainsKey('menu_focus')) { $optionsReport.menu_focus } else { '<missing>' }
+            throw "Original options state did not finish its first update: phase=$actualPhase focus=$actualFocus"
+        }
+
+        if (-not $SkipScreenshot) {
+            $optionsScreenshotRequestedAt = Get-Date
+            & $runnerPath -Action Press -EbootPath $ebootPath -PPSSPPPath $ppssppFullPath -Key Screenshot
+            $optionsScreenshotDeadline = (Get-Date).AddSeconds(10)
+            $optionsScreenshotPath = $null
+            $optionsScreenshotLength = -1L
+            $optionsScreenshotStablePolls = 0
+            do {
+                Start-Sleep -Milliseconds 100
+                $optionsScreenshotPath = Get-ChildItem -LiteralPath $screenshotDirectory -File -ErrorAction SilentlyContinue |
+                    Where-Object {
+                        $_.Extension -in @('.jpg', '.png') -and
+                        $_.LastWriteTime -ge $optionsScreenshotRequestedAt.AddSeconds(-1)
+                    } |
+                    Sort-Object LastWriteTime -Descending |
+                    Select-Object -First 1 -ExpandProperty FullName
+                if ($optionsScreenshotPath) {
+                    $optionsLength = (Get-Item -LiteralPath $optionsScreenshotPath).Length
+                    if ($optionsLength -gt 0 -and $optionsLength -eq $optionsScreenshotLength) {
+                        $optionsScreenshotStablePolls++
+                    }
+                    else {
+                        $optionsScreenshotLength = $optionsLength
+                        $optionsScreenshotStablePolls = 0
+                    }
+                }
+            } while ((-not $optionsScreenshotPath -or $optionsScreenshotStablePolls -lt 2) -and
+                (Get-Date) -lt $optionsScreenshotDeadline)
+            if (-not $optionsScreenshotPath -or $optionsScreenshotStablePolls -lt 2) {
+                throw 'PPSSPP did not complete the original options screenshot'
+            }
+            $screenshotPath = $optionsScreenshotPath
         }
     }
 
