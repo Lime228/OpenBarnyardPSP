@@ -160,7 +160,7 @@ TBOOL ASoundManager_PSP::BindCueBank(
 	for ( TSIZE i = 0; i < a_uiCueMappingCount; i++ )
 	{
 		const TCHAR* pWaveName = a_pCueMappings[ i ].pWaveName;
-		if ( a_pWaveBank->FindWave( pWaveName ) == TNULL &&
+		if ( a_pCueMappings[ i ].bRequired && a_pWaveBank->FindWave( pWaveName ) == TNULL &&
 		     a_pWaveBank->FindStream( pWaveName ) == TNULL )
 			return TFALSE;
 	}
@@ -199,8 +199,8 @@ TINT ASoundManager_PSP::PlayCueEx(
     TINT a_iTrack
 )
 {
-	const TCHAR* pWaveName = ResolveCueName( a_eSoundID );
-	if ( !IsCueBankBound() || pWaveName == TNULL ||
+	const ASoundCueMapping_PSP* pMapping = ResolveCueMapping( a_eSoundID );
+	if ( !IsCueBankBound() || pMapping == TNULL ||
 	     !( a_fVolume >= 0.0f && a_fVolume <= 1.0f ) ||
 	     !( a_fDelay >= 0.0f && a_fDelay <= MAX_CUE_DELAY_SECONDS ) ||
 	     a_iTrack != -1 )
@@ -209,6 +209,7 @@ TINT ASoundManager_PSP::PlayCueEx(
 		return -1;
 	}
 
+	const TCHAR* pWaveName = pMapping->pWaveName;
 	TUINT uiCue = MAX_MANAGED_CUES;
 	for ( TUINT i = 0; i < MAX_MANAGED_CUES; i++ )
 	{
@@ -239,7 +240,9 @@ TINT ASoundManager_PSP::PlayCueEx(
 		uiRequest = m_pCommandQueue->QueuePlayNamed(
 		    *m_pWaveBank,
 		    pWaveName,
-		    uiAppliedVolume
+		    uiAppliedVolume,
+		    0,
+		    pMapping->bLoop
 		);
 	}
 	else
@@ -250,7 +253,7 @@ TINT ASoundManager_PSP::PlayCueEx(
 			ASoundMixer_PSP::INVALID_VOICE,
 			uiAppliedVolume,
 			0,
-			TFALSE,
+			pMapping->bLoop,
 			ASoundMixer_PSP::DEFAULT_FREQUENCY,
 			{},
 		};
@@ -662,12 +665,14 @@ void ASoundManager_PSP::SetCuePosition(
 
 TBOOL ASoundManager_PSP::PlayCueDetached( ASoundId_PSP a_eSoundID )
 {
-	const TCHAR* pWaveName = ResolveCueName( a_eSoundID );
-	if ( !IsCueBankBound() || pWaveName == TNULL ||
+	const ASoundCueMapping_PSP* pMapping = ResolveCueMapping( a_eSoundID );
+	if ( !IsCueBankBound() || pMapping == TNULL ||
 	     !m_pCommandQueue->QueuePlayDetachedNamed(
 	         *m_pWaveBank,
-	         pWaveName,
-	         m_uiGlobalVolume
+	         pMapping->pWaveName,
+	         m_uiGlobalVolume,
+	         0,
+	         pMapping->bLoop
 	     ) )
 	{
 		m_uiRejectedCues++;
@@ -810,12 +815,12 @@ TBOOL ASoundManager_PSP::GetCueVoice( TINT a_iCue, ASoundVoiceHandle_PSP& a_rVoi
 	return TTRUE;
 }
 
-const TCHAR* ASoundManager_PSP::ResolveCueName( ASoundId_PSP a_eSoundID ) const
+const ASoundCueMapping_PSP* ASoundManager_PSP::ResolveCueMapping( ASoundId_PSP a_eSoundID ) const
 {
 	for ( TSIZE i = 0; i < m_uiCueMappingCount; i++ )
 	{
 		if ( m_pCueMappings[ i ].eSoundID == a_eSoundID )
-			return m_pCueMappings[ i ].pWaveName;
+			return &m_pCueMappings[ i ];
 	}
 
 	return TNULL;

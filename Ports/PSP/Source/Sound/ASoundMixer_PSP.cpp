@@ -309,6 +309,7 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 		return TFALSE;
 
 	TBOOL bMixedVoice = TFALSE;
+	TUINT uiWaitingStreamVoices = 0;
 	Toshi::TUtil::MemClear(
 	    a_pOutputSamples,
 	    a_uiSampleFrames * AWave_PSP::OUTPUT_CHANNELS * sizeof( TINT16 )
@@ -317,7 +318,7 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 	for ( TUINT uiVoice = 0; uiVoice < MAX_VOICES; uiVoice++ )
 	{
 		Voice& rVoice = m_aVoices[ uiVoice ];
-		if ( rVoice.bActive && rVoice.pStreamWave != TNULL )
+		if ( rVoice.bActive && !rVoice.bPaused && rVoice.pStreamWave != TNULL )
 		{
 			const TUINT64 uiLoopStart =
 			    TUINT64( rVoice.pStreamWave->GetLoopStartFrame() ) << 16;
@@ -338,7 +339,10 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 			}
 
 			const TUINT uiSampleFrame = TUINT( rVoice.uiSamplePosition >> 16 );
-			if ( !rVoice.pStreamWave->Prepare( uiSampleFrame, rVoice.bLoop ) )
+			const auto ePrepare = rVoice.pStreamWave->Prepare( uiSampleFrame, rVoice.bLoop );
+			if ( ePrepare == AStreamWave_PSP::PrepareResult::Pending )
+				uiWaitingStreamVoices |= 1u << uiVoice;
+			else if ( ePrepare == AStreamWave_PSP::PrepareResult::Failed )
 				rVoice = {};
 		}
 	}
@@ -350,7 +354,7 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 		for ( TUINT uiVoice = 0; uiVoice < MAX_VOICES; uiVoice++ )
 		{
 			Voice& rVoice = m_aVoices[ uiVoice ];
-			if ( !rVoice.bActive || rVoice.bPaused )
+			if ( !rVoice.bActive || rVoice.bPaused || ( uiWaitingStreamVoices & ( 1u << uiVoice ) ) != 0 )
 				continue;
 
 			const TUINT uiSourceFrames = rVoice.pStreamWave != TNULL && rVoice.bLoop ?
@@ -362,7 +366,12 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 			if ( rVoice.uiSamplePosition >= uiWaveLength )
 			{
 				if ( rVoice.bLoop )
-					rVoice.uiSamplePosition %= uiWaveLength;
+				{
+					const TUINT64 uiLoopStart = rVoice.pStreamWave != TNULL ?
+					                               TUINT64( rVoice.pStreamWave->GetLoopStartFrame() ) << 16 : 0;
+					rVoice.uiSamplePosition = uiLoopStart +
+					    ( rVoice.uiSamplePosition - uiWaveLength ) % ( uiWaveLength - uiLoopStart );
+				}
 				else
 				{
 					rVoice = {};
@@ -375,11 +384,18 @@ TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 			const TINT16* pSamples = rVoice.pStreamWave != TNULL ?
 			                            rVoice.pStreamWave->GetFrame( uiSampleFrame ) :
 			                            rVoice.pWave->GetSamples() + uiSampleFrame * uiChannels;
-			if ( pSamples == TNULL )
+			if ( pSamples == TNULL && rVoice.pStreamWave != TNULL )
 			{
-				rVoice = {};
-				continue;
+				const auto ePrepare = rVoice.pStreamWave->Prepare( uiSampleFrame, rVoice.bLoop );
+				if ( ePrepare == AStreamWave_PSP::PrepareResult::Pending )
+					uiWaitingStreamVoices |= 1u << uiVoice;
+				else if ( ePrepare == AStreamWave_PSP::PrepareResult::Ready )
+					pSamples = rVoice.pStreamWave->GetFrame( uiSampleFrame );
+				else
+					rVoice = {};
 			}
+			if ( pSamples == TNULL )
+				continue;
 			iLeft += TINT32( pSamples[ 0 ] ) * TINT32( rVoice.uiLeftVolume ) / TINT32( MAX_VOLUME );
 			iRight += TINT32( pSamples[ uiChannels - 1 ] ) * TINT32( rVoice.uiRightVolume ) / TINT32( MAX_VOLUME );
 			rVoice.uiSamplePosition += rVoice.uiSampleStep;

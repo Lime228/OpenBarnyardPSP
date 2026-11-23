@@ -29,9 +29,17 @@ class AStreamWave_PSP
 {
 public:
 	static constexpr TUINT CACHE_SAMPLE_FRAMES = 1024;
+	static constexpr TUINT CACHE_PAGE_FRAMES = CACHE_SAMPLE_FRAMES * 4;
 	static constexpr TUINT MAX_STREAM_SAMPLE_FRAMES = 44100 * 300;
 	static constexpr TUINT CACHE_PAGE_COUNT = 2;
 	static constexpr TUINT INVALID_SAMPLE_FRAME = 0xffffffff;
+
+	enum class PrepareResult
+	{
+		Ready,
+		Pending,
+		Failed,
+	};
 
 public:
 	AStreamWave_PSP();
@@ -39,7 +47,7 @@ public:
 
 	TBOOL Create( const TCHAR* a_pFilePath );
 	void Destroy();
-	TBOOL Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop = TFALSE );
+	PrepareResult Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop = TFALSE );
 	const TINT16* GetFrame( TUINT a_uiSampleFrame ) const;
 
 	TUINT GetSampleFrames() const { return m_oHeader.uiSampleFrames; }
@@ -66,7 +74,7 @@ private:
 		TUINT uiStart;
 		TUINT uiFrames;
 		TBOOL bReady;
-		alignas( 64 ) TINT16 aSamples[ CACHE_SAMPLE_FRAMES * AWave_PSP::OUTPUT_CHANNELS ];
+		alignas( 64 ) TINT16 aSamples[ CACHE_PAGE_FRAMES * AWave_PSP::OUTPUT_CHANNELS ];
 	};
 
 	TBOOL ReadPage( TUINT a_uiStartSampleFrame, TUINT a_uiPage );
@@ -90,7 +98,7 @@ private:
 	TUINT m_uiCurrentPage;
 	TUINT m_uiPendingStart;
 	TUINT m_uiLoadingStart;
+	TUINT m_uiFailedStart;
 	TUINT m_uiUnderrunCount;
 	volatile TBOOL m_bPrefetchRunning;
-	TBOOL m_bSyncReady;
 };

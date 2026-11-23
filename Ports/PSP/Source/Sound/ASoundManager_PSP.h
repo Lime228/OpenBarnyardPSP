@@ -26,6 +26,8 @@ struct ASoundCueMapping_PSP
 {
 	ASoundId_PSP eSoundID;
 	const TCHAR* pWaveName;
+	TBOOL bLoop = TFALSE;
+	TBOOL bRequired = TTRUE;
 };
 
 class ASoundOutputThread_PSP : public Toshi::TThread
@@ -173,7 +175,7 @@ private:
 		TUINT uiFadeDurationSampleFrames;
 	};
 
-	const TCHAR* ResolveCueName( ASoundId_PSP a_eSoundID ) const;
+	const ASoundCueMapping_PSP* ResolveCueMapping( ASoundId_PSP a_eSoundID ) const;
 	const Cue* ResolveCue( TINT a_iCue ) const;
 	TINT MakeCueHandle( TUINT a_uiIndex ) const;
 	void ReleaseCue( TUINT a_uiIndex );

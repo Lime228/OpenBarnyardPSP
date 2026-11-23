@@ -34,9 +34,9 @@ AStreamWave_PSP::AStreamWave_PSP()
     , m_uiCurrentPage( 0 )
     , m_uiPendingStart( INVALID_SAMPLE_FRAME )
     , m_uiLoadingStart( INVALID_SAMPLE_FRAME )
+    , m_uiFailedStart( INVALID_SAMPLE_FRAME )
     , m_uiUnderrunCount( 0 )
     , m_bPrefetchRunning( TFALSE )
-    , m_bSyncReady( TFALSE )
 {
 	m_oPrefetchThread.SetStreamWave( this );
 }
@@ -145,7 +145,6 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 	}
 	m_aPages[ 0 ].bReady = TTRUE;
 
-	m_bSyncReady = TTRUE;
 	m_bPrefetchRunning = TTRUE;
 	if ( !m_oPrefetchThread.Create(
 	         0x2000,
@@ -157,7 +156,7 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 		return TFALSE;
 	}
 
-	RequestPrefetch( CACHE_SAMPLE_FRAMES );
+	RequestPrefetch( CACHE_PAGE_FRAMES );
 	return TTRUE;
 }
 
@@ -173,13 +172,9 @@ void AStreamWave_PSP::Destroy()
 		}
 	}
 
-	if ( m_bSyncReady )
-	{
-		m_oPrefetchStopped.Destroy();
-		m_oPrefetchRequested.Destroy();
-		m_oStateMutex.Destroy();
-	}
-	m_bSyncReady = TFALSE;
+	m_oPrefetchStopped.Destroy();
+	m_oPrefetchRequested.Destroy();
+	m_oStateMutex.Destroy();
 
 	if ( m_pFile != TNULL )
 		m_pFile->Destroy();
@@ -193,15 +188,16 @@ void AStreamWave_PSP::Destroy()
 	m_uiCurrentPage = 0;
 	m_uiPendingStart = INVALID_SAMPLE_FRAME;
 	m_uiLoadingStart = INVALID_SAMPLE_FRAME;
+	m_uiFailedStart = INVALID_SAMPLE_FRAME;
 	m_uiUnderrunCount = 0;
 	Toshi::TUtil::MemClear( m_aPages, sizeof( m_aPages ) );
 	Toshi::TUtil::MemClear( m_aCompressedBlock, sizeof( m_aCompressedBlock ) );
 }
 
-TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
+AStreamWave_PSP::PrepareResult AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
 {
 	if ( !IsCreated() || a_uiStartSampleFrame >= m_oHeader.uiSampleFrames )
-		return TFALSE;
+		return PrepareResult::Failed;
 
 	m_oStateMutex.Lock();
 	CachePage& rCurrentPage = m_aPages[ m_uiCurrentPage ];
@@ -210,7 +206,7 @@ TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
 	     a_uiStartSampleFrame < rCurrentPage.uiStart + rCurrentPage.uiFrames )
 	{
 		m_oStateMutex.Unlock();
-		return TTRUE;
+		return PrepareResult::Ready;
 	}
 
 	const TUINT uiNextPage = ( m_uiCurrentPage + 1 ) % CACHE_PAGE_COUNT;
@@ -219,9 +215,20 @@ TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
 	     a_uiStartSampleFrame < rNextPage.uiStart ||
 	     a_uiStartSampleFrame >= rNextPage.uiStart + rNextPage.uiFrames )
 	{
+		const TUINT uiPageStart = a_uiStartSampleFrame - a_uiStartSampleFrame % CACHE_SAMPLE_FRAMES;
+		const TBOOL bReadFailed = m_uiFailedStart == uiPageStart;
+		const TBOOL bPagePending =
+		    ( m_uiLoadingStart != INVALID_SAMPLE_FRAME && a_uiStartSampleFrame >= m_uiLoadingStart &&
+		      a_uiStartSampleFrame - m_uiLoadingStart < CACHE_PAGE_FRAMES ) ||
+		    ( m_uiPendingStart != INVALID_SAMPLE_FRAME && a_uiStartSampleFrame >= m_uiPendingStart &&
+		      a_uiStartSampleFrame - m_uiPendingStart < CACHE_PAGE_FRAMES );
 		m_uiUnderrunCount++;
 		m_oStateMutex.Unlock();
-		return TFALSE;
+		if ( bReadFailed )
+			return PrepareResult::Failed;
+		if ( !bPagePending )
+			RequestPrefetch( uiPageStart );
+		return PrepareResult::Pending;
 	}
 
 	m_uiCurrentPage = uiNextPage;
@@ -231,7 +238,7 @@ TBOOL AStreamWave_PSP::Prepare( TUINT a_uiStartSampleFrame, TBOOL a_bLoop )
 		RequestPrefetch( m_uiLoopStartFrame );
 	else if ( uiPrefetchStart < m_oHeader.uiSampleFrames )
 		RequestPrefetch( uiPrefetchStart );
-	return TTRUE;
+	return PrepareResult::Ready;
 }
 
 TBOOL AStreamWave_PSP::ReadPage( TUINT a_uiStartSampleFrame, TUINT a_uiPage )
@@ -243,8 +250,8 @@ TBOOL AStreamWave_PSP::ReadPage( TUINT a_uiStartSampleFrame, TUINT a_uiPage )
 	}
 
 	const TUINT uiRemainingFrames = m_oHeader.uiSampleFrames - a_uiStartSampleFrame;
-	const TUINT uiFramesToRead = uiRemainingFrames < CACHE_SAMPLE_FRAMES ?
-	                               uiRemainingFrames : CACHE_SAMPLE_FRAMES;
+	const TUINT uiFramesToRead = uiRemainingFrames < CACHE_PAGE_FRAMES ?
+	                               uiRemainingFrames : CACHE_PAGE_FRAMES;
 	TBOOL bRead = TFALSE;
 	if ( m_eFormat == StreamFormat_PCM )
 	{
@@ -262,14 +269,19 @@ TBOOL AStreamWave_PSP::ReadPage( TUINT a_uiStartSampleFrame, TUINT a_uiPage )
 	{
 		const TUINT uiBlock = a_uiStartSampleFrame / CACHE_SAMPLE_FRAMES;
 		const TINT iFileOffset = TINT( m_uiDataOffset + uiBlock * m_uiBlockBytes );
-		bRead = m_pFile->Seek( iFileOffset, Toshi::TSEEK_SET ) &&
-		        m_pFile->Read( m_aCompressedBlock, m_uiBlockBytes ) == m_uiBlockBytes &&
-		        AADPCMDecoder_PSP::DecodeBlock(
-		            m_aCompressedBlock,
-		            m_uiBlockBytes,
-		            m_aPages[ a_uiPage ].aSamples,
-		            uiFramesToRead
-		        );
+		bRead = m_pFile->Seek( iFileOffset, Toshi::TSEEK_SET );
+		for ( TUINT uiFrame = 0; bRead && uiFrame < uiFramesToRead; uiFrame += CACHE_SAMPLE_FRAMES )
+		{
+			const TUINT uiBlockFrames = uiFramesToRead - uiFrame < CACHE_SAMPLE_FRAMES ?
+			                                uiFramesToRead - uiFrame : CACHE_SAMPLE_FRAMES;
+			bRead = m_pFile->Read( m_aCompressedBlock, m_uiBlockBytes ) == m_uiBlockBytes &&
+			        AADPCMDecoder_PSP::DecodeBlock(
+			            m_aCompressedBlock,
+			            m_uiBlockBytes,
+			            m_aPages[ a_uiPage ].aSamples + uiFrame * AWave_PSP::OUTPUT_CHANNELS,
+			            uiBlockFrames
+			        );
+		}
 	}
 
 	if ( !bRead )
@@ -302,8 +314,7 @@ void AStreamWave_PSP::RequestPrefetch( TUINT a_uiStartSampleFrame )
 		return;
 
 	m_oStateMutex.Lock();
-	if ( m_uiPendingStart == INVALID_SAMPLE_FRAME &&
-	     m_uiLoadingStart != a_uiStartSampleFrame )
+	if ( m_uiPendingStart != a_uiStartSampleFrame && m_uiLoadingStart != a_uiStartSampleFrame )
 	{
 		m_uiPendingStart = a_uiStartSampleFrame;
 		m_oStateMutex.Unlock();
@@ -332,6 +343,7 @@ void AStreamWave_PSP::RunPrefetchThread()
 
 		m_oStateMutex.Lock();
 		m_aPages[ uiPage ].bReady = bRead;
+		m_uiFailedStart = bRead ? INVALID_SAMPLE_FRAME : uiStart;
 		m_uiLoadingStart = INVALID_SAMPLE_FRAME;
 		m_oStateMutex.Unlock();
 	}
