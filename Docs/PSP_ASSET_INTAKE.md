@@ -66,6 +66,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 
 | Tool | Repeatable bounded operation |
 | --- | --- |
+| `Tools/InventoryRetailInstall.ps1` | Inventories every retail file before a conversion pass and writes a deterministic, relative-path-only JSON report under the ignored workspace. |
 | `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
@@ -91,12 +92,28 @@ Keep orchestration in the PowerShell entry point and format transformations in
 the focused Python/C++ tools. Add tests beside a converter whenever a new
 reduction rule or retail edge case becomes deterministic.
 
+Every new content category follows a batch-first rule. Inventory the complete
+category, convert every discovered source into the ignored workspace, write a
+success/failure report, and only then integrate runtime subsets or fix reported
+exceptions. A targeted conversion must reuse the successful batch cache rather
+than silently re-exporting one hand-picked file. `StageOriginalGame.ps1` runs
+the complete install inventory before any converter so each pass has a stable
+source snapshot.
+
+The current complete retail install inventory contains 5,616 files. The major
+offline-conversion inputs are 3,874 TRB containers, 1,138 TTL texture libraries,
+261 TKL animation libraries, 76 FSB audio banks, 47 MP3 streams and 15 Bink
+movies. These totals describe the source installation, not content that can be
+made resident at once on PSP. Runtime selection remains lifetime- and
+memory-budgeted after each whole category has been processed.
+
 ## Generated data
 
 Host-tool dumps and converted PSP files belong in the ignored workspace:
 
 ```text
 Game/BarnyardPC/Workspace/Dumps/
+Game/BarnyardPC/Workspace/Inventory/
 Game/BarnyardPC/Workspace/Converted/
 Game/BarnyardPC/Workspace/Frontend/
 Game/BarnyardPC/Workspace/FrontendTerrain/

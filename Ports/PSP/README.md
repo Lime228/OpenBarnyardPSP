@@ -301,6 +301,22 @@ The converter rejects loop metadata for resident sounds and does not resample,
 downmix, or retain source data at runtime. Original game audio must be supplied
 by the user and remains outside the repository.
 
+## Batch-first retail intake
+
+Run the complete install inventory before adding another content type:
+
+```powershell
+.\Ports\PSP\Tools\InventoryRetailInstall.ps1
+```
+
+The report is written to the ignored
+`Game/BarnyardPC/Workspace/Inventory/retail_install.inventory.json` path and
+contains only relative paths, sizes and deterministic format/area summaries.
+`StageOriginalGame.ps1` performs this step automatically before conversion.
+For every new asset category, add one full-category batch entry point and a
+success/failure report first; targeted runtime packs must consume that batch
+cache instead of invoking the exporter again.
+
 ## Why this target is separate
 
 The current `new-modcore` build scripts and executable are Windows-only. Keeping

@@ -256,6 +256,13 @@ foreach ($retailFile in $retailFiles) {
 New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
 
 if (-not $SkipConversion) {
+    $inventoryArguments = @{
+        InstallDirectory = $installPath
+        OutputPath = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\Inventory\retail_install.inventory.json'
+    }
+    if ($PythonPath) { $inventoryArguments.PythonPath = $PythonPath }
+    & (Join-Path $PSScriptRoot 'Tools\InventoryRetailInstall.ps1') @inventoryArguments
+
     $conversionArguments = @{
         OutputDirectory = $frontendPath
         RuntimeDirectory = $runtimePath
