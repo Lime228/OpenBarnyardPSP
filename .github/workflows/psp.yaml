@@ -79,6 +79,8 @@ jobs:
           python3 Ports/PSP/Tools/test_convert_tmd_dump.py
           python3 Ports/PSP/Tools/test_convert_camera.py
           python3 Ports/PSP/Tools/test_convert_dds.py
+          python3 Ports/PSP/Tools/test_inventory_retail_install.py
+          python3 Ports/PSP/Tools/test_plan_gui_texture_batch.py
           python3 Ports/PSP/Tools/test_convert_terrain_dump.py
           python3 Ports/PSP/Tools/test_convert_terrain_cell.py
           python3 Ports/PSP/Tools/test_convert_placed_terrain_cell.py

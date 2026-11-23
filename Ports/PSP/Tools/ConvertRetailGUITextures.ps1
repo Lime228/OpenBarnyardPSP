@@ -107,6 +107,8 @@ $itemReports = @(foreach ($item in $plan.items) {
         source_symbol = $item.source_symbol
         source_texture = $item.source_texture
         status = [string] $item.status
+        source_width = 0
+        source_height = 0
         width = 0
         height = 0
         bytes = 0
@@ -134,7 +136,7 @@ $itemReports = @(foreach ($item in $plan.items) {
 
             $conversionOutput = @(
                 & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') `
-                    --max-width $TextureMaxWidth $ddsPath $pending 2>&1
+                    --pad-to-power-of-two --max-width $TextureMaxWidth $ddsPath $pending 2>&1
             )
             if ($LASTEXITCODE -ne 0 -or $conversionOutput.Count -eq 0) {
                 throw "PSP GUI conversion failed: $($conversionOutput | Select-Object -Last 1)"
@@ -145,6 +147,8 @@ $itemReports = @(foreach ($item in $plan.items) {
                 Remove-Item -LiteralPath $ddsPath
             }
             $itemReport.status = 'converted'
+            $itemReport.source_width = [int] $summary.source_width
+            $itemReport.source_height = [int] $summary.source_height
             $itemReport.width = [int] $summary.width
             $itemReport.height = [int] $summary.height
             $itemReport.bytes = [int64] $summary.bytes

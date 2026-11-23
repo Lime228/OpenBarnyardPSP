@@ -111,7 +111,7 @@ def decode_masked_pixels(
     return bytes(pixels)
 
 
-def read_dds(path: pathlib.Path) -> tuple[int, int, bytes]:
+def read_dds(path: pathlib.Path, allow_non_power_of_two: bool = False) -> tuple[int, int, bytes]:
     payload = path.read_bytes()
     if len(payload) < 128 or payload[:4] != b"DDS " or struct.unpack_from("<I", payload, 4)[0] != 124:
         raise ValueError("input is not a supported DDS file")
@@ -123,7 +123,9 @@ def read_dds(path: pathlib.Path) -> tuple[int, int, bytes]:
     bit_count, red_mask, green_mask, blue_mask, alpha_mask = struct.unpack_from("<5I", payload, 88)
     if pixel_format_size != 32:
         raise ValueError("DDS pixel format header must be 32 bytes")
-    if not is_power_of_two(width) or not is_power_of_two(height) or width > 512 or height > 512:
+    if not (1 <= width <= 512 and 1 <= height <= 512) or (
+        not allow_non_power_of_two and not (is_power_of_two(width) and is_power_of_two(height))
+    ):
         raise ValueError("PSP DDS dimensions must be powers of two no larger than 512x512")
 
     if fourcc == b"\0\0\0\0" and pixel_format_flags & 0x40:
@@ -204,14 +206,32 @@ def downsample_rgba_2x(pixels: bytes, width: int, height: int) -> tuple[int, int
     return output_width, output_height, bytes(output)
 
 
+def pad_rgba(
+    pixels: bytes, width: int, height: int, padded_width: int, padded_height: int
+) -> bytes:
+    rows = []
+    for y in range(height):
+        row = pixels[y * width * 4 : (y + 1) * width * 4]
+        rows.append(row + row[-4:] * (padded_width - width))
+    return b"".join(rows) + rows[-1] * (padded_height - height)
+
+
 def convert(
     source: pathlib.Path,
     destination: pathlib.Path,
     linear: bool = False,
     max_width: int | None = None,
+    pad_to_power_of_two: bool = False,
 ) -> dict[str, object]:
     alpha_mode = retail_alpha_mode(source)
-    width, height, pixels = read_dds(source)
+    width, height, pixels = read_dds(source, allow_non_power_of_two=pad_to_power_of_two)
+    source_width, source_height = width, height
+    if pad_to_power_of_two:
+        padded_width = max(1 if linear else 4, 1 << (width - 1).bit_length())
+        padded_height = max(1 if linear else 8, 1 << (height - 1).bit_length())
+        if (padded_width, padded_height) != (width, height):
+            pixels = pad_rgba(pixels, width, height, padded_width, padded_height)
+            width, height = padded_width, padded_height
     if max_width is not None:
         if not is_power_of_two(max_width) or max_width > 512:
             raise ValueError("PSP maximum width must be a power of two no larger than 512")
@@ -225,6 +245,8 @@ def convert(
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(header + pixels)
     return {
+        "source_width": source_width,
+        "source_height": source_height,
         "width": width,
         "height": height,
         "bytes": len(header) + len(pixels),
@@ -236,10 +258,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Convert a bounded DDS texture to OpenBarnyard PSP PTEX")
     parser.add_argument("--linear", action="store_true", help="store linear pixels instead of PSP-swizzled blocks")
     parser.add_argument("--max-width", type=int, help="reduce by 2x box filters until this PSP-safe width is reached")
+    parser.add_argument("--pad-to-power-of-two", action="store_true", help="extend edge pixels without changing source coordinates")
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
     args = parser.parse_args()
-    print(json.dumps(convert(args.source, args.destination, args.linear, args.max_width), sort_keys=True))
+    print(json.dumps(convert(args.source, args.destination, args.linear, args.max_width, args.pad_to_power_of_two), sort_keys=True))
 
 
 if __name__ == "__main__":
