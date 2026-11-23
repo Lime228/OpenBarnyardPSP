@@ -75,7 +75,7 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 		                     oHeader.uiVersion == AWaveDataHeader_PSP::VERSION &&
 		                     oHeader.uiSampleRate == ASoundManager_PSP::SAMPLE_RATE &&
 		                     oHeader.uiChannels == AWave_PSP::OUTPUT_CHANNELS &&
-		                     oHeader.uiSampleFrames > AWave_PSP::MAX_SAMPLE_FRAMES &&
+	                         oHeader.uiSampleFrames > CACHE_SAMPLE_FRAMES &&
 		                     oHeader.uiSampleFrames <= MAX_STREAM_SAMPLE_FRAMES &&
 		                     pFile->GetSize() == sizeof( oHeader ) +
 		                                             oHeader.uiSampleFrames *
@@ -98,7 +98,7 @@ TBOOL AStreamWave_PSP::Create( const TCHAR* a_pFilePath )
 		                     oHeader.uiVersion == AADPCMStreamHeader_PSP::VERSION &&
 		                     oHeader.uiSampleRate == ASoundManager_PSP::SAMPLE_RATE &&
 		                     oHeader.uiChannels == AWave_PSP::OUTPUT_CHANNELS &&
-		                     oHeader.uiSampleFrames > AWave_PSP::MAX_SAMPLE_FRAMES &&
+	                         oHeader.uiSampleFrames > CACHE_SAMPLE_FRAMES &&
 		                     oHeader.uiSampleFrames <= MAX_STREAM_SAMPLE_FRAMES &&
 		                     oHeader.uiBlockSampleFrames == AADPCMStreamHeader_PSP::BLOCK_SAMPLE_FRAMES &&
 		                     oHeader.uiBlockBytes == AADPCMStreamHeader_PSP::BLOCK_BYTES &&

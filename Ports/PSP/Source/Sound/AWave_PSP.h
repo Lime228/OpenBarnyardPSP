@@ -24,7 +24,7 @@ class TFile;
 class AWave_PSP
 {
 public:
-	static constexpr TUINT MAX_SAMPLE_FRAMES = 57344;
+	static constexpr TUINT MAX_RESIDENT_SAMPLE_FRAMES = 57344;
 	static constexpr TUINT OUTPUT_CHANNELS = 2;
 
 public:

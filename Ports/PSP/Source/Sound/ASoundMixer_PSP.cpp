@@ -1,5 +1,6 @@
 #include <ToshiPCH.h>
 #include "ASoundMixer_PSP.h"
+#include "ASoundManager_PSP.h"
 
 #include <Toshi/TUtil.h>
 
@@ -304,7 +305,7 @@ TBOOL ASoundMixer_PSP::GetStreamTime(
 
 TBOOL ASoundMixer_PSP::Mix( TINT16* a_pOutputSamples, TUINT a_uiSampleFrames )
 {
-	if ( a_pOutputSamples == TNULL || a_uiSampleFrames != AWave_PSP::MAX_SAMPLE_FRAMES )
+	if ( a_pOutputSamples == TNULL || a_uiSampleFrames != ASoundManager_PSP::BUFFER_SAMPLE_FRAMES )
 		return TFALSE;
 
 	TBOOL bMixedVoice = TFALSE;

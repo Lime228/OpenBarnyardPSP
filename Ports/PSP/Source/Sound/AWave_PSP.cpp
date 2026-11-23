@@ -56,7 +56,7 @@ TBOOL AWave_PSP::AllocateSamples( const AWaveDataHeader_PSP& a_rcHeader, TSIZE a
 	     a_rcHeader.uiVersion != AWaveDataHeader_PSP::VERSION ||
 	     a_rcHeader.uiSampleRate != ASoundManager_PSP::SAMPLE_RATE ||
 	     ( a_rcHeader.uiChannels != 1 && a_rcHeader.uiChannels != OUTPUT_CHANNELS ) ||
-	     a_rcHeader.uiSampleFrames == 0 || a_rcHeader.uiSampleFrames > MAX_SAMPLE_FRAMES )
+	     a_rcHeader.uiSampleFrames == 0 || a_rcHeader.uiSampleFrames > MAX_RESIDENT_SAMPLE_FRAMES )
 	{
 		return TFALSE;
 	}
