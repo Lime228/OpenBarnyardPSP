@@ -67,6 +67,10 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | Tool | Repeatable bounded operation |
 | --- | --- |
 | `Tools/InventoryRetailInstall.ps1` | Inventories every retail file before a conversion pass and writes a deterministic, relative-path-only JSON report under the ignored workspace. |
+| `Tools/InventoryRetailTextureLibraries.ps1` | Indexes standalone TTL files and `*_TTL` symbols in `Data/Assets` packs, recording their exact texture names and input failures. |
+| `Tools/ConvertRetailGUITextures.ps1` | Converts every resolvable source variant referenced by `texsec.trb` to PTEX and reports missing names and unsupported inputs. |
+| `Tools/inventory_retail_fsb.py` | Indexes all FSB3.1 audio banks and records original track indices, channel counts, rates and loop fields. |
+| `Tools/decode_retail_fsb.py` | Uses vgmstream CLI to decode the indexed tracks once at their native rates and channel counts, then verifies each PCM WAV header. |
 | `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
@@ -107,6 +111,41 @@ movies. These totals describe the source installation, not content that can be
 made resident at once on PSP. Runtime selection remains lifetime- and
 memory-budgeted after each whole category has been processed.
 
+Run the complete GUI texture batch locally with a current TMDL build:
+
+```powershell
+.\Ports\PSP\Tools\ConvertRetailGUITextures.ps1 -AllowFailures
+```
+
+The recipe saves the asset-pack and TTL index in `Workspace/TextureLibraries`
+and writes the batch report to `Workspace/GUITextures/gui_textures.batch.json`.
+Use `-ReuseInventories` on the same installation to reuse unchanged index dumps.
+The cache keys by source file, symbol and full texture name, preserving
+localized variants and names with a shared basename. The default 512-pixel
+limit preserves native atlas coordinates and extends edges when a power-of-two
+size is required. Read the report before selecting any files for staging.
+Omit `-AllowFailures` to make missing sources or unsupported libraries fail
+the command after it writes the report.
+
+The full GUI pass from PSP CI run `45169619708` converted all 1,155 source
+variants found for 195 texture names. The 999 sections reference 287 unique
+names. The report lists the 92 names whose sources remain unresolved and the
+two alternate-format TTL libraries that TMDL rejected.
+
+For audio, use Python 3.12 or later and the
+[vgmstream CLI release](https://github.com/vgmstream/vgmstream/releases/tag/r2168).
+
+```powershell
+python Ports/PSP/Tools/inventory_retail_fsb.py Game/BarnyardPC/Install Game/BarnyardPC/Workspace/AudioBanks/fsb.inventory.json
+python Ports/PSP/Tools/decode_retail_fsb.py --decoder <vgmstream-cli.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/AudioBanks/fsb.inventory.json Game/BarnyardPC/Workspace/AudioBanks/Decoded
+```
+
+All 76 banks and 3,071 tracks decoded successfully in the full local pass.
+The 1.99 GB WAV cache preserves channel count, sample rate and frame count.
+The FSB index keeps the original loop fields for PSP encoding. Keep each bank
+path and track index intact when mapping game cues. The 47 MP3s in this
+installation belong to the PC manual.
+
 ## Generated data
 
 Host-tool dumps and converted PSP files belong in the ignored workspace:
@@ -114,6 +153,9 @@ Host-tool dumps and converted PSP files belong in the ignored workspace:
 ```text
 Game/BarnyardPC/Workspace/Dumps/
 Game/BarnyardPC/Workspace/Inventory/
+Game/BarnyardPC/Workspace/TextureLibraries/
+Game/BarnyardPC/Workspace/GUITextures/
+Game/BarnyardPC/Workspace/AudioBanks/
 Game/BarnyardPC/Workspace/Converted/
 Game/BarnyardPC/Workspace/Frontend/
 Game/BarnyardPC/Workspace/FrontendTerrain/
