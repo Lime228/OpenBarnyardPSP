@@ -17,6 +17,7 @@ param(
     [string] $FrontendInstancesDirectory = '',
     [string] $FrontendCameraDirectory = '',
     [string] $FrontendBarnSignDirectory = '',
+    [string] $MoviesDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
@@ -79,6 +80,11 @@ if (-not $FrontendBarnSignDirectory) {
 }
 if (-not $RuntimeDirectory) {
     $RuntimeDirectory = Join-Path $repositoryRoot 'Runtime\OpenBarnyardPSPGame'
+}
+
+$moviesDirectoryRequired = [bool]$MoviesDirectory
+if (-not $MoviesDirectory) {
+    $MoviesDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\Movies'
 }
 
 $buildPath = [System.IO.Path]::GetFullPath($BuildDirectory)
@@ -927,6 +933,41 @@ foreach ($retailFile in $retailFiles) {
     $destinationPath = Join-Path $runtimePath $retailFile.Destination
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destinationPath) | Out-Null
     Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+}
+
+$movieSource = Join-Path $MoviesDirectory 'Data\Movies'
+if (Test-Path -LiteralPath $movieSource -PathType Container) {
+    foreach ($name in @('NickMovs', 'THQ', 'BTE', 'Attract')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $movieSource "$name.pmvf") -PathType Leaf)) {
+            throw "Converted startup movie is missing: $name.pmvf"
+        }
+    }
+    $movies = @(Get-ChildItem -LiteralPath $movieSource -Filter '*.pmvf' -File)
+    foreach ($movie in $movies) {
+        $stream = [System.IO.File]::OpenRead($movie.FullName)
+        try {
+            $header = [byte[]]::new(12)
+            if ($stream.Read($header, 0, $header.Length) -ne $header.Length -or
+                [System.Text.Encoding]::ASCII.GetString($header, 0, 4) -cne 'PMVF' -or
+                [System.BitConverter]::ToUInt32($header, 4) -ne 2 -or
+                [System.BitConverter]::ToUInt32($header, 8) -ne 48) {
+                throw "Expected a PMVF v2 cache: $($movie.FullName)"
+            }
+        }
+        finally { $stream.Dispose() }
+    }
+    $movieDestination = Join-Path $runtimePath 'Data\Movies'
+    New-Item -ItemType Directory -Force -Path $movieDestination | Out-Null
+    foreach ($movie in $movies) {
+        Copy-Item -LiteralPath $movie.FullName -Destination $movieDestination -Force
+    }
+    Write-Output "Staged $($movies.Count) converted retail movies"
+}
+elseif ($moviesDirectoryRequired) {
+    throw "Converted movie directory was not found: $movieSource"
+}
+else {
+    Write-Warning "Converted movies are missing at $movieSource. Run convert_retail_movies.py to enable startup playback."
 }
 
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force
