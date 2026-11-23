@@ -333,13 +333,18 @@ void AStreamWave_PSP::RunPrefetchThread()
 
 		m_oStateMutex.Lock();
 		const TUINT uiStart = m_uiPendingStart;
+		if ( uiStart == INVALID_SAMPLE_FRAME )
+		{
+			m_oStateMutex.Unlock();
+			continue;
+		}
 		m_uiPendingStart = INVALID_SAMPLE_FRAME;
 		m_uiLoadingStart = uiStart;
 		const TUINT uiPage = ( m_uiCurrentPage + 1 ) % CACHE_PAGE_COUNT;
 		m_aPages[ uiPage ].bReady = TFALSE;
 		m_oStateMutex.Unlock();
 
-		const TBOOL bRead = uiStart != INVALID_SAMPLE_FRAME && ReadPage( uiStart, uiPage );
+		const TBOOL bRead = ReadPage( uiStart, uiPage );
 
 		m_oStateMutex.Lock();
 		m_aPages[ uiPage ].bReady = bRead;
