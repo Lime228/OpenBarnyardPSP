@@ -71,6 +71,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `Tools/ConvertRetailGUITextures.ps1` | Converts every resolvable source variant referenced by `texsec.trb` to PTEX and reports missing names and unsupported inputs. |
 | `Tools/inventory_retail_fsb.py` | Indexes all FSB3.1 audio banks and records original track indices, channel counts, rates and loop fields. |
 | `Tools/decode_retail_fsb.py` | Uses vgmstream CLI to decode the indexed tracks once at their native rates and channel counts, then verifies each PCM WAV header. |
+| `Tools/encode_retail_fsb.py` | Reads the complete WAV cache, emits 44.1 kHz PSP streams or resident cues, and reports the channel and segment mapping for every track. |
 | `Tools/ConvertRetailFrontend.ps1` | Extracts the shipping `Dialogs\\barnyard_logo.tga`, reduces it to a PSP-safe 256x64 PTEX and can publish it beside an EBOOT without copying retail containers. |
 | `Tools/ConvertRetailPreview.ps1` | Reads the manifest, selects the newest local CI-built TMDL, runs the complete skin pipeline and can publish into an EBOOT directory. |
 | `Tools/TMDL -psp-dump` | Relocates one retail model TRB on the host and writes the stable JSON skin/skeleton contract. |
@@ -145,6 +146,22 @@ The 1.99 GB WAV cache preserves channel count, sample rate and frame count.
 The FSB index keeps the original loop fields for PSP encoding. Keep each bank
 path and track index intact when mapping game cues. The 47 MP3s in this
 installation belong to the PC manual.
+
+Run the PSP encoding pass with Python 3.12:
+
+```powershell
+python Ports/PSP/Tools/encode_retail_fsb.py Game/BarnyardPC/Workspace/AudioBanks/fsb.inventory.json Game/BarnyardPC/Workspace/AudioBanks/Decoded Game/BarnyardPC/Workspace/AudioBanks/Encoded
+```
+
+The local pass produced 3,105 files for 3,071 tracks (863,498,496 bytes).
+All output headers use 44.1 kHz stereo. Mono is duplicated to left and right,
+and four-channel tracks keep both pairs as separate files. Tracks longer than
+the current 300-second stream limit are split at aligned block boundaries.
+`fsb.encode.json` records segment order, source channel assignments, original
+loop fields, exact resampled loop positions and block-aligned PADP loop
+positions. Use the source mode and game cue settings to decide when to loop.
+The grouped output still needs cue mapping, paired playback for the 25
+four-channel tracks and ordered playback for the three split tracks.
 
 ## Generated data
 
