@@ -5,7 +5,7 @@ param(
     [string] $PPSSPPPath = '',
     [switch] $OriginalGame,
 
-    [ValidateSet('Cross', 'Circle', 'Start', 'DpadUp', 'DpadDown', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'Screenshot')]
+    [ValidateSet('Cross', 'Circle', 'Triangle', 'Start', 'DpadUp', 'DpadDown', 'DpadLeft', 'DpadRight', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'Screenshot')]
     [string] $Key = 'Cross',
 
     [ValidateRange(1, 60)]
@@ -432,9 +432,12 @@ function Send-OpenBarnyardPPSSPPKey {
     $buttons = @{
         Cross = 'cross'
         Circle = 'circle'
+        Triangle = 'triangle'
         Start = 'start'
         DpadUp = 'up'
         DpadDown = 'down'
+        DpadLeft = 'left'
+        DpadRight = 'right'
     }
 
     $window = [IntPtr]::Zero
