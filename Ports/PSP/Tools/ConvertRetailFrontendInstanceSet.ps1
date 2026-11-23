@@ -4,7 +4,8 @@ param(
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
     [string] $OutputDirectory = '',
-    [string] $RuntimeDirectory = ''
+    [string] $RuntimeDirectory = '',
+    [switch] $ReuseConvertedModels
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,13 +29,15 @@ $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
 $workspacePath = Split-Path -Parent $outputPath
 New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 
-if (-not $TMDLPath) {
-    $TMDLPath = & (Join-Path $PSScriptRoot 'ResolvePSPHostTool.ps1') -RepositoryRoot $repositoryRoot
+if (-not $ReuseConvertedModels) {
+    if (-not $TMDLPath) {
+        $TMDLPath = & (Join-Path $PSScriptRoot 'ResolvePSPHostTool.ps1') -RepositoryRoot $repositoryRoot
+    }
+    if (-not $TMDLPath -or -not (Test-Path -LiteralPath $TMDLPath -PathType Leaf)) {
+        throw 'TMDL.exe was not found; pass -TMDLPath or download the OpenBarnyard-PSP-host-tools artifact'
+    }
+    $TMDLPath = (Resolve-Path -LiteralPath $TMDLPath).Path
 }
-if (-not $TMDLPath -or -not (Test-Path -LiteralPath $TMDLPath -PathType Leaf)) {
-    throw 'TMDL.exe was not found; pass -TMDLPath or download the OpenBarnyard-PSP-host-tools artifact'
-}
-$TMDLPath = (Resolve-Path -LiteralPath $TMDLPath).Path
 
 $pythonArguments = @()
 if (-not $PythonPath) {
@@ -65,12 +68,18 @@ $PythonPath = (Resolve-Path -LiteralPath $PythonPath).Path
 $sourceManifests = @()
 foreach ($modelName in $ModelNames) {
     $sourceDirectory = Join-Path $workspacePath $modelName
-    & (Join-Path $PSScriptRoot 'ConvertRetailFrontendInstanceModel.ps1') `
-        -ModelName $modelName `
-        -TMDLPath $TMDLPath `
-        -PythonPath $PythonPath `
-        -OutputDirectory $sourceDirectory | Out-Null
-    $sourceManifests += Join-Path $sourceDirectory "frontend_instances_$modelName.json"
+    $sourceManifestPath = Join-Path $sourceDirectory "frontend_instances_$modelName.json"
+    if (-not $ReuseConvertedModels) {
+        & (Join-Path $PSScriptRoot 'ConvertRetailFrontendInstanceModel.ps1') `
+            -ModelName $modelName `
+            -TMDLPath $TMDLPath `
+            -PythonPath $PythonPath `
+            -OutputDirectory $sourceDirectory | Out-Null
+    }
+    if (-not (Test-Path -LiteralPath $sourceManifestPath -PathType Leaf)) {
+        throw "Converted original frontend instance model was not found: $sourceManifestPath"
+    }
+    $sourceManifests += $sourceManifestPath
 }
 
 & $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'combine_frontend_instance_packs.py') `
