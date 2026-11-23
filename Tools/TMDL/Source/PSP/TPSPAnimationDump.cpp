@@ -8,6 +8,7 @@
 #include <Render/TSkeleton.h>
 
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <iomanip>
 #include <locale>
@@ -138,6 +139,7 @@ static TBOOL IsPoseFinite_PSPAnimation( const TQuaternion& a_rRotation, const TV
 }
 
 static TBOOL ValidateSequenceBone_PSPAnimation(
+    PTRBSections&          a_rSections,
     TSkeletonSequenceBone& a_rSequenceBone,
     TINT                   a_iTranslationCount,
     TINT                   a_iQuaternionCount
@@ -147,17 +149,27 @@ static TBOOL ValidateSequenceBone_PSPAnimation(
 	if ( uiKeyCount == 0 )
 		return TTRUE;
 	const TUINT8 uiMinimumKeySize = a_rSequenceBone.IsTranslateAnimated() ? 6 : 4;
-	if ( a_rSequenceBone.m_pData == TNULL || a_rSequenceBone.m_iKeySize < uiMinimumKeySize )
+	const TUINT8 uiKeySize = a_rSequenceBone.m_iKeySize;
+	if ( uiKeySize < uiMinimumKeySize || ( uiKeySize & 1 ) != 0 ||
+	     TSIZE( uiKeyCount ) * uiKeySize > GetBytesRemaining_PSPAnimation( a_rSections, a_rSequenceBone.m_pData ) )
+	{
+		std::fprintf( stderr, "Invalid animation key storage: %u keys, %u bytes per key\n", TUINT( uiKeyCount ), TUINT( uiKeySize ) );
 		return TFALSE;
+	}
 
 	TUINT16 uiPreviousTime = 0;
 	for ( TUINT16 i = 0; i < uiKeyCount; i++ )
 	{
 		const TUINT16* pKey = a_rSequenceBone.GetKey( i );
-		if ( ( i != 0 && pKey[ 0 ] <= uiPreviousTime ) || pKey[ 1 ] >= a_iQuaternionCount )
+		// GetKeyPair skips all keys at or before the sample time when searching forward.
+		if ( ( i != 0 && pKey[ 0 ] < uiPreviousTime ) || pKey[ 1 ] >= a_iQuaternionCount ||
+		     ( a_rSequenceBone.IsTranslateAnimated() && pKey[ 2 ] >= a_iTranslationCount ) )
+		{
+			std::fprintf( stderr, "Invalid animation key %u: time=%u previous=%u quaternion=%u/%d translation=%d/%d\n",
+			    TUINT( i ), TUINT( pKey[ 0 ] ), TUINT( uiPreviousTime ), TUINT( pKey[ 1 ] ), a_iQuaternionCount,
+			    a_rSequenceBone.IsTranslateAnimated() ? TINT( pKey[ 2 ] ) : -1, a_iTranslationCount );
 			return TFALSE;
-		if ( a_rSequenceBone.IsTranslateAnimated() && pKey[ 2 ] >= a_iTranslationCount )
-			return TFALSE;
+		}
 		uiPreviousTime = pKey[ 0 ];
 	}
 	return TTRUE;
@@ -275,11 +287,11 @@ TBOOL ExportPSPAnimationDump(
 	     rSequence.GetDuration() <= 0.0f || !std::isfinite( rSequence.GetDuration() ) )
 		return TFALSE;
 
-	if ( rSequence.m_pSeqBones == TNULL )
+	if ( TSIZE( iAutoBoneCount ) * sizeof( TSkeletonSequenceBone ) > GetBytesRemaining_PSPAnimation( *oModelTRB.GetSections(), rSequence.m_pSeqBones ) )
 		return TFALSE;
 	for ( TINT bone = 0; bone < iAutoBoneCount; bone++ )
 	{
-		if ( !ValidateSequenceBone_PSPAnimation( *rSequence.GetBone( bone ), rSkeletonHeader.m_iTKeyCount, rSkeletonHeader.m_iQKeyCount ) )
+		if ( !ValidateSequenceBone_PSPAnimation( *oModelTRB.GetSections(), *rSequence.GetBone( bone ), rSkeletonHeader.m_iTKeyCount, rSkeletonHeader.m_iQKeyCount ) )
 			return TFALSE;
 	}
 
@@ -346,6 +358,7 @@ TBOOL ExportPSPAnimationDump(
 			}
 			if ( !bSampled )
 			{
+				std::fprintf( stderr, "Invalid pose at animation frame %d, bone %d\n", frame, bone );
 				return TFALSE;
 			}
 			oOutput << "      ";
