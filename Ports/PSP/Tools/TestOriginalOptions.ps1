@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)] [string] $RuntimeDirectory,
     [switch] $Capture,
     [switch] $RequireMenuAudio,
-    [switch] $RequireMenuMusic
+    [switch] $RequireMenuMusic,
+    [switch] $CheckNewGame
 )
 
 $ErrorActionPreference = 'Stop'
@@ -101,6 +102,21 @@ try {
     }
 
     $main = Wait-Menu 'frontend-menu-ready' 0
+    if ($CheckNewGame) {
+        Send-Key Cross
+        $null = Wait-Menu 'frontend-new-game-ready' 0 @{ new_game_requested_slot = -1 }
+        foreach ($slot in 1..3) {
+            Send-Key DpadDown
+            $null = Wait-Menu 'frontend-new-game-ready' $slot
+        }
+        if ($Capture) { Send-Key Screenshot }
+        Send-Key Cross
+        $null = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 @{ new_game_requested_slot = 3 }
+        Send-Key Triangle
+        $main = Wait-Menu 'frontend-new-game-return' 0
+        'New Game opened the four original slots, recorded slot 4 and returned on Cancel.'
+    }
+    $mainPhase = $main.phase
     if ($RequireMenuAudio -and $main.menu_audio_ready -ne '1') {
         throw "Original UI wave bank or PSP audio channel did not initialize. See $gameLog"
     }
@@ -109,10 +125,10 @@ try {
         "Original main-menu music playing at $($musicStart.menu_music_position_ms) ms."
     }
     Send-Key DpadDown
-    $null = Wait-Menu 'frontend-menu-ready' 1
+    $null = Wait-Menu $mainPhase 1
     if ($RequireMenuAudio) { Wait-MenuCue 174 $main }
     Send-Key DpadDown
-    $before = Wait-Menu 'frontend-menu-ready' 2
+    $before = Wait-Menu $mainPhase 2
     Send-Key Cross
     $original = Wait-Menu 'frontend-options-ready' 0
     if ($RequireMenuAudio) { Wait-MenuCue 175 $before }
