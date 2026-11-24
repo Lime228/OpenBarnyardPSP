@@ -369,6 +369,7 @@ if (-not $SkipConversion) {
 $frontendFiles = @(
     'barnyard_logo.ptex',
     'Rekord_Black_26.ptex',
+    'Rekord_Black_18.ptex',
     'Panel_01.ptex',
     'Left_Arrow.ptex',
     'Statue_GoldStar.ptex',

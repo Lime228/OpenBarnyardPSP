@@ -54,6 +54,7 @@ New-Item -ItemType Directory -Force -Path $outputPath,$dumpPath,(Join-Path (Spli
 $items = @(
     @{ Library = 'Install\Data\Matlibs\gui_FrontEnd.ttl'; Texture = 'Dialogs\barnyard_logo.tga'; Output = 'barnyard_logo' },
     @{ Library = 'Install\Data\Matlibs\gui_Fonts.ttl'; Texture = 'Fonts\Rekord_Black_26.tga'; Output = 'Rekord_Black_26'; MaxWidth = 512 },
+    @{ Library = 'Install\Data\Matlibs\gui_Fonts.ttl'; Texture = 'Fonts\Rekord_Black_18.tga'; Output = 'Rekord_Black_18'; MaxWidth = 512 },
     @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Panel_01.tga'; Output = 'Panel_01' },
     @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Left_Arrow.tga'; Output = 'Left_Arrow' },
     @{ Library = 'Install\Data\Matlibs\gui_HUD.ttl'; Texture = 'HUD\Statue_GoldStar.tga'; Output = 'Statue_GoldStar' },
