@@ -354,6 +354,10 @@ skinned models with skeletons, the barn door with its two original meshes,
 and 20 shared textures. The runtime files for this batch occupy about 2.46 MiB
 on disk. The packed Otis and barn door geometry dumps match their standalone
 exports. Header and bone-count checks passed for 148 cached model clips.
+`ConvertRetailSS01.ps1` regenerates the sequence manifest, models and terrain
+in one pass. The original TSO specifies two voice lines for actor 15. FMOD
+substream indices 1 and 2 map to entries 2 and 3 in the offline FSB report.
+Both have their original audio encoded as PADP in the local cache.
 Scene loading, script dispatch through the original `ASSeq` and input for
 the transition from the New Game chooser still need implementation.
 

@@ -334,9 +334,15 @@ before returning a nonzero exit code for exporter rejections.
 
 ## Generated data
 
-For the New Game intro, export the original SS01 terrain selected by the
-`Dummy` visibility row. Use the TMDL artifact from CI run `45355999246` or
-a succeeding build.
+For the New Game intro, regenerate the SS01 sequence manifest, models and
+the terrain selected by the original `Dummy` visibility row in one pass.
+Use the TMDL artifact from CI run `45358726618` or later.
+
+```powershell
+.\Ports\PSP\Tools\ConvertRetailSS01.ps1
+```
+
+Run the terrain pass by itself when iterating on terrain conversion.
 
 ```powershell
 .\Ports\PSP\Tools\ConvertRetailSS01Terrain.ps1
@@ -359,13 +365,14 @@ Generate the sequence dependency manifest directly from the installed game.
 python Ports/PSP/Tools/inventory_retail_sequence.py --tmdl <TMDL.exe> Game/BarnyardPC/Install SS01_start Game/BarnyardPC/Workspace/SS01/Sequence
 ```
 
-`sequence.json` records the original descriptor, TSO track table, asset pack
-and model-type library. It resolves material libraries, key libraries and
-model headers against the asset pack's symbols. Names without a matching
-symbol in the pack stay visible in the report, including types that may
-come from another library. The same command accepts other retail sequence
-stems, such as `SS02_rac`. It was verified against all 29 installed sets
-that have a descriptor, TSO and model-type library with the same stem.
+`sequence.json` records the original descriptor, TSO track table and voice
+instructions, asset pack and model-type library. It resolves material
+libraries, key libraries and model headers against the asset pack's symbols.
+Names without a matching symbol in the pack stay visible in the report,
+including types that may come from another library. The command accepts
+other sequence stems, such as `SS02_rac`. It was verified against all 29
+installed sets that have a descriptor, TSO and model-type library with the
+same stem.
 Seventeen have no `modellib` declaration. Their reports preserve the
 references for resolution against the libraries already loaded by the game.
 These manifests are generated locally for conversion and packaging.
