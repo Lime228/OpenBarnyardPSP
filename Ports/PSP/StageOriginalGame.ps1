@@ -19,6 +19,7 @@ param(
     [string] $FrontendBarnSignDirectory = '',
     [string] $MoviesDirectory = '',
     [string] $AudioBanksDirectory = '',
+    [string] $SS01TerrainDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
@@ -1012,6 +1013,32 @@ elseif ($moviesDirectoryRequired) {
 }
 else {
     Write-Warning "Converted movies are missing at $movieSource. Run convert_retail_movies.py to enable startup playback."
+}
+
+if ($SS01TerrainDirectory) {
+    $ss01Index = Join-Path $SS01TerrainDirectory 'terrain.ptld'
+    $index = [IO.File]::ReadAllBytes($ss01Index)
+    if ($index.Length -lt 16 -or [Text.Encoding]::ASCII.GetString($index, 0, 4) -cne 'PTLD' -or
+        [BitConverter]::ToUInt32($index, 4) -ne 1) {
+        throw "Expected the generated SS01 terrain index at $ss01Index"
+    }
+    $meshes = [BitConverter]::ToUInt32($index, 8)
+    $textures = [BitConverter]::ToUInt32($index, 12)
+    if ($meshes -lt 1 -or $meshes -gt 512 -or $textures -lt 1 -or $textures -gt 256 -or
+        $index.Length -ne 16 + 16 * $meshes) {
+        throw "Invalid SS01 terrain counts in $ss01Index"
+    }
+
+    $ss01Files = @(for ($i = 0; $i -lt $meshes; $i++) { "mesh_$i.pmes" }
+                   for ($i = 0; $i -lt $textures; $i++) { "texture_$i.ptex" })
+    $sources = foreach ($name in $ss01Files) {
+        (Get-Item -LiteralPath (Join-Path $SS01TerrainDirectory $name)).FullName
+    }
+    $ss01Destination = Join-Path $runtimePath 'Data\Terrain\SS01'
+    New-Item -ItemType Directory -Force -Path $ss01Destination | Out-Null
+    Copy-Item -LiteralPath $sources -Destination $ss01Destination -Force
+    Copy-Item -LiteralPath $ss01Index -Destination $ss01Destination -Force
+    Write-Output "Staged SS01 terrain ($meshes meshes and $textures shared textures)"
 }
 
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force

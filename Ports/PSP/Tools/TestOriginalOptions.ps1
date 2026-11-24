@@ -4,7 +4,8 @@ param(
     [switch] $Capture,
     [switch] $RequireMenuAudio,
     [switch] $RequireMenuMusic,
-    [switch] $CheckNewGame
+    [switch] $CheckNewGame,
+    [switch] $CheckNewGameTerrain
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,6 +14,10 @@ $runner = Join-Path $PSScriptRoot '..\RunPPSSPP.ps1'
 $eboot = Join-Path $runtimePath 'EBOOT.PBP'
 $gameLog = Join-Path $runtimePath 'openbarnyard_psp_game.log'
 $movieLog = Join-Path $runtimePath 'openbarnyard_psp_movies.log'
+$terrainIndex = Join-Path $runtimePath 'Data\Terrain\SS01\terrain.ptld'
+if ($CheckNewGameTerrain -and -not (Test-Path -LiteralPath $terrainIndex -PathType Leaf)) {
+    throw "Stage the SS01 terrain before running this check. Missing index: $terrainIndex"
+}
 if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContinue) {
     throw 'An existing PPSSPP process is running.'
 }
@@ -36,7 +41,7 @@ function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}) {
     $deadline = (Get-Date).AddSeconds(10)
     do {
         $status = Read-GameLog
-        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
+        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
         $matching = $status.phase -eq $Phase -and $status.menu_state -eq '5' -and $status.menu_focus -eq "$Focus"
         foreach ($key in $Expected.Keys) { $matching = $matching -and $status[$key] -eq [string]$Expected[$key] }
         if ($matching) { return $status }
@@ -102,7 +107,7 @@ try {
     }
 
     $main = Wait-Menu 'frontend-menu-ready' 0
-    if ($CheckNewGame) {
+    if ($CheckNewGame -or $CheckNewGameTerrain) {
         Send-Key Cross
         $null = Wait-Menu 'frontend-new-game-ready' 0 @{ new_game_requested_slot = -1 }
         foreach ($slot in 1..3) {
@@ -111,7 +116,23 @@ try {
         }
         if ($Capture) { Send-Key Screenshot }
         Send-Key Cross
-        $null = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 @{ new_game_requested_slot = 3; new_game_script_tracks = 21 }
+        $expected = @{ new_game_requested_slot = 3; new_game_script_tracks = 21 }
+        if ($CheckNewGameTerrain) {
+            $index = [IO.File]::ReadAllBytes($terrainIndex)
+            $expected.new_game_terrain_meshes = [BitConverter]::ToUInt32($index, 8)
+            $expected.new_game_terrain_textures = [BitConverter]::ToUInt32($index, 12)
+            $expected.new_game_terrain_released = 1
+        }
+        $newGame = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 $expected
+        if ($CheckNewGameTerrain) {
+            if ([int]$newGame.new_game_terrain_bytes -le 0 -or [int]$newGame.new_game_terrain_heap_free -le 0) {
+                throw "No SS01 memory measurement in $gameLog"
+            }
+            if ($newGame.render_main_current -ne $main.render_main_current) {
+                throw "Frontend resource residency differs after the SS01 round trip. See $gameLog"
+            }
+            "Loaded SS01 terrain: $($newGame.new_game_terrain_meshes) meshes, $($newGame.new_game_terrain_textures) textures, $($newGame.new_game_terrain_bytes) render bytes, $($newGame.new_game_terrain_heap_free) heap bytes free. Restored the menu."
+        }
         Send-Key Triangle
         $main = Wait-Menu 'frontend-new-game-return' 0
         'New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on Cancel.'
