@@ -142,7 +142,11 @@ try {
         if ($CheckNewGameTerrain) { $expected.new_game_terrain_released = 1 }
         if ($CheckNewGameOpening) {
             $newGame = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
-            if ($Capture) { Send-Key Screenshot }
+            if ($Capture) {
+                Send-Key Screenshot
+                Start-Sleep -Milliseconds 750
+                Send-Key Screenshot
+            }
             "Rendered the original SS01 opening ($($newGame.new_game_opening_draws) draws across $($newGame.new_game_opening_frames) frames)."
         }
         else {
