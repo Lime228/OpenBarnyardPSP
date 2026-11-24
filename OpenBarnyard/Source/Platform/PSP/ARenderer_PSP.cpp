@@ -8,6 +8,7 @@
 #include "AFrontEndTerrainPack_PSP.h"
 #include "AGameRuntimeReport_PSP.h"
 #include "ASSeqTerrain_PSP.h"
+#include "ASkyDome_PSP.h"
 #include "GUI/AGUI2.h"
 #include "Movie/AMoviePlayer.h"
 #include "Render/ARenderer.h"
@@ -42,6 +43,7 @@ static AFrontEndTerrainPack_PSP s_FrontEndMeadowsouth_PSP;
 static AFrontEndInstanceManager_PSP s_FrontEndInstanceManager_PSP;
 static ASSeqTerrain_PSP s_SSeqTerrain_PSP;
 static AFrontEndCamera_PSP s_SSeqOpeningCamera_PSP;
+static ASkyDome_PSP s_SSeqSkyDome_PSP;
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 static constexpr TCHAR s_szOpeningConfig_PSP[] = "local:Data/ScriptedSequence/SS01/opening.psco";
 static constexpr TCHAR s_szOpeningCamera_PSP[] = "local:Data/ScriptedSequence/SS01/opening.pcam";
@@ -198,7 +200,9 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 	{
 		s_SSeqOpeningCamera_PSP.Update( a_fDeltaTime );
 		s_RenderInterface_PSP.BeginScene( 0xff000000 );
-		rReport.uiNewGameOpeningDraws += s_SSeqTerrain_PSP.Render( s_RenderInterface_PSP, s_SSeqOpeningCamera_PSP.GetRenderCamera() );
+		const TRenderCamera_PSP& rCamera = s_SSeqOpeningCamera_PSP.GetRenderCamera();
+		rReport.uiNewGameSkyDraws += s_SSeqSkyDome_PSP.Render( s_RenderInterface_PSP, rCamera, a_fDeltaTime );
+		rReport.uiNewGameOpeningDraws += s_SSeqTerrain_PSP.Render( s_RenderInterface_PSP, rCamera );
 		s_RenderInterface_PSP.EndScene();
 		rReport.uiNewGameOpeningFrames++;
 		if ( rReport.uiNewGameOpeningFrames == 1 || rReport.uiRendererFrames % 60 == 0 )
@@ -410,11 +414,18 @@ TBOOL AStartSSeqOpening_PSP()
 		ASetGameRuntimeFailedPath_PSP( s_SSeqTerrain_PSP.GetFailedPath() );
 		return TFALSE;
 	}
+	if ( !s_SSeqSkyDome_PSP.Load() )
+	{
+		AStopSSeqOpening_PSP( TTRUE );
+		ASetGameRuntimeFailedPath_PSP( s_SSeqSkyDome_PSP.GetFailedPath() );
+		return TFALSE;
+	}
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiNewGameTerrainMeshes = s_SSeqTerrain_PSP.GetMeshCount();
 	rReport.uiNewGameTerrainTextures = s_SSeqTerrain_PSP.GetTextureCount();
 	rReport.uiNewGameOpeningDraws = 0;
 	rReport.uiNewGameOpeningFrames = 0;
+	rReport.uiNewGameSkyDraws = 0;
 	AUpdateGameRuntimeMemory_PSP();
 	return TTRUE;
 }
@@ -424,6 +435,7 @@ void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend )
 	if ( !s_SSeqOpeningCamera_PSP.IsLoaded() )
 		return;
 	s_SSeqOpeningCamera_PSP.Unload();
+	s_SSeqSkyDome_PSP.Unload();
 	s_SSeqTerrain_PSP.Unload();
 	if ( a_bRestoreFrontend )
 		ALoadFrontEndWorld_PSP();

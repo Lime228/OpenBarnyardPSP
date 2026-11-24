@@ -165,6 +165,7 @@ void AFrontEndNewGameSelectState::OnInsertion()
 	rReport.bNewGameTerrainReleased = TFALSE;
 	rReport.uiNewGameOpeningDraws = 0;
 	rReport.uiNewGameOpeningFrames = 0;
+	rReport.uiNewGameSkyDraws = 0;
 #else
 	APlayerProgress* pProgress = APlayerProgress::GetSingleton();
 #endif

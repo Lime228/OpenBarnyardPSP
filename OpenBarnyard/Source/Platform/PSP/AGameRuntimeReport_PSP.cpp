@@ -203,6 +203,7 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_terrain_released=%d\n"
 		"new_game_opening_draws=%u\n"
 		"new_game_opening_frames=%u\n"
+		"new_game_sky_draws=%u\n"
 		"option_effects=%d\n"
 		"option_music=%d\n"
 		"option_speech=%d\n"
@@ -332,6 +333,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.bNewGameTerrainReleased,
 		s_GameRuntimeReport_PSP.uiNewGameOpeningDraws,
 		s_GameRuntimeReport_PSP.uiNewGameOpeningFrames,
+		s_GameRuntimeReport_PSP.uiNewGameSkyDraws,
 		s_GameRuntimeReport_PSP.iOptionEffects,
 		s_GameRuntimeReport_PSP.iOptionMusic,
 		s_GameRuntimeReport_PSP.iOptionSpeech,

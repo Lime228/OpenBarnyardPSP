@@ -99,6 +99,7 @@ struct AGameRuntimeReport_PSP
 	TBOOL bNewGameTerrainReleased;
 	TUINT uiNewGameOpeningDraws;
 	TUINT uiNewGameOpeningFrames;
+	TUINT uiNewGameSkyDraws;
 	TINT  iOptionEffects;
 	TINT  iOptionMusic;
 	TINT  iOptionSpeech;
