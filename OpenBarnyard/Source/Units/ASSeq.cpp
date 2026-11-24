@@ -14,7 +14,6 @@
 
 #include <Toshi/TSystem.h>
 #include <Toshi/TScheduler.h>
-#include <File/TFile.h>
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -27,22 +26,7 @@ TOSHI_NAMESPACE_USING
 // NOTE: GetClass 00627390, CreateObject 00627af0, CreateObjectInPlace 00627b50
 TDEFINE_CLASS( ASSeq );
 
-const TINT ASSeq::ms_aInstructionSizes[ INSTRUCTION_NUMOF ] = {
-	0x1c, // INSTRUCTION_ACTOREVENT0
-	0x14, // INSTRUCTION_ACTOREVENT1
-	0x1c, // INSTRUCTION_ACTOREVENT2
-	0x14, // INSTRUCTION_WAIT
-	0x1c, // INSTRUCTION_ANIMATION
-	0x18, // INSTRUCTION_VOICE
-	0x18, // INSTRUCTION_UNK6
-	0x14, // INSTRUCTION_FADE
-	0x10, // INSTRUCTION_ACTORFLAG
-	0x10, // INSTRUCTION_SETFLAG
-	0x0c, // INSTRUCTION_PAUSE
-	0x0c, // INSTRUCTION_RESUME
-	0x1c, // INSTRUCTION_COMMAND
-	0x00, // INSTRUCTION_END
-};
+TSTATICASSERT( TARRAYSIZE( ASSeqFile::INSTRUCTION_SIZES ) == ASSeq::INSTRUCTION_NUMOF );
 
 void ( ASSeq::*const ASSeq::ms_afnStartInstruction[ INSTRUCTION_NUMOF ] )( TINT ) = {
 	&ASSeq::StartActorEvent, // INSTRUCTION_ACTOREVENT0
@@ -172,25 +156,31 @@ TBOOL ASSeq::Load( const TCHAR* a_szFileName, const TVector4& a_rcPosition )
 	TString8 strFilePath( "Data/ScriptedSequence/" );
 	strFilePath += a_szFileName;
 
-	TFile* pFile = TFile::Create( strFilePath, TFILEMODE_READ );
-
-	if ( !pFile )
+	TINT iTrackCount;
+	TUINT8* pData = ASSeqFile::Read( strFilePath, iTrackCount );
+	if ( pData == TNULL )
 		return TFALSE;
 
-	TSIZE uiFileSize = pFile->GetSize();
-
-	// NOTE: retail allocates four times the size of the file
-	m_pData = TSTATICCAST( TUINT8, TMalloc( uiFileSize * 4 ) );
-
-	if ( pFile->Read( m_pData, uiFileSize ) != uiFileSize )
+	const TSIZE uiSlotCount = iTrackCount > 0 ? iTrackCount : 1;
+	TCHAR* pFileName = TSTATICCAST( TCHAR, TMalloc( TStringManager::String8Length( a_szFileName ) + 1 ) );
+	Instruction** ppTracks = TSTATICCAST( Instruction*, TMalloc( uiSlotCount * sizeof( Instruction* ) ) );
+	TFLOAT* pTrackTimes = TSTATICCAST( TFLOAT, TMalloc( uiSlotCount * sizeof( TFLOAT ) ) );
+	if ( pFileName == TNULL || ppTracks == TNULL || pTrackTimes == TNULL )
 	{
-		TFree( m_pData );
-		m_pData = TNULL;
+		if ( pFileName )
+			TFree( pFileName );
+		if ( ppTracks )
+			TFree( ppTracks );
+		if ( pTrackTimes )
+			TFree( pTrackTimes );
+		TFree( pData );
+		return TFALSE;
 	}
 
-	pFile->Destroy();
-
-	m_szFileName = TSTATICCAST( TCHAR, TMalloc( TStringManager::String8Length( a_szFileName ) + 1 ) );
+	m_pData       = pData;
+	m_szFileName  = pFileName;
+	m_ppTracks    = ppTracks;
+	m_pTrackTimes = pTrackTimes;
 	TStringManager::String8Copy( m_szFileName, a_szFileName );
 
 	RelocateStrings();
@@ -199,12 +189,9 @@ TBOOL ASSeq::Load( const TCHAR* a_szFileName, const TVector4& a_rcPosition )
 	m_pScript       = TREINTERPRETCAST( Script*, m_pData + sizeof( FileHeader ) );
 	m_pScriptHeader = m_pScript;
 
-	m_ppTracks = TSTATICCAST( Instruction*, TMalloc( m_pScriptHeader->iNumTracks * sizeof( Instruction* ) ) );
-
-	for ( TINT i = 0; i < m_pScriptHeader->iNumTracks; i++ )
+	for ( TINT i = 0; i < iTrackCount; i++ )
 		m_ppTracks[ i ] = TNULL;
 
-	m_pTrackTimes = TSTATICCAST( TFLOAT, TMalloc( m_pScriptHeader->iNumTracks * sizeof( TFLOAT ) ) );
 	m_vecPosition = a_rcPosition;
 
 	return TTRUE;

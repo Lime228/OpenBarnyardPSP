@@ -1,4 +1,5 @@
 #pragma once
+#include "ASSeqFile.h"
 #include "ASSeqFlag.h"
 #include "ASSeqUI.h"
 
@@ -29,15 +30,7 @@ public:
 	static constexpr TINT MAX_NUM_PARTICLES = 15;
 
 	// Header of the .tso file, the offsets are relative to the end of the header
-	struct FileHeader
-	{
-		TUINT32 uiStringRelocsOffset;  // 0x00, offsets of the string pointers
-		TUINT32 uiStringRelocsSize;    // 0x04, in bytes
-		TUINT32 uiStringsOffset;       // 0x08
-		TUINT32 uiPointerRelocsOffset; // 0x0c, offsets of the other pointers
-		TUINT32 uiPointerRelocsSize;   // 0x10, in bytes
-		TUINT32 uiPointersOffset;      // 0x14
-	};
+	using FileHeader = ASSeqFile::Header;
 
 	// The script, right after the file header
 	struct Script
@@ -65,7 +58,7 @@ public:
 		INSTRUCTION_PAUSE       = 10, // stops the track until an INSTRUCTION_RESUME skips it
 		INSTRUCTION_RESUME      = 11, // resumes the paused tracks of the other actors
 		INSTRUCTION_COMMAND     = 12, // named command (ASSeqActorInterface::EVENT_COMMAND)
-		INSTRUCTION_END         = 13, // end of the track
+		INSTRUCTION_END         = ASSeqFile::END_INSTRUCTION, // end of the track
 		INSTRUCTION_NUMOF
 	};
 
@@ -222,12 +215,12 @@ private:
 	// Moves the track to its next instruction
 	void NextTrackInstruction( TINT a_iTrack )
 	{
-		m_ppTracks[ a_iTrack ] = TREINTERPRETCAST( Instruction*, TREINTERPRETCAST( TUINTPTR, m_ppTracks[ a_iTrack ] ) + ms_aInstructionSizes[ m_ppTracks[ a_iTrack ]->eType ] );
+		m_ppTracks[ a_iTrack ] = NextInstruction( m_ppTracks[ a_iTrack ] );
 	}
 
 	static Instruction* NextInstruction( Instruction* a_pInstruction )
 	{
-		return TREINTERPRETCAST( Instruction*, TREINTERPRETCAST( TUINTPTR, a_pInstruction ) + ms_aInstructionSizes[ a_pInstruction->eType ] );
+		return TREINTERPRETCAST( Instruction*, TREINTERPRETCAST( TUINTPTR, a_pInstruction ) + ASSeqFile::INSTRUCTION_SIZES[ a_pInstruction->eType ] );
 	}
 
 	// Called by the particle effects when they are over
@@ -238,7 +231,6 @@ private:
 	static TFLOAT CalculateDeltaTime( TFLOAT a_fDeltaTime );
 
 private:
-	static const TINT ms_aInstructionSizes[ INSTRUCTION_NUMOF ];                                 // 0x00778d1c
 	static void ( ASSeq::*const ms_afnStartInstruction[ INSTRUCTION_NUMOF ] )( TINT );           // 0x00778d54
 	static TBOOL ( ASSeq::*const ms_afnUpdateInstruction[ INSTRUCTION_NUMOF ] )( TINT, TFLOAT ); // 0x00778d8c
 
