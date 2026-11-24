@@ -11,6 +11,7 @@ from convert_camera import convert
 from convert_retail_model_animations import clip_sample_rate
 from inventory_retail_models import run_export, run_tmdl
 from inventory_retail_sequence import retail_file
+from package_retail_opening_sky import package as package_sky
 
 
 def package(tool: Path, install: Path, manifest: Path, output: Path) -> dict:
@@ -51,10 +52,12 @@ def package(tool: Path, install: Path, manifest: Path, output: Path) -> dict:
     if camera["sequence"] != clip_name or camera["sample_rate"] != rate or camera["loop"]:
         raise ValueError("unexpected opening camera sample export")
     convert(dump, output / "opening.pcam", camera_bone, preserve_roll=True)
+    sky = package_sky(tool, install, output)
 
     report = {"version": 1, "sequence": sequence["sequence"], "camera_actor": camera_track["actor"],
               "camera_bone": camera_bone, "clip": clip_name, "visibility_row": terrain,
-              "horizontal_fov_degrees": fov, "near_clip": near, "sample_rate": rate, "frames": len(camera["frames"])}
+              "horizontal_fov_degrees": fov, "near_clip": near, "sample_rate": rate, "frames": len(camera["frames"]),
+              "sky": sky}
     (output / "opening.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     (output / "opening.psco").write_bytes(struct.pack("<4sIff", b"PSCO", 1, fov, near))
     return report
@@ -71,7 +74,7 @@ def main() -> None:
         tool = args.tmdl.resolve(strict=True)
         (tool.parent / "Logs").mkdir(exist_ok=True)
         report = package(tool, args.install.resolve(strict=True), args.manifest, args.output.resolve())
-    except (KeyError, OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
+    except (IndexError, KeyError, OSError, TypeError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Sequence opening packaging failed: {error}\n")
     print(f"Packaged {report['clip']} using the {report['visibility_row']} row ({report['frames']} camera samples)")
 
