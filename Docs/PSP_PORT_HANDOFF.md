@@ -327,10 +327,11 @@ from the same run also passed its PCM, ADPCM and stream checks.
 
 CI run `45353245888` supplied the New Game EBOOT. The main menu pushes the
 shared original `AFrontEndNewGameSelectState` with four empty slots, its
-retail layout, labels and button sounds. The hidden PPSSPP check moved
-through all four, accepted the fourth slot as a pending request and returned
-on Triangle. The runtime keeps the chooser available until the original
-`SS01_start` transition is implemented. This check writes no save data.
+retail layout, labels and button sounds. The New Game check moves through all
+four slots, selects the fourth, checks that the shared sequence reader opens
+all 21 tracks in the original `SS01_start.tso`, then returns on Triangle.
+The chooser remains available until the scene and actor controller can play
+the sequence. This check writes no save data.
 
 ```powershell
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OpenBarnyardPSPGame -CheckNewGame -RequireMenuAudio -Capture
@@ -360,6 +361,10 @@ substream indices 1 and 2 map to entries 2 and 3 in the offline FSB report.
 Both have their original audio encoded as PADP in the local cache.
 Scene loading, script dispatch through the original `ASSeq` and input for
 the transition from the New Game chooser still need implementation.
+The PSP renderer exposes front-end world load and unload independently of the
+display lifecycle. The unload frees the terrain, instances and sign between
+frames and refreshes the memory counters. Invoke it when scene loading can
+take ownership of the transition.
 
 ## Known limitations
 
