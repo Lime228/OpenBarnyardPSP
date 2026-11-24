@@ -170,9 +170,11 @@ TBOOL ExportPSPTerrainCellDump(
 	if ( !oTRB.ReadFromFile( a_pInputPath ) )
 		return TFALSE;
 	Cell* pCell = FindCell_PSPTerrain( oTRB, a_iWorld, a_iCell );
-	if ( pCell == TNULL || pCell->uiNumMeshes == 0 || pCell->uiNumMeshes > 128 || pCell->ppCellMeshSpheres == TNULL )
+	static constexpr TUINT32 MAX_TERRAIN_CELL_MESHES = 256;
+	if ( pCell == TNULL || pCell->uiNumMeshes == 0 || pCell->uiNumMeshes > MAX_TERRAIN_CELL_MESHES ||
+	     pCell->ppCellMeshSpheres == TNULL )
 	{
-		TERROR( "PSP terrain cell requires between 1 and 128 meshes\n" );
+		TERROR( "PSP terrain cell requires between 1 and %u meshes\n", MAX_TERRAIN_CELL_MESHES );
 		return TFALSE;
 	}
 	TUINT64 uiTotalVertices = 0;

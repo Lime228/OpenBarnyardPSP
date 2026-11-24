@@ -19,7 +19,7 @@ from convert_terrain_dump import MAX_TERRAIN_VERTEX_COUNT, pack_colour, vector
 from convert_tmd_dump import triangulate_strip
 
 
-MAX_SOURCE_MESHES = 128
+MAX_SOURCE_MESHES = 256
 MAX_PACK_MODELS = 48
 MAX_PACK_TEXTURES = 48
 
