@@ -10,7 +10,9 @@ param(
     [string] $ForceAlphaMode = '',
     [string[]] $LightProfiles = @(),
     [int] $TextureMaxWidth = 128,
-    [switch] $KeepIntermediate
+    [switch] $KeepIntermediate,
+    [ValidatePattern('^[A-Za-z0-9_]+$')]
+    [string] $TerrainName = 'frontend'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,13 +44,14 @@ foreach ($lightProfile in $LightProfiles) {
         throw "LightProfiles entry '$lightProfile' has an invalid original light schedule"
     }
 }
+$terrainRoot = Join-Path $installRoot "Data\Terrain\$TerrainName"
 $terrainPaths = @($sourceModelNames | ForEach-Object {
-    Join-Path $installRoot "Data\Terrain\frontend\$_.trb"
+    Join-Path $terrainRoot "$_.trb"
 })
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
 $textureLibraries = @(
-    (Join-Path $installRoot "Data\Terrain\frontend\$SourceMaterialLibraryName.ttl"),
-    (Join-Path $installRoot 'Data\Terrain\frontend\frontend_Common.ttl')
+    (Join-Path $terrainRoot "$SourceMaterialLibraryName.ttl"),
+    (Join-Path $terrainRoot "${TerrainName}_Common.ttl")
 )
 foreach ($requiredPath in @($terrainPaths) + @($materialPropertiesPath) + $textureLibraries) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
@@ -162,7 +165,7 @@ for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureInde
         }
     }
     if (-not $textureFound) {
-        throw "Original texture '$($texture.source_texture)' was not found in the $SourceMaterialLibraryName front-end libraries"
+        throw "Original texture '$($texture.source_texture)' was not found in the $SourceMaterialLibraryName terrain libraries"
     }
 
     $conversionOutput = @(& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') `
