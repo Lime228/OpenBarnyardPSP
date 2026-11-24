@@ -5,7 +5,7 @@ import pathlib
 import tempfile
 import unittest
 
-from merge_frontend_terrain_cells import MAX_SOURCE_CELLS, merge
+from merge_frontend_terrain_cells import MAX_SOURCE_CELLS, MAX_SOURCE_MESHES, merge
 
 
 def cell(materials: list[str], world: int = 0, cell_index: int = 0) -> dict[str, object]:
@@ -58,9 +58,9 @@ class FrontendTerrainCellMergeTests(unittest.TestCase):
             source = self.write_cell(temporary, "source.json", cell(["a"]))
             with self.assertRaisesRegex(ValueError, f"between 1 and {MAX_SOURCE_CELLS}"):
                 merge([source] * (MAX_SOURCE_CELLS + 1), temporary / "too-many-cells.json")
-            full = self.write_cell(temporary, "full.json", cell(["a"] * 128))
+            full = self.write_cell(temporary, "full.json", cell(["a"] * MAX_SOURCE_MESHES))
             extra = self.write_cell(temporary, "extra.json", cell(["b"]))
-            with self.assertRaisesRegex(ValueError, "exceeds 128 source meshes"):
+            with self.assertRaisesRegex(ValueError, f"exceeds {MAX_SOURCE_MESHES} source meshes"):
                 merge([full, extra], temporary / "too-many-meshes.json")
 
 
