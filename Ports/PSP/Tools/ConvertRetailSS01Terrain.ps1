@@ -9,7 +9,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
-$terrainPath = Join-Path $repositoryRoot 'Game\BarnyardPC\Install\Data\Terrain\ss01\ss01.trb'
+$installRoot = Join-Path $repositoryRoot 'Game\BarnyardPC\Install'
+$terrainPath = Join-Path $installRoot 'Data\Terrain\ss01\ss01.trb'
 if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\SS01\Terrain'
 }
@@ -42,6 +43,16 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
     if ($requestedLod -notin 'high', 'low') { throw "Invalid visibility level '$requestedLod'." }
     $lod = $requestedLod
     if ($lod -eq 'high' -and $section.high.Count -eq 0) { $lod = 'low' }
+    if ($null -eq $section.material_libraries) {
+        throw 'This TMDL does not export VIS material libraries. Use an updated PSP host-tools build.'
+    }
+    $materialLibrary = $section.material_libraries.$lod -replace '\\+', '/'
+    if ($materialLibrary -and ([IO.Path]::IsPathRooted($materialLibrary) -or ($materialLibrary -split '/') -contains '..')) {
+        throw "Invalid material library path in SS01 VIS: $materialLibrary"
+    }
+    $materialPath = if ($materialLibrary) { Join-Path $installRoot $materialLibrary } else {
+        Join-Path $installRoot 'Data\Terrain\ss01\ss01_Common.ttl'
+    }
     foreach ($entry in $section.$lod) {
         $model = [IO.Path]::GetFileNameWithoutExtension($entry.name)
         if ($model -notmatch '^[A-Za-z0-9_]+_L[01]Mod[0-9]+$') {
@@ -54,13 +65,14 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
             section = $section.name
             requested_lod = $requestedLod
             lod = $lod
+            material_library = $materialLibrary
             source = ($entry.name -replace '\\+', '/')
             glow = [bool]$entry.glow
             manifest = "$model/$model.json"
         }
         try {
             & (Join-Path $PSScriptRoot 'ConvertRetailFrontendDetail.ps1') -TerrainName ss01 `
-                -SourceModelName $model -SourceMaterialLibraryName ($model -replace 'Mod[0-9]+$', 'Mat') `
+                -SourceModelName $model -SourceMaterialLibraryPath $materialPath `
                 -Prefix $model -OutputDirectory $directory -TextureMaxWidth $TextureMaxWidth `
                 -TMDLPath $TMDLPath -PythonPath $PythonPath *> $modelLog
             $manifest = Get-Content -LiteralPath (Join-Path $directory "$model.json") -Raw | ConvertFrom-Json

@@ -12,7 +12,8 @@ param(
     [int] $TextureMaxWidth = 128,
     [switch] $KeepIntermediate,
     [ValidatePattern('^[A-Za-z0-9_]+$')]
-    [string] $TerrainName = 'frontend'
+    [string] $TerrainName = 'frontend',
+    [string] $SourceMaterialLibraryPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,10 +50,14 @@ $terrainPaths = @($sourceModelNames | ForEach-Object {
     Join-Path $terrainRoot "$_.trb"
 })
 $materialPropertiesPath = Join-Path $installRoot 'Data\MiscTextures\MaterialProperties.trb'
-$textureLibraries = @(
-    (Join-Path $terrainRoot "$SourceMaterialLibraryName.ttl"),
-    (Join-Path $terrainRoot "${TerrainName}_Common.ttl")
-)
+$sectionMaterialLibrary = if ($SourceMaterialLibraryPath) {
+    [IO.Path]::GetFullPath($SourceMaterialLibraryPath)
+}
+else {
+    Join-Path $terrainRoot "$SourceMaterialLibraryName.ttl"
+}
+$commonMaterialLibrary = Join-Path $terrainRoot "${TerrainName}_Common.ttl"
+$textureLibraries = @($sectionMaterialLibrary, $commonMaterialLibrary | Select-Object -Unique)
 foreach ($requiredPath in @($terrainPaths) + @($materialPropertiesPath) + $textureLibraries) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required original Barnyard asset was not found: $requiredPath"
@@ -165,7 +170,7 @@ for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureInde
         }
     }
     if (-not $textureFound) {
-        throw "Original texture '$($texture.source_texture)' was not found in the $SourceMaterialLibraryName terrain libraries"
+        throw "Original texture '$($texture.source_texture)' was not found in the terrain libraries: $($textureLibraries -join ', ')"
     }
 
     $conversionOutput = @(& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') `
