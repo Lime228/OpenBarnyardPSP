@@ -196,6 +196,11 @@ void AWriteGameRuntimeReport_PSP()
 		"menu_close_count=%u\n"
 		"new_game_requested_slot=%d\n"
 		"new_game_script_tracks=%d\n"
+		"new_game_terrain_meshes=%u\n"
+		"new_game_terrain_textures=%u\n"
+		"new_game_terrain_bytes=%u\n"
+		"new_game_terrain_heap_free=%u\n"
+		"new_game_terrain_released=%d\n"
 		"option_effects=%d\n"
 		"option_music=%d\n"
 		"option_speech=%d\n"
@@ -318,6 +323,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiMenuCloseCount,
 		s_GameRuntimeReport_PSP.iNewGameRequestedSlot,
 		s_GameRuntimeReport_PSP.iNewGameScriptTracks,
+		s_GameRuntimeReport_PSP.uiNewGameTerrainMeshes,
+		s_GameRuntimeReport_PSP.uiNewGameTerrainTextures,
+		s_GameRuntimeReport_PSP.uiNewGameTerrainBytes,
+		s_GameRuntimeReport_PSP.uiNewGameTerrainHeapFree,
+		s_GameRuntimeReport_PSP.bNewGameTerrainReleased,
 		s_GameRuntimeReport_PSP.iOptionEffects,
 		s_GameRuntimeReport_PSP.iOptionMusic,
 		s_GameRuntimeReport_PSP.iOptionSpeech,

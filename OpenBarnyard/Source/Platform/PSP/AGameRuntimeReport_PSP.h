@@ -92,6 +92,11 @@ struct AGameRuntimeReport_PSP
 	TINT  iMenuActivatedButtonID;
 	TINT  iNewGameRequestedSlot;
 	TINT  iNewGameScriptTracks;
+	TUINT uiNewGameTerrainMeshes;
+	TUINT uiNewGameTerrainTextures;
+	TUINT uiNewGameTerrainBytes;
+	TUINT uiNewGameTerrainHeapFree;
+	TBOOL bNewGameTerrainReleased;
 	TINT  iOptionEffects;
 	TINT  iOptionMusic;
 	TINT  iOptionSpeech;

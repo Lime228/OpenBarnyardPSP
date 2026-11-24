@@ -7,6 +7,7 @@
 #include "AFrontEndTerrain_PSP.h"
 #include "AFrontEndTerrainPack_PSP.h"
 #include "AGameRuntimeReport_PSP.h"
+#include "ASSeqTerrain_PSP.h"
 #include "GUI/AGUI2.h"
 #include "Movie/AMoviePlayer.h"
 #include "Render/ARenderer.h"
@@ -36,6 +37,7 @@ static AFrontEndTerrainPack_PSP s_FrontEndHillbase_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndHilltop_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndMeadowsouth_PSP;
 static AFrontEndInstanceManager_PSP s_FrontEndInstanceManager_PSP;
+static ASSeqTerrain_PSP s_SSeqTerrain_PSP;
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 
 TDEFINE_CLASS( ARenderer );
@@ -313,6 +315,31 @@ void AUnloadFrontEndWorld_PSP()
 	s_FrontEndTerrainPack_PSP.Unload();
 	s_FrontEndTerrain_PSP.Unload();
 	AUpdateGameRuntimeMemory_PSP();
+}
+
+TBOOL ACheckNewGameTerrain_PSP()
+{
+	if ( !ASSeqTerrain_PSP::HasSS01Pack() )
+		return TTRUE;
+
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	AUnloadFrontEndWorld_PSP();
+	const TUINT uiRenderBytesBefore = rReport.uiRenderMainCurrent;
+	const TBOOL bLoaded = s_SSeqTerrain_PSP.LoadSS01();
+	AUpdateGameRuntimeMemory_PSP();
+	rReport.uiNewGameTerrainMeshes = s_SSeqTerrain_PSP.GetMeshCount();
+	rReport.uiNewGameTerrainTextures = s_SSeqTerrain_PSP.GetTextureCount();
+	rReport.uiNewGameTerrainBytes = rReport.uiRenderMainCurrent - uiRenderBytesBefore;
+	rReport.uiNewGameTerrainHeapFree = rReport.uiHeapFree;
+
+	// The chooser still owns the transition while the sequence state is being ported.
+	s_SSeqTerrain_PSP.Unload();
+	AUpdateGameRuntimeMemory_PSP();
+	rReport.bNewGameTerrainReleased = rReport.uiRenderMainCurrent == uiRenderBytesBefore;
+	ALoadFrontEndWorld_PSP();
+	if ( !bLoaded )
+		ASetGameRuntimeFailedPath_PSP( s_SSeqTerrain_PSP.GetFailedPath() );
+	return bLoaded;
 }
 
 void ARenderer::RenderGUI()

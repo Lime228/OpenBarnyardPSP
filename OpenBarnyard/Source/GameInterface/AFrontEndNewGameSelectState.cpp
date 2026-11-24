@@ -8,6 +8,7 @@
 
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
 #  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#  include "Platform/PSP/ARenderer_PSP.h"
 #  include "Units/ASSeqFile.h"
 #else
 #  include "AHackedQuickSave.h"
@@ -130,6 +131,11 @@ void AFrontEndNewGameSelectState::OnInsertion()
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.iNewGameRequestedSlot = -1;
 	rReport.iNewGameScriptTracks = 0;
+	rReport.uiNewGameTerrainMeshes = 0;
+	rReport.uiNewGameTerrainTextures = 0;
+	rReport.uiNewGameTerrainBytes = 0;
+	rReport.uiNewGameTerrainHeapFree = 0;
+	rReport.bNewGameTerrainReleased = TFALSE;
 #else
 	APlayerProgress* pProgress = APlayerProgress::GetSingleton();
 #endif
@@ -270,17 +276,20 @@ void AFrontEndNewGameSelectState::OnMenuClose()
 	rReport.iNewGameRequestedSlot = m_iActivatedSlot;
 	TUINT8* pScript = ASSeqFile::Read( s_szIntroScript_PSP, rReport.iNewGameScriptTracks );
 	const TBOOL bScriptLoaded = pScript != TNULL;
+	const TCHAR* szPhase = "frontend-new-game-script-failed";
 	if ( bScriptLoaded )
 	{
 		TFree( pScript );
 		ASetGameRuntimeFailedPath_PSP( TNULL );
+		ASetGameRuntimePhase_PSP( "frontend-new-game-loading-terrain" );
+		szPhase = ACheckNewGameTerrain_PSP() ? "frontend-new-game-awaiting-sequence" : "frontend-new-game-terrain-failed";
 	}
 	else
 		ASetGameRuntimeFailedPath_PSP( s_szIntroScript_PSP );
 
 	// Keep the chooser active until the intro scene and actor controller are ready.
 	OnActivate();
-	ASetGameRuntimePhase_PSP( bScriptLoaded ? "frontend-new-game-awaiting-sequence" : "frontend-new-game-script-failed" );
+	ASetGameRuntimePhase_PSP( szPhase );
 #else
 	if ( m_bOverwrite == TTRUE )
 	{
