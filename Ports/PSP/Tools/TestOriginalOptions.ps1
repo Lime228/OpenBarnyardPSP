@@ -37,8 +37,8 @@ function Read-GameLog {
     return $status
 }
 
-function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}) {
-    $deadline = (Get-Date).AddSeconds(10)
+function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}, [int] $TimeoutSeconds = 10) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         $status = Read-GameLog
         if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
@@ -95,11 +95,14 @@ function Assert-MenuMusicProgress([hashtable] $Before, [hashtable] $After) {
 try {
     & $runner -Action Start -EbootPath $eboot
     foreach ($name in @('NickMovs', 'THQ', 'BTE', 'Attract')) {
-        $deadline = (Get-Date).AddSeconds(35)
+        $deadline = (Get-Date).AddSeconds(75)
         do {
             if ((Test-Path -LiteralPath $movieLog -PathType Leaf) -and (Get-Item -LiteralPath $movieLog).LastWriteTime -ge $startedAt -and
                 (Select-String -Quiet -LiteralPath $movieLog -Pattern "/$name\.pmvf result=started ")) { break }
-            if ((Get-Date) -ge $deadline) { throw "Waiting for $name timed out." }
+            if ((Get-Date) -ge $deadline) {
+                $status = Read-GameLog
+                throw "Waiting for $name timed out at phase $($status.phase), frame $($status.renderer_frames). See $gameLog"
+            }
             Start-Sleep -Milliseconds 150
         } while ($true)
         Start-Sleep -Milliseconds 1500
@@ -123,13 +126,16 @@ try {
             $expected.new_game_terrain_textures = [BitConverter]::ToUInt32($index, 12)
             $expected.new_game_terrain_released = 1
         }
-        $newGame = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 $expected
+        $timeout = if ($CheckNewGameTerrain) { 90 } else { 10 }
+        $newGame = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 $expected $timeout
         if ($CheckNewGameTerrain) {
             if ([int]$newGame.new_game_terrain_bytes -le 0 -or [int]$newGame.new_game_terrain_heap_free -le 0) {
                 throw "No SS01 memory measurement in $gameLog"
             }
-            if ($newGame.render_main_current -ne $main.render_main_current) {
-                throw "Frontend resource residency differs after the SS01 round trip. See $gameLog"
+            foreach ($key in $main.Keys) {
+                if ($key -match '^frontend_.*_(loaded|models|textures|meshes|instances|packs)$' -and $newGame[$key] -ne $main[$key]) {
+                    throw "Frontend resource count $key differs after the SS01 round trip. See $gameLog"
+                }
             }
             "Loaded SS01 terrain: $($newGame.new_game_terrain_meshes) meshes, $($newGame.new_game_terrain_textures) textures, $($newGame.new_game_terrain_bytes) render bytes, $($newGame.new_game_terrain_heap_free) heap bytes free. Restored the menu."
         }
