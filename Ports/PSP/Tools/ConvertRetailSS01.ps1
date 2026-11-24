@@ -35,6 +35,10 @@ $sequenceManifestPath = Join-Path $sequencePath 'sequence.json'
     --tmdl $TMDLPath $installPath SS01_start $sequencePath
 if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence inventory failed.' }
 
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_sequence_opening.py') `
+    --tmdl $TMDLPath $installPath $sequenceManifestPath (Join-Path $outputPath 'Opening')
+if ($LASTEXITCODE -ne 0) { throw 'SS01 opening camera packaging failed.' }
+
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'convert_retail_sequence_models.py') `
     --tmdl $TMDLPath --max-width $TextureMaxWidth $installPath $sequenceManifestPath $modelsPath
 if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence model conversion failed.' }

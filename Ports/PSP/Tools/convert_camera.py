@@ -53,7 +53,7 @@ def multiply(left: list[list[float]], right: list[list[float]]) -> list[list[flo
     return [transform_basis(left, basis) for basis in right]
 
 
-def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
+def convert(source: pathlib.Path, destination: pathlib.Path, camera_bone: str = "camera", preserve_roll: bool = False) -> None:
     document = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(document, dict):
         raise ValueError("camera animation must be an object")
@@ -81,9 +81,9 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
             raise ValueError(f"bone {index} has an invalid parent")
         bone_names.append(name)
         parents.append(parent)
-    if "camera" not in bone_names:
-        raise ValueError("camera animation requires the 'camera' bone")
-    camera_index = bone_names.index("camera")
+    if camera_bone not in bone_names:
+        raise ValueError(f"camera animation requires the {camera_bone!r} bone")
+    camera_index = bone_names.index(camera_bone)
 
     source_frames = document.get("frames")
     if not isinstance(source_frames, list) or not 1 <= len(source_frames) <= MAX_FRAME_COUNT:
@@ -121,19 +121,16 @@ def convert(source: pathlib.Path, destination: pathlib.Path) -> None:
             [-component for component in camera_transform[2][:3]],
             f"frame {frame_index} camera direction",
         )
-        # ACamera::LookAtDirection intentionally discards the camera bone's
-        # roll. It projects sm_vWorldUp (0, -1, 0) onto the direction plane,
-        # then negates that projection for the camera's up basis.
-        retail_world_up = [0.0, -1.0, 0.0]
-        up_dot = sum(component * direction[index] for index, component in enumerate(retail_world_up))
-        projected_up = [
-            retail_world_up[index] - direction[index] * up_dot
-            for index in range(3)
-        ]
-        up = normalize(
-            [-component for component in projected_up],
-            f"frame {frame_index} camera up",
-        )
+        if preserve_roll:
+            # ASSeqCameraHelper applies a local half-turn around X, then
+            # copies the resulting bone matrix directly to ACamera.
+            up_basis = camera_transform[1][:3]
+        else:
+            # ACamera::LookAtDirection rebuilds up instead of copying roll.
+            retail_world_up = [0.0, -1.0, 0.0]
+            up_dot = sum(component * direction[index] for index, component in enumerate(retail_world_up))
+            up_basis = [retail_world_up[index] - direction[index] * up_dot for index in range(3)]
+        up = normalize([-component for component in up_basis], f"frame {frame_index} camera up")
         frames.append((position, direction, up))
 
     flags = PCAM_FLAG_LOOP if loop else 0
