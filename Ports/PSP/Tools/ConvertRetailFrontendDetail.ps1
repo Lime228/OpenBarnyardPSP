@@ -73,32 +73,9 @@ if (-not $TMDLPath -or -not (Test-Path -LiteralPath $TMDLPath -PathType Leaf)) {
 }
 $TMDLPath = [System.IO.Path]::GetFullPath($TMDLPath)
 
-$pythonArguments = @()
-if (-not $PythonPath) {
-    foreach ($name in @('python3', 'python')) {
-        $candidate = Get-Command $name -ErrorAction SilentlyContinue
-        if ($candidate -and $candidate.Source -notlike '*\WindowsApps\python*.exe') {
-            $PythonPath = $candidate.Source
-            break
-        }
-    }
-    if (-not $PythonPath) {
-        $codexPython = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
-        if (Test-Path -LiteralPath $codexPython -PathType Leaf) {
-            $PythonPath = $codexPython
-        }
-    }
-    if (-not $PythonPath) {
-        $launcher = Get-Command py -ErrorAction SilentlyContinue
-        if ($launcher) {
-            $PythonPath = $launcher.Source
-            $pythonArguments = @('-3')
-        }
-    }
-}
-if (-not $PythonPath -or -not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
-    throw 'Python 3 was not found; pass -PythonPath explicitly'
-}
+$python = & (Join-Path $PSScriptRoot 'ResolvePSPPython.ps1') -PythonPath $PythonPath
+$PythonPath = $python.Path
+$pythonArguments = $python.Arguments
 if ($TextureMaxWidth -notin @(32, 64, 128, 256, 512)) {
     throw 'TextureMaxWidth must be a PSP-safe power of two between 32 and 512'
 }
