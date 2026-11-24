@@ -83,7 +83,7 @@ texture_libraries=Install\Data\Terrain\ss01\xroad_L0Mat.ttl;Install\Data\Terrain
 | `convert_tmd_dump.py` | Triangulates strips, resolves palettes and reduces four retail influences to the two strongest combined bone weights required by the PSP CPU skinning path. |
 | `Tools/TMDL -psp-animation` | Samples one explicitly named retail sequence without adding the relocatable parser to the EBOOT; `-keylib-symbol` selects a bounded key library embedded in an asset-pack TRB. |
 | `Tools/TMDL -psp-texture` | Relocates one retail TTL on the host and extracts an explicitly named embedded DDS. |
-| `Tools/TMDL -psp-terrain` / `-psp-terrain-cell` | Relocates one terrain TRB, selects one mesh or exports a bounded complete cell of up to 128 meshes and resolves every material to its exact retail texture name. |
+| `Tools/TMDL -psp-terrain` / `-psp-terrain-cell` | Relocates one terrain TRB, selects one mesh or exports a bounded complete cell of up to 256 meshes and resolves every material to its exact retail texture name. |
 | `Tools/TMDL -psp-material-properties` | Exports the retail glow, double-sided, clamp, render-order and UV-animation lists as a bounded host JSON contract. |
 | `Tools/TMDL -psp-locator` | Extracts one explicitly named locator from a retail terrain skeleton without adding the relocatable TRB parser to the EBOOT. |
 | `convert_terrain_dump.py` / `convert_terrain_cell.py` | Triangulates bounded terrain strips, preserves vertex colours/UVs and emits static textured PMES files with shared cell bounds plus an exact-count PCFG. |
@@ -333,6 +333,23 @@ whose rig contains duplicate bone names. The script writes the full report
 before returning a nonzero exit code for exporter rejections.
 
 ## Generated data
+
+For the New Game intro, export the original SS01 terrain selected by the
+`Dummy` visibility row. Use the TMDL artifact from CI run `45354139164` or
+a succeeding build.
+
+```powershell
+.\Ports\PSP\Tools\ConvertRetailSS01Terrain.ps1
+```
+
+The converter writes `Game/BarnyardPC/Workspace/SS01/Terrain/ss01_terrain.json`
+and one PMES/PTEX pack per selected source file. It records the requested and
+selected LODs, the original glow flag, the mesh and texture counts and their
+byte totals. The batch verified 49 files across 24 visible sections and
+retained all 1,652 source meshes. The output has 420 mesh groups and 403
+texture files. The geometry and textures total about 13.4 MiB on disk with
+textures capped at 128 pixels wide. Every generated pack stays in the local
+cache while the scene loader is being ported.
 
 Host-tool dumps and converted PSP files belong in the ignored workspace:
 

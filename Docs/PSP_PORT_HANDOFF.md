@@ -1,6 +1,6 @@
 # OpenBarnyard PSP port handoff
 
-Updated: 2026-11-23
+Updated: 2026-11-24
 
 Repository: https://github.com/Lime228/OpenBarnyardPSP.git
 
@@ -21,8 +21,8 @@ There are now two runnable PSP packages:
 - OpenBarnyardPSPGame is the original-game EBOOT. It starts the original
   AApplication/ARootTask chain and reaches the original six-entry
   AFrontEndMainMenuState2 presentation with retail GUI sections, font atlas and
-  localized strings. Its Options item pushes the original localized
-  two-entry `AOptionsState` dialog.
+  localized strings. Options opens the original two-entry `AOptionsState`
+  dialog. New Game opens the original four-slot chooser.
 
 The original-game EBOOT has been visually confirmed in PPSSPP through:
 
@@ -62,9 +62,9 @@ This is a real original-game frontend milestone, but it is not a playable game
 yet. The menu currently uses a bounded PSP implementation of the original class:
 the original button construction, locale IDs, panels, colours, transforms and
 focus are retained, while the complete world/instance/music/save closure and
-downstream state transitions are intentionally deferred. Activating an item
-  records a bounded checkpoint and reopens the menu, except Options, which now
-  pushes the real original `AOptionsState`.
+downstream state transitions still need work. Options and New Game open
+their original screens. Load Game, Bonuses, Antics and Quit return to the
+main menu after recording the selection.
 
 Current estimates:
 
@@ -325,6 +325,28 @@ restored 502. The track crossed its 56.89-second loop boundary with
 `menu_music_loops=1` and `menu_music_underruns=0`. The diagnostic artifact
 from the same run also passed its PCM, ADPCM and stream checks.
 
+CI run `45353245888` supplied the New Game EBOOT. The main menu pushes the
+shared original `AFrontEndNewGameSelectState` with four empty slots, its
+retail layout, labels and button sounds. The hidden PPSSPP check moved
+through all four, accepted the fourth slot as a pending request and returned
+on Triangle. The runtime keeps the chooser available until the original
+`SS01_start` transition is implemented. This check writes no save data.
+
+```powershell
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OpenBarnyardPSPGame -CheckNewGame -RequireMenuAudio -Capture
+```
+
+The original New Game loader selects `Data/ScriptedSequence/SS01_start.trb`
+and its TSO, streams the `ss01` terrain from `Dummy`, and uses
+`SS01_cameraB` plus `SS01_actorB` for the camera and actor controls. The
+offline batch converted all 49 terrain files from the initial VIS row.
+These retain 1,652 source meshes as 420 groups and total about 13.4 MiB before
+sharing textures across packs. The same-name, byte-identical texture audit
+found 149 distinct textures across the 403 emitted texture files. The
+animation cache already has all 100 clips from the SS01 camera, actor rig,
+Farmer, Freddy, Otis and pig. The actor meshes, scene loader, input and
+script dispatch remain open.
+
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
@@ -338,7 +360,8 @@ from the same run also passed its PCM, ADPCM and stream checks.
 - Options opens the original Audio and Controls states with their localized
   labels and widgets. Settings are applied within the session. Memory Stick
   persistence, the music preview and gameplay input still need integration.
-  New game, load game, extras, antics and quit still end at frontend checkpoints.
+  New Game displays the chooser and records a requested slot. Save import,
+  save writes and the transition into `SS01_start` still need integration.
 - Startup images currently follow the original GUI presentation path. The 15
   PMVF v2 movies preserve all original frames at about 29.97 FPS. The game
   streams `NickMovs`, `THQ`, `BTE` and `Attract` with their original audio and
@@ -347,8 +370,8 @@ from the same run also passed its PCM, ADPCM and stream checks.
   measurement.
 - ACollisionModel_PSP preserves the interface but returns no hits. Gameplay must
   not start until a bounded collision backend exists.
-- Retail FMOD banks/music are not integrated. The diagnostic mixer proves PSP
-  audio only.
+- The PSP frontend plays its original resident UI cues and streamed music.
+  Gameplay still needs the original cue, voice-over and multiplex playback paths.
 - The texture cache holds at most 16 unique GUI textures. The current menu fits;
   future screens need measured lifetime/reuse or a larger justified budget.
 - The offline model animation batch resolves the retail model-to-library
@@ -356,8 +379,8 @@ from the same run also passed its PCM, ADPCM and stream checks.
   mapping, overlay blending and particle animation still need to be integrated.
   Two rigs exceed the 64-bone limit. `beeSwarm2` needs bone-index binding
   that preserves its duplicated retail identifiers.
-- Rekord18 and Bremen25 are not staged for the current menu because it only uses
-  Rekord26.
+- Rekord26 and Rekord18 are staged for the original chooser and its date
+  labels. Bremen25 has no current PSP frontend consumer.
 - Save data, memory-stick UI, rooms, actors, player control, quests and streaming
   are not connected.
 
@@ -481,7 +504,9 @@ Runtime evidence:
    exact-transform row without changing model IDs, transforms or materials.
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
-3. Continue through other original menu states before new-game world loading.
+3. Port the original `SS01_start` transition from the new-game chooser. Reuse the
+   prepared terrain and animation batches, convert the actor meshes and release
+   the menu world before loading the intro to leave room in the PSP heap.
 4. Restore the in-game Audio dialog's `MUSIC_MISSION` preview when the
    gameplay path can open that dialog without a main-menu state on the stack.
    Its encoded stream is `Data/Sound/FSB/Music.fsb/000018-00-0.padp`.
