@@ -4,9 +4,36 @@ import unittest
 from pathlib import Path
 
 from inventory_retail_sequence import describe_resources, inspect_script, retail_file
+from package_retail_sequence_opening import opening_shots
 
 
 class RetailSequenceTests(unittest.TestCase):
+    def test_opening_keeps_the_master_wait_durations_and_camera_changes(self):
+        events = [
+            {"type": "command", "name": command, "arguments": [value]}
+            for command, value in (("bindCamera", "camera"), ("SetTerrain", "scene"), ("Set_FOV", "50"), ("SetNearClip", "0.8"))
+        ]
+        events += [
+            {"type": "animation", "name": "first"},
+            {"type": "command", "name": "SetNearClip", "arguments": ["2"]},
+            {"type": "animation", "name": "second"},
+        ]
+        timing = [
+            {"type": "wait", "flag": 1, "duration": 0}, {"type": "wait", "flag": 2, "duration": 0},
+            {"type": "resume"}, {"type": "wait", "flag": 0, "duration": 4.4}, {"type": "resume"},
+            {"type": "wait", "flag": 0, "duration": 4}, {"type": "resume"},
+        ]
+        voice = {"actor": 15, "type": "vostream", "opens_track": True, "index": 1}
+        script = {"camera_tracks": [{"actor": 14, "events": events}], "master_timing": timing, "voice_instructions": [voice]}
+        actor, shots, selected_voice = opening_shots(script)
+        self.assertEqual(actor, 14)
+        self.assertEqual(selected_voice, voice)
+        self.assertEqual([(shot["clip"], shot["duration"], shot["near_clip"]) for shot in shots],
+                         [("first", 4.4, 0.8), ("second", 4.0, 2.0)])
+        timing[3]["flag"] = 9
+        with self.assertRaisesRegex(ValueError, "opening synchronization"):
+            opening_shots(script)
+
     def test_inspects_the_original_tso_tables(self):
         header = struct.pack("<6I", 56, 8, 64, 76, 8, 84)
         script = struct.pack("<IiIII", 0, 0, 1, 0, 4)
@@ -22,6 +49,8 @@ class RetailSequenceTests(unittest.TestCase):
                 "voice_instructions": [{"track": 0, "actor": 7, "type": "vostream", "index": 2, "name": "Line", "opens_track": True}],
                 "camera_tracks": [],
                 "master_timing": [],
+                "attachment_tracks": [],
+                "animation_tracks": [],
             })
 
             path.write_bytes(header + script + body[:-1])
@@ -50,11 +79,15 @@ class RetailSequenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "Intro.tso"
             path.write_bytes(header + code + string_relocs + strings + pointer_relocs + pointers)
-            self.assertEqual(inspect_script(path)["camera_tracks"], [{
+            inventory = inspect_script(path)
+            self.assertEqual(inventory["camera_tracks"], [{
                 "track": 0, "actor": 14, "events": [
                     {"type": "command", "name": "bindCamera", "arguments": ["CH_Cam", "CH_CamT", None]},
                     {"type": "animation", "name": "FirstShot"},
                 ],
+            }])
+            self.assertEqual(inventory["animation_tracks"], [{
+                "track": 0, "actor": 14, "clips": [{"clip": "FirstShot", "after_pause": 0}],
             }])
 
     def test_uses_model_types_and_the_original_symbol_case(self):
