@@ -47,3 +47,7 @@ if ($encodedAudioRequired -or (Test-Path -LiteralPath (Join-Path $EncodedAudioDi
 
 & (Join-Path $PSScriptRoot 'ConvertRetailSS01Terrain.ps1') -TMDLPath $TMDLPath -PythonPath $PythonPath `
     -OutputDirectory $terrainPath -TextureMaxWidth $TextureMaxWidth
+
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_sequence_terrain.py') `
+    (Join-Path $terrainPath 'ss01_terrain.json') (Join-Path $outputPath 'TerrainPack')
+if ($LASTEXITCODE -ne 0) { throw 'SS01 terrain packaging failed.' }
