@@ -147,6 +147,11 @@ public:
 
 	const TCHAR* GetName() const { return m_szName; }
 
+	const TCHAR* GetLODMaterialLibraryName( ATerrainLODType a_eLODType ) const
+	{
+		return a_eLODType == ATerrainLODType_High ? m_szHighMatLibFilename : m_szLowMatLibFilename;
+	}
+
 	TINT GetLODCount( ATerrainLODType a_eLODType ) const { return ( a_eLODType == ATerrainLODType_High ) ? m_iNumHighModelFiles : m_iNumLowModelFiles; }
 	LODFLAGS GetLODFlags( ATerrainLODType a_eLODType, TINT a_iLOD ) const
 	{
