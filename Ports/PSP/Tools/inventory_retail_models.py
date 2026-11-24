@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import re
 import subprocess
 from collections import Counter
 from pathlib import Path
@@ -21,11 +22,9 @@ def model_kind(symbols: list[str]) -> str:
     return "other"
 
 
-def run_export(tool: Path, mode: str, source: Path, destination: Path) -> dict:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    pending = destination.with_suffix(".json.tmp")
+def run_tmdl(tool: Path, mode: str, source: Path, destination: Path, *options: str) -> None:
     process = subprocess.run(
-        [str(tool), mode, str(source), "-o", str(pending)],
+        [str(tool), mode, str(source), *options, "-o", str(destination)],
         cwd=tool.parent,
         capture_output=True,
         timeout=45,
@@ -33,10 +32,24 @@ def run_export(tool: Path, mode: str, source: Path, destination: Path) -> dict:
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     if process.returncode:
-        diagnostic = (process.stdout + process.stderr)[-600:].decode(errors="replace").strip()
+        output = (process.stdout + process.stderr).decode(errors="replace")
+        diagnostic = output[-600:].strip()
+        log = re.search(r"Created file Logs[\\/](toshi_[0-9_]+\.log) with mode", output)
+        if log:
+            log_path = tool.parent / "Logs" / log[1]
+            if log_path.is_file():
+                errors = [line.strip() for line in log_path.read_text(errors="replace").splitlines() if "[Error]" in line]
+                if errors:
+                    diagnostic = " ".join(errors[-2:])
         raise ValueError(f"TMDL exited with {process.returncode}: {diagnostic}")
+
+
+def run_export(tool: Path, mode: str, source: Path, destination: Path, *options: str, version: int = 1) -> dict:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    pending = destination.with_suffix(".json.tmp")
+    run_tmdl(tool, mode, source, pending, *options)
     document = json.loads(pending.read_text(encoding="utf-8"))
-    if document.get("version") != 1:
+    if document.get("version") != version:
         raise ValueError("unsupported TMDL host format")
     pending.replace(destination)
     return document

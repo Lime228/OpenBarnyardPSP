@@ -88,6 +88,7 @@ def describe_resources(properties: list, type_properties: list, symbols: dict) -
             "type": name, "kind": kind, "model": model,
             "packed_header": entries.get(f"{model}_Header".casefold()),
             "packed_file_header": entries.get(f"{model}_FileHeader".casefold()),
+            "packed_world_database": entries.get(f"{model}_Database".casefold()),
         })
 
     return {
