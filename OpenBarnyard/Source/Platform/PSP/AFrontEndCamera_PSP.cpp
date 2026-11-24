@@ -151,10 +151,16 @@ void AFrontEndCamera_PSP::Unload()
 
 void AFrontEndCamera_PSP::Update( TFLOAT a_fDeltaTime )
 {
-	if ( !IsLoaded() || !TMath::IsFinite( a_fDeltaTime ) || a_fDeltaTime <= 0.0f )
+	if ( TMath::IsFinite( a_fDeltaTime ) && a_fDeltaTime > 0.0f )
+		SetTime( m_fTime_PSP + a_fDeltaTime );
+}
+
+void AFrontEndCamera_PSP::SetTime( TFLOAT a_fTime )
+{
+	if ( !IsLoaded() || !TMath::IsFinite( a_fTime ) || a_fTime < 0.0f )
 		return;
 
-	m_fTime_PSP += a_fDeltaTime;
+	m_fTime_PSP = a_fTime;
 	if ( m_uiFlags_PSP & s_uiFrontEndCameraLoopFlag_PSP )
 	{
 		const TFLOAT fDuration = TFLOAT( m_uiFrameCount_PSP ) / TFLOAT( m_uiSampleRate_PSP );

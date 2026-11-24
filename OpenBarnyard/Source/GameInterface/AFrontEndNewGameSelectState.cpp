@@ -166,6 +166,10 @@ void AFrontEndNewGameSelectState::OnInsertion()
 	rReport.uiNewGameOpeningDraws = 0;
 	rReport.uiNewGameOpeningFrames = 0;
 	rReport.uiNewGameSkyDraws = 0;
+	rReport.uiNewGameOpeningShot = 0;
+	rReport.iNewGameVoiceMS = -1;
+	rReport.uiNewGameVoiceUnderruns = 0;
+	rReport.uiNewGameVoiceNonSilentBlocks = 0;
 #else
 	APlayerProgress* pProgress = APlayerProgress::GetSingleton();
 #endif
