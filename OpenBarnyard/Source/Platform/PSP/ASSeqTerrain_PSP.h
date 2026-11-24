@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Platform/PSP/TModelFactory_PSP.h>
+#include <Platform/PSP/TRenderInterface_PSP.h>
 #include <Platform/PSP/TTextureFactory_PSP.h>
 
 class ASSeqTerrain_PSP
@@ -12,6 +13,7 @@ public:
 	static TBOOL HasSS01Pack();
 	TBOOL LoadSS01();
 	void Unload();
+	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderInterface, const Toshi::TRenderCamera_PSP& a_rCamera ) const;
 
 	TUINT GetMeshCount() const { return m_uiMeshCount; }
 	TUINT GetTextureCount() const { return m_uiTextureCount; }

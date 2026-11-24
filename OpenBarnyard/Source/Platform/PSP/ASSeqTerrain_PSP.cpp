@@ -2,7 +2,7 @@
 #include "ASSeqTerrain_PSP.h"
 
 #include <File/TFile.h>
-#include <Platform/PSP/TRenderInterface_PSP.h>
+#include <Math/TMathInline.h>
 #include <Toshi/TStringManager.h>
 
 TOSHI_NAMESPACE_USING
@@ -94,4 +94,50 @@ void ASSeqTerrain_PSP::Unload()
 		m_aMeshes[ --m_uiMeshCount ].Unload();
 	while ( m_uiTextureCount > 0 )
 		m_aTextures[ --m_uiTextureCount ].Unload();
+}
+
+TUINT ASSeqTerrain_PSP::Render( TRenderInterface_PSP& a_rRenderInterface, const TRenderCamera_PSP& a_rCamera ) const
+{
+	static const TRenderSceneTransform_PSP s_Transform = { { 0.0f, 0.0f, 0.0f }, { TMath::HALF_PI, 0.0f, 0.0f }, 1.0f };
+	static const TRenderModelTransform_PSP s_ModelTransform = { 1.0f, { 0.0f, 0.0f, 0.0f } };
+	const TFLOAT fSlopeY = TMath::Tan( TMath::DegToRad( a_rCamera.fFOV * 0.5f ) );
+	const TFLOAT fSlopeX = fSlopeY * TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TRenderInterface_PSP::SCREEN_HEIGHT;
+	const TFLOAT fPlaneX = TMath::Sqrt( 1.0f + fSlopeX * fSlopeX );
+	const TFLOAT fPlaneY = TMath::Sqrt( 1.0f + fSlopeY * fSlopeY );
+	const TVector3 vecForward( a_rCamera.aDirection[ 0 ], a_rCamera.aDirection[ 1 ], a_rCamera.aDirection[ 2 ] );
+	const TVector3 vecUp( a_rCamera.aUp[ 0 ], a_rCamera.aUp[ 1 ], a_rCamera.aUp[ 2 ] );
+	TVector3 vecRight;
+	vecRight.CrossProduct( vecForward, vecUp );
+
+	TUINT uiDraws = 0;
+	for ( TUINT i = 0; i < m_uiMeshCount; i++ )
+	{
+		const TModelBounds_PSP& rBounds = m_aMeshes[ i ].GetBounds();
+		const TVector3 vecHalfExtent(
+			( rBounds.aMax[ 0 ] - rBounds.aMin[ 0 ] ) * 0.5f,
+			( rBounds.aMax[ 1 ] - rBounds.aMin[ 1 ] ) * 0.5f,
+			( rBounds.aMax[ 2 ] - rBounds.aMin[ 2 ] ) * 0.5f
+		);
+		const TFLOAT fRadius = vecHalfExtent.Magnitude();
+		const TVector3 vecOffset(
+			rBounds.aMin[ 0 ] + vecHalfExtent.x - a_rCamera.aPosition[ 0 ],
+			-( rBounds.aMin[ 2 ] + vecHalfExtent.z ) - a_rCamera.aPosition[ 1 ],
+			rBounds.aMin[ 1 ] + vecHalfExtent.y - a_rCamera.aPosition[ 2 ]
+		);
+		const TFLOAT fDepth = TVector3::DotProduct( vecForward, vecOffset );
+		if ( fDepth + fRadius < a_rCamera.fNear || fDepth - fRadius > 280.0f ||
+		     TMath::Abs( TVector3::DotProduct( vecRight, vecOffset ) ) > fDepth * fSlopeX + fRadius * fPlaneX ||
+		     TMath::Abs( TVector3::DotProduct( vecUp, vecOffset ) ) > fDepth * fSlopeY + fRadius * fPlaneY )
+			continue;
+
+		const MaterialEntry& rEntry = m_aMaterials[ i ];
+		const TRenderMaterial_PSP oMaterial = {
+			TTRUE, TRENDERTEXTUREFUNCTION_PSP_MODULATE, TRENDERCULLMODE_PSP_NONE,
+			TRenderAlphaMode_PSP( rEntry.uiAlpha ), TRenderTextureAddress_PSP( rEntry.uiAddressU ),
+			TRenderTextureAddress_PSP( rEntry.uiAddressV ),
+		};
+		a_rRenderInterface.DrawModel( m_aMeshes[ i ], s_Transform, oMaterial, &m_aTextures[ rEntry.uiTexture ], s_ModelTransform, &a_rCamera );
+		uiDraws++;
+	}
+	return uiDraws;
 }

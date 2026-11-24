@@ -56,12 +56,12 @@ AFrontEndCamera_PSP::AFrontEndCamera_PSP()
 {
 }
 
-TBOOL AFrontEndCamera_PSP::Load()
+TBOOL AFrontEndCamera_PSP::Load( const TCHAR* a_szPath, TFLOAT a_fFOV, TFLOAT a_fNear )
 {
 	Unload();
 	TStringManager::String8Copy(
 		m_szFailedPath_PSP,
-		"local:frontend_camera.pcam",
+		a_szPath,
 		TARRAYSIZE( m_szFailedPath_PSP )
 	);
 
@@ -128,6 +128,8 @@ TBOOL AFrontEndCamera_PSP::Load()
 	m_uiSampleRate_PSP = oHeader.uiSampleRate;
 	m_uiFlags_PSP = oHeader.uiFlags;
 	m_fTime_PSP = 0.0f;
+	m_RenderCamera_PSP.fFOV = a_fFOV;
+	m_RenderCamera_PSP.fNear = a_fNear;
 	ApplyFrame_PSP( 0, m_uiFrameCount_PSP > 1 ? 1 : 0, 0.0f );
 	m_szFailedPath_PSP[ 0 ] = '\0';
 	return TTRUE;

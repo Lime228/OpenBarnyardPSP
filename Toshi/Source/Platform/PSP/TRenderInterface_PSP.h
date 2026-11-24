@@ -80,6 +80,7 @@ struct TRenderCamera_PSP
 	TFLOAT aDirection[ 3 ];
 	TFLOAT aUp[ 3 ];
 	TFLOAT fFOV;
+	TFLOAT fNear = 1.0f;
 };
 
 class TRenderInterface_PSP

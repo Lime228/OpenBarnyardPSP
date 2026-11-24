@@ -17,7 +17,7 @@ public:
 public:
 	AFrontEndCamera_PSP();
 
-	TBOOL Load();
+	TBOOL Load( const TCHAR* a_szPath = "local:frontend_camera.pcam", TFLOAT a_fFOV = 60.0f, TFLOAT a_fNear = 1.0f );
 	void  Unload();
 	void  Update( TFLOAT a_fDeltaTime );
 

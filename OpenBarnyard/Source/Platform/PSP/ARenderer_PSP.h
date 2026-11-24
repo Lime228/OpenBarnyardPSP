@@ -6,3 +6,6 @@ Toshi::TRenderInterface_PSP& AGetRenderInterface_PSP();
 void ALoadFrontEndWorld_PSP();
 void AUnloadFrontEndWorld_PSP();
 TBOOL ACheckNewGameTerrain_PSP();
+TBOOL AHasSSeqOpening_PSP();
+TBOOL AStartSSeqOpening_PSP();
+void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend );

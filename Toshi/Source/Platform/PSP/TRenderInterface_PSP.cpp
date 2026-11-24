@@ -433,7 +433,7 @@ void TRenderInterface_PSP::DrawModel(
 	sceGumPerspective(
 		a_pCamera != TNULL ? a_pCamera->fFOV : 45.0f,
 		TFLOAT( SCREEN_WIDTH ) / TFLOAT( SCREEN_HEIGHT ),
-		a_pCamera != TNULL ? 1.0f : 0.1f,
+		a_pCamera != TNULL ? a_pCamera->fNear : 0.1f,
 		a_pCamera != TNULL ? 280.0f : 100.0f
 	);
 	sceGumMatrixMode( GU_VIEW );

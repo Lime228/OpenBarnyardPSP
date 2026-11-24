@@ -12,6 +12,9 @@
 #include "Movie/AMoviePlayer.h"
 #include "Render/ARenderer.h"
 
+#include <File/TFile.h>
+#include <Math/TMathInline.h>
+
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
 // Note: Should be the last include!
@@ -38,7 +41,18 @@ static AFrontEndTerrainPack_PSP s_FrontEndHilltop_PSP;
 static AFrontEndTerrainPack_PSP s_FrontEndMeadowsouth_PSP;
 static AFrontEndInstanceManager_PSP s_FrontEndInstanceManager_PSP;
 static ASSeqTerrain_PSP s_SSeqTerrain_PSP;
+static AFrontEndCamera_PSP s_SSeqOpeningCamera_PSP;
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
+static constexpr TCHAR s_szOpeningConfig_PSP[] = "local:Data/ScriptedSequence/SS01/opening.psco";
+static constexpr TCHAR s_szOpeningCamera_PSP[] = "local:Data/ScriptedSequence/SS01/opening.pcam";
+
+struct ASSeqOpeningConfig_PSP
+{
+	TUINT32 uiMagic;
+	TUINT32 uiVersion;
+	TFLOAT fHorizontalFOV;
+	TFLOAT fNear;
+};
 
 TDEFINE_CLASS( ARenderer );
 
@@ -180,6 +194,18 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiRendererFrames++;
+	if ( s_SSeqOpeningCamera_PSP.IsLoaded() )
+	{
+		s_SSeqOpeningCamera_PSP.Update( a_fDeltaTime );
+		s_RenderInterface_PSP.BeginScene( 0xff000000 );
+		rReport.uiNewGameOpeningDraws += s_SSeqTerrain_PSP.Render( s_RenderInterface_PSP, s_SSeqOpeningCamera_PSP.GetRenderCamera() );
+		s_RenderInterface_PSP.EndScene();
+		rReport.uiNewGameOpeningFrames++;
+		if ( rReport.uiNewGameOpeningFrames == 1 || rReport.uiRendererFrames % 60 == 0 )
+			AWriteGameRuntimeReport_PSP();
+		return TTRUE;
+	}
+
 	AMoviePlayer* pMovie = AMoviePlayer::GetSingletonSafe();
 	if ( pMovie != TNULL && pMovie->IsMoviePlaying() )
 	{
@@ -291,6 +317,7 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 
 void ARenderer::OnDestroy()
 {
+	AStopSSeqOpening_PSP( TFALSE );
 	AUnloadFrontEndWorld_PSP();
 	s_RenderInterface_PSP.DestroyDisplay();
 }
@@ -340,6 +367,66 @@ TBOOL ACheckNewGameTerrain_PSP()
 	if ( !bLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_SSeqTerrain_PSP.GetFailedPath() );
 	return bLoaded;
+}
+
+TBOOL AHasSSeqOpening_PSP()
+{
+	TFile* pFile = TFile::Create( s_szOpeningConfig_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	if ( pFile == TNULL )
+		return TFALSE;
+	pFile->Destroy();
+	return TTRUE;
+}
+
+TBOOL AStartSSeqOpening_PSP()
+{
+	static_assert( sizeof( ASSeqOpeningConfig_PSP ) == 16 );
+	ASSeqOpeningConfig_PSP oConfig = {};
+	TFile* pFile = TFile::Create( s_szOpeningConfig_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	if ( pFile == TNULL )
+		return TFALSE;
+	const TBOOL bRead = pFile->GetSize() == sizeof( oConfig ) && pFile->Read( &oConfig, sizeof( oConfig ) ) == sizeof( oConfig );
+	pFile->Destroy();
+	if ( !bRead || oConfig.uiMagic != 0x4f435350 || oConfig.uiVersion != 1 ||
+	     !( oConfig.fHorizontalFOV >= 1.0f && oConfig.fHorizontalFOV < 170.0f ) ||
+	     !( oConfig.fNear > 0.0f && oConfig.fNear < 280.0f ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_szOpeningConfig_PSP );
+		return TFALSE;
+	}
+	const TFLOAT fAspect = TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TRenderInterface_PSP::SCREEN_HEIGHT;
+	const TFLOAT fHalfFOV = TMath::DegToRad( oConfig.fHorizontalFOV * 0.5f );
+	const TFLOAT fVerticalFOV = TMath::ATan( TMath::Tan( fHalfFOV ) / fAspect ) * ( 360.0f / TMath::PI );
+	if ( !s_SSeqOpeningCamera_PSP.Load( s_szOpeningCamera_PSP, fVerticalFOV, oConfig.fNear ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_SSeqOpeningCamera_PSP.GetFailedPath() );
+		return TFALSE;
+	}
+
+	AUnloadFrontEndWorld_PSP();
+	if ( !s_SSeqTerrain_PSP.LoadSS01() )
+	{
+		AStopSSeqOpening_PSP( TTRUE );
+		ASetGameRuntimeFailedPath_PSP( s_SSeqTerrain_PSP.GetFailedPath() );
+		return TFALSE;
+	}
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.uiNewGameTerrainMeshes = s_SSeqTerrain_PSP.GetMeshCount();
+	rReport.uiNewGameTerrainTextures = s_SSeqTerrain_PSP.GetTextureCount();
+	rReport.uiNewGameOpeningDraws = 0;
+	rReport.uiNewGameOpeningFrames = 0;
+	AUpdateGameRuntimeMemory_PSP();
+	return TTRUE;
+}
+
+void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend )
+{
+	if ( !s_SSeqOpeningCamera_PSP.IsLoaded() )
+		return;
+	s_SSeqOpeningCamera_PSP.Unload();
+	s_SSeqTerrain_PSP.Unload();
+	if ( a_bRestoreFrontend )
+		ALoadFrontEndWorld_PSP();
 }
 
 void ARenderer::RenderGUI()
