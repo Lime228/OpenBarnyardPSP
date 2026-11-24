@@ -67,6 +67,12 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
             $pack.source_meshes = $manifest.source_meshes
             $pack.models = $manifest.models.Count
             $pack.textures = $manifest.textures.Count
+            $pack.geometry_bytes = ($manifest.models | ForEach-Object {
+                (Get-Item -LiteralPath (Join-Path $directory $_.mesh)).Length
+            } | Measure-Object -Sum).Sum
+            $pack.texture_bytes = ($manifest.textures | ForEach-Object {
+                (Get-Item -LiteralPath (Join-Path $directory $_.texture)).Length
+            } | Measure-Object -Sum).Sum
             $pack.status = 'converted'
             $converted++
         }
@@ -88,6 +94,8 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
     texture_max_width = $TextureMaxWidth
     converted = $converted
     failed = $failures
+    geometry_bytes = ($packs.geometry_bytes | Measure-Object -Sum).Sum
+    texture_bytes = ($packs.texture_bytes | Measure-Object -Sum).Sum
     packs = @($packs)
 } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $outputPath 'ss01_terrain.json') -Encoding utf8NoBOM
 Write-Output "SS01 Dummy visibility row converted $converted model files. Failures: $failures."
