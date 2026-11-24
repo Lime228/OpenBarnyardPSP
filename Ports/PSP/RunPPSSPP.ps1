@@ -4,6 +4,7 @@ param(
     [string] $EbootPath = '',
     [string] $PPSSPPPath = '',
     [switch] $OriginalGame,
+    [switch] $ShowWindow,
 
     [ValidateSet('Cross', 'Circle', 'Triangle', 'Start', 'DpadUp', 'DpadDown', 'DpadLeft', 'DpadRight', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'Screenshot')]
     [string] $Key = 'Cross',
@@ -223,6 +224,9 @@ function Start-OpenBarnyardPPSSPP {
     }
 
     Remove-StalePIDFile
+    if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContinue) {
+        throw 'Another PPSSPP instance is already running.'
+    }
 
     if (-not (Test-Path -LiteralPath $PPSSPPPath -PathType Leaf)) {
         throw "PPSSPP executable was not found: $PPSSPPPath"
@@ -235,11 +239,12 @@ function Start-OpenBarnyardPPSSPP {
     New-Item -ItemType Directory -Path $runnerRoot -Force | Out-Null
     Enable-PPSSPPDebugger
 
+    $windowStyle = if ($ShowWindow) { 'Normal' } else { 'Hidden' }
     $process = Start-Process `
         -FilePath $PPSSPPPath `
         -ArgumentList @('--windowed', '--scale=1', $EbootPath) `
         -WorkingDirectory (Split-Path -Parent $PPSSPPPath) `
-        -WindowStyle Hidden `
+        -WindowStyle $windowStyle `
         -PassThru
 
     Set-Content -LiteralPath $pidPath -Value $process.Id -NoNewline
@@ -247,8 +252,13 @@ function Start-OpenBarnyardPPSSPP {
         Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
         throw "PPSSPP exited during startup with code $($process.ExitCode)."
     }
-    Move-PPSSPPWindowOffScreen $process
-    Write-Output "Started PPSSPP in the background (PID $($process.Id))."
+    if ($ShowWindow) {
+        Write-Output "Started PPSSPP with a visible window (PID $($process.Id))."
+    }
+    else {
+        Move-PPSSPPWindowOffScreen $process
+        Write-Output "Started PPSSPP in the background (PID $($process.Id))."
+    }
 }
 
 function Stop-OpenBarnyardPPSSPP {
@@ -459,7 +469,7 @@ function Send-OpenBarnyardPPSSPPKey {
     }
 
     if ($Button -eq 'Screenshot') {
-        Move-PPSSPPWindowOffScreen $Process
+        if (-not $ShowWindow) { Move-PPSSPPWindowOffScreen $Process }
         $socket = Connect-PPSSPPDebugger -Process $Process
         $cpuStopped = $false
         try {
