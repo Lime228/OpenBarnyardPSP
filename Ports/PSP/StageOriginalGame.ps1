@@ -1019,7 +1019,7 @@ else {
 if ($SS01OpeningDirectory) {
     $SS01OpeningDirectory = (Resolve-Path -LiteralPath $SS01OpeningDirectory).Path
     $opening = Get-Content -LiteralPath (Join-Path $SS01OpeningDirectory 'opening.json') -Raw | ConvertFrom-Json
-    if ($opening.version -ne 1 -or $opening.sequence -cne 'SS01_start' -or $opening.visibility_row -cnotmatch '^[A-Za-z0-9_]+$') {
+    if ($opening.version -notin 1, 2 -or $opening.sequence -cne 'SS01_start' -or $opening.visibility_row -cnotmatch '^[A-Za-z0-9_]+$') {
         throw 'Expected the generated SS01 opening camera manifest.'
     }
     if (-not $SS01TerrainDirectory) {
@@ -1030,6 +1030,23 @@ if ($SS01OpeningDirectory) {
         throw "The opening camera requires the original $($opening.visibility_row) terrain row."
     }
     $openingFiles = @('opening.pcam', 'opening.psco')
+    if ($opening.version -eq 2) {
+        if ($opening.shots.Count -ne 2 -or [int]$opening.voice.index -lt 0) { throw 'Invalid SS01 opening timeline.' }
+        $openingFiles += 'opening-1.pcam'
+        $voiceSource = Join-Path (Split-Path -Parent $SS01OpeningDirectory) 'Voice'
+        $voiceReport = Join-Path $voiceSource 'voice.json'
+        if (Test-Path -LiteralPath $voiceReport -PathType Leaf) {
+            $voice = Get-Content -LiteralPath $voiceReport -Raw | ConvertFrom-Json
+            $selected = @($voice.streams | Where-Object substream -EQ $opening.voice.index)
+            $name = "$($opening.voice.index).padp"
+            if ($voice.version -ne 1 -or $voice.sequence -cne $opening.sequence -or $selected.Count -ne 1 -or
+                $selected[0].path -cne $name -or $selected[0].name -cne $opening.voice.name) {
+                throw 'The staged voice manifest does not match the original opening track.'
+            }
+            $openingVoice = Get-Item -LiteralPath (Join-Path $voiceSource $name)
+            if ($openingVoice.PSIsContainer -or $openingVoice.Length -ne $selected[0].bytes) { throw 'Invalid cached SS01 opening voice.' }
+        }
+    }
     if ($opening.sky) { $openingFiles += @('sky-base.pmes', 'sky-clouds.pmes', 'sky-clouds.ptex', 'sky.psky') }
     $openingSources = foreach ($name in $openingFiles) {
         (Get-Item -LiteralPath (Join-Path $SS01OpeningDirectory $name)).FullName
@@ -1067,7 +1084,13 @@ if ($SS01OpeningDirectory) {
     $openingDestination = Join-Path $runtimePath 'Data\ScriptedSequence\SS01'
     New-Item -ItemType Directory -Force -Path $openingDestination | Out-Null
     Copy-Item -LiteralPath $openingSources -Destination $openingDestination -Force
-    Write-Output "Staged the original opening shot $($opening.clip)"
+    if ($openingVoice) {
+        $voiceDestination = Join-Path $openingDestination 'Voice'
+        New-Item -ItemType Directory -Force -Path $voiceDestination | Out-Null
+        Copy-Item -LiteralPath $openingVoice.FullName -Destination $voiceDestination -Force
+        Write-Output "Staged the original voice stream $($opening.voice.name)"
+    }
+    Write-Output 'Staged the original SS01 opening'
 }
 
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force

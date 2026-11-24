@@ -7,7 +7,8 @@ param(
     [switch] $CheckNewGame,
     [switch] $CheckNewGameTerrain,
     [switch] $CheckNewGameOpening,
-    [switch] $RequireOpeningSky
+    [switch] $RequireOpeningSky,
+    [switch] $RequireOpeningVoice
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +30,9 @@ if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNew
 }
 if ($RequireOpeningSky -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\sky.psky') -PathType Leaf))) {
     throw 'The sky check needs the opening check and a staged sky.'
+}
+if ($RequireOpeningVoice -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\Voice') -PathType Container))) {
+    throw 'The voice check needs the opening check and a staged voice cache.'
 }
 if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContinue) {
     throw 'An existing PPSSPP process is running.'
@@ -155,6 +159,16 @@ try {
                 Send-Key Screenshot
             }
             "Rendered the original SS01 opening ($($newGame.new_game_opening_draws) draws across $($newGame.new_game_opening_frames) frames)."
+            if ($RequireOpeningVoice) {
+                $expected.new_game_opening_shot = 2
+                $spoken = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
+                if ([int]$spoken.new_game_voice_ms -lt 4400 -or [int]$spoken.new_game_voice_underruns -ne 0 -or
+                    [int]$spoken.new_game_voice_non_silent_blocks -lt 40) {
+                    throw "The second original shot did not follow a playing SS01 voice stream. See $gameLog"
+                }
+                "Original narration reached the camera cut at $($spoken.new_game_voice_ms) ms with no underruns."
+                if ($Capture) { Send-Key Screenshot }
+            }
         }
         else {
             $timeout = if ($CheckNewGameTerrain) { 90 } else { 10 }
