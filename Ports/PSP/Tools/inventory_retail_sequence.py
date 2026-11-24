@@ -11,6 +11,13 @@ from inventory_retail_models import run_export
 
 TSO_HEADER = struct.Struct("<6I")
 TSO_SCRIPT = struct.Struct("<IiIII")
+TSO_INSTRUCTION = struct.Struct("<iIi")
+TSO_VOICE = struct.Struct("<Iii")
+TSO_OP_VOICE = 5
+TSO_OP_END = 13
+# ASSeq::ms_aInstructionSizes, up to the END sentinel.
+TSO_INSTRUCTION_SIZES = (0x1C, 0x14, 0x1C, 0x14, 0x1C, 0x18, 0x18, 0x14, 0x10, 0x10, 0x0C, 0x0C, 0x1C)
+TSO_SOUND_TYPES = ("vostream", "cue")
 
 
 def retail_file(install: Path, name: str) -> Path:
@@ -53,15 +60,46 @@ def inspect_script(path: Path) -> dict:
                 raise ValueError("TSO relocation target is outside the file")
 
     name_offset, _, count, actors_offset, tracks_offset = TSO_SCRIPT.unpack_from(data)
-    name_start = TSO_HEADER.size + strings + name_offset
-    name_end = blob.find(b"\0", name_start)
-    if name_end <= name_start:
-        raise ValueError("invalid TSO script name")
     if count > len(data) // 4 or any(pointers + offset + count * 4 > len(data) for offset in (actors_offset, tracks_offset)):
         raise ValueError("invalid TSO track tables")
 
+    def read_string(offset: int) -> str:
+        start = TSO_HEADER.size + strings + offset
+        end = blob.find(b"\0", start)
+        if end < start:
+            raise ValueError("unterminated TSO string")
+        return blob[start:end].decode("ascii")
+
+    name = read_string(name_offset)
+    if not name:
+        raise ValueError("invalid TSO script name")
     actors = [actor for actor, in struct.iter_unpack("<i", data[pointers + actors_offset:pointers + actors_offset + count * 4])]
-    return {"name": blob[name_start:name_end].decode("ascii"), "tracks": count, "track_actors": actors}
+    starts = struct.unpack_from(f"<{count}I", data, pointers + tracks_offset)
+    code_end = min(strings_reloc, strings, pointers_reloc, pointers)
+    ordered_starts = sorted(set(starts))
+    limits = dict(zip(ordered_starts, ordered_starts[1:] + [code_end]))
+    voices = []
+    for track, (actor, start) in enumerate(zip(actors, starts)):
+        limit = limits[start]
+        if start % 4 or not TSO_SCRIPT.size <= start < limit <= code_end:
+            raise ValueError(f"invalid TSO instruction range for track {track}")
+        cursor = start
+        while cursor + TSO_INSTRUCTION.size <= limit:
+            opcode, _, _ = TSO_INSTRUCTION.unpack_from(data, cursor)
+            if opcode == TSO_OP_END:
+                break
+            if not 0 <= opcode < TSO_OP_END or cursor + TSO_INSTRUCTION_SIZES[opcode] > limit:
+                raise ValueError(f"invalid TSO instruction for track {track}")
+            if opcode == TSO_OP_VOICE:
+                sound_name, index, kind = TSO_VOICE.unpack_from(data, cursor + TSO_INSTRUCTION.size)
+                if not 0 <= kind < len(TSO_SOUND_TYPES):
+                    raise ValueError(f"invalid TSO sound type for track {track}")
+                voices.append({"track": track, "actor": actor, "type": TSO_SOUND_TYPES[kind],
+                               "index": index, "name": read_string(sound_name)})
+            cursor += TSO_INSTRUCTION_SIZES[opcode]
+        else:
+            raise ValueError(f"missing TSO track end for track {track}")
+    return {"name": name, "tracks": count, "track_actors": actors, "voice_instructions": voices}
 
 
 def describe_resources(properties: list, type_properties: list, symbols: dict) -> dict:

@@ -8,16 +8,26 @@ from inventory_retail_sequence import describe_resources, inspect_script, retail
 
 class RetailSequenceTests(unittest.TestCase):
     def test_inspects_the_original_tso_tables(self):
-        header = struct.pack("<6I", 20, 4, 24, 32, 8, 40)
+        header = struct.pack("<6I", 56, 8, 64, 76, 8, 84)
         script = struct.pack("<IiIII", 0, 0, 1, 0, 4)
-        body = struct.pack("<I8sIIiI", 0, b"Intro", 12, 16, 7, 0)
+        voice = struct.pack("<iIiIii", 5, 0, 0, 6, 2, 0)
+        end = struct.pack("<iIi", 13, 0, 0)
+        tables = struct.pack("<II12sIIiI", 0, 32, b"Intro\0Line", 12, 16, 7, 20)
+        body = voice + end + tables
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "Intro.tso"
             path.write_bytes(header + script + body)
-            self.assertEqual(inspect_script(path), {"name": "Intro", "tracks": 1, "track_actors": [7]})
+            self.assertEqual(inspect_script(path), {
+                "name": "Intro", "tracks": 1, "track_actors": [7],
+                "voice_instructions": [{"track": 0, "actor": 7, "type": "vostream", "index": 2, "name": "Line"}],
+            })
 
             path.write_bytes(header + script + body[:-1])
             with self.assertRaisesRegex(ValueError, "track tables"):
+                inspect_script(path)
+
+            path.write_bytes(header + script + voice + struct.pack("<iIi", 10, 0, 0) + tables)
+            with self.assertRaisesRegex(ValueError, "missing TSO track end"):
                 inspect_script(path)
 
     def test_uses_model_types_and_the_original_symbol_case(self):
