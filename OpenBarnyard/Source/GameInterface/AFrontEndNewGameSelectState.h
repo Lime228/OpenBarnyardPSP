@@ -27,6 +27,9 @@ public:
 	// AGameState
 	//-----------------------------------------------------------------------------
 	virtual TBOOL ProcessCommand( AInputCommand a_eInputCommand, const Toshi::TInputInterface::InputEvent* a_pInputEvent, TBOOL& a_rStopEvents ) OVERRIDE; // +0x10
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	virtual TBOOL OnUpdate( TFLOAT a_fDeltaTime ) OVERRIDE;
+#endif
 	virtual void  OnInsertion() OVERRIDE;                                                                                                                  // +0x50
 	virtual void  OnRemoval() OVERRIDE;                                                                                                                    // +0x54
 	virtual void  OnActivate() OVERRIDE;                                                                                                                   // +0x60

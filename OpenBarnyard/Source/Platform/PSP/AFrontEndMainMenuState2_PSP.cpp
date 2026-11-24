@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "GameInterface/AFrontEndMainMenuState2.h"
+#include "GameInterface/AFrontEndNewGameSelectState.h"
 #include "GameInterface/AGameStateController.h"
 #include "GameInterface/AOptionsState.h"
 #include "GUI/AGUI2.h"
@@ -228,6 +229,12 @@ void AFrontEndMainMenuState2::OnMenuClose()
 		return;
 
 	AGetGameRuntimeReport_PSP().uiMenuCloseCount++;
+	if ( m_iActivatedButtonID == FRONTENDBUTTON_NEWGAME )
+	{
+		ASetGameRuntimePhase_PSP( "frontend-new-game-pending" );
+		AGameStateController::GetSingleton()->PushState( new AFrontEndNewGameSelectState() );
+		return;
+	}
 	if ( m_iActivatedButtonID == FRONTENDBUTTON_OPTIONS )
 	{
 		ASetGameRuntimePhase_PSP( "frontend-options-pending" );

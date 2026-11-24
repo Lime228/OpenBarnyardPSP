@@ -1,19 +1,24 @@
 #include "pch.h"
 #include "AFrontEndNewGameSelectState.h"
 #include "AGameStateController.h"
-#include "AHackedQuickSave.h"
 #include "GUI/T2GUIFontManager.h"
 #include "Locale/ALocaleManager.h"
-#include "Player/APlayerProfileManager.h"
-#include "Helpers/AGameLoader.h"
-#include "Helpers/AHighScoreManager.h"
-#include "Helpers/AHintManager.h"
 #include "Sound/ASoundManager.h"
 #include "SoundBank/ui.h"
-#include "Mod/AModEvents.h"
 
-#include <GUI/T2GUITextureSectionManager.h>
-#include <Toshi/TDateTime.h>
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+#  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#else
+#  include "AHackedQuickSave.h"
+#  include "Player/APlayerProfileManager.h"
+#  include "Helpers/AGameLoader.h"
+#  include "Helpers/AHighScoreManager.h"
+#  include "Helpers/AHintManager.h"
+#  include "Mod/AModEvents.h"
+
+#  include <GUI/T2GUITextureSectionManager.h>
+#  include <Toshi/TDateTime.h>
+#endif
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -26,6 +31,7 @@ TOSHI_NAMESPACE_USING
 // NOTE: GetClass 0040c140
 TDEFINE_CLASS( AFrontEndNewGameSelectState );
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 void AFrontEnd_ReadSaveSlot( const APlayerProgress::SaveSlot* a_pSlot, TWCHAR* a_wszOutName, TWCHAR* a_wszOutDate, TINT& a_rOutGender, TINT& a_rOutCostume )
 {
 	TDateTime oDateTime;
@@ -74,6 +80,7 @@ void AFrontEnd_ReadSaveSlot( const APlayerProgress::SaveSlot* a_pSlot, TWCHAR* a
 	TINT iLength = TStringManager::String16Length( a_wszOutDate );
 	TStringManager::String16Format( a_wszOutDate + iLength, 32 - iLength, L"%s)", ALocaleManager::Interface()->GetString( ( iHour > 11 ) ? 1175 : 1176 ) );
 }
+#endif
 
 // $Barnyard: FUNCTION 0040c260
 AFrontEndNewGameSelectState::AFrontEndNewGameSelectState()
@@ -97,6 +104,17 @@ TBOOL AFrontEndNewGameSelectState::ProcessCommand( AInputCommand a_eInputCommand
 	return BaseClass::ProcessCommand( a_eInputCommand, a_pInputEvent, a_rStopEvents );
 }
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+TBOOL AFrontEndNewGameSelectState::OnUpdate( TFLOAT a_fDeltaTime )
+{
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuState = m_eMenuState;
+	AGUI2MenuItem* pFocusedItem = m_oMenu.GetFocusedMenuItem();
+	rReport.iMenuFocusID = pFocusedItem != TNULL ? TSTATICCAST( AGUI2Button, pFocusedItem )->GetId() : -1;
+	return BaseClass::OnUpdate( a_fDeltaTime );
+}
+#endif
+
 // $Barnyard: FUNCTION 0040c340
 void AFrontEndNewGameSelectState::OnInsertion()
 {
@@ -107,10 +125,17 @@ void AFrontEndNewGameSelectState::OnInsertion()
 	TFLOAT     fMaxText  = 0.0f;
 	TFLOAT     fMaxImage = 0.0f;
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	AGetGameRuntimeReport_PSP().iNewGameRequestedSlot = -1;
+#else
 	APlayerProgress* pProgress = APlayerProgress::GetSingleton();
+#endif
 
 	for ( TINT i = 0; i < APlayerProgress::NUM_SAVE_SLOTS; i++ )
 	{
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+		const TWCHAR* wszText;
+#else
 		APlayerProgress::SaveSlot* pSlot   = pProgress->GetSlot( i );
 		const TWCHAR*              wszText = m_awszSlotNames[ i ];
 
@@ -129,6 +154,7 @@ void AFrontEndNewGameSelectState::OnInsertion()
 			fMaxImage = TMath::Max( fMaxImage, m_aSlotPictures[ i ].GetWidth() );
 		}
 		else
+#endif
 		{
 			// Empty
 			wszText                   = ALocaleManager::Interface()->GetString( 1283 );
@@ -181,6 +207,9 @@ void AFrontEndNewGameSelectState::OnInsertion()
 	BaseClass::OnInsertion();
 
 	rFirstText.SetWidth( fWidth );
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	ASetGameRuntimePhase_PSP( "frontend-new-game-ready" );
+#endif
 }
 
 // $Barnyard: FUNCTION 0040c200
@@ -208,12 +237,14 @@ void AFrontEndNewGameSelectState::OnMenuItemActivated( AGUI2MenuItem* a_pMenuIte
 	AGUI2Button* pButton = TSTATICCAST( AGUI2Button, a_pMenuItem );
 	m_iActivatedSlot     = pButton->GetId();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AHighScoreManager::ScoreReset( TFALSE );
 	AHintManager::ResetState();
 
 	APlayerProgress* pProgress = APlayerProgress::GetSingleton();
 	m_bOverwrite               = pProgress->GetSlot( m_iActivatedSlot )->bOccupied == 1;
 	pProgress->SetCurrentSlotIndex( m_iActivatedSlot );
+#endif
 
 	OnButtonActivated( pButton );
 }
@@ -223,10 +254,19 @@ void AFrontEndNewGameSelectState::OnMenuClose()
 {
 	if ( m_iActivatedSlot == -1 )
 	{
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+		ASetGameRuntimePhase_PSP( "frontend-new-game-return" );
+#endif
 		Remove();
 		return;
 	}
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	// Keep the slot chooser active until the original SS01 transition is available.
+	AGetGameRuntimeReport_PSP().iNewGameRequestedSlot = m_iActivatedSlot;
+	OnActivate();
+	ASetGameRuntimePhase_PSP( "frontend-new-game-awaiting-sequence" );
+#else
 	if ( m_bOverwrite == TTRUE )
 	{
 		// The slot is in use, ask before overwriting it
@@ -255,8 +295,10 @@ void AFrontEndNewGameSelectState::OnMenuClose()
 	}
 
 	StartNewGame();
+#endif
 }
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 // NOTE: inlined in OnMenuClose and OnOverwritePopupResponse
 void AFrontEndNewGameSelectState::StartNewGame()
 {
@@ -324,3 +366,4 @@ TBOOL __stdcall AFrontEndNewGameSelectState::OnOverwritePopupResponse( AFrontEnd
 
 	return TFALSE;
 }
+#endif

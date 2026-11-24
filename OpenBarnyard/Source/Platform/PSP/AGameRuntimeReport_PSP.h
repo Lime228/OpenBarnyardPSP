@@ -90,6 +90,7 @@ struct AGameRuntimeReport_PSP
 	TINT  iMenuLastActionEventType;
 	TINT  iMenuLastActionDoodad;
 	TINT  iMenuActivatedButtonID;
+	TINT  iNewGameRequestedSlot;
 	TINT  iOptionEffects;
 	TINT  iOptionMusic;
 	TINT  iOptionSpeech;

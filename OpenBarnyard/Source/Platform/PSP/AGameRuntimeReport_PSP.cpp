@@ -94,7 +94,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=25\n"
+		"version=26\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -194,6 +194,7 @@ void AWriteGameRuntimeReport_PSP()
 		"menu_activated_button=%d\n"
 		"menu_activation_count=%u\n"
 		"menu_close_count=%u\n"
+		"new_game_requested_slot=%d\n"
 		"option_effects=%d\n"
 		"option_music=%d\n"
 		"option_speech=%d\n"
@@ -314,6 +315,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.iMenuActivatedButtonID,
 		s_GameRuntimeReport_PSP.uiMenuActivationCount,
 		s_GameRuntimeReport_PSP.uiMenuCloseCount,
+		s_GameRuntimeReport_PSP.iNewGameRequestedSlot,
 		s_GameRuntimeReport_PSP.iOptionEffects,
 		s_GameRuntimeReport_PSP.iOptionMusic,
 		s_GameRuntimeReport_PSP.iOptionSpeech,
