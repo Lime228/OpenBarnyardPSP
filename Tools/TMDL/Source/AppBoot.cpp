@@ -189,7 +189,8 @@ int main( int argc, char** argv )
 		         strPSPTerrainCell.GetString(),
 		         T2String8::StringToInt( strWorldIndex.GetString() ),
 		         T2String8::StringToInt( strCellIndex.GetString() ),
-		         strOutPath.GetString()
+		         strOutPath.GetString(),
+		         strPSPModelName ? strPSPModelName.GetString() : TNULL
 		     ) )
 		{
 			TERROR( "Unable to export PSP terrain cell\n" );

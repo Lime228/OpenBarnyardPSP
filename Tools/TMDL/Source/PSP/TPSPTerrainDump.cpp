@@ -47,11 +47,11 @@ static const TCHAR* FindTexture_PSPTerrain(
 	return TNULL;
 }
 
-static Cell* FindCell_PSPTerrain( PTRB& a_rTRB, TINT a_iWorld, TINT a_iCell )
+static Cell* FindCell_PSPTerrain( PTRB& a_rTRB, TINT a_iWorld, TINT a_iCell, const std::string& a_rPrefix = {} )
 {
 	if ( a_iWorld < 0 || a_iCell < 0 )
 		return TNULL;
-	auto oDatabase = a_rTRB.GetSymbols()->Find<WorldDatabase>( a_rTRB.GetSections(), "Database" );
+	auto oDatabase = a_rTRB.GetSymbols()->Find<WorldDatabase>( a_rTRB.GetSections(), ( a_rPrefix + "Database" ).c_str() );
 	if ( !oDatabase || oDatabase.get()->m_uiNumWorlds == 0 || oDatabase.get()->m_uiNumWorlds > 64 ||
 	     oDatabase.get()->m_ppWorlds == TNULL || TUINT( a_iWorld ) >= oDatabase.get()->m_uiNumWorlds )
 		return TNULL;
@@ -59,6 +59,11 @@ static Cell* FindCell_PSPTerrain( PTRB& a_rTRB, TINT a_iWorld, TINT a_iCell )
 	if ( pWorld == TNULL || pWorld->m_iNumCells <= 0 || pWorld->m_iNumCells > 4096 ||
 	     pWorld->m_ppCells == TNULL || a_iCell >= pWorld->m_iNumCells )
 		return TNULL;
+	if ( !a_rPrefix.empty() && ( oDatabase.get()->m_uiNumWorlds != 1 || pWorld->m_iNumCells != 1 ) )
+	{
+		TERROR( "Packed world model export requires one world and one cell\n" );
+		return TNULL;
+	}
 	return pWorld->m_ppCells[ a_iCell ];
 }
 
@@ -161,7 +166,8 @@ TBOOL ExportPSPTerrainCellDump(
     const TCHAR* a_pInputPath,
     TINT         a_iWorld,
     TINT         a_iCell,
-    const TCHAR* a_pOutputPath
+    const TCHAR* a_pOutputPath,
+    const TCHAR* a_pModelName
 )
 {
 	if ( a_pInputPath == TNULL || a_pOutputPath == TNULL )
@@ -169,7 +175,9 @@ TBOOL ExportPSPTerrainCellDump(
 	PTRB oTRB;
 	if ( !oTRB.ReadFromFile( a_pInputPath ) )
 		return TFALSE;
-	Cell* pCell = FindCell_PSPTerrain( oTRB, a_iWorld, a_iCell );
+	const std::string strPrefix = a_pModelName != TNULL && a_pModelName[ 0 ] != '\0' ?
+	                                 std::string( a_pModelName ) + "_" : "";
+	Cell* pCell = FindCell_PSPTerrain( oTRB, a_iWorld, a_iCell, strPrefix );
 	static constexpr TUINT32 MAX_TERRAIN_CELL_MESHES = 256;
 	if ( pCell == TNULL || pCell->uiNumMeshes == 0 || pCell->uiNumMeshes > MAX_TERRAIN_CELL_MESHES ||
 	     pCell->ppCellMeshSpheres == TNULL )
@@ -193,7 +201,7 @@ TBOOL ExportPSPTerrainCellDump(
 		TERROR( "PSP terrain cell exceeds the bounded full-cell export budget\n" );
 		return TFALSE;
 	}
-	auto oMaterials = oTRB.GetSymbols()->Find<TTMDBase::MaterialsHeader>( oTRB.GetSections(), "Materials" );
+	auto oMaterials = oTRB.GetSymbols()->Find<TTMDBase::MaterialsHeader>( oTRB.GetSections(), ( strPrefix + "Materials" ).c_str() );
 	std::ostringstream oOutput;
 	oOutput.imbue( std::locale::classic() );
 	oOutput << std::setprecision( 9 );
