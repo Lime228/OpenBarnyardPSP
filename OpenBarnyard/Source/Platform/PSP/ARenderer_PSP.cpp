@@ -75,6 +75,12 @@ TBOOL ARenderer::OnCreate()
 	if ( !s_RenderInterface_PSP.CreateDisplay() )
 		return TFALSE;
 
+	ALoadFrontEndWorld_PSP();
+	return TTRUE;
+}
+
+void ALoadFrontEndWorld_PSP()
+{
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.fFrontendHour = s_fFrontEndStartHour_PSP;
 	rReport.bFrontendTerrainLoaded = s_FrontEndTerrain_PSP.Load();
@@ -163,7 +169,6 @@ TBOOL ARenderer::OnCreate()
 	if ( !rReport.bFrontendBarnSignLoaded )
 		ASetGameRuntimeFailedPath_PSP( s_FrontEndBarnSign_PSP.GetFailedPath() );
 	AUpdateGameRuntimeMemory_PSP();
-	return TTRUE;
 }
 
 TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
@@ -284,6 +289,13 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 
 void ARenderer::OnDestroy()
 {
+	AUnloadFrontEndWorld_PSP();
+	s_RenderInterface_PSP.DestroyDisplay();
+}
+
+// Call between scenes so the GU has finished using the front-end meshes and textures.
+void AUnloadFrontEndWorld_PSP()
+{
 	s_FrontEndCamera_PSP.Unload();
 	s_FrontEndBarnSign_PSP.Unload();
 	s_FrontEndInstanceManager_PSP.Unload();
@@ -300,7 +312,7 @@ void ARenderer::OnDestroy()
 	s_FrontEndGrass_PSP.Unload();
 	s_FrontEndTerrainPack_PSP.Unload();
 	s_FrontEndTerrain_PSP.Unload();
-	s_RenderInterface_PSP.DestroyDisplay();
+	AUpdateGameRuntimeMemory_PSP();
 }
 
 void ARenderer::RenderGUI()
