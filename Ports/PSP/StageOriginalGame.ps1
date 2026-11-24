@@ -1029,7 +1029,9 @@ if ($SS01OpeningDirectory) {
     if ($openingTerrain.terrain -cne 'ss01' -or $openingTerrain.visibility_row -cne $opening.visibility_row) {
         throw "The opening camera requires the original $($opening.visibility_row) terrain row."
     }
-    $openingSources = foreach ($name in @('opening.pcam', 'opening.psco')) {
+    $openingFiles = @('opening.pcam', 'opening.psco')
+    if ($opening.sky) { $openingFiles += @('sky-base.pmes', 'sky-clouds.pmes', 'sky-clouds.ptex', 'sky.psky') }
+    $openingSources = foreach ($name in $openingFiles) {
         (Get-Item -LiteralPath (Join-Path $SS01OpeningDirectory $name)).FullName
     }
 }

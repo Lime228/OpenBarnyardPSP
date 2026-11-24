@@ -6,7 +6,8 @@ param(
     [switch] $RequireMenuMusic,
     [switch] $CheckNewGame,
     [switch] $CheckNewGameTerrain,
-    [switch] $CheckNewGameOpening
+    [switch] $CheckNewGameOpening,
+    [switch] $RequireOpeningSky
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +26,9 @@ if ($CheckNewGameOpening -and (-not $hasOpening -or $CheckNewGameTerrain)) {
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
+}
+if ($RequireOpeningSky -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\sky.psky') -PathType Leaf))) {
+    throw 'The sky check needs the opening check and a staged sky.'
 }
 if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContinue) {
     throw 'An existing PPSSPP process is running.'
@@ -142,6 +146,9 @@ try {
         if ($CheckNewGameTerrain) { $expected.new_game_terrain_released = 1 }
         if ($CheckNewGameOpening) {
             $newGame = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
+            if ($RequireOpeningSky -and [int]$newGame.new_game_sky_draws -ne 2 * [int]$newGame.new_game_opening_frames) {
+                throw "The original opening sky did not render both layers. See $gameLog"
+            }
             if ($Capture) {
                 Send-Key Screenshot
                 Start-Sleep -Milliseconds 750
