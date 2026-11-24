@@ -3,6 +3,7 @@ param(
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
     [string] $OutputDirectory = '',
+    [string] $EncodedAudioDirectory = '',
     [ValidateSet(32, 64, 128, 256, 512)]
     [int] $TextureMaxWidth = 128
 )
@@ -10,6 +11,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $installPath = Join-Path $repositoryRoot 'Game\BarnyardPC\Install'
+$encodedAudioRequired = [bool]$EncodedAudioDirectory
+if (-not $EncodedAudioDirectory) {
+    $EncodedAudioDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\AudioBanks\Encoded'
+}
 if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\SS01'
 }
@@ -24,6 +29,7 @@ $outputPath = [IO.Path]::GetFullPath($OutputDirectory)
 $sequencePath = Join-Path $outputPath 'Sequence'
 $modelsPath = Join-Path $outputPath 'SequenceModels'
 $terrainPath = Join-Path $outputPath 'Terrain'
+$voicePath = Join-Path $outputPath 'Voice'
 
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'inventory_retail_sequence.py') `
     --tmdl $TMDLPath $installPath SS01_start $sequencePath
@@ -32,6 +38,12 @@ if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence inventory failed.' }
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'convert_retail_sequence_models.py') `
     --tmdl $TMDLPath --max-width $TextureMaxWidth $installPath (Join-Path $sequencePath 'sequence.json') $modelsPath
 if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence model conversion failed.' }
+
+if ($encodedAudioRequired -or (Test-Path -LiteralPath (Join-Path $EncodedAudioDirectory 'fsb.encode.json') -PathType Leaf)) {
+    & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_sequence_voice.py') `
+        (Join-Path $sequencePath 'sequence.json') $EncodedAudioDirectory $voicePath
+    if ($LASTEXITCODE -ne 0) { throw 'SS01 voice packaging failed.' }
+}
 
 & (Join-Path $PSScriptRoot 'ConvertRetailSS01Terrain.ps1') -TMDLPath $TMDLPath -PythonPath $PythonPath `
     -OutputDirectory $terrainPath -TextureMaxWidth $TextureMaxWidth

@@ -342,6 +342,11 @@ Use the TMDL artifact from CI run `45358726618` or later.
 .\Ports\PSP\Tools\ConvertRetailSS01.ps1
 ```
 
+If the local FSB encode is available, the same script packages the two
+streams referenced in the original TSO. It writes `SS01/Voice/voice.json`
+and the corresponding PADP files named by their zero-based FMOD substream
+IDs. Pass `-EncodedAudioDirectory` to require a particular encoded cache.
+
 Run the terrain pass by itself when iterating on terrain conversion.
 
 ```powershell

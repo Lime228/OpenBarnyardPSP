@@ -358,7 +358,8 @@ exports. Header and bone-count checks passed for 148 cached model clips.
 `ConvertRetailSS01.ps1` regenerates the sequence manifest, models and terrain
 in one pass. The original TSO specifies two voice lines for actor 15. FMOD
 substream indices 1 and 2 map to entries 2 and 3 in the offline FSB report.
-Both have their original audio encoded as PADP in the local cache.
+The same command packages both original PADP streams under `SS01/Voice`
+when the FSB encode report is available.
 Scene loading, script dispatch through the original `ASSeq` and input for
 the transition from the New Game chooser still need implementation.
 The PSP renderer exposes front-end world load and unload independently of the
