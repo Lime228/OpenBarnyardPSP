@@ -65,6 +65,10 @@ public:
 	virtual void OnMenuItemFocused( AGUI2MenuItem& a_rOldFocus, AGUI2MenuItem& a_rNewFocus ) OVERRIDE {} // +0x70, DOES_NOTHING
 	virtual void OnMenuClose() OVERRIDE;
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	void PauseBackgroundMusic_PSP( TBOOL a_bPause );
+#endif
+
 #ifdef BARNYARD_COMMUNITY_PATCH
 	// Shows the button texts of the current language (AFrontEndLanguageState). Not on PC
 	void UpdateTexts();

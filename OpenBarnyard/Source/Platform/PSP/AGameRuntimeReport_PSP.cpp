@@ -201,6 +201,8 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_terrain_bytes=%u\n"
 		"new_game_terrain_heap_free=%u\n"
 		"new_game_terrain_released=%d\n"
+		"new_game_opening_draws=%u\n"
+		"new_game_opening_frames=%u\n"
 		"option_effects=%d\n"
 		"option_music=%d\n"
 		"option_speech=%d\n"
@@ -328,6 +330,8 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiNewGameTerrainBytes,
 		s_GameRuntimeReport_PSP.uiNewGameTerrainHeapFree,
 		s_GameRuntimeReport_PSP.bNewGameTerrainReleased,
+		s_GameRuntimeReport_PSP.uiNewGameOpeningDraws,
+		s_GameRuntimeReport_PSP.uiNewGameOpeningFrames,
 		s_GameRuntimeReport_PSP.iOptionEffects,
 		s_GameRuntimeReport_PSP.iOptionMusic,
 		s_GameRuntimeReport_PSP.iOptionSpeech,

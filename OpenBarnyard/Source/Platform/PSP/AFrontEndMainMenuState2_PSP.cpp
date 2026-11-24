@@ -205,6 +205,12 @@ void AFrontEndMainMenuState2::OnActivate()
 	m_oDialogTitleBackground.Hide();
 }
 
+void AFrontEndMainMenuState2::PauseBackgroundMusic_PSP( TBOOL a_bPause )
+{
+	if ( ASoundManager::IsSingletonCreated() )
+		ASoundManager::GetSingleton()->PauseCue( m_iBackgroundMusicCue_PSP, a_bPause );
+}
+
 void AFrontEndMainMenuState2::OnDeactivate()
 {
 	m_Rectangle1.Hide();

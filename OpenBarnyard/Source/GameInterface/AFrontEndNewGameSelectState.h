@@ -64,6 +64,9 @@ private:
 	AGUI2TextBox          m_aSlotDateTexts[ APlayerProgress::NUM_SAVE_SLOTS ];      // 0x13cc
 	PopupListener         m_oPopupListener;                                         // 0x15ac
 	TBOOL                 m_bOverwrite;                                             // 0x15c0, the chosen slot is in use
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	TBOOL                 m_bOpeningPlaying_PSP = TFALSE;
+#endif
 };
 
 // Reads the name, the gender and the costume of the player out of a used save slot and formats its

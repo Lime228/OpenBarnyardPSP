@@ -20,6 +20,7 @@ param(
     [string] $MoviesDirectory = '',
     [string] $AudioBanksDirectory = '',
     [string] $SS01TerrainDirectory = '',
+    [string] $SS01OpeningDirectory = '',
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
@@ -1015,7 +1016,26 @@ else {
     Write-Warning "Converted movies are missing at $movieSource. Run convert_retail_movies.py to enable startup playback."
 }
 
+if ($SS01OpeningDirectory) {
+    $SS01OpeningDirectory = (Resolve-Path -LiteralPath $SS01OpeningDirectory).Path
+    $opening = Get-Content -LiteralPath (Join-Path $SS01OpeningDirectory 'opening.json') -Raw | ConvertFrom-Json
+    if ($opening.version -ne 1 -or $opening.sequence -cne 'SS01_start' -or $opening.visibility_row -cnotmatch '^[A-Za-z0-9_]+$') {
+        throw 'Expected the generated SS01 opening camera manifest.'
+    }
+    if (-not $SS01TerrainDirectory) {
+        $SS01TerrainDirectory = Join-Path (Split-Path -Parent $SS01OpeningDirectory) "TerrainPack_$($opening.visibility_row)"
+    }
+    $openingTerrain = Get-Content -LiteralPath (Join-Path $SS01TerrainDirectory 'terrain.json') -Raw | ConvertFrom-Json
+    if ($openingTerrain.terrain -cne 'ss01' -or $openingTerrain.visibility_row -cne $opening.visibility_row) {
+        throw "The opening camera requires the original $($opening.visibility_row) terrain row."
+    }
+    $openingSources = foreach ($name in @('opening.pcam', 'opening.psco')) {
+        (Get-Item -LiteralPath (Join-Path $SS01OpeningDirectory $name)).FullName
+    }
+}
+
 if ($SS01TerrainDirectory) {
+    $SS01TerrainDirectory = (Resolve-Path -LiteralPath $SS01TerrainDirectory).Path
     $ss01Index = Join-Path $SS01TerrainDirectory 'terrain.ptld'
     $index = [IO.File]::ReadAllBytes($ss01Index)
     if ($index.Length -lt 16 -or [Text.Encoding]::ASCII.GetString($index, 0, 4) -cne 'PTLD' -or
@@ -1039,6 +1059,13 @@ if ($SS01TerrainDirectory) {
     Copy-Item -LiteralPath $sources -Destination $ss01Destination -Force
     Copy-Item -LiteralPath $ss01Index -Destination $ss01Destination -Force
     Write-Output "Staged SS01 terrain ($meshes meshes and $textures shared textures)"
+}
+
+if ($SS01OpeningDirectory) {
+    $openingDestination = Join-Path $runtimePath 'Data\ScriptedSequence\SS01'
+    New-Item -ItemType Directory -Force -Path $openingDestination | Out-Null
+    Copy-Item -LiteralPath $openingSources -Destination $openingDestination -Force
+    Write-Output "Staged the original opening shot $($opening.clip)"
 }
 
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force

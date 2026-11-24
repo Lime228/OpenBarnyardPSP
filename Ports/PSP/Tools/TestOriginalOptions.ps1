@@ -5,7 +5,8 @@ param(
     [switch] $RequireMenuAudio,
     [switch] $RequireMenuMusic,
     [switch] $CheckNewGame,
-    [switch] $CheckNewGameTerrain
+    [switch] $CheckNewGameTerrain,
+    [switch] $CheckNewGameOpening
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,8 +16,15 @@ $eboot = Join-Path $runtimePath 'EBOOT.PBP'
 $gameLog = Join-Path $runtimePath 'openbarnyard_psp_game.log'
 $movieLog = Join-Path $runtimePath 'openbarnyard_psp_movies.log'
 $terrainIndex = Join-Path $runtimePath 'Data\Terrain\SS01\terrain.ptld'
-if ($CheckNewGameTerrain -and -not (Test-Path -LiteralPath $terrainIndex -PathType Leaf)) {
+if (($CheckNewGameTerrain -or $CheckNewGameOpening) -and -not (Test-Path -LiteralPath $terrainIndex -PathType Leaf)) {
     throw "Stage the SS01 terrain before running this check. Missing index: $terrainIndex"
+}
+$hasOpening = Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\opening.psco') -PathType Leaf
+if ($CheckNewGameOpening -and (-not $hasOpening -or $CheckNewGameTerrain)) {
+    throw 'The opening check needs a staged opening camera and runs separately from the terrain residency check.'
+}
+if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
+    throw 'Use -CheckNewGameOpening for this staged runtime.'
 }
 if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContinue) {
     throw 'An existing PPSSPP process is running.'
@@ -41,8 +49,14 @@ function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}, [
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         $status = Read-GameLog
-        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
-        $matching = $status.phase -eq $Phase -and $status.menu_state -eq '5' -and $status.menu_focus -eq "$Focus"
+        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed|opening-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
+        $matching = $status.phase -eq $Phase
+        if ($Focus -ge 0) {
+            $matching = $matching -and $status.menu_state -eq '5' -and $status.menu_focus -eq "$Focus"
+        }
+        else {
+            $matching = $matching -and [int]$status.new_game_opening_frames -gt 0 -and [int]$status.new_game_opening_draws -gt 0
+        }
         foreach ($key in $Expected.Keys) { $matching = $matching -and $status[$key] -eq [string]$Expected[$key] }
         if ($matching) { return $status }
         Start-Sleep -Milliseconds 150
@@ -110,24 +124,31 @@ try {
     }
 
     $main = Wait-Menu 'frontend-menu-ready' 0
-    if ($CheckNewGame -or $CheckNewGameTerrain) {
+    if ($CheckNewGame -or $CheckNewGameTerrain -or $CheckNewGameOpening) {
         Send-Key Cross
         $null = Wait-Menu 'frontend-new-game-ready' 0 @{ new_game_requested_slot = -1 }
         foreach ($slot in 1..3) {
             Send-Key DpadDown
             $null = Wait-Menu 'frontend-new-game-ready' $slot
         }
-        if ($Capture) { Send-Key Screenshot }
+        if ($Capture -and -not $CheckNewGameOpening) { Send-Key Screenshot }
         Send-Key Cross
         $expected = @{ new_game_requested_slot = 3; new_game_script_tracks = 21 }
-        if ($CheckNewGameTerrain) {
+        if ($CheckNewGameTerrain -or $CheckNewGameOpening) {
             $index = [IO.File]::ReadAllBytes($terrainIndex)
             $expected.new_game_terrain_meshes = [BitConverter]::ToUInt32($index, 8)
             $expected.new_game_terrain_textures = [BitConverter]::ToUInt32($index, 12)
-            $expected.new_game_terrain_released = 1
         }
-        $timeout = if ($CheckNewGameTerrain) { 90 } else { 10 }
-        $newGame = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 $expected $timeout
+        if ($CheckNewGameTerrain) { $expected.new_game_terrain_released = 1 }
+        if ($CheckNewGameOpening) {
+            $newGame = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
+            if ($Capture) { Send-Key Screenshot }
+            "Rendered the original SS01 opening ($($newGame.new_game_opening_draws) draws across $($newGame.new_game_opening_frames) frames)."
+        }
+        else {
+            $timeout = if ($CheckNewGameTerrain) { 90 } else { 10 }
+            $newGame = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 $expected $timeout
+        }
         if ($CheckNewGameTerrain) {
             if ([int]$newGame.new_game_terrain_bytes -le 0 -or [int]$newGame.new_game_terrain_heap_free -le 0) {
                 throw "No SS01 memory measurement in $gameLog"
@@ -140,7 +161,7 @@ try {
             "Loaded SS01 terrain: $($newGame.new_game_terrain_meshes) meshes, $($newGame.new_game_terrain_textures) textures, $($newGame.new_game_terrain_bytes) render bytes, $($newGame.new_game_terrain_heap_free) heap bytes free. Restored the menu."
         }
         Send-Key Triangle
-        $main = Wait-Menu 'frontend-new-game-return' 0
+        $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
         'New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on Cancel.'
     }
     $mainPhase = $main.phase

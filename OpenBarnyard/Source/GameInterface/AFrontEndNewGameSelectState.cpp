@@ -7,6 +7,7 @@
 #include "SoundBank/ui.h"
 
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
+#  include "AFrontEndMainMenuState2.h"
 #  include "Platform/PSP/AGameRuntimeReport_PSP.h"
 #  include "Platform/PSP/ARenderer_PSP.h"
 #  include "Units/ASSeqFile.h"
@@ -29,6 +30,15 @@
 #include <Core/TMemoryDebugOn.h>
 
 TOSHI_NAMESPACE_USING
+
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+static void APauseMenuMusicForOpening_PSP( TBOOL a_bPause )
+{
+	AGameState* pState = AGameStateController::GetSingleton()->FindGameStateOnStack( TPString8( "AFrontEndMainMenuState2" ) );
+	if ( pState != TNULL )
+		TSTATICCAST( AFrontEndMainMenuState2, pState )->PauseBackgroundMusic_PSP( a_bPause );
+}
+#endif
 
 // NOTE: GetClass 0040c140
 TDEFINE_CLASS( AFrontEndNewGameSelectState );
@@ -100,6 +110,21 @@ AFrontEndNewGameSelectState::~AFrontEndNewGameSelectState()
 // NOTE: shares 00407aa0 with AOptionsState::ProcessCommand
 TBOOL AFrontEndNewGameSelectState::ProcessCommand( AInputCommand a_eInputCommand, const TInputInterface::InputEvent* a_pInputEvent, TBOOL& a_rStopEvents )
 {
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	if ( m_bOpeningPlaying_PSP )
+	{
+		a_rStopEvents = TTRUE;
+		if ( a_eInputCommand == AInputCommand_Cancel )
+		{
+			m_bOpeningPlaying_PSP = TFALSE;
+			AStopSSeqOpening_PSP( TTRUE );
+			APauseMenuMusicForOpening_PSP( TFALSE );
+			ASetGameRuntimePhase_PSP( "frontend-new-game-return" );
+			Remove();
+		}
+		return TTRUE;
+	}
+#endif
 	if ( m_eMenuState == MENUSTATE_MENU_VISIBLE && a_eInputCommand == AInputCommand_Cancel )
 		ASoundManager::GetSingleton()->PlayCue( soundbank::UI_MENUBACK );
 
@@ -109,6 +134,8 @@ TBOOL AFrontEndNewGameSelectState::ProcessCommand( AInputCommand a_eInputCommand
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
 TBOOL AFrontEndNewGameSelectState::OnUpdate( TFLOAT a_fDeltaTime )
 {
+	if ( m_bOpeningPlaying_PSP )
+		return TTRUE;
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.iMenuState = m_eMenuState;
 	AGUI2MenuItem* pFocusedItem = m_oMenu.GetFocusedMenuItem();
@@ -136,6 +163,8 @@ void AFrontEndNewGameSelectState::OnInsertion()
 	rReport.uiNewGameTerrainBytes = 0;
 	rReport.uiNewGameTerrainHeapFree = 0;
 	rReport.bNewGameTerrainReleased = TFALSE;
+	rReport.uiNewGameOpeningDraws = 0;
+	rReport.uiNewGameOpeningFrames = 0;
 #else
 	APlayerProgress* pProgress = APlayerProgress::GetSingleton();
 #endif
@@ -224,6 +253,10 @@ void AFrontEndNewGameSelectState::OnInsertion()
 // $Barnyard: FUNCTION 0040c200
 void AFrontEndNewGameSelectState::OnRemoval()
 {
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	if ( m_bOpeningPlaying_PSP )
+		AStopSSeqOpening_PSP( TFALSE );
+#endif
 	for ( TINT i = 0; i < APlayerProgress::NUM_SAVE_SLOTS; i++ )
 	{
 		m_aSlotPictures[ i ].RemoveSelf();
@@ -281,6 +314,20 @@ void AFrontEndNewGameSelectState::OnMenuClose()
 	{
 		TFree( pScript );
 		ASetGameRuntimeFailedPath_PSP( TNULL );
+		if ( AHasSSeqOpening_PSP() )
+		{
+			ASetGameRuntimePhase_PSP( "frontend-new-game-opening-loading" );
+			if ( AStartSSeqOpening_PSP() )
+			{
+				m_bOpeningPlaying_PSP = TTRUE;
+				APauseMenuMusicForOpening_PSP( TTRUE );
+				ASetGameRuntimePhase_PSP( "frontend-new-game-opening" );
+				return;
+			}
+			OnActivate();
+			ASetGameRuntimePhase_PSP( "frontend-new-game-opening-failed" );
+			return;
+		}
 		ASetGameRuntimePhase_PSP( "frontend-new-game-loading-terrain" );
 		szPhase = ACheckNewGameTerrain_PSP() ? "frontend-new-game-awaiting-sequence" : "frontend-new-game-terrain-failed";
 	}
