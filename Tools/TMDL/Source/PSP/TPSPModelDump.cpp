@@ -11,6 +11,8 @@
 #include <iomanip>
 #include <locale>
 #include <sstream>
+#include <string>
+#include <vector>
 
 TOSHI_NAMESPACE_USING
 
@@ -69,23 +71,23 @@ static TBOOL ValidateSkeleton_PSP( TSkeleton& a_rSkeleton )
 	return TTRUE;
 }
 
-static TBOOL ValidateSubMesh_PSP( const TTMDWin::SubMesh& a_rSubMesh, TINT a_iBoneCount )
+static TBOOL RemapSubMesh_PSP(
+    const TTMDWin::SubMesh& a_rSubMesh,
+    const TTMDWin::SubMesh& a_rVertexUpload,
+    TINT a_iBoneCount,
+    std::vector<TUINT16>& a_rVertices,
+    std::vector<TUINT16>& a_rIndices
+)
 {
-	if ( a_rSubMesh.m_uiNumVertices1 == 0 ||
-	     a_rSubMesh.m_uiNumVertices1 != a_rSubMesh.m_uiNumVertices2 ||
-	     a_rSubMesh.m_uiNumVertices1 > 0xffff ||
-	     a_rSubMesh.m_uiNumIndices < 3 ||
+	if ( a_rSubMesh.m_uiNumIndices < 3 ||
 	     a_rSubMesh.m_uiNumIndices > 0xffff ||
 	     a_rSubMesh.m_uiNumBones == 0 ||
 	     a_rSubMesh.m_uiNumBones > TUINT32( a_iBoneCount ) ||
 	     a_rSubMesh.m_pBones == TNULL ||
-	     a_rSubMesh.m_pVertices == TNULL ||
 	     a_rSubMesh.m_pIndices == TNULL )
 	{
 		TERROR(
-		    "PSP model dump rejected submesh layout (vertices=%u/%u indices=%u bones=%u)\n",
-		    a_rSubMesh.m_uiNumVertices1,
-		    a_rSubMesh.m_uiNumVertices2,
+		    "PSP model dump rejected submesh layout (indices=%u bones=%u)\n",
 		    a_rSubMesh.m_uiNumIndices,
 		    a_rSubMesh.m_uiNumBones
 		);
@@ -100,28 +102,38 @@ static TBOOL ValidateSubMesh_PSP( const TTMDWin::SubMesh& a_rSubMesh, TINT a_iBo
 			return TFALSE;
 		}
 	}
+	std::vector<TINT> aRemap( a_rVertexUpload.m_uiNumVertices1, -1 );
+	a_rIndices.reserve( a_rSubMesh.m_uiNumIndices );
 	for ( TUINT32 i = 0; i < a_rSubMesh.m_uiNumIndices; i++ )
 	{
-		if ( a_rSubMesh.m_pIndices[ i ] >= a_rSubMesh.m_uiNumVertices1 )
+		const TUINT16 uiVertex = a_rSubMesh.m_pIndices[ i ];
+		if ( uiVertex >= a_rVertexUpload.m_uiNumVertices1 )
 		{
-			TERROR( "PSP model dump rejected index %u (%u)\n", i, a_rSubMesh.m_pIndices[ i ] );
+			TERROR( "PSP model dump rejected index %u (%u)\n", i, uiVertex );
 			return TFALSE;
 		}
+		if ( aRemap[ uiVertex ] < 0 )
+		{
+			aRemap[ uiVertex ] = TINT( a_rVertices.size() );
+			a_rVertices.push_back( uiVertex );
+		}
+		a_rIndices.push_back( TUINT16( aRemap[ uiVertex ] ) );
 	}
-	for ( TUINT32 i = 0; i < a_rSubMesh.m_uiNumVertices1; i++ )
+	for ( TUINT16 uiVertex : a_rVertices )
 	{
+		const TTMDWin::Vertex& rVertex = a_rVertexUpload.m_pVertices[ uiVertex ];
 		for ( TUINT32 influence = 0; influence < 4; influence++ )
 		{
-			const TUINT8 uiBoneRegister = a_rSubMesh.m_pVertices[ i ].Bones[ influence ];
-			if ( a_rSubMesh.m_pVertices[ i ].Weights[ influence ] != 0 &&
+			const TUINT8 uiBoneRegister = rVertex.Bones[ influence ];
+			if ( rVertex.Weights[ influence ] != 0 &&
 			     ( uiBoneRegister % 3 != 0 || uiBoneRegister / 3 >= a_rSubMesh.m_uiNumBones ) )
 			{
 				TERROR(
 				    "PSP model dump rejected vertex %u influence %u (register=%u weight=%u palette=%u)\n",
-				    i,
+				    TUINT( uiVertex ),
 				    influence,
 				    TUINT( uiBoneRegister ),
-				    TUINT( a_rSubMesh.m_pVertices[ i ].Weights[ influence ] ),
+				    TUINT( rVertex.Weights[ influence ] ),
 				    a_rSubMesh.m_uiNumBones
 				);
 				return TFALSE;
@@ -150,7 +162,7 @@ static const TCHAR* FindTexture_PSPModel(
 	return TNULL;
 }
 
-TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath )
+TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath, const TCHAR* a_pModelName )
 {
 	if ( a_pInputPath == TNULL || a_pOutputPath == TNULL )
 		return TFALSE;
@@ -163,10 +175,12 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 	}
 	PTRBSections* pSections = oTRB.GetSections();
 	PTRBSymbols* pSymbols = oTRB.GetSymbols();
-	auto oFileHeader = pSymbols->Find<TTMDBase::FileHeader>( pSections, "FileHeader" );
-	auto oHeader = pSymbols->Find<TTMDWin::TRBWinHeader>( pSections, "Header" );
-	auto oSkeleton = pSymbols->Find<TSkeleton>( pSections, "Skeleton" );
-	auto oMaterials = pSymbols->Find<TTMDBase::MaterialsHeader>( pSections, "Materials" );
+	const std::string strPrefix = a_pModelName != TNULL && a_pModelName[ 0 ] != '\0' ?
+	                                 std::string( a_pModelName ) + "_" : "";
+	auto oFileHeader = pSymbols->Find<TTMDBase::FileHeader>( pSections, ( strPrefix + "FileHeader" ).c_str() );
+	auto oHeader = pSymbols->Find<TTMDWin::TRBWinHeader>( pSections, ( strPrefix + "Header" ).c_str() );
+	auto oSkeleton = pSymbols->Find<TSkeleton>( pSections, ( strPrefix + "Skeleton" ).c_str() );
+	auto oMaterials = pSymbols->Find<TTMDBase::MaterialsHeader>( pSections, ( strPrefix + "Materials" ).c_str() );
 	if ( !oFileHeader || !oHeader || !oSkeleton || !oMaterials ||
 	     oFileHeader.get()->m_uiMagic != TFourCC( "TMDL" ) ||
 	     oHeader.get()->m_iNumLODs <= 0 ||
@@ -208,12 +222,27 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 
 	for ( TINT mesh = 0; mesh < iMeshCount; mesh++ )
 	{
-		TCHAR szSymbolName[ 64 ];
-		TStringManager::String8Format( szSymbolName, sizeof( szSymbolName ), "LOD0_Mesh_%d", mesh );
-		auto oMesh = pSymbols->Find<TTMDWin::TRBMeshLODHeader>( pSections, szSymbolName );
+		const std::string strSymbolName = strPrefix + "LOD0_Mesh_" + std::to_string( mesh );
+		auto oMesh = pSymbols->Find<TTMDWin::TRBMeshLODHeader>( pSections, strSymbolName.c_str() );
 		if ( !oMesh || oMesh.get()->m_uiNumSubMeshes == 0 || oMesh.get()->m_pSubMeshes == TNULL )
 		{
-			TERROR( "PSP model dump rejected mesh symbol %s\n", szSymbolName );
+			TERROR( "PSP model dump rejected mesh symbol %s\n", strSymbolName.c_str() );
+			return TFALSE;
+		}
+
+		// LoadSkinLOD uploads into one vertex pool per material mesh. Each draw
+		// uses its own strip and bones over that pool.
+		const TTMDWin::SubMesh* pVertexUpload = TNULL;
+		for ( TUINT32 i = 0; i < oMesh.get()->m_uiNumSubMeshes; i++ )
+		{
+			const TTMDWin::SubMesh& rSubMesh = oMesh.get()->m_pSubMeshes[ i ];
+			if ( rSubMesh.m_uiNumVertices1 != 0 )
+				pVertexUpload = &rSubMesh;
+		}
+		if ( pVertexUpload == TNULL || pVertexUpload->m_pVertices == TNULL ||
+		     pVertexUpload->m_uiNumVertices1 > 0xffff || pVertexUpload->m_uiNumVertices1 > oMesh.get()->m_uiNumVertices )
+		{
+			TERROR( "PSP model dump rejected vertex pool for %s\n", strSymbolName.c_str() );
 			return TFALSE;
 		}
 
@@ -232,7 +261,9 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 		for ( TUINT32 submesh = 0; submesh < oMesh.get()->m_uiNumSubMeshes; submesh++ )
 		{
 			const TTMDWin::SubMesh& rSubMesh = oMesh.get()->m_pSubMeshes[ submesh ];
-			if ( !ValidateSubMesh_PSP( rSubMesh, oSkeleton.get()->GetBoneCount() ) )
+			std::vector<TUINT16> aVertices;
+			std::vector<TUINT16> aIndices;
+			if ( !RemapSubMesh_PSP( rSubMesh, *pVertexUpload, oSkeleton.get()->GetBoneCount(), aVertices, aIndices ) )
 				return TFALSE;
 			oOutput << "        { \"bone_palette\": [";
 			for ( TUINT32 bone = 0; bone < rSubMesh.m_uiNumBones; bone++ )
@@ -241,23 +272,23 @@ TBOOL ExportPSPModelDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutputPath 
 				oOutput << rSubMesh.m_pBones[ bone ];
 			}
 			oOutput << "], \"vertices\": [\n";
-			for ( TUINT32 vertex = 0; vertex < rSubMesh.m_uiNumVertices1; vertex++ )
+			for ( TSIZE vertex = 0; vertex < aVertices.size(); vertex++ )
 			{
-				const TTMDWin::Vertex& rVertex = rSubMesh.m_pVertices[ vertex ];
+				const TTMDWin::Vertex& rVertex = pVertexUpload->m_pVertices[ aVertices[ vertex ] ];
 			oOutput << "          { \"position\": [" << rVertex.Position.x << ", " << rVertex.Position.y << ", " << rVertex.Position.z
 				        << "], \"uv\": [" << rVertex.UV.x << ", " << rVertex.UV.y << "], \"bones\": ["
 			        << TUINT( rVertex.Bones[ 0 ] / 3 ) << ", " << TUINT( rVertex.Bones[ 1 ] / 3 ) << ", "
 			        << TUINT( rVertex.Bones[ 2 ] / 3 ) << ", " << TUINT( rVertex.Bones[ 3 ] / 3 ) << "], \"weights\": ["
 				        << TUINT( rVertex.Weights[ 0 ] ) << ", " << TUINT( rVertex.Weights[ 1 ] ) << ", "
 				        << TUINT( rVertex.Weights[ 2 ] ) << ", " << TUINT( rVertex.Weights[ 3 ] ) << "] }";
-				if ( vertex + 1 != rSubMesh.m_uiNumVertices1 ) oOutput << ',';
+				if ( vertex + 1 != aVertices.size() ) oOutput << ',';
 				oOutput << '\n';
 			}
 			oOutput << "        ], \"triangle_strip\": [";
-			for ( TUINT32 index = 0; index < rSubMesh.m_uiNumIndices; index++ )
+			for ( TSIZE index = 0; index < aIndices.size(); index++ )
 			{
 				if ( index != 0 ) oOutput << ", ";
-				oOutput << rSubMesh.m_pIndices[ index ];
+				oOutput << aIndices[ index ];
 			}
 			oOutput << "] }";
 			if ( submesh + 1 != oMesh.get()->m_uiNumSubMeshes ) oOutput << ',';

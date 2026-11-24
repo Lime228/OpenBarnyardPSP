@@ -92,6 +92,7 @@ int main( int argc, char** argv )
 	auto          strKeyLib        = commandLine.GetParameterValue( "-keylib" );
 	auto          strKeyLibSymbol  = commandLine.GetParameterValue( "-keylib-symbol", "keylib" );
 	auto          strPSPDumpFile   = commandLine.GetParameterValue( "-psp-dump" );
+	auto          strPSPModelName  = commandLine.GetParameterValue( "-model-name" );
 	auto          strPSPAnimation  = commandLine.GetParameterValue( "-psp-animation" );
 	auto          strPSPAnimationInfo = commandLine.GetParameterValue( "-psp-animation-info" );
 	auto          strPSPTexture    = commandLine.GetParameterValue( "-psp-texture" );
@@ -381,7 +382,10 @@ int main( int argc, char** argv )
 			TERROR( "-psp-dump requires -o <output.json>\n" );
 			return 1;
 		}
-		if ( !ExportPSPModelDump( strPSPDumpFile.GetString(), strOutPath.GetString() ) )
+		if ( !ExportPSPModelDump(
+		         strPSPDumpFile.GetString(), strOutPath.GetString(),
+		         strPSPModelName ? strPSPModelName.GetString() : TNULL
+		     ) )
 		{
 			TERROR( "Unable to export PSP TMD dump\n" );
 			return 1;
