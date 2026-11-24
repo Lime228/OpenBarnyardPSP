@@ -13,11 +13,14 @@ TSO_HEADER = struct.Struct("<6I")
 TSO_SCRIPT = struct.Struct("<IiIII")
 TSO_INSTRUCTION = struct.Struct("<iIi")
 TSO_VOICE = struct.Struct("<Iii")
+TSO_OP_ANIMATION = 4
 TSO_OP_VOICE = 5
+TSO_OP_COMMAND = 12
 TSO_OP_END = 13
 # ASSeq::ms_aInstructionSizes, up to the END sentinel.
 TSO_INSTRUCTION_SIZES = (0x1C, 0x14, 0x1C, 0x14, 0x1C, 0x18, 0x18, 0x14, 0x10, 0x10, 0x0C, 0x0C, 0x1C)
 TSO_SOUND_TYPES = ("vostream", "cue")
+CAMERA_COMMANDS = {"bindCamera", "Set_FOV", "anim_FOV", "SetTerrain", "SetNearClip"}
 
 
 def retail_file(install: Path, name: str) -> Path:
@@ -48,6 +51,7 @@ def inspect_script(path: Path) -> dict:
         raise ValueError("truncated TSO header")
     data = memoryview(blob)[TSO_HEADER.size:]
     strings_reloc, strings_size, strings, pointers_reloc, pointers_size, pointers = TSO_HEADER.unpack_from(blob)
+    string_fields = set()
     for offset, size, base in ((strings_reloc, strings_size, strings), (pointers_reloc, pointers_size, pointers)):
         if offset % 4 or size % 4 or offset + size > len(data) or base > len(data):
             raise ValueError("invalid TSO relocation range")
@@ -58,6 +62,8 @@ def inspect_script(path: Path) -> dict:
             target, = struct.unpack_from("<I", data, field)
             if base + target >= len(data):
                 raise ValueError("TSO relocation target is outside the file")
+            if offset == strings_reloc:
+                string_fields.add(field)
 
     name_offset, _, count, actors_offset, tracks_offset = TSO_SCRIPT.unpack_from(data)
     if count > len(data) // 4 or any(pointers + offset + count * 4 > len(data) for offset in (actors_offset, tracks_offset)):
@@ -70,6 +76,12 @@ def inspect_script(path: Path) -> dict:
             raise ValueError("unterminated TSO string")
         return blob[start:end].decode("ascii")
 
+    def read_string_field(field: int) -> str | None:
+        if field in string_fields:
+            offset, = struct.unpack_from("<I", data, field)
+            return read_string(offset)
+        return None
+
     name = read_string(name_offset)
     if not name:
         raise ValueError("invalid TSO script name")
@@ -79,11 +91,13 @@ def inspect_script(path: Path) -> dict:
     ordered_starts = sorted(set(starts))
     limits = dict(zip(ordered_starts, ordered_starts[1:] + [code_end]))
     voices = []
+    cameras = []
     for track, (actor, start) in enumerate(zip(actors, starts)):
         limit = limits[start]
         if start % 4 or not TSO_SCRIPT.size <= start < limit <= code_end:
             raise ValueError(f"invalid TSO instruction range for track {track}")
         cursor = start
+        camera_events = []
         while cursor + TSO_INSTRUCTION.size <= limit:
             opcode, _, _ = TSO_INSTRUCTION.unpack_from(data, cursor)
             if opcode == TSO_OP_END:
@@ -96,10 +110,23 @@ def inspect_script(path: Path) -> dict:
                     raise ValueError(f"invalid TSO sound type for track {track}")
                 voices.append({"track": track, "actor": actor, "type": TSO_SOUND_TYPES[kind],
                                "index": index, "name": read_string(sound_name)})
+            elif opcode == TSO_OP_ANIMATION:
+                # ASSeqActorInterface::SequenceEvent has the clip name at +0x10.
+                clip = read_string_field(cursor + 0x10)
+                if clip:
+                    camera_events.append({"type": "animation", "name": clip})
+            elif opcode == TSO_OP_COMMAND:
+                command = read_string_field(cursor + 0x0C)
+                if command in CAMERA_COMMANDS:
+                    arguments = [read_string_field(cursor + field) for field in (0x10, 0x14, 0x18)]
+                    camera_events.append({"type": "command", "name": command, "arguments": arguments})
             cursor += TSO_INSTRUCTION_SIZES[opcode]
         else:
             raise ValueError(f"missing TSO track end for track {track}")
-    return {"name": name, "tracks": count, "track_actors": actors, "voice_instructions": voices}
+        if any(event["name"] == "bindCamera" for event in camera_events):
+            cameras.append({"track": track, "actor": actor, "events": camera_events})
+    return {"name": name, "tracks": count, "track_actors": actors, "voice_instructions": voices,
+            "camera_tracks": cameras}
 
 
 def describe_resources(properties: list, type_properties: list, symbols: dict) -> dict:

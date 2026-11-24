@@ -20,6 +20,7 @@ class RetailSequenceTests(unittest.TestCase):
             self.assertEqual(inspect_script(path), {
                 "name": "Intro", "tracks": 1, "track_actors": [7],
                 "voice_instructions": [{"track": 0, "actor": 7, "type": "vostream", "index": 2, "name": "Line"}],
+                "camera_tracks": [],
             })
 
             path.write_bytes(header + script + body[:-1])
@@ -29,6 +30,31 @@ class RetailSequenceTests(unittest.TestCase):
             path.write_bytes(header + script + voice + struct.pack("<iIi", 10, 0, 0) + tables)
             with self.assertRaisesRegex(ValueError, "missing TSO track end"):
                 inspect_script(path)
+
+    def test_resolves_camera_commands_and_clip_through_string_relocations(self):
+        strings = b"Intro\0bindCamera\0CH_Cam\0CH_CamT\0FirstShot\0"
+        strings += bytes(-len(strings) % 4)
+        script = struct.pack("<IiIII", 0, 0, 1, 0, 4)
+        command = struct.pack("<iIi4I", 12, 0, 0, strings.index(b"bindCamera"),
+                              strings.index(b"CH_Cam"), strings.index(b"CH_CamT"), 0)
+        clip = struct.pack("<iIi4I", 4, 4, 0, 0xFFFFFFFF, strings.index(b"FirstShot"), 1, 0)
+        end = struct.pack("<iIi", 13, 0, 0)
+        code = script + command + clip + end
+        string_relocs = struct.pack("<5I", 0, 32, 36, 40, 64)
+        pointer_relocs = struct.pack("<2I", 12, 16)
+        pointer_base = len(code) + len(string_relocs) + len(strings) + len(pointer_relocs)
+        header = struct.pack("<6I", len(code), len(string_relocs), len(code) + len(string_relocs),
+                             pointer_base - len(pointer_relocs), len(pointer_relocs), pointer_base)
+        pointers = struct.pack("<iI", 14, len(script))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "Intro.tso"
+            path.write_bytes(header + code + string_relocs + strings + pointer_relocs + pointers)
+            self.assertEqual(inspect_script(path)["camera_tracks"], [{
+                "track": 0, "actor": 14, "events": [
+                    {"type": "command", "name": "bindCamera", "arguments": ["CH_Cam", "CH_CamT", None]},
+                    {"type": "animation", "name": "FirstShot"},
+                ],
+            }])
 
     def test_uses_model_types_and_the_original_symbol_case(self):
         properties = [["keylib", ["shared"]], ["matlib", ["walls", "other"]]]
