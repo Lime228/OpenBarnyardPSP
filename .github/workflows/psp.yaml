@@ -83,6 +83,7 @@ jobs:
           python3 Ports/PSP/Tools/convert_tmd_dump.py Ports/PSP/Assets/probe_tmd_dump.json /tmp/probe_tmd_bridge.pmes /tmp/probe_tmd_bridge.pskl
           python3 Ports/PSP/Tools/test_convert_tmd_dump.py
           python3 Ports/PSP/Tools/test_convert_camera.py
+          python3 Ports/PSP/Tools/test_package_retail_opening_sky.py
           python3 Ports/PSP/Tools/test_convert_dds.py
           python3 Ports/PSP/Tools/test_inventory_retail_install.py
           python3 Ports/PSP/Tools/test_plan_gui_texture_batch.py
