@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $RuntimeDirectory,
+    [string] $PPSSPPPath = '',
     [switch] $Capture,
     [switch] $RequireMenuAudio,
     [switch] $RequireMenuMusic,
@@ -15,13 +16,16 @@ $ErrorActionPreference = 'Stop'
 $runtimePath = (Resolve-Path -LiteralPath $RuntimeDirectory).Path
 $runner = Join-Path $PSScriptRoot '..\RunPPSSPP.ps1'
 $eboot = Join-Path $runtimePath 'EBOOT.PBP'
+$runnerArguments = @{ EbootPath = $eboot }
+if ($PPSSPPPath) { $runnerArguments.PPSSPPPath = $PPSSPPPath }
 $gameLog = Join-Path $runtimePath 'openbarnyard_psp_game.log'
 $movieLog = Join-Path $runtimePath 'openbarnyard_psp_movies.log'
 $terrainIndex = Join-Path $runtimePath 'Data\Terrain\SS01\terrain.ptld'
 if (($CheckNewGameTerrain -or $CheckNewGameOpening) -and -not (Test-Path -LiteralPath $terrainIndex -PathType Leaf)) {
     throw "Stage the SS01 terrain before running this check. Missing index: $terrainIndex"
 }
-$hasOpening = Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\opening.psco') -PathType Leaf
+$openingConfig = Join-Path $runtimePath 'Data\ScriptedSequence\SS01\opening.psco'
+$hasOpening = Test-Path -LiteralPath $openingConfig -PathType Leaf
 if ($CheckNewGameOpening -and (-not $hasOpening -or $CheckNewGameTerrain)) {
     throw 'The opening check needs a staged opening camera and runs separately from the terrain residency check.'
 }
@@ -40,7 +44,7 @@ if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContin
 $startedAt = Get-Date
 
 function Send-Key([string] $Key) {
-    & $runner -Action Press -Key $Key -EbootPath $eboot | Write-Host
+    & $runner @runnerArguments -Action Press -Key $Key | Write-Host
 }
 
 function Read-GameLog {
@@ -115,7 +119,7 @@ function Assert-MenuMusicProgress([hashtable] $Before, [hashtable] $After) {
 }
 
 try {
-    & $runner -Action Start -EbootPath $eboot
+    & $runner @runnerArguments -Action Start
     foreach ($name in @('NickMovs', 'THQ', 'BTE', 'Attract')) {
         $deadline = (Get-Date).AddSeconds(75)
         do {
@@ -160,14 +164,41 @@ try {
             }
             "Rendered the original SS01 opening ($($newGame.new_game_opening_draws) draws across $($newGame.new_game_opening_frames) frames)."
             if ($RequireOpeningVoice) {
+                $timeline = [IO.File]::ReadAllBytes($openingConfig)
+                if ($timeline.Length -ne 40 -or [BitConverter]::ToUInt32($timeline, 4) -ne 2) {
+                    throw 'Voice validation needs the two-shot SS01 timeline.'
+                }
+                $firstShotSeconds = [BitConverter]::ToSingle($timeline, 24)
+                $secondShotSeconds = [BitConverter]::ToSingle($timeline, 36)
+                $firstCutMs = [int](1000 * $firstShotSeconds)
+                $endMs = [int](1000 * ($firstShotSeconds + $secondShotSeconds))
                 $expected.new_game_opening_shot = 2
                 $spoken = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
-                if ([int]$spoken.new_game_voice_ms -lt 4400 -or [int]$spoken.new_game_voice_underruns -ne 0 -or
+                if ([int]$spoken.new_game_voice_ms -lt $firstCutMs -or [int]$spoken.new_game_voice_underruns -ne 0 -or
                     [int]$spoken.new_game_voice_non_silent_blocks -lt 40) {
                     throw "The second original shot did not follow a playing SS01 voice stream. See $gameLog"
                 }
                 "Original narration reached the camera cut at $($spoken.new_game_voice_ms) ms with no underruns."
                 if ($Capture) { Send-Key Screenshot }
+
+                $deadline = (Get-Date).AddSeconds(45)
+                $terminal = $null
+                do {
+                    $now = Read-GameLog
+                    if ($now.phase -eq 'frontend-new-game-opening' -and [int]$now.new_game_voice_ms -ge $endMs) {
+                        if (-not $terminal) { $terminal = $now }
+                        elseif ([int]$now.new_game_opening_frames -gt [int]$terminal.new_game_opening_frames) { break }
+                    }
+                    if ((Get-Date) -ge $deadline) { throw "SS01 did not hold after reaching $endMs ms. See $gameLog" }
+                    Start-Sleep -Milliseconds 150
+                } while ($true)
+                if ([int]$now.new_game_voice_ms -gt $endMs + 100 -or
+                    $now.new_game_voice_ms -ne $terminal.new_game_voice_ms -or
+                    $now.new_game_voice_non_silent_blocks -ne $terminal.new_game_voice_non_silent_blocks -or
+                    [int]$now.new_game_voice_underruns -ne 0) {
+                    throw "Narration did not stop at the end of the two-shot preview. See $gameLog"
+                }
+                "Narration stopped at $($now.new_game_voice_ms) ms while the last pose held."
             }
         }
         else {
@@ -301,5 +332,5 @@ try {
     }
 }
 finally {
-    & $runner -Action Stop -EbootPath $eboot
+    & $runner @runnerArguments -Action Stop
 }
