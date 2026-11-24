@@ -364,8 +364,21 @@ Scene loading, script dispatch through the original `ASSeq` and input for
 the transition from the New Game chooser still need implementation.
 The PSP renderer exposes front-end world load and unload independently of the
 display lifecycle. The unload frees the terrain, instances and sign between
-frames and refreshes the memory counters. Invoke it when scene loading can
-take ownership of the transition.
+frames and refreshes the memory counters. The `-SS01TerrainDirectory` staging
+option enables a residency check from the slot chooser. It releases the
+menu world, loads the entire `Dummy` terrain and restores the menu. Run
+`TestOriginalOptions.ps1 -CheckNewGameTerrain` to verify counts and memory
+release. PPSSPP build `63bbb2fd` loaded 420 mesh groups and 148 shared
+textures. The terrain used 6,771,798 bytes of the render budget and left
+9,057,436 bytes free on the game heap. All terrain render allocations were
+released before the menu was reloaded. The chooser still owns the transition
+until the sequence state is ready.
+
+Actor 14 binds `CH_Cam` and `CH_CamT`, sets FOV to 50 and near clip to 0.8,
+selects the `Barn` VIS row and calls `SS01_shot01a_cam01a` for the first shot.
+The sequence inventory records these commands and all 30 referenced camera
+clips. All 30 are present in the local `SS01_cameraB` animation cache.
+`ConvertRetailSS01.ps1` prepares both camera VIS rows in addition to `Dummy`.
 
 ## Known limitations
 

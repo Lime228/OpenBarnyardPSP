@@ -334,8 +334,9 @@ before returning a nonzero exit code for exporter rejections.
 
 ## Generated data
 
-For the New Game intro, regenerate the SS01 sequence manifest, models and
-the terrain selected by the original `Dummy` visibility row in one pass.
+For the New Game intro, regenerate the SS01 sequence manifest, models,
+and terrain in one pass. The batch prepares `Dummy` plus every visibility
+row named by `SetTerrain` on the original camera track.
 Use the TMDL artifact from CI run `45358726618` or later.
 
 ```powershell
@@ -358,6 +359,15 @@ and one PMES/PTEX pack per selected source file. It records the requested and
 selected LODs, the material library path from VIS, the original glow flag,
 the mesh and texture counts and their byte totals. The batch verified 49
 files across 24 visible sections and retained all 1,652 source meshes.
+
+The complete SS01 pass also writes `SS01/TerrainPack/terrain.ptld` and its
+asset files. The index preserves the original pack order and material entries.
+It shares only byte-identical PTEX files. The `Dummy` row contains 420 mesh
+groups and 148 unique textures and occupies 6.47 MiB before the index.
+The original opening camera selects `Barn`, which has 46 packs including
+`ULODbarn_L1Mod0`. The batch also prepares `BeadyIntDay` from the same
+script. Use `-VisibilityRow` on `ConvertRetailSS01Terrain.ps1` to regenerate
+just one of these rows.
 The output has 420 mesh groups and 403 texture files. All 872 emitted
 geometry, texture and configuration files match the earlier export
 byte-for-byte. The geometry and textures total about 13.4 MiB on disk
