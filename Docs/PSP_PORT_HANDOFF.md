@@ -344,15 +344,18 @@ These retain 1,652 source meshes as 420 groups and total about 13.4 MiB before
 sharing textures across packs. The same-name, byte-identical texture audit
 found 149 distinct textures across the 403 emitted texture files. The
 animation cache already has all 100 clips from the SS01 camera, actor rig,
-Farmer, Freddy, Otis and pig. The actor meshes, scene loader, input and
-script dispatch remain open.
+Farmer, Freddy, Otis and pig.
 
 `inventory_retail_sequence.py` derives the resource list from the sequence
 TRB, TSO and packed symbols. `SS01_start` declares 21 script tracks, 19
-model types, 21 key libraries and 22 material libraries. This inventory
-should feed the shared sequence loader as it gains PSP support. The original
-`ASSeq` code defines the script behavior, and the PSP state controller still
-needs to dispatch the New Game transition.
+model types, 21 key libraries and 22 material libraries. The manifest-driven
+model batch converted all 19 types from `lib_ss01.trb`. It produced 18
+skinned models with skeletons, the barn door with its two original meshes,
+and 20 shared textures. The runtime files for this batch occupy about 2.46 MiB
+on disk. The packed Otis and barn door geometry dumps match their standalone
+exports. Header and bone-count checks passed for 148 cached model clips.
+Scene loading, script dispatch through the original `ASSeq` and input for
+the transition from the New Game chooser still need implementation.
 
 ## Known limitations
 
@@ -479,13 +482,16 @@ Install the pinned official PPSSPP development build once:
 
     .\Ports\PSP\InstallPPSSPP.ps1
 
-Use exactly one background emulator instance:
+The launcher uses one emulator instance. Start it in the background for
+automated tests or pass `-ShowWindow` to interact with it directly.
 
     .\Ports\PSP\RunPPSSPP.ps1 -Action Start -OriginalGame
     .\Ports\PSP\RunPPSSPP.ps1 -Action Status -OriginalGame
     .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key DpadDown
     .\Ports\PSP\RunPPSSPP.ps1 -Action Press -OriginalGame -Key Cross
     .\Ports\PSP\RunPPSSPP.ps1 -Action Stop -OriginalGame
+
+    .\Ports\PSP\RunPPSSPP.ps1 -Action Start -OriginalGame -ShowWindow
 
 For the repeatable end-to-end check, use the wrapper below. It starts exactly
 one background instance, waits for a fresh report, requests a PSP screenshot,
@@ -512,8 +518,8 @@ Runtime evidence:
 2. Restore the remaining original environment ownership and time-driven
    frontend re-entry without changing the complete initial terrain VIS row.
 3. Port the original `SS01_start` transition from the new-game chooser. Reuse the
-   prepared terrain and animation batches, convert the actor meshes and release
-   the menu world before loading the intro to leave room in the PSP heap.
+   prepared terrain, models and animation batches. Release the menu world
+   before loading the intro to leave room in the PSP heap.
 4. Restore the in-game Audio dialog's `MUSIC_MISSION` preview when the
    gameplay path can open that dialog without a main-menu state on the stack.
    Its encoded stream is `Data/Sound/FSB/Music.fsb/000018-00-0.padp`.

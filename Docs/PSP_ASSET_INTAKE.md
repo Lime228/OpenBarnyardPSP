@@ -370,6 +370,18 @@ Seventeen have no `modellib` declaration. Their reports preserve the
 references for resolution against the libraries already loaded by the game.
 These manifests are generated locally for conversion and packaging.
 
+Use TMDL from CI run `45358726618` or later for the SS01 model batch.
+
+```powershell
+python Ports/PSP/Tools/convert_retail_sequence_models.py --tmdl <TMDL.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/SS01/Sequence/sequence.json Game/BarnyardPC/Workspace/SS01/SequenceModels
+```
+
+The batch follows the original material-library lookup order and caps
+texture width at 128 pixels by default. The report `sequence_models.json`
+links each mesh to its texture and records all conversion failures and sizes.
+The SS01 run converted 19 models and 20 distinct textures to 2,576,344 bytes
+of PMES, PSKL and PTEX. These output files stay in the ignored workspace.
+
 Host-tool dumps and converted PSP files belong in the ignored workspace:
 
 ```text
