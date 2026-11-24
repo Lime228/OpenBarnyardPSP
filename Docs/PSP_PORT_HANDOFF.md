@@ -1,6 +1,6 @@
 # OpenBarnyard PSP port handoff
 
-Updated: 2026-11-24
+Updated: 2026-11-25
 
 Repository: https://github.com/Lime228/OpenBarnyardPSP.git
 
@@ -386,12 +386,17 @@ row. The chooser releases the menu world, loads the 382 terrain meshes and
 the first shot. PPSSPP on `50097c00` drew 121 mesh groups after frustum
 culling. Two framebuffer captures confirmed the original camera movement.
 Triangle releases the opening resources and returns to the main menu.
-The preview holds the last pose. The sky, actors, sequence dispatch and
-scene audio still need runtime integration. Save data remains untouched.
+The preview holds the last pose. The sky uses the original normal-weather
+`morning` profile from `GameTimeFXSettings.trb` and a PSP-sized copy of
+`sky_sunny_16.tga`. The PSP renderer draws both layers before the terrain
+using camera orientation with zero translation. The original cloud rotation
+speed comes from the same profile. Actors, sequence dispatch, the remaining
+weather effects and scene audio still need runtime integration. Save data
+remains untouched.
 
 ```powershell
 .\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening
-.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -Capture
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -Capture
 ```
 
 ## Known limitations

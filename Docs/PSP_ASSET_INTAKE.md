@@ -350,6 +350,12 @@ library using the exact symbol in the original pack. `StageOriginalGame.ps1`
 accepts `-SS01OpeningDirectory` and stages the visibility row named by the
 generated camera manifest.
 
+The same pass reads the original normal-weather `morning` effect used by
+`SS01_start` and extracts `sky_sunny_16.tga` from `Data/Sky/sky.ttl`. The
+stager copies the dome, cloud layer and rotation config with the camera.
+The converted texture is 256 by 128 and both meshes plus the texture total
+141,704 bytes.
+
 If the local FSB encode is available, the same script packages the two
 streams referenced in the original TSO. It writes `SS01/Voice/voice.json`
 and the corresponding PADP files named by their zero-based FMOD substream
