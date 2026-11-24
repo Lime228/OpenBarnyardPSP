@@ -103,15 +103,19 @@ def write_inventory(tool: Path, install: Path, sequence: str, output: Path) -> d
     type_path = retail_file(install, f"Data/ModelTypes/Libs/ScriptedSequence/{sequence}.trb")
     descriptor = run_export(tool, "-psp-properties", descriptor_path, output / "descriptor.json")
     properties = main_properties(descriptor)
-    pack_path = retail_file(install, dict(properties)["modellib"])
     model_types = run_export(tool, "-psp-properties", type_path, output / "model-types.json")
-    pack = run_export(tool, "-psp-symbols", pack_path, output / "pack-symbols.json")
+    sources = {"descriptor": descriptor_path, "script": script_path, "model_types": type_path}
+    pack = {"symbols": []}
+    if pack_name := dict(properties).get("modellib"):
+        pack_path = retail_file(install, pack_name)
+        pack = run_export(tool, "-psp-symbols", pack_path, output / "pack-symbols.json")
+        sources["asset_pack"] = pack_path
     report = {
         "version": 1,
         "sequence": sequence,
         "sources": {
             name: {"path": path.relative_to(install).as_posix(), "bytes": path.stat().st_size}
-            for name, path in (("descriptor", descriptor_path), ("script", script_path), ("model_types", type_path), ("asset_pack", pack_path))
+            for name, path in sources.items()
         },
         "script": inspect_script(script_path),
         "properties": properties,
