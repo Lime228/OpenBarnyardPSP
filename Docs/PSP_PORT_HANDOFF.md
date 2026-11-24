@@ -347,6 +347,13 @@ animation cache already has all 100 clips from the SS01 camera, actor rig,
 Farmer, Freddy, Otis and pig. The actor meshes, scene loader, input and
 script dispatch remain open.
 
+`inventory_retail_sequence.py` derives the resource list from the sequence
+TRB, TSO and packed symbols. `SS01_start` declares 21 script tracks, 19
+model types, 21 key libraries and 22 material libraries. This inventory
+should feed the shared sequence loader as it gains PSP support. The original
+`ASSeq` code defines the script behavior, and the PSP state controller still
+needs to dispatch the New Game transition.
+
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together

@@ -335,7 +335,7 @@ before returning a nonzero exit code for exporter rejections.
 ## Generated data
 
 For the New Game intro, export the original SS01 terrain selected by the
-`Dummy` visibility row. Use the TMDL artifact from CI run `45354139164` or
+`Dummy` visibility row. Use the TMDL artifact from CI run `45355999246` or
 a succeeding build.
 
 ```powershell
@@ -344,12 +344,31 @@ a succeeding build.
 
 The converter writes `Game/BarnyardPC/Workspace/SS01/Terrain/ss01_terrain.json`
 and one PMES/PTEX pack per selected source file. It records the requested and
-selected LODs, the original glow flag, the mesh and texture counts and their
-byte totals. The batch verified 49 files across 24 visible sections and
-retained all 1,652 source meshes. The output has 420 mesh groups and 403
-texture files. The geometry and textures total about 13.4 MiB on disk with
-textures capped at 128 pixels wide. Every generated pack stays in the local
-cache while the scene loader is being ported.
+selected LODs, the material library path from VIS, the original glow flag,
+the mesh and texture counts and their byte totals. The batch verified 49
+files across 24 visible sections and retained all 1,652 source meshes.
+The output has 420 mesh groups and 403 texture files. All 872 emitted
+geometry, texture and configuration files match the earlier export
+byte-for-byte. The geometry and textures total about 13.4 MiB on disk
+with textures capped at 128 pixels wide. Every generated pack stays in
+the local cache while the scene loader is being ported.
+
+Generate the sequence dependency manifest directly from the installed game.
+
+```powershell
+python Ports/PSP/Tools/inventory_retail_sequence.py --tmdl <TMDL.exe> Game/BarnyardPC/Install SS01_start Game/BarnyardPC/Workspace/SS01/Sequence
+```
+
+`sequence.json` records the original descriptor, TSO track table, asset pack
+and model-type library. It resolves material libraries, key libraries and
+model headers against the asset pack's symbols. Names without a matching
+symbol in the pack stay visible in the report, including types that may
+come from another library. The same command accepts other retail sequence
+stems, such as `SS02_rac`. It was verified against all 29 installed sets
+that have a descriptor, TSO and model-type library with the same stem.
+Seventeen have no `modellib` declaration. Their reports preserve the
+references for resolution against the libraries already loaded by the game.
+These manifests are generated locally for conversion and packaging.
 
 Host-tool dumps and converted PSP files belong in the ignored workspace:
 
