@@ -19,8 +19,9 @@ class RetailSequenceTests(unittest.TestCase):
             path.write_bytes(header + script + body)
             self.assertEqual(inspect_script(path), {
                 "name": "Intro", "tracks": 1, "track_actors": [7],
-                "voice_instructions": [{"track": 0, "actor": 7, "type": "vostream", "index": 2, "name": "Line"}],
+                "voice_instructions": [{"track": 0, "actor": 7, "type": "vostream", "index": 2, "name": "Line", "opens_track": True}],
                 "camera_tracks": [],
+                "master_timing": [],
             })
 
             path.write_bytes(header + script + body[:-1])

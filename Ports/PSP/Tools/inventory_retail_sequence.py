@@ -13,8 +13,10 @@ TSO_HEADER = struct.Struct("<6I")
 TSO_SCRIPT = struct.Struct("<IiIII")
 TSO_INSTRUCTION = struct.Struct("<iIi")
 TSO_VOICE = struct.Struct("<Iii")
+TSO_OP_WAIT = 3
 TSO_OP_ANIMATION = 4
 TSO_OP_VOICE = 5
+TSO_OP_RESUME = 11
 TSO_OP_COMMAND = 12
 TSO_OP_END = 13
 # ASSeq::ms_aInstructionSizes, up to the END sentinel.
@@ -92,6 +94,7 @@ def inspect_script(path: Path) -> dict:
     limits = dict(zip(ordered_starts, ordered_starts[1:] + [code_end]))
     voices = []
     cameras = []
+    master = []
     for track, (actor, start) in enumerate(zip(actors, starts)):
         limit = limits[start]
         if start % 4 or not TSO_SCRIPT.size <= start < limit <= code_end:
@@ -109,7 +112,7 @@ def inspect_script(path: Path) -> dict:
                 if not 0 <= kind < len(TSO_SOUND_TYPES):
                     raise ValueError(f"invalid TSO sound type for track {track}")
                 voices.append({"track": track, "actor": actor, "type": TSO_SOUND_TYPES[kind],
-                               "index": index, "name": read_string(sound_name)})
+                               "index": index, "name": read_string(sound_name), "opens_track": cursor == start})
             elif opcode == TSO_OP_ANIMATION:
                 # ASSeqActorInterface::SequenceEvent has the clip name at +0x10.
                 clip = read_string_field(cursor + 0x10)
@@ -120,13 +123,18 @@ def inspect_script(path: Path) -> dict:
                 if command in CAMERA_COMMANDS:
                     arguments = [read_string_field(cursor + field) for field in (0x10, 0x14, 0x18)]
                     camera_events.append({"type": "command", "name": command, "arguments": arguments})
+            elif actor == 0 and opcode == TSO_OP_WAIT:
+                flag, duration = struct.unpack_from("<if", data, cursor + TSO_INSTRUCTION.size)
+                master.append({"type": "wait", "flag": flag, "duration": duration})
+            elif actor == 0 and opcode == TSO_OP_RESUME:
+                master.append({"type": "resume"})
             cursor += TSO_INSTRUCTION_SIZES[opcode]
         else:
             raise ValueError(f"missing TSO track end for track {track}")
         if any(event["name"] == "bindCamera" for event in camera_events):
             cameras.append({"track": track, "actor": actor, "events": camera_events})
     return {"name": name, "tracks": count, "track_actors": actors, "voice_instructions": voices,
-            "camera_tracks": cameras}
+            "camera_tracks": cameras, "master_timing": master}
 
 
 def describe_resources(properties: list, type_properties: list, symbols: dict) -> dict:

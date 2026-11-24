@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare the first shot from the original scripted sequence camera track."""
+"""Prepare the supported opening shots from the original scripted sequence."""
 
 import argparse
 import json
@@ -14,52 +14,77 @@ from inventory_retail_sequence import retail_file
 from package_retail_opening_sky import package as package_sky
 
 
+def opening_shots(script: dict) -> tuple[int, list, dict]:
+    camera_track, = script["camera_tracks"]
+    voice, = [entry for entry in script["voice_instructions"]
+              if entry["actor"] == 15 and entry["type"] == "vostream" and entry["opens_track"]]
+    master = script["master_timing"]
+    if [(item["type"], item.get("flag")) for item in master[:7]] != [
+        ("wait", 1), ("wait", 2), ("resume", None), ("wait", 0),
+        ("resume", None), ("wait", 0), ("resume", None),
+    ]:
+        raise ValueError("unexpected SS01 opening synchronization")
+
+    shots = []
+    commands = {}
+    for event in camera_track["events"]:
+        if event["type"] == "command":
+            commands[event["name"]] = event["arguments"]
+            continue
+        shot = {
+            "clip": event["name"], "camera_bone": commands["bindCamera"][0],
+            "visibility_row": commands["SetTerrain"][0],
+            "horizontal_fov_degrees": float(commands["Set_FOV"][0]),
+            "near_clip": float(commands["SetNearClip"][0]),
+            "duration": master[3 + 2 * len(shots)]["duration"],
+        }
+        if (not 1.0 <= shot["horizontal_fov_degrees"] < 170.0 or not 0.0 < shot["near_clip"] < 280.0 or
+                not 0.0 < shot["duration"] <= 60.0):
+            raise ValueError("opening camera parameters are outside the PSP range")
+        shots.append(shot)
+        if len(shots) == 2:
+            break
+    if len(shots) != 2 or shots[0]["visibility_row"] != shots[1]["visibility_row"]:
+        raise ValueError("the opening preview needs two shots in the same visibility row")
+    return camera_track["actor"], shots, voice
+
+
 def package(tool: Path, install: Path, manifest: Path, output: Path) -> dict:
     sequence = json.loads(manifest.read_text(encoding="utf-8"))
     if sequence["sequence"] != "SS01_start":
         raise ValueError("expected the SS01_start inventory")
-    camera_track, = sequence["script"]["camera_tracks"]
-    commands = {}
-    for event in camera_track["events"]:
-        if event["type"] == "animation":
-            clip_name = event["name"]
-            break
-        commands[event["name"]] = event["arguments"]
-    else:
-        raise ValueError("opening camera has no animation")
-
-    camera_bone = commands["bindCamera"][0]
-    terrain = commands["SetTerrain"][0]
-    fov = float(commands["Set_FOV"][0])
-    near = float(commands["SetNearClip"][0])
-    if not 1.0 <= fov < 170.0 or not 0.0 < near < 280.0:
-        raise ValueError("opening camera projection is outside the PSP range")
+    actor, shots, voice = opening_shots(sequence["script"])
 
     # The source camera model comes from the SS01 entry of AScriptedSequenceActivity.
     model = retail_file(install, "Data/Models/SS01_cameraB.trb")
     info = run_export(tool, "-psp-animation-info", model, output / "camera-info.json")
-    clip, = [entry for entry in info["sequences"] if entry["name"] == clip_name]
-    rate = clip_sample_rate(clip)
-    if not rate:
-        raise ValueError(f"opening camera clip cannot fit the PSP sample limit: {clip_name}")
     key_library, = [entry["symbol"] for entry in sequence["key_libraries"]
                     if entry["name"].casefold() == info["library"].casefold() and entry["symbol"]]
     pack = retail_file(install, sequence["sources"]["asset_pack"]["path"])
-    dump = output / "camera-dump.json"
-    run_tmdl(tool, "-psp-animation", model, dump, "-keylib", str(pack), "-keylib-symbol", key_library,
-             "-sequence", clip_name, "-sample-rate", str(rate))
-    camera = json.loads(dump.read_text(encoding="utf-8"))
-    if camera["sequence"] != clip_name or camera["sample_rate"] != rate or camera["loop"]:
-        raise ValueError("unexpected opening camera sample export")
-    convert(dump, output / "opening.pcam", camera_bone, preserve_roll=True)
+    for index, shot in enumerate(shots):
+        clip_name = shot["clip"]
+        clip, = [entry for entry in info["sequences"] if entry["name"] == clip_name]
+        rate = clip_sample_rate(clip)
+        if not rate or abs(clip["duration"] - shot["duration"]) > 0.01:
+            raise ValueError(f"unexpected opening camera duration: {clip_name}")
+        stem = "opening" if index == 0 else f"opening-{index}"
+        dump = output / f"{stem}-dump.json"
+        run_tmdl(tool, "-psp-animation", model, dump, "-keylib", str(pack), "-keylib-symbol", key_library,
+                 "-sequence", clip_name, "-sample-rate", str(rate))
+        camera = json.loads(dump.read_text(encoding="utf-8"))
+        if camera["sequence"] != clip_name or camera["sample_rate"] != rate or camera["loop"]:
+            raise ValueError("unexpected opening camera sample export")
+        convert(dump, output / f"{stem}.pcam", shot["camera_bone"], preserve_roll=True)
+        shot.update(sample_rate=rate, frames=len(camera["frames"]))
     sky = package_sky(tool, install, output)
 
-    report = {"version": 1, "sequence": sequence["sequence"], "camera_actor": camera_track["actor"],
-              "camera_bone": camera_bone, "clip": clip_name, "visibility_row": terrain,
-              "horizontal_fov_degrees": fov, "near_clip": near, "sample_rate": rate, "frames": len(camera["frames"]),
-              "sky": sky}
+    report = {"version": 2, "sequence": sequence["sequence"], "camera_actor": actor,
+              "visibility_row": shots[0]["visibility_row"], "shots": shots, "voice": voice, "sky": sky}
     (output / "opening.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    (output / "opening.psco").write_bytes(struct.pack("<4sIff", b"PSCO", 1, fov, near))
+    payload = struct.pack("<4sIIi", b"PSCO", 2, len(shots), voice["index"])
+    for shot in shots:
+        payload += struct.pack("<3f", shot["horizontal_fov_degrees"], shot["near_clip"], shot["duration"])
+    (output / "opening.psco").write_bytes(payload)
     return report
 
 
@@ -76,7 +101,7 @@ def main() -> None:
         report = package(tool, args.install.resolve(strict=True), args.manifest, args.output.resolve())
     except (IndexError, KeyError, OSError, TypeError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Sequence opening packaging failed: {error}\n")
-    print(f"Packaged {report['clip']} using the {report['visibility_row']} row ({report['frames']} camera samples)")
+    print(f"Packaged {len(report['shots'])} SS01 opening shots using the {report['visibility_row']} row")
 
 
 if __name__ == "__main__":
