@@ -196,7 +196,8 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Platform/PSP/AMoviePlayer_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AppBoot_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AppMain_PSP.cpp",
-		"../../OpenBarnyard/Source/Tasks/ARootTask.cpp"
+		"../../OpenBarnyard/Source/Tasks/ARootTask.cpp",
+		"../../OpenBarnyard/Source/Units/ASSeqFile.cpp"
 	}
 
 	includedirs

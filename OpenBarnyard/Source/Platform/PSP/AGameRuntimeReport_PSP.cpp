@@ -195,6 +195,7 @@ void AWriteGameRuntimeReport_PSP()
 		"menu_activation_count=%u\n"
 		"menu_close_count=%u\n"
 		"new_game_requested_slot=%d\n"
+		"new_game_script_tracks=%d\n"
 		"option_effects=%d\n"
 		"option_music=%d\n"
 		"option_speech=%d\n"
@@ -316,6 +317,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiMenuActivationCount,
 		s_GameRuntimeReport_PSP.uiMenuCloseCount,
 		s_GameRuntimeReport_PSP.iNewGameRequestedSlot,
+		s_GameRuntimeReport_PSP.iNewGameScriptTracks,
 		s_GameRuntimeReport_PSP.iOptionEffects,
 		s_GameRuntimeReport_PSP.iOptionMusic,
 		s_GameRuntimeReport_PSP.iOptionSpeech,

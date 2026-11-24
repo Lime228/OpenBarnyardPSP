@@ -8,6 +8,7 @@
 
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
 #  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#  include "Units/ASSeqFile.h"
 #else
 #  include "AHackedQuickSave.h"
 #  include "Player/APlayerProfileManager.h"
@@ -126,7 +127,9 @@ void AFrontEndNewGameSelectState::OnInsertion()
 	TFLOAT     fMaxImage = 0.0f;
 
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
-	AGetGameRuntimeReport_PSP().iNewGameRequestedSlot = -1;
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iNewGameRequestedSlot = -1;
+	rReport.iNewGameScriptTracks = 0;
 #else
 	APlayerProgress* pProgress = APlayerProgress::GetSingleton();
 #endif
@@ -262,10 +265,22 @@ void AFrontEndNewGameSelectState::OnMenuClose()
 	}
 
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
-	// Keep the slot chooser active until the original SS01 transition is available.
-	AGetGameRuntimeReport_PSP().iNewGameRequestedSlot = m_iActivatedSlot;
+	static constexpr TCHAR s_szIntroScript_PSP[] = "local:Data/ScriptedSequence/SS01_start.tso";
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iNewGameRequestedSlot = m_iActivatedSlot;
+	TUINT8* pScript = ASSeqFile::Read( s_szIntroScript_PSP, rReport.iNewGameScriptTracks );
+	const TBOOL bScriptLoaded = pScript != TNULL;
+	if ( bScriptLoaded )
+	{
+		TFree( pScript );
+		ASetGameRuntimeFailedPath_PSP( TNULL );
+	}
+	else
+		ASetGameRuntimeFailedPath_PSP( s_szIntroScript_PSP );
+
+	// Keep the chooser active until the intro scene and actor controller are ready.
 	OnActivate();
-	ASetGameRuntimePhase_PSP( "frontend-new-game-awaiting-sequence" );
+	ASetGameRuntimePhase_PSP( bScriptLoaded ? "frontend-new-game-awaiting-sequence" : "frontend-new-game-script-failed" );
 #else
 	if ( m_bOverwrite == TTRUE )
 	{

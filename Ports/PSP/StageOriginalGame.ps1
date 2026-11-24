@@ -254,7 +254,8 @@ $retailFiles = @(
     @{ Source = 'Data\Options\Controls_Win.trb'; Destination = 'Data\Options\Controls_Win.trb' },
     @{ Source = 'Data\GUI\fonts.trb'; Destination = 'Data\GUI\fonts.trb' },
     @{ Source = 'Data\GUI\texsec.trb'; Destination = 'Data\GUI\texsec.trb' },
-    @{ Source = 'Data\Locale\eng-uk.trb'; Destination = 'Data\Locale\eng-uk.trb' }
+    @{ Source = 'Data\Locale\eng-uk.trb'; Destination = 'Data\Locale\eng-uk.trb' },
+    @{ Source = 'Data\ScriptedSequence\SS01_start.tso'; Destination = 'Data\ScriptedSequence\SS01_start.tso' }
 )
 
 foreach ($retailFile in $retailFiles) {

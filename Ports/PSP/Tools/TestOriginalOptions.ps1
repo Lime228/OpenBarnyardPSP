@@ -36,7 +36,7 @@ function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}) {
     $deadline = (Get-Date).AddSeconds(10)
     do {
         $status = Read-GameLog
-        if ($status.phase -match '(?:data-failed|widgets-missing)$') { throw "Options resource failure: $($status.failed_path)" }
+        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
         $matching = $status.phase -eq $Phase -and $status.menu_state -eq '5' -and $status.menu_focus -eq "$Focus"
         foreach ($key in $Expected.Keys) { $matching = $matching -and $status[$key] -eq [string]$Expected[$key] }
         if ($matching) { return $status }
@@ -111,10 +111,10 @@ try {
         }
         if ($Capture) { Send-Key Screenshot }
         Send-Key Cross
-        $null = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 @{ new_game_requested_slot = 3 }
+        $null = Wait-Menu 'frontend-new-game-awaiting-sequence' 3 @{ new_game_requested_slot = 3; new_game_script_tracks = 21 }
         Send-Key Triangle
         $main = Wait-Menu 'frontend-new-game-return' 0
-        'New Game opened the four original slots, recorded slot 4 and returned on Cancel.'
+        'New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on Cancel.'
     }
     $mainPhase = $main.phase
     if ($RequireMenuAudio -and $main.menu_audio_ready -ne '1') {
