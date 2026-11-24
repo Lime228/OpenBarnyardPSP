@@ -28,26 +28,38 @@ $pythonArguments = $python.Arguments
 $outputPath = [IO.Path]::GetFullPath($OutputDirectory)
 $sequencePath = Join-Path $outputPath 'Sequence'
 $modelsPath = Join-Path $outputPath 'SequenceModels'
-$terrainPath = Join-Path $outputPath 'Terrain'
 $voicePath = Join-Path $outputPath 'Voice'
+$sequenceManifestPath = Join-Path $sequencePath 'sequence.json'
 
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'inventory_retail_sequence.py') `
     --tmdl $TMDLPath $installPath SS01_start $sequencePath
 if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence inventory failed.' }
 
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'convert_retail_sequence_models.py') `
-    --tmdl $TMDLPath --max-width $TextureMaxWidth $installPath (Join-Path $sequencePath 'sequence.json') $modelsPath
+    --tmdl $TMDLPath --max-width $TextureMaxWidth $installPath $sequenceManifestPath $modelsPath
 if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence model conversion failed.' }
 
 if ($encodedAudioRequired -or (Test-Path -LiteralPath (Join-Path $EncodedAudioDirectory 'fsb.encode.json') -PathType Leaf)) {
     & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_sequence_voice.py') `
-        (Join-Path $sequencePath 'sequence.json') $EncodedAudioDirectory $voicePath
+        $sequenceManifestPath $EncodedAudioDirectory $voicePath
     if ($LASTEXITCODE -ne 0) { throw 'SS01 voice packaging failed.' }
 }
 
-& (Join-Path $PSScriptRoot 'ConvertRetailSS01Terrain.ps1') -TMDLPath $TMDLPath -PythonPath $PythonPath `
-    -OutputDirectory $terrainPath -TextureMaxWidth $TextureMaxWidth
+$sequence = Get-Content -LiteralPath $sequenceManifestPath -Raw | ConvertFrom-Json
+$rows = @('Dummy'
+    foreach ($camera in $sequence.script.camera_tracks) {
+        foreach ($event in $camera.events) {
+            if ($event.type -ceq 'command' -and $event.name -ceq 'SetTerrain') { $event.arguments[0] }
+        }
+    }
+)
+foreach ($row in $rows | Select-Object -Unique) {
+    $suffix = if ($row -ceq 'Dummy') { '' } else { "_$row" }
+    $terrainPath = Join-Path $outputPath "Terrain$suffix"
+    & (Join-Path $PSScriptRoot 'ConvertRetailSS01Terrain.ps1') -TMDLPath $TMDLPath -PythonPath $PythonPath `
+        -OutputDirectory $terrainPath -VisibilityRow $row -TextureMaxWidth $TextureMaxWidth
 
-& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_sequence_terrain.py') `
-    (Join-Path $terrainPath 'ss01_terrain.json') (Join-Path $outputPath 'TerrainPack')
-if ($LASTEXITCODE -ne 0) { throw 'SS01 terrain packaging failed.' }
+    & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_sequence_terrain.py') `
+        (Join-Path $terrainPath 'ss01_terrain.json') (Join-Path $outputPath "TerrainPack$suffix")
+    if ($LASTEXITCODE -ne 0) { throw "SS01 terrain packaging failed for '$row'." }
+}

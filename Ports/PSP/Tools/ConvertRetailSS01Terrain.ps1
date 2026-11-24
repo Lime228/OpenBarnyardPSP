@@ -3,6 +3,8 @@ param(
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
     [string] $OutputDirectory = '',
+    [ValidatePattern('^[A-Za-z0-9_]+$')]
+    [string] $VisibilityRow = 'Dummy',
     [ValidateSet(32, 64, 128, 256, 512)]
     [int] $TextureMaxWidth = 128
 )
@@ -12,7 +14,8 @@ $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $installRoot = Join-Path $repositoryRoot 'Game\BarnyardPC\Install'
 $terrainPath = Join-Path $installRoot 'Data\Terrain\ss01\ss01.trb'
 if (-not $OutputDirectory) {
-    $OutputDirectory = Join-Path $repositoryRoot 'Game\BarnyardPC\Workspace\SS01\Terrain'
+    $folder = if ($VisibilityRow -ceq 'Dummy') { 'Terrain' } else { "Terrain_$VisibilityRow" }
+    $OutputDirectory = Join-Path $repositoryRoot "Game\BarnyardPC\Workspace\SS01\$folder"
 }
 $outputPath = [IO.Path]::GetFullPath($OutputDirectory)
 $visPath = Join-Path $outputPath 'ss01.vis.json'
@@ -30,15 +33,16 @@ try {
 finally { Pop-Location }
 
 $vis = Get-Content -LiteralPath $visPath -Raw | ConvertFrom-Json
-$selection = $vis.sections | Where-Object name -CEQ 'Dummy'
-if ($vis.version -ne 2 -or $selection.visibility.Count -ne $vis.sections.Count) {
-    throw 'The SS01 terrain export is missing a complete Dummy visibility row.'
+$selection = @($vis.sections | Where-Object name -CEQ $VisibilityRow)
+if ($vis.version -ne 2 -or $selection.Count -ne 1 -or $selection[0].visibility.Count -ne $vis.sections.Count) {
+    throw "The SS01 terrain export is missing a complete '$VisibilityRow' visibility row."
 }
+$visibility = $selection[0].visibility
 $converted = 0
 $failures = 0
 $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
     $section = $vis.sections[$index]
-    $requestedLod = $selection.visibility[$index]
+    $requestedLod = $visibility[$index]
     if ($requestedLod -eq 'none') { continue }
     if ($requestedLod -notin 'high', 'low') { throw "Invalid visibility level '$requestedLod'." }
     $lod = $requestedLod
@@ -102,7 +106,7 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
 [ordered]@{
     version = 1
     terrain = 'ss01'
-    visibility_row = 'Dummy'
+    visibility_row = $VisibilityRow
     texture_max_width = $TextureMaxWidth
     converted = $converted
     failed = $failures
@@ -110,5 +114,5 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
     texture_bytes = ($packs.texture_bytes | Measure-Object -Sum).Sum
     packs = @($packs)
 } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $outputPath 'ss01_terrain.json') -Encoding utf8NoBOM
-Write-Output "SS01 Dummy visibility row converted $converted model files. Failures: $failures."
+Write-Output "SS01 $VisibilityRow visibility row converted $converted model files. Failures: $failures."
 if ($failures -gt 0) { throw 'One or more SS01 terrain packs failed conversion.' }
