@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "AGameRuntimeReport_PSP.h"
+#include "AVOStream_PSP.h"
 #include "ARandom.h"
 #include "Memory/AMemory.h"
 #include "Sound/ASoundManager.h"
@@ -9,6 +10,8 @@
 
 #include <Source/Sound/ASoundUpdateTask_PSP.h>
 #include <Source/Sound/AWaveBankLoader_PSP.h>
+#include <Math/TMathInline.h>
+#include <Toshi/TStringManager.h>
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -51,6 +54,42 @@ static ASoundCommandQueue_PSP       s_MenuCommands_PSP;
 static ASoundDelayedEventQueue_PSP  s_MenuEvents_PSP;
 static ASoundManager_PSP            s_MenuSoundManager_PSP;
 static TINT                        s_iMenuMusicCue_PSP = -1;
+static AStreamWave_PSP             s_SSeqVoiceStream_PSP;
+static ASoundVoiceHandle_PSP        s_hSSeqVoice_PSP = ASoundMixer_PSP::INVALID_VOICE;
+
+void AStopSSeqVO_PSP()
+{
+	s_MenuMixer_PSP.Stop( s_hSSeqVoice_PSP );
+	s_hSSeqVoice_PSP = ASoundMixer_PSP::INVALID_VOICE;
+	s_SSeqVoiceStream_PSP.Destroy();
+}
+
+TBOOL APlaySSeqVO_PSP( TINT a_iSubstream )
+{
+	AStopSSeqVO_PSP();
+	if ( a_iSubstream < 0 || !s_MenuSoundManager_PSP.IsCreated() )
+		return TFALSE;
+	TCHAR szPath[ 72 ];
+	TStringManager::String8Format( szPath, TARRAYSIZE( szPath ), "local:Data/ScriptedSequence/SS01/Voice/%d.padp", a_iSubstream );
+	if ( !s_SSeqVoiceStream_PSP.Create( szPath ) )
+		return TFALSE;
+	s_hSSeqVoice_PSP = s_MenuMixer_PSP.PlayStream( &s_SSeqVoiceStream_PSP );
+	if ( s_hSSeqVoice_PSP != ASoundMixer_PSP::INVALID_VOICE )
+		return TTRUE;
+	AStopSSeqVO_PSP();
+	return TFALSE;
+}
+
+TINT AGetSSeqVOTime_PSP()
+{
+	TINT iTime;
+	return s_MenuMixer_PSP.GetStreamTime( s_hSSeqVoice_PSP, iTime ) ? iTime : -1;
+}
+
+TUINT AGetSSeqVOUnderruns_PSP()
+{
+	return s_SSeqVoiceStream_PSP.GetUnderrunCount();
+}
 
 struct AMenuCueLayer_PSP
 {
@@ -79,6 +118,7 @@ static void ATrackMenuCueLayer_PSP( TINT a_iHandle, TINT a_iPrimary, TSIZE a_uiC
 
 static void AUnloadMenuBank_PSP()
 {
+	AStopSSeqVO_PSP();
 	s_MenuSoundManager_PSP.Destroy();
 	s_MenuMixer_PSP.StopAll();
 	s_MenuEvents_PSP.Clear();
@@ -172,8 +212,15 @@ TBOOL ASoundManager::OnUpdate( TFLOAT a_fDeltaTime )
 {
 	m_fCurrentTime += a_fDeltaTime;
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	const TBOOL bSSeqVoice = s_MenuMixer_PSP.IsVoiceActive( s_hSSeqVoice_PSP );
+	if ( bSSeqVoice )
+	{
+		const TFLOAT fVolume = TMath::Min( 1.0f, TMath::Max( 0.0f, GetCategoryVolume( TPS8( VO ) ) ) );
+		s_MenuMixer_PSP.SetVolume( s_hSSeqVoice_PSP, TUINT( fVolume * ASoundMixer_PSP::MAX_VOLUME + 0.5f ) );
+	}
 	// Four blocks cover a frame even when the front end runs at 15 Hz.
-	for ( TUINT i = 0; i < ASoundManager_PSP::OUTPUT_BUFFER_COUNT && s_MenuSoundManager_PSP.GetManagedCueCount() > 0; i++ )
+	for ( TUINT i = 0; i < ASoundManager_PSP::OUTPUT_BUFFER_COUNT &&
+	     ( bSSeqVoice || s_MenuSoundManager_PSP.GetManagedCueCount() > 0 ); i++ )
 	{
 		TBOOL bNonSilent;
 		if ( !ASoundUpdateTask_PSP::UpdateSound(
@@ -181,7 +228,11 @@ TBOOL ASoundManager::OnUpdate( TFLOAT a_fDeltaTime )
 		     ) )
 			break;
 		if ( bNonSilent )
+		{
 			rReport.uiMenuAudioNonSilentBlocks++;
+			if ( bSSeqVoice )
+				rReport.uiNewGameVoiceNonSilentBlocks++;
+		}
 	}
 	const TINT iMusicPosition = s_MenuSoundManager_PSP.GetStreamCueTime( s_iMenuMusicCue_PSP );
 	if ( iMusicPosition >= 0 && rReport.iMenuMusicPositionMs > iMusicPosition )
@@ -331,6 +382,7 @@ void ASoundManager::StopCueAsync( TINT& a_rCueIndex, TFLOAT a_fDelay )
 void ASoundManager::PauseAllCues( TBOOL a_bPause )
 {
 	s_MenuSoundManager_PSP.PauseAllCues( a_bPause );
+	s_MenuMixer_PSP.SetPaused( s_hSSeqVoice_PSP, a_bPause );
 }
 
 void ASoundManager::PauseCue( TINT a_iCue, TBOOL a_bPause )

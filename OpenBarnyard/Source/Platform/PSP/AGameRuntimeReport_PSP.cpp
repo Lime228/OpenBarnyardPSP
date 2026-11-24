@@ -204,6 +204,10 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_opening_draws=%u\n"
 		"new_game_opening_frames=%u\n"
 		"new_game_sky_draws=%u\n"
+		"new_game_opening_shot=%u\n"
+		"new_game_voice_ms=%d\n"
+		"new_game_voice_underruns=%u\n"
+		"new_game_voice_non_silent_blocks=%u\n"
 		"option_effects=%d\n"
 		"option_music=%d\n"
 		"option_speech=%d\n"
@@ -334,6 +338,10 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiNewGameOpeningDraws,
 		s_GameRuntimeReport_PSP.uiNewGameOpeningFrames,
 		s_GameRuntimeReport_PSP.uiNewGameSkyDraws,
+		s_GameRuntimeReport_PSP.uiNewGameOpeningShot,
+		s_GameRuntimeReport_PSP.iNewGameVoiceMS,
+		s_GameRuntimeReport_PSP.uiNewGameVoiceUnderruns,
+		s_GameRuntimeReport_PSP.uiNewGameVoiceNonSilentBlocks,
 		s_GameRuntimeReport_PSP.iOptionEffects,
 		s_GameRuntimeReport_PSP.iOptionMusic,
 		s_GameRuntimeReport_PSP.iOptionSpeech,
