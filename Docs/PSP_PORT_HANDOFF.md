@@ -381,22 +381,35 @@ clips. All 30 are present in the local `SS01_cameraB` animation cache.
 `ConvertRetailSS01.ps1` prepares both camera VIS rows in addition to `Dummy`.
 
 The optional opening build stages `SS01/Opening` with the original `Barn`
-row. The chooser releases the menu world, loads the 382 terrain meshes and
-130 shared textures and renders the landscape using the 63 camera poses from
-the first shot. PPSSPP on `50097c00` drew 121 mesh groups after frustum
-culling. Two framebuffer captures confirmed the original camera movement.
-Triangle releases the opening resources and returns to the main menu.
-The preview holds the last pose. The sky uses the original normal-weather
-`morning` profile from `GameTimeFXSettings.trb` and a PSP-sized copy of
+row. The chooser releases the menu world and loads 382 terrain meshes and
+130 shared textures. The first two original camera clips contain 63 and 61
+sampled poses. The master track cuts at 4.4 seconds and ends the second shot
+four seconds later. The preview follows the `SS01a` stream's playback clock,
+stops it at the end of this span and holds the last pose. Triangle releases
+the opening resources and returns to the main menu. PPSSPP build `6d9065ad`
+cut at 4,411 ms and stopped the narration at 8,405 ms with no stream
+underruns. The first two rendered opening frames and settings round trip
+were checked using an isolated muted emulator configuration.
+
+The sky uses the original normal-weather `morning` profile from
+`GameTimeFXSettings.trb` and a PSP-sized copy of
 `sky_sunny_16.tga`. The PSP renderer draws both layers before the terrain
 using camera orientation with zero translation. The original cloud rotation
-speed comes from the same profile. Actors, sequence dispatch, the remaining
-weather effects and scene audio still need runtime integration. Save data
-remains untouched.
+speed comes from the same profile. Actors, full sequence dispatch, the
+remaining weather effects and the rest of scene audio still need runtime
+integration. Save data remains untouched.
+
+The original `SS01_actorB` root track binds both birds, Farmer and Bull to
+their named `CH_Actor_*` bones before the first cut. `SS_Sbird1` and
+`SS_Sbird2` have animations in both opening shots. `SS01_Farmer` and
+`SS_Bull` start their selected animations in `SS01_shot01b_cam01b`.
+The sequence inventory records all 16 initial bindings and the pause
+preceding each animation. All ten opening animation files for the rig,
+camera and four actors matched the local PANM headers.
 
 ```powershell
 .\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening
-.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -Capture
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -RequireOpeningVoice -Capture
 ```
 
 ## Known limitations

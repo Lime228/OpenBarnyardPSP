@@ -343,9 +343,9 @@ Use the TMDL artifact from CI run `45358726618` or later.
 .\Ports\PSP\Tools\ConvertRetailSS01.ps1
 ```
 
-The first camera shot is exported to `SS01/Opening` as PCAM and a small
-projection config. The exporter looks up the shot, bound bone, field of
-view and near plane from the original TSO. It resolves the camera's key
+The first two camera shots are exported to `SS01/Opening` as PCAM and a small
+timeline config. The exporter looks up the clips, bound bone, field of view,
+near plane and master-track waits from the original TSO. It resolves the camera's key
 library using the exact symbol in the original pack. `StageOriginalGame.ps1`
 accepts `-SS01OpeningDirectory` and stages the visibility row named by the
 generated camera manifest.
@@ -359,7 +359,8 @@ The converted texture is 256 by 128 and both meshes plus the texture total
 If the local FSB encode is available, the same script packages the two
 streams referenced in the original TSO. It writes `SS01/Voice/voice.json`
 and the corresponding PADP files named by their zero-based FMOD substream
-IDs. Pass `-EncodedAudioDirectory` to require a particular encoded cache.
+IDs. The stager selects `SS01a` from the local voice manifest for the two-shot
+preview. Pass `-EncodedAudioDirectory` to require a particular encoded cache.
 
 Run the terrain pass by itself when iterating on terrain conversion.
 
