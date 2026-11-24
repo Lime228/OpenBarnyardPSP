@@ -343,6 +343,13 @@ Use the TMDL artifact from CI run `45358726618` or later.
 .\Ports\PSP\Tools\ConvertRetailSS01.ps1
 ```
 
+The first camera shot is exported to `SS01/Opening` as PCAM and a small
+projection config. The exporter looks up the shot, bound bone, field of
+view and near plane from the original TSO. It resolves the camera's key
+library using the exact symbol in the original pack. `StageOriginalGame.ps1`
+accepts `-SS01OpeningDirectory` and stages the visibility row named by the
+generated camera manifest.
+
 If the local FSB encode is available, the same script packages the two
 streams referenced in the original TSO. It writes `SS01/Voice/voice.json`
 and the corresponding PADP files named by their zero-based FMOD substream

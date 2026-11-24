@@ -380,6 +380,20 @@ The sequence inventory records these commands and all 30 referenced camera
 clips. All 30 are present in the local `SS01_cameraB` animation cache.
 `ConvertRetailSS01.ps1` prepares both camera VIS rows in addition to `Dummy`.
 
+The optional opening build stages `SS01/Opening` with the original `Barn`
+row. The chooser releases the menu world, loads the 382 terrain meshes and
+130 shared textures and renders the landscape using the 63 camera poses from
+the first shot. PPSSPP on `50097c00` drew 121 mesh groups after frustum
+culling. Two framebuffer captures confirmed the original camera movement.
+Triangle releases the opening resources and returns to the main menu.
+The preview holds the last pose. The sky, actors, sequence dispatch and
+scene audio still need runtime integration. Save data remains untouched.
+
+```powershell
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -Capture
+```
+
 ## Known limitations
 
 - The complete initial terrain VIS row is loaded at its original LODs, together
