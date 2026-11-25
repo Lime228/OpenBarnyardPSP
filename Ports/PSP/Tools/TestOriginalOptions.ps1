@@ -8,6 +8,7 @@ param(
     [switch] $CheckNewGame,
     [switch] $CheckNewGameTerrain,
     [switch] $CheckNewGameOpening,
+    [switch] $OpeningOnly,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
     [switch] $RequireOpeningActors
@@ -29,6 +30,9 @@ $openingConfig = Join-Path $runtimePath 'Data\ScriptedSequence\SS01\opening.psco
 $hasOpening = Test-Path -LiteralPath $openingConfig -PathType Leaf
 if ($CheckNewGameOpening -and (-not $hasOpening -or $CheckNewGameTerrain)) {
     throw 'The opening check needs a staged opening camera and runs separately from the terrain residency check.'
+}
+if ($OpeningOnly -and (-not $CheckNewGameOpening -or $RequireMenuAudio -or $RequireMenuMusic)) {
+    throw 'Use -OpeningOnly with -CheckNewGameOpening and the opening checks.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -140,6 +144,10 @@ try {
     }
 
     $main = Wait-Menu 'frontend-menu-ready' 0
+    if ($OpeningOnly -and $Capture) {
+        Start-Sleep -Milliseconds 750
+        Send-Key Screenshot
+    }
     if ($CheckNewGame -or $CheckNewGameTerrain -or $CheckNewGameOpening) {
         Send-Key Cross
         $null = Wait-Menu 'frontend-new-game-ready' 0 @{ new_game_requested_slot = -1 }
@@ -244,6 +252,7 @@ try {
         Send-Key Triangle
         $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
         'New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on Cancel.'
+        if ($OpeningOnly) { return }
     }
     $mainPhase = $main.phase
     if ($RequireMenuAudio -and $main.menu_audio_ready -ne '1') {
