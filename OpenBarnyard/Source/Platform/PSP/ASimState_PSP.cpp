@@ -18,13 +18,16 @@ static TRenderCamera_PSP ACreateSimStartCamera_PSP( const ASimStart_PSP& a_rStar
 	vBackward.Normalize();
 	vBackward.y = -TMath::ATan( TMath::DegToRad( 11.0f ) );
 	vBackward.Normalize();
+	// TRenderCamera_PSP stores the inverse of visual up, like the converted retail cameras.
+	TVector3 vUp( -vBackward.x * vBackward.y, 1.0f - vBackward.y * vBackward.y, -vBackward.z * vBackward.y );
+	vUp.Normalize();
 	const TVector4& rSpawn = a_rStart.vPosition;
 	const TFLOAT fAspect = TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TRenderInterface_PSP::SCREEN_HEIGHT;
 	const TFLOAT fFOV = TMath::ATan( TMath::Tan( TMath::DegToRad( 30.0f ) ) / fAspect ) * ( 360.0f / TMath::PI );
 	return {
 		{ rSpawn.x + vBackward.x * 5.0f, rSpawn.y - 1.7f + vBackward.y * 5.0f, rSpawn.z + vBackward.z * 5.0f },
 		{ -vBackward.x, -vBackward.y, -vBackward.z },
-		{ 0.0f, -1.0f, 0.0f },
+		{ vUp.x, vUp.y, vUp.z },
 		fFOV,
 	};
 }
