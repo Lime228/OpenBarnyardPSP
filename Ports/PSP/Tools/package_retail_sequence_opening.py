@@ -17,15 +17,23 @@ from package_retail_opening_sky import package as package_sky
 OPENING_SHOT_COUNT = 3
 
 
-def opening_shots(script: dict) -> tuple[int, list, dict]:
+def camera_shots(script: dict, limit: int | None = None) -> tuple[int, list]:
     camera_track, = script["camera_tracks"]
-    voice, = [entry for entry in script["voice_instructions"]
-              if entry["actor"] == 15 and entry["type"] == "vostream" and entry["opens_track"]]
     master = script["master_timing"]
     synchronization = [("wait", 1), ("wait", 2), ("resume", None)]
-    synchronization += [("wait", 0), ("resume", None)] * OPENING_SHOT_COUNT
-    if [(item["type"], item.get("flag")) for item in master[:len(synchronization)]] != synchronization:
+    if [(item["type"], item.get("flag")) for item in master[:3]] != synchronization:
         raise ValueError("unexpected SS01 opening synchronization")
+
+    intervals = [[]]
+    for event in master[3:]:
+        if event["type"] == "resume":
+            intervals.append([])
+        elif event["type"] == "wait":
+            intervals[-1].append(event)
+        else:
+            raise ValueError("unexpected SS01 timing instruction")
+    ui_by_shot = {cue["after_resume"]: cue["arguments"][0] for cue in script.get("master_cues", [])
+                  if cue["type"] == "command" and cue["name"] == "UI"}
 
     shots = []
     commands = {}
@@ -33,30 +41,44 @@ def opening_shots(script: dict) -> tuple[int, list, dict]:
         if event["type"] == "command":
             commands[event["name"]] = event["arguments"]
             continue
+        index = len(shots)
+        if index >= len(intervals) - 1:
+            raise ValueError("unexpected SS01 opening synchronization")
+        durations = [wait["duration"] for wait in intervals[index] if wait["flag"] == 0]
+        wait_flags = [wait["flag"] for wait in intervals[index] if wait["flag"] != 0]
+        ui = ui_by_shot.get(index + 1)
+        if (ui and intervals[index]) or (not ui and len(durations) != 1):
+            raise ValueError("unexpected SS01 opening synchronization")
         shot = {
             "clip": event["name"], "camera_bone": commands["bindCamera"][0],
             "visibility_row": commands["SetTerrain"][0],
             "horizontal_fov_degrees": float(commands["Set_FOV"][0]),
             "near_clip": float(commands["SetNearClip"][0]),
-            "duration": master[3 + 2 * len(shots)]["duration"],
+            "duration": None if ui else durations[0],
+            "wait_flags": wait_flags, "ui": ui,
         }
         if (not 1.0 <= shot["horizontal_fov_degrees"] < 170.0 or not 0.0 < shot["near_clip"] < 280.0 or
-                not 0.0 < shot["duration"] <= 60.0):
+                (ui is None and not 0.0 < shot["duration"] <= 60.0)):
             raise ValueError("opening camera parameters are outside the PSP range")
         shots.append(shot)
-        if len(shots) == OPENING_SHOT_COUNT:
+        if len(shots) == limit:
             break
-    if len(shots) != OPENING_SHOT_COUNT or len({shot["visibility_row"] for shot in shots}) != 1:
-        raise ValueError("the opening preview needs all supported shots in the same visibility row")
-    return camera_track["actor"], shots, voice
+    if limit is None and (len(intervals) != len(shots) + 1 or intervals[-1]):
+        raise ValueError("the master and camera track counts differ")
+    return camera_track["actor"], shots
 
 
-def package(tool: Path, install: Path, manifest: Path, output: Path) -> dict:
-    sequence = json.loads(manifest.read_text(encoding="utf-8"))
-    if sequence["sequence"] != "SS01_start":
-        raise ValueError("expected the SS01_start inventory")
-    actor, shots, voice = opening_shots(sequence["script"])
+def opening_shots(script: dict) -> tuple[int, list, dict]:
+    actor, shots = camera_shots(script, OPENING_SHOT_COUNT)
+    voice, = [entry for entry in script["voice_instructions"]
+              if entry["actor"] == 15 and entry["type"] == "vostream" and entry["opens_track"]]
+    if (len(shots) != OPENING_SHOT_COUNT or len({shot["visibility_row"] for shot in shots}) != 1 or
+            any(shot["wait_flags"] or shot["ui"] for shot in shots)):
+        raise ValueError("the opening preview needs all supported timed shots in the same visibility row")
+    return actor, shots, voice
 
+
+def export_cameras(tool: Path, install: Path, sequence: dict, shots: list, output: Path) -> None:
     # The source camera model comes from the SS01 entry of AScriptedSequenceActivity.
     model = retail_file(install, "Data/Models/SS01_cameraB.trb")
     info = run_export(tool, "-psp-animation-info", model, output / "camera-info.json")
@@ -67,17 +89,37 @@ def package(tool: Path, install: Path, manifest: Path, output: Path) -> dict:
         clip_name = shot["clip"]
         clip, = [entry for entry in info["sequences"] if entry["name"] == clip_name]
         rate = clip_sample_rate(clip)
-        if not rate or abs(clip["duration"] - shot["duration"]) > 0.01:
-            raise ValueError(f"unexpected opening camera duration: {clip_name}")
+        loop = shot["ui"] is not None
+        if not rate or clip["mode"] != int(not loop) or (
+                not loop and abs(clip["duration"] - shot["duration"]) > 0.01):
+            raise ValueError(f"unexpected camera duration or loop mode: {clip_name}")
         stem = "opening" if index == 0 else f"opening-{index}"
         dump = output / f"{stem}-dump.json"
         run_tmdl(tool, "-psp-animation", model, dump, "-keylib", str(pack), "-keylib-symbol", key_library,
                  "-sequence", clip_name, "-sample-rate", str(rate))
         camera = json.loads(dump.read_text(encoding="utf-8"))
-        if camera["sequence"] != clip_name or camera["sample_rate"] != rate or camera["loop"]:
+        if camera["sequence"] != clip_name or camera["sample_rate"] != rate or camera["loop"] != loop:
             raise ValueError("unexpected opening camera sample export")
-        convert(dump, output / f"{stem}.pcam", shot["camera_bone"], preserve_roll=True)
-        shot.update(sample_rate=rate, frames=len(camera["frames"]))
+        filename = f"{stem}.pcam"
+        convert(dump, output / filename, shot["camera_bone"], preserve_roll=True)
+        shot.update(file=filename, sample_rate=rate, frames=len(camera["frames"]), loop=loop)
+
+
+def package(tool: Path, install: Path, manifest: Path, output: Path, all_shots: bool = False) -> dict:
+    sequence = json.loads(manifest.read_text(encoding="utf-8"))
+    if sequence["sequence"] != "SS01_start":
+        raise ValueError("expected the SS01_start inventory")
+    script = sequence["script"]
+    if all_shots:
+        actor, shots = camera_shots(script)
+        export_cameras(tool, install, sequence, shots, output)
+        report = {"version": 1, "sequence": sequence["sequence"], "camera_actor": actor, "shots": shots,
+                  "master_cues": script["master_cues"], "voice_instructions": script["voice_instructions"]}
+        (output / "camera_sequence.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        return report
+
+    actor, shots, voice = opening_shots(script)
+    export_cameras(tool, install, sequence, shots, output)
     sky = package_sky(tool, install, output)
 
     report = {"version": 2, "sequence": sequence["sequence"], "camera_actor": actor,
@@ -92,6 +134,7 @@ def package(tool: Path, install: Path, manifest: Path, output: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--all-shots", action="store_true", help="export every retail camera without staging a runtime timeline")
     parser.add_argument("--tmdl", required=True, type=Path)
     parser.add_argument("install", type=Path)
     parser.add_argument("manifest", type=Path)
@@ -100,10 +143,13 @@ def main() -> None:
     try:
         tool = args.tmdl.resolve(strict=True)
         (tool.parent / "Logs").mkdir(exist_ok=True)
-        report = package(tool, args.install.resolve(strict=True), args.manifest, args.output.resolve())
+        report = package(tool, args.install.resolve(strict=True), args.manifest, args.output.resolve(), args.all_shots)
     except (IndexError, KeyError, OSError, TypeError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Sequence opening packaging failed: {error}\n")
-    print(f"Packaged {len(report['shots'])} SS01 opening shots using the {report['visibility_row']} row")
+    if args.all_shots:
+        print(f"Exported {len(report['shots'])} original SS01 cameras")
+    else:
+        print(f"Packaged {len(report['shots'])} SS01 opening shots using the {report['visibility_row']} row")
 
 
 if __name__ == "__main__":

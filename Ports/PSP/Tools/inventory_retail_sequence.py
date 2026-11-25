@@ -16,6 +16,8 @@ TSO_VOICE = struct.Struct("<Iii")
 TSO_OP_WAIT = 3
 TSO_OP_ANIMATION = 4
 TSO_OP_VOICE = 5
+TSO_OP_FADE = 7
+TSO_OP_SETFLAG = 9
 TSO_OP_PAUSE = 10
 TSO_OP_RESUME = 11
 TSO_OP_COMMAND = 12
@@ -98,6 +100,7 @@ def inspect_script(path: Path) -> dict:
     voices = []
     cameras = []
     master = []
+    master_cues = []
     attachments = []
     animations = []
     visibility = []
@@ -111,9 +114,10 @@ def inspect_script(path: Path) -> dict:
         clip_events = []
         visibility_events = []
         pauses = 0
+        resumes = 0
         previous_clip = None
         while cursor + TSO_INSTRUCTION.size <= limit:
-            opcode, _, _ = TSO_INSTRUCTION.unpack_from(data, cursor)
+            opcode, _, flag_id = TSO_INSTRUCTION.unpack_from(data, cursor)
             if opcode == TSO_OP_END:
                 break
             if not 0 <= opcode < TSO_OP_END or cursor + TSO_INSTRUCTION_SIZES[opcode] > limit:
@@ -141,6 +145,9 @@ def inspect_script(path: Path) -> dict:
                         attachment_events.append({"name": command, "arguments": arguments})
                 elif command in VISIBILITY_COMMANDS:
                     visibility_events.append({"name": command, "after_pause": pauses, "after_clip": previous_clip})
+                if actor == 0 and command:
+                    master_cues.append({"type": "command", "name": command, "after_resume": resumes,
+                                        "arguments": [read_string_field(cursor + field) for field in (0x10, 0x14, 0x18)]})
             elif opcode == TSO_OP_PAUSE:
                 pauses += 1
                 previous_clip = None
@@ -149,6 +156,12 @@ def inspect_script(path: Path) -> dict:
                 master.append({"type": "wait", "flag": flag, "duration": duration})
             elif actor == 0 and opcode == TSO_OP_RESUME:
                 master.append({"type": "resume"})
+                resumes += 1
+            elif actor == 0 and opcode == TSO_OP_FADE:
+                fade_out, duration = struct.unpack_from("<if", data, cursor + TSO_INSTRUCTION.size)
+                master_cues.append({"type": "fade", "out": bool(fade_out), "duration": duration, "after_resume": resumes})
+            elif actor == 0 and opcode == TSO_OP_SETFLAG:
+                master_cues.append({"type": "set_flag", "flag": flag_id, "after_resume": resumes})
             cursor += TSO_INSTRUCTION_SIZES[opcode]
         else:
             raise ValueError(f"missing TSO track end for track {track}")
@@ -161,7 +174,7 @@ def inspect_script(path: Path) -> dict:
         if visibility_events:
             visibility.append({"track": track, "actor": actor, "events": visibility_events})
     return {"name": name, "tracks": count, "track_actors": actors, "voice_instructions": voices,
-            "camera_tracks": cameras, "master_timing": master, "attachment_tracks": attachments,
+            "camera_tracks": cameras, "master_timing": master, "master_cues": master_cues, "attachment_tracks": attachments,
             "animation_tracks": animations, "visibility_tracks": visibility}
 
 

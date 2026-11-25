@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from inventory_retail_sequence import describe_resources, inspect_script, retail_file
-from package_retail_sequence_opening import opening_shots
+from package_retail_sequence_opening import camera_shots, opening_shots
 
 
 class RetailSequenceTests(unittest.TestCase):
@@ -37,6 +37,30 @@ class RetailSequenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "opening synchronization"):
             opening_shots(script)
 
+    def test_camera_track_preserves_the_player_creation_gate_and_terrain_change(self):
+        events = [
+            {"type": "command", "name": name, "arguments": [value]}
+            for name, value in (("bindCamera", "camera"), ("SetTerrain", "Barn"), ("Set_FOV", "50"), ("SetNearClip", "0.8"))
+        ]
+        events += [
+            {"type": "animation", "name": "before"},
+            {"type": "animation", "name": "SS01_GUI_idle"},
+            {"type": "command", "name": "SetTerrain", "arguments": ["BeadyIntDay"]},
+            {"type": "animation", "name": "after"},
+        ]
+        resume = {"type": "resume"}
+        master = [
+            {"type": "wait", "flag": 1}, {"type": "wait", "flag": 2}, resume,
+            {"type": "wait", "flag": 0, "duration": 11}, {"type": "wait", "flag": 3}, resume,
+            resume, {"type": "wait", "flag": 0, "duration": 8.23}, resume,
+        ]
+        cues = [{"type": "command", "name": "UI", "arguments": ["Player_select"], "after_resume": 2}]
+        _, shots = camera_shots({"camera_tracks": [{"actor": 14, "events": events}],
+                                 "master_timing": master, "master_cues": cues})
+        self.assertEqual([(shot["duration"], shot["wait_flags"], shot["ui"], shot["visibility_row"]) for shot in shots],
+                         [(11, [3], None, "Barn"), (None, [], "Player_select", "Barn"),
+                          (8.23, [], None, "BeadyIntDay")])
+
     def test_inspects_the_original_tso_tables(self):
         header = struct.pack("<6I", 56, 8, 64, 76, 8, 84)
         script = struct.pack("<IiIII", 0, 0, 1, 0, 4)
@@ -52,6 +76,7 @@ class RetailSequenceTests(unittest.TestCase):
                 "voice_instructions": [{"track": 0, "actor": 7, "type": "vostream", "index": 2, "name": "Line", "opens_track": True}],
                 "camera_tracks": [],
                 "master_timing": [],
+                "master_cues": [],
                 "attachment_tracks": [],
                 "animation_tracks": [],
                 "visibility_tracks": [],
