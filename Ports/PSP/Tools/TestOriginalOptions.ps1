@@ -43,7 +43,8 @@ if ($RequireOpeningSky -and (-not $CheckNewGameOpening -or -not (Test-Path -Lite
 if ($RequireOpeningVoice -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\Voice') -PathType Container))) {
     throw 'The voice check needs the opening check and a staged voice cache.'
 }
-if ($RequireOpeningActors -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\Actors\actors.psac') -PathType Leaf))) {
+$actorConfig = Join-Path $runtimePath 'Data\ScriptedSequence\SS01\Actors\actors.psac'
+if ($RequireOpeningActors -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath $actorConfig -PathType Leaf))) {
     throw 'The actor check needs the opening check and a staged actor cache.'
 }
 if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContinue) {
@@ -184,34 +185,66 @@ try {
             if ($RequireOpeningVoice -or $RequireOpeningActors) {
                 $timeline = [IO.File]::ReadAllBytes($openingConfig)
                 $shots = if ($timeline.Length -ge 16) { [BitConverter]::ToUInt32($timeline, 8) } else { 0 }
-                if ($shots -notin 2, 3 -or [BitConverter]::ToUInt32($timeline, 4) -ne 2 -or
+                if ($shots -lt 2 -or $shots -gt 16 -or [BitConverter]::ToUInt32($timeline, 4) -ne 2 -or
                     $timeline.Length -ne 16 + 12 * $shots) {
                     throw 'Voice and actor checks need a multi-shot SS01 timeline.'
                 }
-                $actorMeshCounts = @(2, 5, 4)
                 $seconds = [double]0
                 for ($shot = 1; $shot -le $shots; $shot++) {
-                    if ($shot -gt 1) {
-                        $cutMs = [int](1000 * $seconds)
-                        $expected.new_game_opening_shot = $shot
-                        if ($RequireOpeningActors) {
-                            $expected["new_game_actor_draws_shot$shot"] = $actorMeshCounts[$shot - 1]
-                        }
-                        $shotReport = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
-                        if ($RequireOpeningVoice -and ([int]$shotReport.new_game_voice_ms -lt $cutMs -or
-                            [int]$shotReport.new_game_voice_underruns -ne 0 -or
-                            [int]$shotReport.new_game_voice_non_silent_blocks -lt 40)) {
-                            throw "Shot $shot did not follow the SS01 voice clock at $cutMs ms. See $gameLog"
-                        }
-                        "Reached shot $shot at $($shotReport.new_game_voice_ms) ms, with $($shotReport["new_game_actor_draws_shot$shot"]) actor mesh draws."
-                        if ($Capture) {
-                            if ($RequireOpeningActors) { Start-Sleep -Milliseconds 1500 }
-                            Send-Key Screenshot
-                        }
-                    }
                     $seconds += [BitConverter]::ToSingle($timeline, 12 + 12 * $shot)
                 }
                 $endMs = [int](1000 * $seconds)
+                $firstCutMs = [int](1000 * [BitConverter]::ToSingle($timeline, 24))
+                $expected.new_game_opening_shot = 2
+                $secondShot = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
+                if ($RequireOpeningVoice -and ([int]$secondShot.new_game_voice_ms -lt $firstCutMs -or
+                    [int]$secondShot.new_game_voice_underruns -ne 0 -or [int]$secondShot.new_game_voice_non_silent_blocks -lt 40)) {
+                    throw "The second shot did not follow the SS01 voice at $firstCutMs ms. See $gameLog"
+                }
+                if ($Capture) {
+                    Start-Sleep -Milliseconds 1500
+                    Send-Key Screenshot
+                    if ($shots -ge 4) {
+                        $expected.new_game_opening_shot = 4
+                        $null = Wait-Menu 'frontend-new-game-opening' -1 $expected 25
+                        Send-Key Screenshot
+                    }
+                    elseif ($shots -eq 3) {
+                        $expected.new_game_opening_shot = 3
+                        $null = Wait-Menu 'frontend-new-game-opening' -1 $expected 25
+                        Start-Sleep -Milliseconds 1500
+                        Send-Key Screenshot
+                    }
+                }
+                $expected.new_game_opening_shot = $shots
+                $lastShot = Wait-Menu 'frontend-new-game-opening' -1 $expected 120
+                if ($RequireOpeningActors) {
+                    $actorData = [IO.File]::ReadAllBytes($actorConfig)
+                    $actorVersion = [BitConverter]::ToUInt32($actorData, 4)
+                    $actorCount = [BitConverter]::ToUInt32($actorData, 8)
+                    $actorRecordSize = if ($actorVersion -eq 1) { 20 } else { 24 }
+                    if ($actorData.Length -ne 16 + $actorRecordSize * $actorCount) {
+                        throw 'Invalid staged actor index.'
+                    }
+                    $meshDraws = if ($lastShot.new_game_actor_draws_by_shot) {
+                        $lastShot.new_game_actor_draws_by_shot.Split(',')
+                    } else {
+                        @($lastShot.new_game_actor_draws_shot1, $lastShot.new_game_actor_draws_shot2, $lastShot.new_game_actor_draws_shot3)
+                    }
+                    for ($shot = 0; $shot -lt $shots; $shot++) {
+                        $count = 0
+                        for ($actor = 0; $actor -lt $actorCount; $actor++) {
+                            $record = 16 + $actor * $actorRecordSize
+                            if ([BitConverter]::ToUInt32($actorData, $record + 4) -band (1 -shl $shot)) {
+                                $count += [BitConverter]::ToUInt32($actorData, $record + 8)
+                            }
+                        }
+                        if ([int]$meshDraws[$shot] -ne $count) {
+                            throw "Shot $($shot + 1) drew $($meshDraws[$shot]) actor meshes, expected $count. See $gameLog"
+                        }
+                    }
+                    "Actor mesh draws across ${shots} shots: $($meshDraws[0..($shots - 1)] -join ', '). Peak animated vertices: $($lastShot.animation_peak_vertices)."
+                }
             }
             if ($RequireOpeningVoice) {
                 $deadline = (Get-Date).AddSeconds(45)
@@ -251,6 +284,10 @@ try {
         }
         Send-Key Triangle
         $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
+        if ($RequireOpeningActors -and $main.ContainsKey('animation_live_vertices') -and
+            ($main.animation_live_vertices -ne '0' -or $main.animation_sample_bytes -ne '0')) {
+            throw "SS01 actor resources remained resident after returning to the menu. See $gameLog"
+        }
         'New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on Cancel.'
         if ($OpeningOnly) { return }
     }
