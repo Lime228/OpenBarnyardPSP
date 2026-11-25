@@ -1320,6 +1320,15 @@ if ($MainGameScene) {
     if ($players.version -ne 1 -or $players.library -cne 'lib_maingame' -or $players.players.Count -ne 2) {
         throw 'Expected the original gameplay player assets.'
     }
+    $steerFields = @('Radius', 'Acc', 'Dec', 'TurningAcc', 'TurningDec', 'NHolonomicRate',
+                     'LogicalWalkSpeed', 'LogicalRunSpeed', 'AnimatedWalkSpeed', 'AnimatedRunSpeed', 'MaxAesWalkSpeed')
+    $steerTraits = $players.unit.steer_traits
+    foreach ($field in $steerFields) {
+        $value = [single]$steerTraits.$field
+        if ($value -le 0 -or [single]::IsNaN($value) -or [single]::IsInfinity($value)) {
+            throw "Invalid original player steering field $field."
+        }
+    }
     foreach ($gender in 'male', 'female') {
         $expectedActor = if ($gender -ceq 'male') { 'american_m' } else { 'american_f' }
         $profiles = @($players.players | Where-Object gender -CEQ $gender)
@@ -1328,27 +1337,39 @@ if ($MainGameScene) {
         if ($player.actor -cne $expectedActor -or $player.meshes.Count -ne 2 -or $player.costumes.Count -ne 7 -or
             $null -eq $player.costume_mesh -or $player.costume_mesh -notin 0, 1) { throw "Invalid assets for $expectedActor." }
         $defaultSet = @($player.animation_sets | Where-Object name -CEQ 'default')[0]
-        $idleName = @($defaultSet.animations | Where-Object Name -CEQ 'idle_lp')[0].ExportedName
-        $idle = @($player.clips | Where-Object name -EQ $idleName)
-        if ($idle.Count -ne 1 -or $idle[0].mode -ne 0 -or $idle[0].overlay -or $idle[0].path -cnotmatch '^clip-[0-9]{3}\.panm$') {
-            throw "Missing original idle loop for $expectedActor."
-        }
         $otherMesh = 'mesh-{0:D3}.ptex' -f (1 - [int]$player.costume_mesh)
-        $names = @('mesh-000.pmes', 'mesh-001.pmes', 'skeleton.pskl', $otherMesh, $idle[0].path)
+        $names = @('mesh-000.pmes', 'mesh-001.pmes', 'skeleton.pskl', $otherMesh)
         $names += @(0..6 | ForEach-Object { "costume-$_.ptex" })
+        $clipTargets = @{}
+        foreach ($motion in 'idle', 'walk', 'run') {
+            $animation = @($defaultSet.animations | Where-Object Name -CEQ "${motion}_lp")
+            if ($animation.Count -ne 1 -or -not $animation[0].ExportedName) {
+                throw "Missing original $motion binding for $expectedActor."
+            }
+            $clip = @($player.clips | Where-Object name -EQ $animation[0].ExportedName)
+            if ($clip.Count -ne 1 -or $clip[0].mode -ne 0 -or $clip[0].overlay -or
+                $clip[0].path -cnotmatch '^clip-[0-9]{3}\.panm$' -or $clipTargets.ContainsKey($clip[0].path)) {
+                throw "Invalid original $motion loop for $expectedActor."
+            }
+            $names += $clip[0].path
+            $clipTargets[$clip[0].path] = "$motion.panm"
+        }
         $sourceRoot = Join-Path $playerRoot $gender
         $destination = Join-Path $runtimePath "Data\Player\$gender"
         New-Item -ItemType Directory -Force -Path $destination | Out-Null
         foreach ($name in $names) {
             $source = Get-Item -LiteralPath (Join-Path $sourceRoot $name)
             if ($source.PSIsContainer -or $source.Length -ne $player.files.$name) { throw "Invalid gameplay player asset $name." }
-            $target = if ($name -ceq $idle[0].path) { 'idle.panm' } else { $name }
+            $target = if ($clipTargets.ContainsKey($name)) { $clipTargets[$name] } else { $name }
             Copy-Item -LiteralPath $source.FullName -Destination (Join-Path $destination $target) -Force
         }
-        $config = [byte[]]::new(12)
+        $config = [byte[]]::new(12 + 4 * $steerFields.Count)
         [Text.Encoding]::ASCII.GetBytes('PSPL').CopyTo($config, 0)
-        [BitConverter]::GetBytes([uint32]1).CopyTo($config, 4)
+        [BitConverter]::GetBytes([uint32]2).CopyTo($config, 4)
         [BitConverter]::GetBytes([uint32]$player.costume_mesh).CopyTo($config, 8)
+        for ($i = 0; $i -lt $steerFields.Count; $i++) {
+            [BitConverter]::GetBytes([single]$steerTraits.($steerFields[$i])).CopyTo($config, 12 + 4 * $i)
+        }
         [IO.File]::WriteAllBytes((Join-Path $destination 'player.pspl'), $config)
     }
     Copy-OriginalTerrainPack $terrain $barnDestination
