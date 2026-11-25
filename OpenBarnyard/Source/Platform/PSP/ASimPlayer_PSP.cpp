@@ -24,7 +24,8 @@ TBOOL ASimPlayer_PSP::Load( const ASimStart_PSP& a_rStart, TUINT a_uiGender, TUI
 	}
 
 	m_vPosition = a_rStart.vPosition;
-	m_vFacing = m_vDesiredFacing = a_rStart.vFacing;
+	m_vFacing = a_rStart.vFacing;
+	m_vDesiredFacing = a_rStart.vFacing;
 	UpdateTransform();
 
 	if ( !LoadAssets( s_aszRoots[ a_uiGender ], a_uiCostume ) )
