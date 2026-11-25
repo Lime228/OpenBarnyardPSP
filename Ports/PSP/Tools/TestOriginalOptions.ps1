@@ -364,7 +364,7 @@ try {
                     [int]$complete.animation_peak_vertices -gt 12288) {
                     throw "Unexpected SS01 continuation cast or narration. Draws $draws, voice $($complete.new_game_continuation_voice_ms) ms, peak $($complete.animation_peak_vertices) vertices. See $gameLog"
                 }
-                if ($Capture) { Send-Key Screenshot }
+                if ($Capture -and -not $CheckMainGameScene) { Send-Key Screenshot }
                 "SS01b played to $($complete.new_game_continuation_voice_ms) ms without underruns, drew all 13 original shots and finished in BeadyIntDay."
                 if ($CheckMainGameStart) {
                     $triangles = [int]$complete.new_game_sim_collision_triangles
@@ -379,13 +379,15 @@ try {
                     "Resolved the original park2 start and queried ground Y $ground against $triangles original EnvMain collision triangles."
                 }
                 if ($CheckMainGameScene) {
+                    Start-Sleep -Milliseconds 2500
                     $scene = Wait-Menu 'sim-world-ready' -1 @{
                         sim_terrain_meshes = 394; sim_terrain_textures = 128; sim_sky_draws = 2; sim_player_draws = 2
                     }
-                    if ([int]$scene.sim_frames -lt 1 -or [int]$scene.sim_terrain_draws -le 0) {
-                        throw "No original EnvMain terrain was rendered. See $gameLog"
+                    if ([int]$scene.sim_frames -le [int]$complete.sim_frames -or [int]$scene.sim_terrain_draws -le 0) {
+                        throw "The EnvMain scene did not continue rendering. See $gameLog"
                     }
-                    "Rendered the original EnvMain scene with $($scene.sim_terrain_draws) terrain draws and two gameplay player meshes."
+                    if ($Capture) { Send-Key Screenshot }
+                    "Rendered $($scene.sim_frames) EnvMain frames with $($scene.sim_terrain_draws) terrain draws and two gameplay player meshes."
                 }
             }
         }
@@ -393,9 +395,10 @@ try {
         $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
         if ($RequireOpeningActors -and $main.ContainsKey('animation_live_vertices') -and
             ($main.animation_live_vertices -ne '0' -or $main.animation_sample_bytes -ne '0')) {
-            throw "SS01 actor resources remained resident after returning to the menu. See $gameLog"
+            throw "Animation resources remained resident after returning to the menu. See $gameLog"
         }
-        'New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on Cancel.'
+        $exitButton = if ($CheckMainGameScene) { 'Start' } else { 'Cancel' }
+        "New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on $exitButton."
         if ($OpeningOnly) { return }
     }
     $mainPhase = $main.phase
