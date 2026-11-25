@@ -51,9 +51,11 @@ static constexpr TCHAR s_szOpeningConfig_PSP[] = "local:Data/ScriptedSequence/SS
 static const TCHAR* const s_aszOpeningCameras_PSP[] = {
 	"local:Data/ScriptedSequence/SS01/opening.pcam",
 	"local:Data/ScriptedSequence/SS01/opening-1.pcam",
+	"local:Data/ScriptedSequence/SS01/opening-2.pcam",
 };
 static AFrontEndCamera_PSP s_aSSeqOpeningCameras_PSP[ TARRAYSIZE( s_aszOpeningCameras_PSP ) ];
 static TFLOAT s_afOpeningDurations_PSP[ TARRAYSIZE( s_aszOpeningCameras_PSP ) ];
+static TFLOAT s_fOpeningTotal_PSP = 0.0f;
 static TUINT s_uiOpeningShots_PSP = 0;
 static TFLOAT s_fOpeningElapsed_PSP = 0.0f;
 static TFLOAT s_fOpeningShotProgress_PSP = 0.0f;
@@ -74,8 +76,7 @@ static const TRenderCamera_PSP& AUpdateSSeqOpeningCamera_PSP( TFLOAT a_fDeltaTim
 		return s_aSSeqOpeningCameras_PSP[ 0 ].GetRenderCamera();
 	}
 
-	const TFLOAT fTotal = s_afOpeningDurations_PSP[ 0 ] + s_afOpeningDurations_PSP[ 1 ];
-	if ( s_fOpeningElapsed_PSP < fTotal )
+	if ( s_fOpeningElapsed_PSP < s_fOpeningTotal_PSP )
 	{
 		const TINT iVoiceMS = AGetSSeqVOTime_PSP();
 		if ( iVoiceMS >= 0 )
@@ -86,15 +87,20 @@ static const TRenderCamera_PSP& AUpdateSSeqOpeningCamera_PSP( TFLOAT a_fDeltaTim
 		}
 		else if ( TMath::IsFinite( a_fDeltaTime ) && a_fDeltaTime > 0.0f )
 			s_fOpeningElapsed_PSP += a_fDeltaTime;
-		if ( s_fOpeningElapsed_PSP >= fTotal )
+		if ( s_fOpeningElapsed_PSP >= s_fOpeningTotal_PSP )
 		{
-			s_fOpeningElapsed_PSP = fTotal;
+			s_fOpeningElapsed_PSP = s_fOpeningTotal_PSP;
 			AStopSSeqVO_PSP();
 		}
 	}
 
-	const TUINT uiShot = s_fOpeningElapsed_PSP < s_afOpeningDurations_PSP[ 0 ] ? 0 : 1;
-	const TFLOAT fShotElapsed = uiShot == 0 ? s_fOpeningElapsed_PSP : s_fOpeningElapsed_PSP - s_afOpeningDurations_PSP[ 0 ];
+	TUINT uiShot = 0;
+	TFLOAT fShotElapsed = s_fOpeningElapsed_PSP;
+	while ( uiShot + 1 < s_uiOpeningShots_PSP && fShotElapsed >= s_afOpeningDurations_PSP[ uiShot ] )
+	{
+		fShotElapsed -= s_afOpeningDurations_PSP[ uiShot ];
+		uiShot++;
+	}
 	AFrontEndCamera_PSP& rCamera = s_aSSeqOpeningCameras_PSP[ uiShot ];
 	const TFLOAT fSampleDuration = TFLOAT( rCamera.GetFrameCount() - 1 ) / rCamera.GetSampleRate();
 	s_fOpeningShotProgress_PSP = TMath::Min( fShotElapsed / s_afOpeningDurations_PSP[ uiShot ], 1.0f );
@@ -247,10 +253,16 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 	{
 		const TUINT uiPreviousShot = rReport.uiNewGameOpeningShot;
 		const TRenderCamera_PSP& rCamera = AUpdateSSeqOpeningCamera_PSP( a_fDeltaTime, rReport );
+		const TUINT uiShot = rReport.uiNewGameOpeningShot - 1;
+		if ( uiPreviousShot != rReport.uiNewGameOpeningShot && !s_SSeqActors_PSP.SetShot( uiShot ) )
+		{
+			ASetGameRuntimeFailedPath_PSP( s_SSeqActors_PSP.GetFailedPath() );
+			AStopSSeqOpening_PSP( TTRUE );
+			return TTRUE;
+		}
 		s_RenderInterface_PSP.BeginScene( 0xff000000 );
 		rReport.uiNewGameSkyDraws += s_SSeqSkyDome_PSP.Render( s_RenderInterface_PSP, rCamera, a_fDeltaTime );
 		rReport.uiNewGameOpeningDraws += s_SSeqTerrain_PSP.Render( s_RenderInterface_PSP, rCamera );
-		const TUINT uiShot = rReport.uiNewGameOpeningShot - 1;
 		const TUINT uiActorDraws = s_SSeqActors_PSP.Render( s_RenderInterface_PSP, rCamera, uiShot, s_fOpeningShotProgress_PSP );
 		rReport.auiNewGameActorDraws[ uiShot ] = TMath::Max( rReport.auiNewGameActorDraws[ uiShot ], uiActorDraws );
 		s_RenderInterface_PSP.EndScene();
@@ -451,7 +463,7 @@ static TBOOL AReadSSeqOpening_PSP( ASSeqOpeningShot_PSP* a_pShots, TUINT32& a_ru
 	{
 		bRead = pFile->Read( &a_ruiShotCount, sizeof( a_ruiShotCount ) ) == sizeof( a_ruiShotCount ) &&
 		        pFile->Read( &a_riVoice, sizeof( a_riVoice ) ) == sizeof( a_riVoice ) && a_riVoice >= 0 &&
-		        a_ruiShotCount == TARRAYSIZE( s_aszOpeningCameras_PSP );
+		        a_ruiShotCount >= 2 && a_ruiShotCount <= TARRAYSIZE( s_aszOpeningCameras_PSP );
 		if ( bRead )
 		{
 			const TSIZE uiBytes = a_ruiShotCount * sizeof( ASSeqOpeningShot_PSP );
@@ -475,6 +487,7 @@ TBOOL AStartSSeqOpening_PSP()
 		return TFALSE;
 	}
 	const TFLOAT fAspect = TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TRenderInterface_PSP::SCREEN_HEIGHT;
+	s_fOpeningTotal_PSP = 0.0f;
 	for ( TUINT i = 0; i < uiShotCount; i++ )
 	{
 		const ASSeqOpeningShot_PSP& rShot = aShots[ i ];
@@ -495,6 +508,7 @@ TBOOL AStartSSeqOpening_PSP()
 			return TFALSE;
 		}
 		s_afOpeningDurations_PSP[ i ] = rShot.fDuration;
+		s_fOpeningTotal_PSP += rShot.fDuration;
 	}
 
 	AUnloadFrontEndWorld_PSP();
@@ -510,7 +524,7 @@ TBOOL AStartSSeqOpening_PSP()
 		ASetGameRuntimeFailedPath_PSP( s_SSeqSkyDome_PSP.GetFailedPath() );
 		return TFALSE;
 	}
-	if ( uiShotCount == TARRAYSIZE( s_aszOpeningCameras_PSP ) && !s_SSeqActors_PSP.Load() )
+	if ( uiShotCount > 1 && !s_SSeqActors_PSP.Load( uiShotCount ) )
 	{
 		AStopSSeqOpening_PSP( TTRUE );
 		ASetGameRuntimeFailedPath_PSP( s_SSeqActors_PSP.GetFailedPath() );
@@ -535,6 +549,11 @@ TBOOL AStartSSeqOpening_PSP()
 		APlaySSeqVO_PSP( iVoice );
 	AUpdateGameRuntimeMemory_PSP();
 	return TTRUE;
+}
+
+TBOOL AIsSSeqOpeningPlaying_PSP()
+{
+	return s_uiOpeningShots_PSP != 0;
 }
 
 void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend )

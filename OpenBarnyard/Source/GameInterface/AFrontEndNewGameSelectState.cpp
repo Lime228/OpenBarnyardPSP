@@ -135,7 +135,14 @@ TBOOL AFrontEndNewGameSelectState::ProcessCommand( AInputCommand a_eInputCommand
 TBOOL AFrontEndNewGameSelectState::OnUpdate( TFLOAT a_fDeltaTime )
 {
 	if ( m_bOpeningPlaying_PSP )
-		return TTRUE;
+	{
+		if ( AIsSSeqOpeningPlaying_PSP() )
+			return TTRUE;
+		m_bOpeningPlaying_PSP = TFALSE;
+		APauseMenuMusicForOpening_PSP( TFALSE );
+		OnActivate();
+		ASetGameRuntimePhase_PSP( "frontend-new-game-opening-failed" );
+	}
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.iMenuState = m_eMenuState;
 	AGUI2MenuItem* pFocusedItem = m_oMenu.GetFocusedMenuItem();

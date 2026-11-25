@@ -20,7 +20,7 @@ static TBOOL ASetSSeqActorPose_PSP( TSkeletonInstance_PSP& a_rPose, const TAnima
 	return a_rPose.SetAnimationPose( a_rClip, TUINT( a_fProgress * fTime + 0.5f ) );
 }
 
-TBOOL ASSeqActors_PSP::Load()
+TBOOL ASSeqActors_PSP::Load( TUINT a_uiShotCount )
 {
 	Unload();
 	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/actors.psac", s_szActorsRoot_PSP );
@@ -39,7 +39,7 @@ TBOOL ASSeqActors_PSP::Load()
 	Header oHeader;
 	const TBOOL bRead = pFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
 	                    oHeader.uiMagic == 0x43415350 && oHeader.uiVersion == 1 &&
-	                    oHeader.uiActors != 0 && oHeader.uiActors <= MAX_ACTORS && oHeader.uiShots == SHOTS &&
+	                    oHeader.uiActors != 0 && oHeader.uiActors <= MAX_ACTORS && oHeader.uiShots == a_uiShotCount && oHeader.uiShots >= 2 && oHeader.uiShots <= 3 &&
 	                    pFile->GetSize() == sizeof( oHeader ) + oHeader.uiActors * sizeof( ActorConfig ) &&
 	                    pFile->Read( m_aConfig, oHeader.uiActors * sizeof( ActorConfig ) ) == oHeader.uiActors * sizeof( ActorConfig );
 	pFile->Destroy();
@@ -47,89 +47,149 @@ TBOOL ASSeqActors_PSP::Load()
 		return TFALSE;
 
 	m_uiActorCount = oHeader.uiActors;
-	if ( !LoadActors() )
+	m_uiShotCount = oHeader.uiShots;
+	if ( !LoadSkeleton( m_Rig, "actor-root" ) )
 	{
 		Unload();
 		return TFALSE;
 	}
 
-	return TTRUE;
-}
-
-TBOOL ASSeqActors_PSP::LoadActors()
-{
 	for ( TUINT i = 0; i < m_uiActorCount; i++ )
 	{
 		const ActorConfig& rConfig = m_aConfig[ i ];
-		if ( rConfig.uiShots == 0 || rConfig.uiShots >= ( 1U << SHOTS ) ||
+		if ( rConfig.uiSocket >= m_Rig.oSkeleton.GetBoneCount() ||
+		     rConfig.uiShots == 0 || rConfig.uiShots >= ( 1U << m_uiShotCount ) ||
 		     rConfig.uiMeshes == 0 || rConfig.uiMeshes > MAX_MESHES )
+		{
+			Unload();
 			return TFALSE;
+		}
 		for ( TUINT j = 0; j < rConfig.uiMeshes; j++ )
 		{
 			if ( rConfig.auiTextures[ j ] >= MAX_TEXTURES )
+			{
+				Unload();
 				return TFALSE;
+			}
 		}
 	}
 
-	if ( !LoadClips( m_Rig, "actor-root", ( 1U << SHOTS ) - 1 ) )
+	if ( !SetShot( 0 ) )
+	{
+		Unload();
+		return TFALSE;
+	}
+	return TTRUE;
+}
+
+TBOOL ASSeqActors_PSP::SetShot( TUINT a_uiShot )
+{
+	if ( m_uiActorCount == 0 )
+		return TTRUE;
+	if ( a_uiShot >= m_uiShotCount )
+		return TFALSE;
+	if ( a_uiShot == m_uiShot && m_Rig.oClip.IsLoaded() )
+		return TTRUE;
+
+	const TUINT uiMask = 1U << a_uiShot;
+	TBOOL abUsedTextures[ MAX_TEXTURES ] = {};
+	for ( TUINT i = 0; i < m_uiActorCount; i++ )
+	{
+		const ActorConfig& rConfig = m_aConfig[ i ];
+		if ( ( rConfig.uiShots & uiMask ) == 0 )
+			UnloadActor( m_aActors[ i ] );
+		else
+		{
+			for ( TUINT j = 0; j < rConfig.uiMeshes; j++ )
+				abUsedTextures[ rConfig.auiTextures[ j ] ] = TTRUE;
+		}
+	}
+	for ( TUINT i = 0; i < MAX_TEXTURES; i++ )
+	{
+		if ( !abUsedTextures[ i ] )
+			m_aTextures[ i ].Unload();
+	}
+
+	if ( !LoadClip( m_Rig, "actor-root", a_uiShot ) )
+		return TFALSE;
+	for ( TUINT i = 0; i < m_uiActorCount; i++ )
+	{
+		if ( ( m_aConfig[ i ].uiShots & uiMask ) != 0 && !LoadActor( i, a_uiShot ) )
+			return TFALSE;
+	}
+
+	m_uiShot = a_uiShot;
+	m_bRigReady = TFALSE;
+	m_uiLastTime = ~TUINT( 0 );
+	return TTRUE;
+}
+
+TBOOL ASSeqActors_PSP::LoadActor( TUINT a_uiActor, TUINT a_uiShot )
+{
+	Actor& rActor = m_aActors[ a_uiActor ];
+	const ActorConfig& rConfig = m_aConfig[ a_uiActor ];
+	TCHAR szPrefix[ 16 ];
+	TStringManager::String8Format( szPrefix, TARRAYSIZE( szPrefix ), "actor-%u", a_uiActor );
+	if ( !rActor.oClips.oSkeleton.IsLoaded() && !LoadSkeleton( rActor.oClips, szPrefix ) )
+		return TFALSE;
+	if ( !LoadClip( rActor.oClips, szPrefix, a_uiShot ) )
 		return TFALSE;
 
 	const TModelFactory_PSP oModelFactory;
 	const TTextureFactory_PSP oTextureFactory;
-	for ( TUINT i = 0; i < m_uiActorCount; i++ )
+	for ( TUINT i = 0; i < rConfig.uiMeshes; i++ )
 	{
-		Actor& rActor = m_aActors[ i ];
-		const ActorConfig& rConfig = m_aConfig[ i ];
-		TCHAR szPrefix[ 16 ];
-		TStringManager::String8Format( szPrefix, TARRAYSIZE( szPrefix ), "actor-%u", i );
-		if ( rConfig.uiSocket >= m_Rig.oSkeleton.GetBoneCount() || !LoadClips( rActor.oClips, szPrefix, rConfig.uiShots ) )
-			return TFALSE;
-
-		for ( TUINT j = 0; j < rConfig.uiMeshes; j++ )
+		if ( !rActor.aSkins[ i ].IsCreated() )
 		{
-			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.pmes", s_szActorsRoot_PSP, szPrefix, j );
-			if ( !oModelFactory.CreateModelFromFile( rActor.aModels[ j ], m_szPath ) ||
-			     !rActor.aSkins[ j ].Create( &rActor.aModels[ j ], &rActor.oClips.oSkeleton ) )
+			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.pmes", s_szActorsRoot_PSP, szPrefix, i );
+			if ( !oModelFactory.CreateModelFromFile( rActor.aModels[ i ], m_szPath ) ||
+			     !rActor.aSkins[ i ].Create( &rActor.aModels[ i ], &rActor.oClips.oSkeleton ) )
 				return TFALSE;
+		}
 
-			const TUINT uiTexture = rConfig.auiTextures[ j ];
-			T2Texture& rTexture = m_aTextures[ uiTexture ];
-			if ( rTexture.GetImageData() == TNULL )
-			{
-				TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/texture-%u.ptex", s_szActorsRoot_PSP, uiTexture );
-				if ( !oTextureFactory.CreateTextureFromFile( rTexture, m_szPath ) )
-					return TFALSE;
-			}
+		const TUINT uiTexture = rConfig.auiTextures[ i ];
+		T2Texture& rTexture = m_aTextures[ uiTexture ];
+		if ( rTexture.GetImageData() == TNULL )
+		{
+			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/texture-%u.ptex", s_szActorsRoot_PSP, uiTexture );
+			if ( !oTextureFactory.CreateTextureFromFile( rTexture, m_szPath ) )
+				return TFALSE;
 		}
 	}
 	return TTRUE;
 }
 
-TBOOL ASSeqActors_PSP::LoadClips( ClipSet& a_rClips, const TCHAR* a_szPrefix, TUINT32 a_uiShots )
+TBOOL ASSeqActors_PSP::LoadSkeleton( ClipSet& a_rClips, const TCHAR* a_szPrefix )
 {
 	const TSkeletonFactory_PSP oSkeletonFactory;
-	const TAnimationClipFactory_PSP oAnimationFactory;
 	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s.pskl", s_szActorsRoot_PSP, a_szPrefix );
-	if ( !oSkeletonFactory.CreateSkeletonFromFile( a_rClips.oSkeleton, m_szPath ) ||
-	     !a_rClips.oPose.Create( &a_rClips.oSkeleton ) )
-		return TFALSE;
+	return oSkeletonFactory.CreateSkeletonFromFile( a_rClips.oSkeleton, m_szPath ) &&
+	       a_rClips.oPose.Create( &a_rClips.oSkeleton );
+}
 
-	for ( TUINT i = 0; i < SHOTS; i++ )
+TBOOL ASSeqActors_PSP::LoadClip( ClipSet& a_rClips, const TCHAR* a_szPrefix, TUINT a_uiShot )
+{
+	const TAnimationClipFactory_PSP oAnimationFactory;
+	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.panm", s_szActorsRoot_PSP, a_szPrefix, a_uiShot );
+	a_rClips.oClip.Unload();
+	return oAnimationFactory.CreateAnimationFromFile( a_rClips.oClip, &a_rClips.oSkeleton, m_szPath ) &&
+	       !a_rClips.oClip.IsLooping();
+}
+
+void ASSeqActors_PSP::UnloadActor( Actor& a_rActor )
+{
+	for ( TUINT i = 0; i < MAX_MESHES; i++ )
 	{
-		if ( ( a_uiShots & ( 1U << i ) ) == 0 )
-			continue;
-		TAnimationClip_PSP& rClip = a_rClips.aClips[ i ];
-		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.panm", s_szActorsRoot_PSP, a_szPrefix, i );
-		if ( !oAnimationFactory.CreateAnimationFromFile( rClip, &a_rClips.oSkeleton, m_szPath ) || rClip.IsLooping() )
-			return TFALSE;
+		a_rActor.aSkins[ i ].Destroy();
+		a_rActor.aModels[ i ].Unload();
 	}
-	return TTRUE;
+	UnloadClips( a_rActor.oClips );
+	a_rActor.bPoseReady = TFALSE;
 }
 
 void ASSeqActors_PSP::UnloadClips( ClipSet& a_rClips )
 {
-	for ( TAnimationClip_PSP& rClip : a_rClips.aClips )
-		rClip.Unload();
+	a_rClips.oClip.Unload();
 	a_rClips.oPose.Destroy();
 	a_rClips.oSkeleton.Unload();
 }
@@ -137,37 +197,28 @@ void ASSeqActors_PSP::UnloadClips( ClipSet& a_rClips )
 void ASSeqActors_PSP::Unload()
 {
 	for ( TUINT i = 0; i < m_uiActorCount; i++ )
-	{
-		Actor& rActor = m_aActors[ i ];
-		for ( TUINT j = 0; j < MAX_MESHES; j++ )
-		{
-			rActor.aSkins[ j ].Destroy();
-			rActor.aModels[ j ].Unload();
-		}
-		UnloadClips( rActor.oClips );
-		rActor.bPoseReady = TFALSE;
-	}
+		UnloadActor( m_aActors[ i ] );
 	for ( T2Texture& rTexture : m_aTextures )
 		rTexture.Unload();
 	UnloadClips( m_Rig );
 	m_uiActorCount = 0;
-	m_uiLastShot = SHOTS;
+	m_uiShotCount = 0;
+	m_uiShot = 0;
 	m_bRigReady = TFALSE;
 }
 
 TUINT ASSeqActors_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderCamera_PSP& a_rCamera,
                              TUINT a_uiShot, TFLOAT a_fShotProgress )
 {
-	if ( m_uiActorCount == 0 || a_uiShot >= SHOTS )
+	if ( m_uiActorCount == 0 || a_uiShot != m_uiShot )
 		return 0;
 
 	const TUINT uiTime = TUINT( a_fShotProgress * 65535.0f );
-	const TBOOL bUpdate = a_uiShot != m_uiLastShot || uiTime != m_uiLastTime;
+	const TBOOL bUpdate = uiTime != m_uiLastTime;
 	if ( bUpdate )
 	{
-		m_uiLastShot = a_uiShot;
 		m_uiLastTime = uiTime;
-		m_bRigReady = ASetSSeqActorPose_PSP( m_Rig.oPose, m_Rig.aClips[ a_uiShot ], a_fShotProgress );
+		m_bRigReady = ASetSSeqActorPose_PSP( m_Rig.oPose, m_Rig.oClip, a_fShotProgress );
 	}
 	if ( !m_bRigReady )
 		return 0;
@@ -189,7 +240,7 @@ TUINT ASSeqActors_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderC
 		Actor& rActor = m_aActors[ i ];
 		if ( bUpdate )
 		{
-			rActor.bPoseReady = ASetSSeqActorPose_PSP( rActor.oClips.oPose, rActor.oClips.aClips[ a_uiShot ], a_fShotProgress );
+			rActor.bPoseReady = ASetSSeqActorPose_PSP( rActor.oClips.oPose, rActor.oClips.oClip, a_fShotProgress );
 			for ( TUINT j = 0; j < rConfig.uiMeshes && rActor.bPoseReady; j++ )
 				rActor.bPoseReady = rActor.aSkins[ j ].Skin( rActor.oClips.oPose );
 		}

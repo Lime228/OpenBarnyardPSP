@@ -7,23 +7,23 @@
 class ASSeqActors_PSP
 {
 public:
-	TBOOL Load();
+	TBOOL Load( TUINT a_uiShotCount );
+	TBOOL SetShot( TUINT a_uiShot );
 	void  Unload();
 	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderer, const Toshi::TRenderCamera_PSP& a_rCamera,
 	              TUINT a_uiShot, TFLOAT a_fShotProgress );
 	const TCHAR* GetFailedPath() const { return m_szPath; }
 
 private:
-	static constexpr TUINT MAX_ACTORS   = 4;
+	static constexpr TUINT MAX_ACTORS   = 5;
 	static constexpr TUINT MAX_TEXTURES = 5;
 	static constexpr TUINT MAX_MESHES   = 2;
-	static constexpr TUINT SHOTS        = 2;
 
 	struct ClipSet
 	{
 		Toshi::TSkeleton_PSP oSkeleton;
 		Toshi::TSkeletonInstance_PSP oPose;
-		Toshi::TAnimationClip_PSP aClips[ SHOTS ];
+		Toshi::TAnimationClip_PSP oClip;
 	};
 
 	struct ActorConfig
@@ -42,8 +42,10 @@ private:
 		TBOOL bPoseReady;
 	};
 
-	TBOOL LoadActors();
-	TBOOL LoadClips( ClipSet& a_rClips, const TCHAR* a_szPrefix, TUINT32 a_uiShots );
+	TBOOL LoadActor( TUINT a_uiActor, TUINT a_uiShot );
+	TBOOL LoadSkeleton( ClipSet& a_rClips, const TCHAR* a_szPrefix );
+	TBOOL LoadClip( ClipSet& a_rClips, const TCHAR* a_szPrefix, TUINT a_uiShot );
+	static void UnloadActor( Actor& a_rActor );
 	static void UnloadClips( ClipSet& a_rClips );
 
 	ClipSet m_Rig;
@@ -51,7 +53,8 @@ private:
 	Actor m_aActors[ MAX_ACTORS ];
 	Toshi::T2Texture m_aTextures[ MAX_TEXTURES ];
 	TUINT m_uiActorCount = 0;
-	TUINT m_uiLastShot = SHOTS;
+	TUINT m_uiShotCount = 0;
+	TUINT m_uiShot = 0;
 	TUINT m_uiLastTime = 0;
 	TBOOL m_bRigReady = TFALSE;
 	TCHAR m_szPath[ 128 ] = {};
