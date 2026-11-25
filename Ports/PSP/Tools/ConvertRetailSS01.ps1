@@ -44,7 +44,8 @@ if ($LASTEXITCODE -ne 0) { throw 'SS01 opening camera packaging failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'SS01 camera sequence conversion failed.' }
 
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_character_setup.py') `
-    --tmdl $TMDLPath $installPath (Join-Path $outputPath 'CharacterSetup')
+    --tmdl $TMDLPath --camera-sequence (Join-Path $outputPath 'CameraSequence\camera_sequence.json') `
+    $installPath (Join-Path $outputPath 'CharacterSetup')
 if ($LASTEXITCODE -ne 0) { throw 'SS01 character creation graphics packaging failed.' }
 
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'convert_retail_sequence_models.py') `

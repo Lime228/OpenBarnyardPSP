@@ -24,6 +24,7 @@ param(
     [string] $RuntimeDirectory = '',
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
+    [string] $SS01CharacterSetupDirectory = '',
     [switch] $SkipConversion
 )
 
@@ -1053,6 +1054,24 @@ if ($SS01OpeningDirectory) {
     $openingSources = foreach ($name in $openingFiles) {
         (Get-Item -LiteralPath (Join-Path $SS01OpeningDirectory $name)).FullName
     }
+    if ($SS01CharacterSetupDirectory) {
+        if ($opening.version -ne 2 -or $opening.shots.Count -ne 16) {
+            throw 'Character creation requires the complete first SS01 narration timeline.'
+        }
+        $setupRoot = (Resolve-Path -LiteralPath $SS01CharacterSetupDirectory).Path
+        $setup = Get-Content -LiteralPath (Join-Path $setupRoot 'character_setup.json') -Raw | ConvertFrom-Json
+        if ($setup.version -ne 2 -or $setup.sequence -cne $opening.sequence -or $setup.command -cne 'Player_select') {
+            throw 'Expected the original SS01 character creation manifest.'
+        }
+        $setupFiles = @{}
+        foreach ($name in 'opening-ui.pcam', 'opening-ui.psui', 'Cow_Hides.ptex', 'Mugs_Girl_Cows.ptex') {
+            $file = Get-Item -LiteralPath (Join-Path $setupRoot $name)
+            if ($file.PSIsContainer -or $file.Length -ne $setup.files.$name) {
+                throw "Invalid SS01 character creation asset: $name"
+            }
+            $setupFiles[$name] = $file.FullName
+        }
+    }
     $actorManifest = Join-Path $SS01OpeningDirectory 'opening_actors.json'
     $actorSources = @()
     if (Test-Path -LiteralPath $actorManifest -PathType Leaf) {
@@ -1103,6 +1122,15 @@ if ($SS01OpeningDirectory) {
     $openingDestination = Join-Path $runtimePath 'Data\ScriptedSequence\SS01'
     New-Item -ItemType Directory -Force -Path $openingDestination | Out-Null
     Copy-Item -LiteralPath $openingSources -Destination $openingDestination -Force
+    $setupConfig = Join-Path $openingDestination 'opening-ui.psui'
+    if ($setupFiles) {
+        Copy-Item -LiteralPath $setupFiles['opening-ui.pcam'], $setupFiles['opening-ui.psui'] -Destination $openingDestination -Force
+        Copy-Item -LiteralPath $setupFiles['Cow_Hides.ptex'], $setupFiles['Mugs_Girl_Cows.ptex'] -Destination $runtimePath -Force
+        Write-Output 'Staged the original SS01 character creation camera and textures'
+    }
+    elseif (Test-Path -LiteralPath $setupConfig -PathType Leaf) {
+        Remove-Item -LiteralPath $setupConfig -Force
+    }
     $actorDestination = Join-Path $openingDestination 'Actors'
     $actorIndex = Join-Path $actorDestination 'actors.psac'
     if ($actorSources.Count -gt 0) {
