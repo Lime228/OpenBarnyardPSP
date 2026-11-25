@@ -11,6 +11,7 @@ param(
     [switch] $OpeningOnly,
     [switch] $CheckCharacterSetup,
     [switch] $CheckContinuation,
+    [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
     [switch] $RequireOpeningActors
@@ -61,9 +62,13 @@ if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContin
     throw 'An existing PPSSPP process is running.'
 }
 $startedAt = Get-Date
+$lastKey = ''
 
 function Send-Key([string] $Key) {
+    # Allow the game to sample a released button before a second press.
+    if ($lastKey -eq $Key -and $Key -ne 'Screenshot') { Start-Sleep -Milliseconds 150 }
     & $runner @runnerArguments -Action Press -Key $Key | Write-Host
+    $script:lastKey = $Key
 }
 
 function Read-GameLog {
@@ -296,12 +301,14 @@ try {
         }
         if ($CheckCharacterSetup) {
             $setupPhase = 'frontend-new-game-character-setup'
-            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 0 } 30
+            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 0; new_game_player_gender = 0 } 30
             if ($Capture) { Send-Key Screenshot }
-            Send-Key DpadDown
-            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 0; new_game_player_gender = 1 }
+            if ($PlayerGender -eq 1) {
+                Send-Key DpadDown
+                $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 0; new_game_player_gender = 1 }
+            }
             Send-Key Cross
-            $skinPage = @{ new_game_player_page = 1; new_game_player_gender = 1 }
+            $skinPage = @{ new_game_player_page = 1; new_game_player_gender = $PlayerGender }
             if ($RequireOpeningVoice) { $skinPage.new_game_player_voice = 47 }
             $null = Wait-Menu $setupPhase -1 $skinPage
             foreach ($costume in 1, 2, 5) {
@@ -325,12 +332,12 @@ try {
             Send-Key Cross
             $profilePhase = if ($CheckContinuation) { 'frontend-new-game-continuation' } else { 'frontend-new-game-player-ready' }
             $profile = Wait-Menu $profilePhase -1 @{
-                new_game_player_accepted = 1; new_game_player_gender = 1; new_game_player_costume = 5
+                new_game_player_accepted = 1; new_game_player_gender = $PlayerGender; new_game_player_costume = 5
             }
             if ([int]$profile.new_game_player_name_length -ne 1) {
                 throw "Expected one localized letter in the accepted player name. See $gameLog"
             }
-            'The original character creation screens accepted gender, costume index 5 and an edited name.'
+            "The original character creation screens accepted gender $PlayerGender, costume index 5 and an edited name."
             if ($CheckContinuation) {
                 $firstShot = Wait-Menu $profilePhase -1 @{ new_game_continuation_shot = 1; new_game_beady_int_day = 0 }
                 if ($Capture) { Send-Key Screenshot }
@@ -341,12 +348,13 @@ try {
                 $expectedDraws = '8,2,2,2,3,8,3,5,1,3,2,2,6'
                 $draws = ($complete.new_game_continuation_actor_draws_by_shot -split ',' | Select-Object -First 13) -join ','
                 if ($draws -ne $expectedDraws -or [int]$complete.new_game_continuation_voice_ms -lt 35000 -or
+                    [int]$complete.new_game_voice_underruns -ne 0 -or
                     [int]$complete.new_game_voice_non_silent_blocks -le [int]$firstShot.new_game_voice_non_silent_blocks -or
                     [int]$complete.animation_peak_vertices -gt 12288) {
                     throw "Unexpected SS01 continuation cast or narration. Draws $draws, voice $($complete.new_game_continuation_voice_ms) ms, peak $($complete.animation_peak_vertices) vertices. See $gameLog"
                 }
                 if ($Capture) { Send-Key Screenshot }
-                "SS01b played to $($complete.new_game_continuation_voice_ms) ms, drew all 13 original shots and finished in BeadyIntDay."
+                "SS01b played to $($complete.new_game_continuation_voice_ms) ms without underruns, drew all 13 original shots and finished in BeadyIntDay."
             }
         }
         Send-Key Triangle
