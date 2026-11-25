@@ -395,9 +395,9 @@ The sky uses the original normal-weather `morning` profile from
 `GameTimeFXSettings.trb` and a PSP-sized copy of
 `sky_sunny_16.tga`. The PSP renderer draws both layers before the terrain
 using camera orientation with zero translation. The original cloud rotation
-speed comes from the same profile. Actors, full sequence dispatch, the
-remaining weather effects and the rest of scene audio still need runtime
-integration. Save data remains untouched.
+speed comes from the same profile. Full sequence dispatch, the remaining
+weather effects and the rest of scene audio still need runtime integration.
+Save data remains untouched.
 
 The original `SS01_actorB` root track binds both birds, Farmer and Bull to
 their named `CH_Actor_*` bones before the first cut. `SS_Sbird1` and
@@ -407,9 +407,43 @@ The sequence inventory records all 16 initial bindings and the pause
 preceding each animation. All ten opening animation files for the rig,
 camera and four actors matched the local PANM headers.
 
+`ConvertRetailSS01.ps1` derives the opening actor set from the script's track
+IDs and socket commands. It reads geometry and material textures from
+`lib_ss01.trb`, then samples the original model and key libraries. It checks
+the full bone names and hierarchy before pairing animation with mesh data.
+`StageOriginalGame.ps1` copies the 23 generated actor files, 510,364 bytes
+at the default texture size. The renderer samples the root rig and actor
+poses using the same shot progress as the camera. It uses two bird meshes
+in the first shot and five meshes in the second shot, with a shared bird
+texture. The 4,755 resident animated vertices fit the existing 8,192 vertex
+budget. The clips fit the existing 2 MiB animation sample budget. The
+count limits now allow a second bull mesh and ten rig, bind and pose
+instances for the opening.
+
+PPSSPP validated build `efe9cfa0` from GitHub Actions run `45599722924`.
+The report recorded 2 and 5 submitted skin meshes at the two shots, the
+voice cut at 4,411 ms, and zero stream underruns. The two birds are visible
+in captures from both shots. The build returned to the original menu after
+Triangle and passed the options round trip. PSP hardware performance and
+matching the retail skin lighting remain unverified.
+
+The original `Install` remains the input for processing. The runtime reads
+the retail TSO directly for the New Game sequence. Some asset containers,
+including the packed Direct3D meshes, need conversion to PSP buffers before
+staging. Other game resources are integrated as the PSP runtime gains the
+corresponding loaders and game systems.
+
+The next original camera clip is `SS01_shot01c_cam01c`, from 8.4 to
+approximately 13.03 seconds. It keeps the `Barn` visibility row, sets the
+near clip to 0.5 and animates the rig, Bull and `ss_quadcow`. All four
+source clips export successfully, including the camera. The inventory
+records both bird tracks' `Hide` following the second-shot animation.
+The current runtime stops at the previous cut. Further shots need actor
+lifetimes driven by their original track commands.
+
 ```powershell
 .\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening
-.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -RequireOpeningVoice -Capture
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -Capture
 ```
 
 ## Known limitations
