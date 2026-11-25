@@ -10,4 +10,5 @@ struct ASimStart_PSP
 	TFLOAT fGroundY;
 };
 
-TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, TUINT& a_ruiPacks, TUINT& a_ruiTriangles );
+class ATerrainCollision_PSP;
+TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, ATerrainCollision_PSP& a_rTerrain );

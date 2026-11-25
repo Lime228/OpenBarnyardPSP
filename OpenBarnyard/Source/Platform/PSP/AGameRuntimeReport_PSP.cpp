@@ -108,7 +108,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=29\n"
+		"version=30\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -234,6 +234,12 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_sim_spawn=%.6f,%.6f,%.6f\n"
 		"new_game_sim_facing=%.6f,%.6f,%.6f\n"
 		"new_game_sim_ground_y=%.6f\n"
+		"sim_frames=%u\n"
+		"sim_terrain_meshes=%u\n"
+		"sim_terrain_textures=%u\n"
+		"sim_terrain_draws=%u\n"
+		"sim_sky_draws=%u\n"
+		"sim_player_draws=%u\n"
 		"new_game_player_page=%d\n"
 		"new_game_player_gender=%d\n"
 		"new_game_player_costume=%d\n"
@@ -396,6 +402,12 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.oNewGameSimStart.vFacing.y,
 		s_GameRuntimeReport_PSP.oNewGameSimStart.vFacing.z,
 		s_GameRuntimeReport_PSP.oNewGameSimStart.fGroundY,
+		s_GameRuntimeReport_PSP.uiSimFrames,
+		s_GameRuntimeReport_PSP.uiSimTerrainMeshes,
+		s_GameRuntimeReport_PSP.uiSimTerrainTextures,
+		s_GameRuntimeReport_PSP.uiSimTerrainDraws,
+		s_GameRuntimeReport_PSP.uiSimSkyDraws,
+		s_GameRuntimeReport_PSP.uiSimPlayerDraws,
 		s_GameRuntimeReport_PSP.iNewGamePlayerPage,
 		s_GameRuntimeReport_PSP.iNewGamePlayerGender,
 		s_GameRuntimeReport_PSP.iNewGamePlayerCostume,

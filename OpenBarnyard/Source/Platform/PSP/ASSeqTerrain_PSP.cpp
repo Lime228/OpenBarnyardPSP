@@ -31,9 +31,13 @@ TBOOL ASSeqTerrain_PSP::HasSS01Pack()
 
 TBOOL ASSeqTerrain_PSP::LoadSS01( TBOOL a_bBeadyIntDay )
 {
+	return Load( a_bBeadyIntDay ? s_szSS01BeadyIntDayRoot_PSP : s_szSS01TerrainRoot_PSP );
+}
+
+TBOOL ASSeqTerrain_PSP::Load( const TCHAR* a_szRoot )
+{
 	Unload();
-	const TCHAR* szRoot = a_bBeadyIntDay ? s_szSS01BeadyIntDayRoot_PSP : s_szSS01TerrainRoot_PSP;
-	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/terrain.ptld", szRoot );
+	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/terrain.ptld", a_szRoot );
 	TFile* pFile = TFile::Create( m_szPath, TFILEMODE_READ | TFILEMODE_NOBUFFER );
 	if ( pFile == TNULL )
 		return TFALSE;
@@ -66,7 +70,7 @@ TBOOL ASSeqTerrain_PSP::LoadSS01( TBOOL a_bBeadyIntDay )
 	const TTextureFactory_PSP oTextureFactory;
 	for ( TUINT i = 0; i < oHeader.uiTextures; i++ )
 	{
-		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/texture_%u.ptex", szRoot, i );
+		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/texture_%u.ptex", a_szRoot, i );
 		if ( !oTextureFactory.CreateTextureFromFile( m_aTextures[ i ], m_szPath ) )
 		{
 			Unload();
@@ -78,7 +82,7 @@ TBOOL ASSeqTerrain_PSP::LoadSS01( TBOOL a_bBeadyIntDay )
 	const TModelFactory_PSP oModelFactory;
 	for ( TUINT i = 0; i < oHeader.uiMeshes; i++ )
 	{
-		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/mesh_%u.pmes", szRoot, i );
+		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/mesh_%u.pmes", a_szRoot, i );
 		if ( !oModelFactory.CreateModelFromFile( m_aMeshes[ i ], m_szPath ) )
 		{
 			Unload();

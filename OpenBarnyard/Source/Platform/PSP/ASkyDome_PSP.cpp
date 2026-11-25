@@ -8,10 +8,7 @@
 
 TOSHI_NAMESPACE_USING
 
-static constexpr TCHAR s_szSkyConfig_PSP[] = "local:Data/ScriptedSequence/SS01/sky.psky";
-static constexpr TCHAR s_szSkyBase_PSP[] = "local:Data/ScriptedSequence/SS01/sky-base.pmes";
-static constexpr TCHAR s_szSkyClouds_PSP[] = "local:Data/ScriptedSequence/SS01/sky-clouds.pmes";
-static constexpr TCHAR s_szSkyTexture_PSP[] = "local:Data/ScriptedSequence/SS01/sky-clouds.ptex";
+static constexpr TCHAR s_szSSeqSkyRoot_PSP[] = "local:Data/ScriptedSequence/SS01";
 
 struct ASkyDomeConfig_PSP
 {
@@ -20,38 +17,38 @@ struct ASkyDomeConfig_PSP
 	TFLOAT fRotationSpeed;
 };
 
-TBOOL ASkyDome_PSP::Load()
+TBOOL ASkyDome_PSP::Load( const TCHAR* a_szRoot )
 {
 	Unload();
-	m_szFailedPath = TNULL;
-	TFile* pFile = TFile::Create( s_szSkyConfig_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	const TCHAR* szRoot = a_szRoot != TNULL ? a_szRoot : s_szSSeqSkyRoot_PSP;
+	TStringManager::String8Format( m_szFailedPath, TARRAYSIZE( m_szFailedPath ), "%s/sky.psky", szRoot );
+	TFile* pFile = TFile::Create( m_szFailedPath, TFILEMODE_READ | TFILEMODE_NOBUFFER );
 	if ( pFile == TNULL )
-		return TTRUE;
+		return a_szRoot == TNULL;
 
 	static_assert( sizeof( ASkyDomeConfig_PSP ) == 12 );
 	ASkyDomeConfig_PSP oConfig = {};
 	const TBOOL bRead = pFile->GetSize() == sizeof( oConfig ) && pFile->Read( &oConfig, sizeof( oConfig ) ) == sizeof( oConfig );
 	pFile->Destroy();
-	m_szFailedPath = s_szSkyConfig_PSP;
 	if ( !bRead || oConfig.uiMagic != 0x594b5350 || oConfig.uiVersion != 1 ||
 	     !( oConfig.fRotationSpeed >= 0.0f && oConfig.fRotationSpeed <= 10.0f ) )
 		return TFALSE;
 
 	const TModelFactory_PSP oModelFactory;
 	const TTextureFactory_PSP oTextureFactory;
-	m_szFailedPath = s_szSkyBase_PSP;
-	if ( !oModelFactory.CreateModelFromFile( m_Base, s_szSkyBase_PSP ) || m_Base.GetFormat() != TMODELFORMAT_PSP_COLOUR_XYZ )
+	TStringManager::String8Format( m_szFailedPath, TARRAYSIZE( m_szFailedPath ), "%s/sky-base.pmes", szRoot );
+	if ( !oModelFactory.CreateModelFromFile( m_Base, m_szFailedPath ) || m_Base.GetFormat() != TMODELFORMAT_PSP_COLOUR_XYZ )
 		return TFALSE;
-	m_szFailedPath = s_szSkyClouds_PSP;
-	if ( !oModelFactory.CreateModelFromFile( m_Clouds, s_szSkyClouds_PSP ) || m_Clouds.GetFormat() != TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ )
+	TStringManager::String8Format( m_szFailedPath, TARRAYSIZE( m_szFailedPath ), "%s/sky-clouds.pmes", szRoot );
+	if ( !oModelFactory.CreateModelFromFile( m_Clouds, m_szFailedPath ) || m_Clouds.GetFormat() != TMODELFORMAT_PSP_TEXTURE_COLOUR_XYZ )
 		return TFALSE;
-	m_szFailedPath = s_szSkyTexture_PSP;
-	if ( !oTextureFactory.CreateTextureFromFile( m_CloudTexture, s_szSkyTexture_PSP ) )
+	TStringManager::String8Format( m_szFailedPath, TARRAYSIZE( m_szFailedPath ), "%s/sky-clouds.ptex", szRoot );
+	if ( !oTextureFactory.CreateTextureFromFile( m_CloudTexture, m_szFailedPath ) )
 		return TFALSE;
 
 	m_fRotation = 1.0f; // ASkyDome initial cloud rotation.
 	m_fRotationSpeed = oConfig.fRotationSpeed;
-	m_szFailedPath = TNULL;
+	m_szFailedPath[ 0 ] = '\0';
 	return TTRUE;
 }
 

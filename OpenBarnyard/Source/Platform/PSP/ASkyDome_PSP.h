@@ -5,7 +5,7 @@
 class ASkyDome_PSP
 {
 public:
-	TBOOL Load();
+	TBOOL Load( const TCHAR* a_szRoot = TNULL );
 	void Unload();
 	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderer, const Toshi::TRenderCamera_PSP& a_rCamera, TFLOAT a_fDeltaTime );
 	const TCHAR* GetFailedPath() const { return m_szFailedPath; }
@@ -16,5 +16,5 @@ private:
 	Toshi::T2Texture m_CloudTexture;
 	TFLOAT m_fRotation = 0.0f;
 	TFLOAT m_fRotationSpeed = 0.0f;
-	const TCHAR* m_szFailedPath = TNULL;
+	TCHAR m_szFailedPath[ 80 ] = {};
 };

@@ -3,6 +3,10 @@
 #include <Platform/PSP/TRenderInterface_PSP.h>
 
 Toshi::TRenderInterface_PSP& AGetRenderInterface_PSP();
+TBOOL AHasSimWorld_PSP();
+TBOOL ALoadSimWorld_PSP();
+void AUnloadSimWorld_PSP();
+void ARenderSimWorld_PSP( const Toshi::TRenderCamera_PSP& a_rCamera, TFLOAT a_fDeltaTime );
 void ALoadFrontEndWorld_PSP();
 void AUnloadFrontEndWorld_PSP();
 TBOOL ACheckNewGameTerrain_PSP();

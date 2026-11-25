@@ -12,6 +12,7 @@ public:
 
 	static TBOOL HasSS01Pack();
 	TBOOL LoadSS01( TBOOL a_bBeadyIntDay = TFALSE );
+	TBOOL Load( const TCHAR* a_szRoot );
 	void Unload();
 	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderInterface, const Toshi::TRenderCamera_PSP& a_rCamera ) const;
 

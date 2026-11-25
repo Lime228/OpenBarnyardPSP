@@ -115,6 +115,12 @@ struct AGameRuntimeReport_PSP
 	TUINT uiNewGameSimCollisionPacks;
 	TUINT uiNewGameSimCollisionTriangles;
 	ASimStart_PSP oNewGameSimStart;
+	TUINT uiSimFrames;
+	TUINT uiSimTerrainMeshes;
+	TUINT uiSimTerrainTextures;
+	TUINT uiSimTerrainDraws;
+	TUINT uiSimSkyDraws;
+	TUINT uiSimPlayerDraws;
 	TINT iNewGamePlayerPage;
 	TINT iNewGamePlayerGender;
 	TINT iNewGamePlayerCostume;

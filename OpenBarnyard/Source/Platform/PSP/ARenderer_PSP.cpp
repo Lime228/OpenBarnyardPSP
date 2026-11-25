@@ -9,9 +9,11 @@
 #include "AGameRuntimeReport_PSP.h"
 #include "ASSeqActors_PSP.h"
 #include "ASSeqTerrain_PSP.h"
+#include "ASimState_PSP.h"
 #include "ASkyDome_PSP.h"
 #include "AVOStream_PSP.h"
 #include "GUI/AGUI2.h"
+#include "GameInterface/AGameStateController.h"
 #include "Movie/AMoviePlayer.h"
 #include "Render/ARenderer.h"
 
@@ -46,6 +48,9 @@ static AFrontEndInstanceManager_PSP s_FrontEndInstanceManager_PSP;
 static ASSeqTerrain_PSP s_SSeqTerrain_PSP;
 static ASkyDome_PSP s_SSeqSkyDome_PSP;
 static ASSeqActors_PSP s_SSeqActors_PSP;
+static constexpr TCHAR s_szSimTerrainRoot_PSP[] = "local:Data/Terrain/EnvMain/Barn";
+static constexpr TCHAR s_szSimTerrainIndex_PSP[] = "local:Data/Terrain/EnvMain/Barn/terrain.ptld";
+static constexpr TCHAR s_szSimSkyRoot_PSP[] = "local:Data/Terrain/EnvMain/Sky";
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 static constexpr TCHAR s_szOpeningRoot_PSP[] = "local:Data/ScriptedSequence/SS01";
 static constexpr TCHAR s_szOpeningConfig_PSP[] = "local:Data/ScriptedSequence/SS01/opening.psco";
@@ -261,6 +266,18 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiRendererFrames++;
+	AGameStateController* pController = AGameStateController::GetSingletonSafe();
+	if ( pController != TNULL && pController->IsCurrentState( &TGetClass( ASimState_PSP ) ) )
+	{
+		s_RenderInterface_PSP.BeginScene( 0xff000000 );
+		pController->GetCurrentState()->OnRender( a_fDeltaTime );
+		s_RenderInterface_PSP.EndScene();
+		if ( rReport.uiSimFrames == 1 && rReport.uiSimTerrainDraws != 0 && rReport.uiSimPlayerDraws != 0 )
+			ASetGameRuntimePhase_PSP( "sim-world-ready" );
+		else if ( rReport.uiRendererFrames % 60 == 0 )
+			AWriteGameRuntimeReport_PSP();
+		return TTRUE;
+	}
 	if ( s_uiOpeningShots_PSP != 0 )
 	{
 		const TBOOL bContinuation = s_uiSSeqBeadyIntDayShots_PSP != 0;
@@ -655,6 +672,12 @@ TBOOL AStartSSeqOpening_PSP()
 	rReport.uiNewGameSimCollisionPacks = 0;
 	rReport.uiNewGameSimCollisionTriangles = 0;
 	rReport.oNewGameSimStart = {};
+	rReport.uiSimFrames = 0;
+	rReport.uiSimTerrainMeshes = 0;
+	rReport.uiSimTerrainTextures = 0;
+	rReport.uiSimTerrainDraws = 0;
+	rReport.uiSimSkyDraws = 0;
+	rReport.uiSimPlayerDraws = 0;
 	for ( TUINT& ruiDraws : rReport.auiNewGameActorDraws )
 		ruiDraws = 0;
 	for ( TUINT& ruiDraws : rReport.auiNewGameContinuationActorDraws )
@@ -745,6 +768,44 @@ void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend )
 	s_SSeqTerrain_PSP.Unload();
 	if ( a_bRestoreFrontend )
 		ALoadFrontEndWorld_PSP();
+}
+
+TBOOL AHasSimWorld_PSP()
+{
+	return AHasSSeqTimeline_PSP( s_szSimTerrainIndex_PSP );
+}
+
+TBOOL ALoadSimWorld_PSP()
+{
+	if ( !s_SSeqTerrain_PSP.Load( s_szSimTerrainRoot_PSP ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_SSeqTerrain_PSP.GetFailedPath() );
+		return TFALSE;
+	}
+	if ( !s_SSeqSkyDome_PSP.Load( s_szSimSkyRoot_PSP ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_SSeqSkyDome_PSP.GetFailedPath() );
+		AUnloadSimWorld_PSP();
+		return TFALSE;
+	}
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.uiSimTerrainMeshes = s_SSeqTerrain_PSP.GetMeshCount();
+	rReport.uiSimTerrainTextures = s_SSeqTerrain_PSP.GetTextureCount();
+	AUpdateGameRuntimeMemory_PSP();
+	return TTRUE;
+}
+
+void AUnloadSimWorld_PSP()
+{
+	s_SSeqSkyDome_PSP.Unload();
+	s_SSeqTerrain_PSP.Unload();
+}
+
+void ARenderSimWorld_PSP( const TRenderCamera_PSP& a_rCamera, TFLOAT a_fDeltaTime )
+{
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.uiSimSkyDraws = s_SSeqSkyDome_PSP.Render( s_RenderInterface_PSP, a_rCamera, a_fDeltaTime );
+	rReport.uiSimTerrainDraws = s_SSeqTerrain_PSP.Render( s_RenderInterface_PSP, a_rCamera );
 }
 
 void ARenderer::RenderGUI()

@@ -61,7 +61,7 @@ static TBOOL AReadSimStartGoal_PSP( ASimStart_PSP& a_rStart, TFLOAT& a_rfAreaHei
 	       TMath::IsFinite( a_rStart.vFacing.MagnitudeSq() );
 }
 
-TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, TUINT& a_ruiPacks, TUINT& a_ruiTriangles )
+TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, ATerrainCollision_PSP& a_rTerrain )
 {
 	TFLOAT fAreaHeight;
 	AInteriorArea::FLAGS eAreaFlags;
@@ -72,25 +72,22 @@ TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, TUINT& a_ruiPacks, TUINT& a_ru
 		return TFALSE;
 	}
 
-	ATerrainCollision_PSP oTerrain;
-	if ( !oTerrain.LoadInitial() )
+	if ( !a_rTerrain.LoadInitial() )
 	{
-		ASetGameRuntimeFailedPath_PSP( oTerrain.GetFailedPath() );
+		ASetGameRuntimeFailedPath_PSP( a_rTerrain.GetFailedPath() );
 		return TFALSE;
 	}
-	a_ruiPacks = oTerrain.GetPackCount();
-	a_ruiTriangles = oTerrain.GetTriangleCount();
 
 	// Match the short terrain ray and the bottom-ray fallback in AInteriorNetwork::ResolvePointHeight.
 	const TFLOAT fRayY = -fAreaHeight - 0.25f;
 	const TVector4& rPosition = a_rStart.vPosition;
 	TFLOAT fDistance = 40.0f;
-	if ( oTerrain.CollideVertical( rPosition.x, rPosition.z, fRayY, TTRUE, fDistance ) && fDistance < 39.0f )
+	if ( a_rTerrain.CollideVertical( rPosition.x, rPosition.z, fRayY, TTRUE, fDistance ) && fDistance < 39.0f )
 		a_rStart.fGroundY = fRayY + fDistance;
 	else
 	{
 		fDistance = 80.0f;
-		if ( !oTerrain.CollideVertical( rPosition.x, rPosition.z, 40.0f, TFALSE, fDistance ) || fDistance >= 79.0f )
+		if ( !a_rTerrain.CollideVertical( rPosition.x, rPosition.z, 40.0f, TFALSE, fDistance ) || fDistance >= 79.0f )
 		{
 			ASetGameRuntimeFailedPath_PSP( "envmain-start-ground" );
 			return TFALSE;
