@@ -38,5 +38,5 @@ private:
 	TUINT                       m_uiSampleRate_PSP;
 	TUINT                       m_uiFlags_PSP;
 	TFLOAT                      m_fTime_PSP;
-	TCHAR                       m_szFailedPath_PSP[ 64 ];
+	TCHAR                       m_szFailedPath_PSP[ 88 ];
 };

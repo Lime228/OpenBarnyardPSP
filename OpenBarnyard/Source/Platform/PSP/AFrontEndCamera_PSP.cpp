@@ -65,7 +65,7 @@ TBOOL AFrontEndCamera_PSP::Load( const TCHAR* a_szPath, TFLOAT a_fFOV, TFLOAT a_
 		TARRAYSIZE( m_szFailedPath_PSP )
 	);
 
-	TFile* pFile = TFile::Create( m_szFailedPath_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	TFile* pFile = TFile::Create( a_szPath, TFILEMODE_READ | TFILEMODE_NOBUFFER );
 	if ( pFile == TNULL )
 		return TFALSE;
 
