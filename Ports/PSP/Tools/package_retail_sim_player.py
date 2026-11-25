@@ -93,7 +93,8 @@ def bake_player(tool: Path, install: Path, gender: str, properties: dict, names:
         if key != "NamedAnimationSet":
             continue
         named = [dict(item["properties"]) for name, item in value["properties"] if name == "NamedAnimation"]
-        named_sets.append({"name": dict(value["properties"])["Name"], "animations": named})
+        transitions = [dict(item["properties"]) for name, item in value["properties"] if name == "AnimationTransition"]
+        named_sets.append({"name": dict(value["properties"])["Name"], "animations": named, "transitions": transitions})
     default_animations = {item["Name"]: item["ExportedName"] for item in named_sets[0]["animations"]}
     for name in ("idle_lp", "walk_lp", "run_lp"):
         if "path" not in animations[default_animations[name].casefold()]:
@@ -112,6 +113,15 @@ def package(tool: Path, install: Path, output: Path, max_width: int) -> dict:
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=output) as temporary:
         scratch = Path(temporary)
+        unit_source = retail_file(install, "Data/Units/AllUnitTypes.trz")
+        unit_types = run_export(tool, "-psp-properties", unit_source, scratch / "unit-types.json")
+        player_type, = [value for name, value in main_properties(unit_types) if name == "player"]
+        unit = dict(player_type["properties"])
+        controls = dict(unit["acontrolcomponentdata"]["properties"])
+        models = dict(unit["Animations"]["properties"])["Models"]
+        if "ASimState" not in controls["gamestates"]:
+            raise ValueError("the original player unit has no ASimState controls")
+
         descriptor = retail_file(install, "Data/lib_maingame.trb")
         library = dict(main_properties(run_export(tool, "-psp-properties", descriptor, scratch / "library.json")))
         profiles = dict(library["playercharacter"]["properties"])
@@ -122,7 +132,11 @@ def package(tool: Path, install: Path, output: Path, max_width: int) -> dict:
             record = bake_player(tool, install, gender, dict(profiles[gender]["properties"]), names, player, scratch, max_width)
             record["files"] = {path.name: path.stat().st_size for path in sorted(player.iterdir())}
             players.append(record)
-        report = {"version": 1, "library": "lib_maingame", "players": players}
+        if [player["actor"] for player in players] != models[:2]:
+            raise ValueError("the original player unit and lib_maingame declare different actors")
+        report = {"version": 1, "library": "lib_maingame", "players": players,
+                  "unit": {"source": unit_source.relative_to(install).as_posix(), **dict(unit["Unit"]["properties"]),
+                           "models": models, "controls": controls, "steer_traits": dict(unit["asteertraits"]["properties"])}}
         pending = scratch / "sim_players.json"
         pending.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         for record in players:
