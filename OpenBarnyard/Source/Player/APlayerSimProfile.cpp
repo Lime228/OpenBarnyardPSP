@@ -706,28 +706,9 @@ void APlayerSimProfile::AddSquirtedUnit( Toshi::TPString8 a_strName )
 // $Barnyard: FUNCTION 00620ed0
 const TCHAR* APlayerSimProfile::GetHideTextureName( TINT a_iCostume, GENDER a_eGender ) const
 {
-	static const TCHAR* s_aBoyHides[] = {
-		"Hide_American",
-		"Hide_Angus",
-		"Hide_Beefmaster",
-		"Hide_Spaniard",
-		"Hide_Longhorn",
-		"Hide_Brahman",
-		"Hide_Holsien"
-	}; // 0x00778ccc
-
-	static const TCHAR* s_aGirlHides[] = {
-		"Hide_Girl_American",
-		"Hide_Girl_Angus",
-		"Hide_Girl_Beefmaster",
-		"Hide_Girl_Spaniard",
-		"Hide_Girl_Longhorn",
-		"Hide_Girl_Brahman",
-		"Hide_Girl_Holsien"
-	}; // 0x00778ce8
 
 	if ( a_eGender == GENDER_NONE ) a_eGender = m_eGender;
 	if ( a_iCostume == -1 ) a_iCostume = m_iCostume;
 
-	return ( a_eGender != GENDER_MALE ) ? s_aGirlHides[ a_iCostume ] : s_aBoyHides[ a_iCostume ];
+	return GetHideTextureNameForGender( a_iCostume, a_eGender );
 }

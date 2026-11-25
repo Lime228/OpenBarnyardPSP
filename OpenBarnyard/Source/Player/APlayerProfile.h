@@ -38,6 +38,30 @@ public:
 	GENDER GetGender() const { return m_eGender; }
 	void   SetGender( GENDER a_eGender ) { m_eGender = a_eGender; }
 
+	static const TCHAR* GetHideTextureNameForGender( TINT a_iCostume, GENDER a_eGender )
+	{
+		static const TCHAR* s_aBoyHides[] = {
+			"Hide_American",
+			"Hide_Angus",
+			"Hide_Beefmaster",
+			"Hide_Spaniard",
+			"Hide_Longhorn",
+			"Hide_Brahman",
+			"Hide_Holsien"
+		}; // 0x00778ccc
+
+		static const TCHAR* s_aGirlHides[] = {
+			"Hide_Girl_American",
+			"Hide_Girl_Angus",
+			"Hide_Girl_Beefmaster",
+			"Hide_Girl_Spaniard",
+			"Hide_Girl_Longhorn",
+			"Hide_Girl_Brahman",
+			"Hide_Girl_Holsien"
+		}; // 0x00778ce8
+		return ( a_eGender != GENDER_MALE ) ? s_aGirlHides[ a_iCostume ] : s_aBoyHides[ a_iCostume ];
+	}
+
 protected:
 	// 0x04: T2DList<APlayerProfile>::Node
 	GENDER m_eGender; // 0x0c
