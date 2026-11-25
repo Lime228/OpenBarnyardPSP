@@ -124,4 +124,6 @@ private:
 };
 
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 TSTATICASSERT( sizeof( ASSeqUI ) == 0x5710 );
+#endif
