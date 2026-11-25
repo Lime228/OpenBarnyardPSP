@@ -105,6 +105,8 @@ TBOOL ExportPSPTerrainVISDump( const TCHAR* a_pInputPath, const TCHAR* a_pOutput
 
 		oOutput << "    {\n      \"name\": ";
 		WriteJSONString_PSPTerrainVIS( oOutput, rSection.GetName() );
+		oOutput << ",\n      \"collision\": ";
+		WriteJSONString_PSPTerrainVIS( oOutput, rSection.GetCollisionFilename() );
 		oOutput << ",\n      \"material_libraries\": { \"high\": ";
 		WriteJSONString_PSPTerrainVIS( oOutput, rSection.GetLODMaterialLibraryName( ATerrainLODType_High ) );
 		oOutput << ", \"low\": ";

@@ -146,6 +146,7 @@ public:
 	}
 
 	const TCHAR* GetName() const { return m_szName; }
+	const TCHAR* GetCollisionFilename() const { return m_szCollisionFilename; }
 
 	const TCHAR* GetLODMaterialLibraryName( ATerrainLODType a_eLODType ) const
 	{

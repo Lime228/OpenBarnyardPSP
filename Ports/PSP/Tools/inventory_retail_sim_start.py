@@ -66,6 +66,18 @@ def inventory(tool: Path, install: Path, output: Path) -> dict:
     counts = Counter(first["visibility"])
     report = {"version": 1, "network": NETWORK, "start_goal": goal, "terrain": TERRAIN,
               "initial_visibility_row": first["name"], "visibility_counts": dict(counts), "sections": len(sections)}
+    if "collision" in first:
+        collision = []
+        for section, lod in zip(sections, first["visibility"], strict=True):
+            filename = section["collision"]
+            if filename:
+                asset = retail_file(install, filename)
+                collision.append({"section": section["name"], "path": asset.relative_to(install).as_posix(),
+                                  "bytes": asset.stat().st_size, "initial_lod": lod})
+        # Terrain_SetMain enables streamed collision. ATerrainSection queues
+        # each collider with the high LOD, including the initial VIS row.
+        report["collision"] = collision
+        report["initial_collision_bytes"] = sum(entry["bytes"] for entry in collision if entry["initial_lod"] == "high")
     (output / "sim_start.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 
@@ -83,6 +95,9 @@ def main() -> None:
     except (IndexError, KeyError, OSError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Sim start inventory failed: {error}\n")
     print(f"Resolved {result['start_goal']['name']} and the first {result['initial_visibility_row']} VIS row")
+    if "collision" in result:
+        count = sum(entry["initial_lod"] == "high" for entry in result["collision"])
+        print(f"EnvMain has {len(result['collision'])} collision TRBs, including {count} at the initial high LOD")
 
 
 if __name__ == "__main__":
