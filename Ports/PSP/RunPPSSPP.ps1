@@ -15,8 +15,11 @@ param(
     [ValidateRange(1, 60)]
     [int] $ButtonDurationFrames = 15,
 
-    [ValidateRange(20, 500)]
+    [ValidateRange(20, 5000)]
     [int] $AnalogHoldMilliseconds = 100,
+
+    [ValidateRange(0.0, 1.0)]
+    [double] $AnalogMagnitude = 1.0,
 
     [ValidateRange(1024, 65535)]
     [int] $DebuggerPort = 7755,
@@ -517,11 +520,12 @@ function Send-OpenBarnyardPPSSPPKey {
                 continue
             }
 
+            # PPSSPP converts positive debugger Y to a smaller PSP Ly value.
             $analog = switch ($Button) {
-                'AnalogUp' { @{ x = 0.0; y = -1.0 } }
-                'AnalogDown' { @{ x = 0.0; y = 1.0 } }
-                'AnalogLeft' { @{ x = -1.0; y = 0.0 } }
-                'AnalogRight' { @{ x = 1.0; y = 0.0 } }
+                'AnalogUp' { @{ x = 0.0; y = $AnalogMagnitude } }
+                'AnalogDown' { @{ x = 0.0; y = -$AnalogMagnitude } }
+                'AnalogLeft' { @{ x = -$AnalogMagnitude; y = 0.0 } }
+                'AnalogRight' { @{ x = $AnalogMagnitude; y = 0.0 } }
             }
             $null = Invoke-PPSSPPDebuggerRequest `
                 -Socket $socket `
