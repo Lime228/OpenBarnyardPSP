@@ -315,7 +315,9 @@ try {
             Send-Key DpadLeft
             Send-Key DpadLeft
             Send-Key Cross
-            Send-Key Start
+            Send-Key DpadRight
+            Send-Key DpadRight
+            Send-Key Cross
             $profile = Wait-Menu 'frontend-new-game-player-ready' -1 @{
                 new_game_player_accepted = 1; new_game_player_gender = 1; new_game_player_costume = 5
             }
