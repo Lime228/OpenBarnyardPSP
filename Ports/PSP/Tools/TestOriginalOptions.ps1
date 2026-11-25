@@ -173,7 +173,6 @@ try {
                 if ($newGame.new_game_actor_draws_shot1 -ne '2') {
                     throw "The first shot did not draw both original birds. See $gameLog"
                 }
-                $expected.new_game_actor_draws_shot2 = 5
             }
             if ($Capture) {
                 Send-Key Screenshot
@@ -182,30 +181,39 @@ try {
                 Send-Key Screenshot
             }
             "Rendered the original SS01 opening ($($newGame.new_game_opening_draws) draws across $($newGame.new_game_opening_frames) frames)."
-            if ($RequireOpeningVoice) {
+            if ($RequireOpeningVoice -or $RequireOpeningActors) {
                 $timeline = [IO.File]::ReadAllBytes($openingConfig)
-                if ($timeline.Length -ne 40 -or [BitConverter]::ToUInt32($timeline, 4) -ne 2) {
-                    throw 'Voice validation needs the two-shot SS01 timeline.'
+                $shots = if ($timeline.Length -ge 16) { [BitConverter]::ToUInt32($timeline, 8) } else { 0 }
+                if ($shots -notin 2, 3 -or [BitConverter]::ToUInt32($timeline, 4) -ne 2 -or
+                    $timeline.Length -ne 16 + 12 * $shots) {
+                    throw 'Voice and actor checks need a multi-shot SS01 timeline.'
                 }
-                $firstShotSeconds = [BitConverter]::ToSingle($timeline, 24)
-                $secondShotSeconds = [BitConverter]::ToSingle($timeline, 36)
-                $firstCutMs = [int](1000 * $firstShotSeconds)
-                $endMs = [int](1000 * ($firstShotSeconds + $secondShotSeconds))
-                $expected.new_game_opening_shot = 2
-                $spoken = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
-                if ($RequireOpeningActors) {
-                    "Submitted two bird meshes in the first shot and all five bird, farmer and bull meshes in the second."
+                $actorMeshCounts = @(2, 5, 4)
+                $seconds = [double]0
+                for ($shot = 1; $shot -le $shots; $shot++) {
+                    if ($shot -gt 1) {
+                        $cutMs = [int](1000 * $seconds)
+                        $expected.new_game_opening_shot = $shot
+                        if ($RequireOpeningActors) {
+                            $expected["new_game_actor_draws_shot$shot"] = $actorMeshCounts[$shot - 1]
+                        }
+                        $shotReport = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
+                        if ($RequireOpeningVoice -and ([int]$shotReport.new_game_voice_ms -lt $cutMs -or
+                            [int]$shotReport.new_game_voice_underruns -ne 0 -or
+                            [int]$shotReport.new_game_voice_non_silent_blocks -lt 40)) {
+                            throw "Shot $shot did not follow the SS01 voice clock at $cutMs ms. See $gameLog"
+                        }
+                        "Reached shot $shot at $($shotReport.new_game_voice_ms) ms, with $($shotReport["new_game_actor_draws_shot$shot"]) actor mesh draws."
+                        if ($Capture) {
+                            if ($RequireOpeningActors) { Start-Sleep -Milliseconds 1500 }
+                            Send-Key Screenshot
+                        }
+                    }
+                    $seconds += [BitConverter]::ToSingle($timeline, 12 + 12 * $shot)
                 }
-                if ([int]$spoken.new_game_voice_ms -lt $firstCutMs -or [int]$spoken.new_game_voice_underruns -ne 0 -or
-                    [int]$spoken.new_game_voice_non_silent_blocks -lt 40) {
-                    throw "The second original shot did not follow a playing SS01 voice stream. See $gameLog"
-                }
-                "Original narration reached the camera cut at $($spoken.new_game_voice_ms) ms with no underruns."
-                if ($Capture) {
-                    if ($RequireOpeningActors) { Start-Sleep -Milliseconds 1500 }
-                    Send-Key Screenshot
-                }
-
+                $endMs = [int](1000 * $seconds)
+            }
+            if ($RequireOpeningVoice) {
                 $deadline = (Get-Date).AddSeconds(45)
                 $terminal = $null
                 do {
@@ -221,17 +229,9 @@ try {
                     $now.new_game_voice_ms -ne $terminal.new_game_voice_ms -or
                     $now.new_game_voice_non_silent_blocks -ne $terminal.new_game_voice_non_silent_blocks -or
                     [int]$now.new_game_voice_underruns -ne 0) {
-                    throw "Narration did not stop at the end of the two-shot preview. See $gameLog"
+                    throw "Narration did not stop at the end of the opening preview. See $gameLog"
                 }
                 "Narration stopped at $($now.new_game_voice_ms) ms while the last pose held."
-            }
-            elseif ($RequireOpeningActors) {
-                $null = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
-                if ($Capture) {
-                    Start-Sleep -Milliseconds 1500
-                    Send-Key Screenshot
-                }
-                "Submitted two bird meshes in the first shot and all five bird, farmer and bull meshes in the second."
             }
         }
         else {
