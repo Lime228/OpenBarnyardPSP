@@ -15,7 +15,7 @@ from convert_retail_model_animations import clip_sample_rate
 from convert_skeleton import convert as convert_skeleton
 from inventory_retail_models import run_export, run_tmdl
 from inventory_retail_sequence import retail_file
-from package_retail_sequence_opening import opening_shots
+from package_retail_sequence_opening import camera_shots, opening_shots
 
 
 MAX_ACTORS = 13
@@ -75,9 +75,16 @@ def pack_clips(tool: Path, install: Path, pack: Path, libraries: dict, model: st
 
 
 def package(tool: Path, install: Path, sequence: dict, models_path: Path,
-            actor_names: list[str], output: Path) -> dict:
+            actor_names: list[str], output: Path, after_character_setup: bool = False) -> dict:
     script = sequence["script"]
-    _, shots, _ = opening_shots(script)
+    first_pause = 1
+    if after_character_setup:
+        _, shots = camera_shots(script)
+        gate, = [index for index, shot in enumerate(shots) if shot["ui"] == "Player_select"]
+        first_pause = gate + 2
+        shots = shots[gate + 1:]
+    else:
+        _, shots, _ = opening_shots(script)
     attachment, = script["attachment_tracks"]
     root, = [entry["arguments"][0] for entry in attachment["events"] if entry["name"] == "parentNode_Config"]
     sockets = {entry["arguments"][0].casefold(): entry["arguments"][1]
@@ -89,7 +96,7 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
         name = actor_names[entry["actor"]].casefold()
         clips = tracks.setdefault(name, {})
         for clip in entry["clips"]:
-            shot = clip["after_pause"] - 1
+            shot = clip["after_pause"] - first_pause
             if not 0 <= shot < len(shots):
                 continue
             if shot in clips:
@@ -157,7 +164,7 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
         for name in files:
             (runtime / name).replace(destination / name)
         report = {"version": 2, "sequence": sequence["sequence"], "root": root, "actors": actors,
-                  "shot_mesh_counts": shot_mesh_counts, "files": files}
+                  "first_pause": first_pause, "shot_mesh_counts": shot_mesh_counts, "files": files}
         pending = work / "opening_actors.json"
         pending.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         pending.replace(output / "opening_actors.json")
@@ -167,6 +174,7 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tmdl", required=True, type=Path)
+    parser.add_argument("--after-character-setup", action="store_true", help="bake the timed shots following Player_select")
     parser.add_argument("install", type=Path)
     parser.add_argument("sequence", type=Path)
     parser.add_argument("models", type=Path)
@@ -178,7 +186,7 @@ def main() -> None:
         engine = Path(__file__).resolve().parents[3] / "OpenBarnyard/Source/Units/ASSeqActorData.cpp"
         sequence = json.loads(args.sequence.read_text(encoding="utf-8"))
         report = package(tool, args.install.resolve(strict=True), sequence, args.models, read_actor_names(engine),
-                         args.output.resolve())
+                         args.output.resolve(), args.after_character_setup)
     except (IndexError, KeyError, OSError, TypeError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Opening actor packaging failed: {error}\n")
     print(f"Packaged {len(report['actors'])} SS01 opening actors ({sum(report['files'].values())} bytes)")

@@ -56,6 +56,10 @@ if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence model conversion failed.' }
     --tmdl $TMDLPath $installPath $sequenceManifestPath $modelsPath (Join-Path $outputPath 'Opening')
 if ($LASTEXITCODE -ne 0) { throw 'SS01 opening actor packaging failed.' }
 
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_actors.py') `
+    --after-character-setup --tmdl $TMDLPath $installPath $sequenceManifestPath $modelsPath (Join-Path $outputPath 'AfterCharacterSetup')
+if ($LASTEXITCODE -ne 0) { throw 'SS01 second narration actor packaging failed.' }
+
 if ($encodedAudioRequired -or (Test-Path -LiteralPath (Join-Path $EncodedAudioDirectory 'fsb.encode.json') -PathType Leaf)) {
     & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_sequence_voice.py') `
         $sequenceManifestPath $EncodedAudioDirectory $voicePath
