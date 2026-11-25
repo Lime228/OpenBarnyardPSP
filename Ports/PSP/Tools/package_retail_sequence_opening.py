@@ -14,7 +14,7 @@ from inventory_retail_sequence import retail_file
 from package_retail_opening_sky import package as package_sky
 
 
-OPENING_SHOT_COUNT = 3
+OPENING_SHOT_COUNT = 16
 
 
 def camera_shots(script: dict, limit: int | None = None) -> tuple[int, list]:
@@ -68,12 +68,13 @@ def camera_shots(script: dict, limit: int | None = None) -> tuple[int, list]:
     return camera_track["actor"], shots
 
 
-def opening_shots(script: dict) -> tuple[int, list, dict]:
-    actor, shots = camera_shots(script, OPENING_SHOT_COUNT)
+def opening_shots(script: dict, limit: int = OPENING_SHOT_COUNT) -> tuple[int, list, dict]:
+    actor, shots = camera_shots(script, limit)
     voice, = [entry for entry in script["voice_instructions"]
               if entry["actor"] == 15 and entry["type"] == "vostream" and entry["opens_track"]]
-    if (len(shots) != OPENING_SHOT_COUNT or len({shot["visibility_row"] for shot in shots}) != 1 or
-            any(shot["wait_flags"] or shot["ui"] for shot in shots)):
+    if (len(shots) != limit or len({shot["visibility_row"] for shot in shots}) != 1 or
+            any(shot["ui"] or (shot["wait_flags"] and (i + 1 != limit or shot["wait_flags"] != [3]))
+                for i, shot in enumerate(shots))):
         raise ValueError("the opening preview needs all supported timed shots in the same visibility row")
     return actor, shots, voice
 

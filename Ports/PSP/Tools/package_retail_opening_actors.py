@@ -18,12 +18,12 @@ from inventory_retail_sequence import retail_file
 from package_retail_sequence_opening import opening_shots
 
 
-MAX_ACTORS = 5
-MAX_RESIDENT_ACTORS = 4
-MAX_MESHES_PER_ACTOR = 2
-MAX_SKIN_MESHES = 5
-MAX_TEXTURES = 5
-MAX_ANIMATED_VERTICES = 8192
+MAX_ACTORS = 13
+MAX_RESIDENT_ACTORS = 6
+MAX_MESHES_PER_ACTOR = 3
+MAX_SKIN_MESHES = 11
+MAX_TEXTURES = 15
+MAX_ANIMATED_VERTICES = 12 * 1024
 
 
 def read_actor_names(source: Path) -> list[str]:
@@ -45,12 +45,13 @@ def pack_clips(tool: Path, install: Path, pack: Path, libraries: dict, model: st
     for shot, (name, duration) in clips.items():
         clip, = [entry for entry in info["sequences"] if entry["name"] == name]
         rate = clip_sample_rate(clip)
-        if not rate or clip["mode"] != 1 or abs(clip["duration"] - duration) > 0.01:
+        loop = duration is None
+        if not rate or clip["mode"] != int(not loop) or (not loop and abs(clip["duration"] - duration) > 0.01):
             raise ValueError(f"{model}: invalid duration or playback mode for {name}")
         run_tmdl(tool, "-psp-animation", source, dump, "-keylib", str(pack), "-keylib-symbol", symbol,
                  "-sequence", name, "-sample-rate", str(rate))
         document = json.loads(dump.read_text(encoding="utf-8"))
-        if document["sequence"] != name or document["sample_rate"] != rate or document["loop"]:
+        if document["sequence"] != name or document["sample_rate"] != rate or document["loop"] != loop:
             raise ValueError(f"{model}: different source animation exported for {name}")
         current = [(bone["name"], bone["parent"]) for bone in document["bones"]]
         if hierarchy is None:
@@ -81,10 +82,20 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
     root, = [entry["arguments"][0] for entry in attachment["events"] if entry["name"] == "parentNode_Config"]
     sockets = {entry["arguments"][0].casefold(): entry["arguments"][1]
                for entry in attachment["events"] if entry["name"] == "attachToParentNode"}
-    tracks = {actor_names[entry["actor"]].casefold(): {
-        clip["after_pause"] - 1: (clip["clip"], shots[clip["after_pause"] - 1]["duration"])
-        for clip in entry["clips"] if 1 <= clip["after_pause"] <= len(shots)
-    } for entry in script["animation_tracks"] if 0 <= entry["actor"] < len(actor_names)}
+    tracks = {}
+    for entry in script["animation_tracks"]:
+        if not 0 <= entry["actor"] < len(actor_names):
+            continue
+        name = actor_names[entry["actor"]].casefold()
+        clips = tracks.setdefault(name, {})
+        for clip in entry["clips"]:
+            shot = clip["after_pause"] - 1
+            if not 0 <= shot < len(shots):
+                continue
+            if shot in clips:
+                raise ValueError(f"{name}: multiple animation instructions in shot {shot + 1}")
+            duration = shots[shot]["duration"] if clip["clip"].casefold() == shots[shot]["clip"].casefold() else None
+            clips[shot] = (clip["clip"], duration)
     active = {name: clips for name, clips in tracks.items() if name in sockets and clips}
     if sequence["sequence"] != "SS01_start" or not 0 < len(active) <= MAX_ACTORS:
         raise ValueError("the opening exceeds the PSP actor limit")
@@ -95,6 +106,7 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
     if manifest["sequence"] != sequence["sequence"]:
         raise ValueError("actor models and script come from different sequences")
     models = {entry["model"].casefold(): entry for entry in manifest["models"]}
+    shot_mesh_counts = []
     for shot in range(len(shots)):
         names = [name for name, clips in active.items() if shot in clips]
         meshes = [mesh for name in names for mesh in models[name]["meshes"]]
@@ -102,12 +114,13 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
             raise ValueError(f"shot {shot + 1} exceeds the resident PSP actor or skin mesh limit")
         if sum(mesh["vertices"] for mesh in meshes) > MAX_ANIMATED_VERTICES:
             raise ValueError(f"shot {shot + 1} exceeds the PSP animated vertex limit")
+        shot_mesh_counts.append(len(meshes))
     pack = retail_file(install, sequence["sources"]["asset_pack"]["path"])
     libraries = {entry["name"].casefold(): entry["symbol"] for entry in sequence["key_libraries"] if entry["symbol"]}
     output.mkdir(parents=True, exist_ok=True)
     actors = []
     textures = {}
-    payload = bytearray(struct.pack("<4sIII", b"PSAC", 1, len(active), len(shots)))
+    payload = bytearray(struct.pack("<4sIII", b"PSAC", 2, len(active), len(shots)))
     with tempfile.TemporaryDirectory(dir=output) as temporary:
         work = Path(temporary)
         runtime = work / "Actors"
@@ -118,7 +131,7 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
             model = models[name]
             if (model["kind"] != "skin" or model["status"] != "converted" or
                     not 0 < len(model["meshes"]) <= MAX_MESHES_PER_ACTOR):
-                raise ValueError(f"{name}: expected one or two converted skin meshes")
+                raise ValueError(f"{name}: expected one to {MAX_MESHES_PER_ACTOR} converted skin meshes")
             directory = models_path / model["directory"]
             prefix = f"actor-{index}"
             bind_bones = json.loads((directory / "model.json").read_text(encoding="utf-8"))["skeleton"]
@@ -134,7 +147,7 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
                     shutil.copyfile(models_path / texture, runtime / f"texture-{textures[texture]}.ptex")
                 indices.append(textures[texture])
                 shutil.copyfile(directory / mesh["path"], runtime / f"{prefix}-{mesh_index}.pmes")
-            payload.extend(struct.pack("<5I", rig_bones[sockets[name].casefold()], sum(1 << shot for shot in clips),
+            payload.extend(struct.pack("<6I", rig_bones[sockets[name].casefold()], sum(1 << shot for shot in clips),
                                        len(indices), *indices, *([0] * (MAX_MESHES_PER_ACTOR - len(indices)))))
             actors.append({"model": name, "socket": sockets[name], "clips": clips, "meshes": len(indices)})
         (runtime / "actors.psac").write_bytes(payload)
@@ -143,7 +156,8 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
         destination.mkdir(exist_ok=True)
         for name in files:
             (runtime / name).replace(destination / name)
-        report = {"version": 1, "sequence": sequence["sequence"], "root": root, "actors": actors, "files": files}
+        report = {"version": 2, "sequence": sequence["sequence"], "root": root, "actors": actors,
+                  "shot_mesh_counts": shot_mesh_counts, "files": files}
         pending = work / "opening_actors.json"
         pending.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         pending.replace(output / "opening_actors.json")

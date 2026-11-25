@@ -1031,7 +1031,9 @@ if ($SS01OpeningDirectory) {
     }
     $openingFiles = @('opening.pcam', 'opening.psco')
     if ($opening.version -eq 2) {
-        if ($opening.shots.Count -notin 2, 3 -or [int]$opening.voice.index -lt 0) { throw 'Invalid SS01 opening timeline.' }
+        if ($opening.shots.Count -lt 2 -or $opening.shots.Count -gt 16 -or [int]$opening.voice.index -lt 0) {
+            throw 'Invalid SS01 opening timeline.'
+        }
         for ($i = 1; $i -lt $opening.shots.Count; $i++) { $openingFiles += "opening-$i.pcam" }
         $voiceSource = Join-Path (Split-Path -Parent $SS01OpeningDirectory) 'Voice'
         $voiceReport = Join-Path $voiceSource 'voice.json'
@@ -1055,12 +1057,12 @@ if ($SS01OpeningDirectory) {
     $actorSources = @()
     if (Test-Path -LiteralPath $actorManifest -PathType Leaf) {
         $actors = Get-Content -LiteralPath $actorManifest -Raw | ConvertFrom-Json
-        if ($opening.version -ne 2 -or $actors.version -ne 1 -or $actors.sequence -cne $opening.sequence -or
-            $actors.actors.Count -lt 1 -or $actors.actors.Count -gt 5 -or -not $actors.files.'actors.psac') {
+        if ($opening.version -ne 2 -or $actors.version -notin 1, 2 -or $actors.sequence -cne $opening.sequence -or
+            $actors.actors.Count -lt 1 -or $actors.actors.Count -gt 13 -or -not $actors.files.'actors.psac') {
             throw 'Expected the SS01 opening actor manifest.'
         }
         $actorSources = @(foreach ($file in $actors.files.PSObject.Properties) {
-            if ($file.Name -cnotmatch '^(actors\.psac|actor-(root|[0-4])(\.pskl|-[0-2]\.panm|-[01]\.pmes)|texture-[0-4]\.ptex)$') {
+            if ($file.Name -cnotmatch '^(actors\.psac|actor-(root|[0-9]|1[0-2])(\.pskl|-([0-9]|1[0-5])\.panm|-[0-2]\.pmes)|texture-([0-9]|1[0-4])\.ptex)$') {
                 throw "Invalid cached SS01 actor name: $($file.Name)"
             }
             $source = Get-Item -LiteralPath (Join-Path (Join-Path $SS01OpeningDirectory 'Actors') $file.Name)

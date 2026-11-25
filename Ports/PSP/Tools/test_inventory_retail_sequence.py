@@ -28,14 +28,14 @@ class RetailSequenceTests(unittest.TestCase):
         ]
         voice = {"actor": 15, "type": "vostream", "opens_track": True, "index": 1}
         script = {"camera_tracks": [{"actor": 14, "events": events}], "master_timing": timing, "voice_instructions": [voice]}
-        actor, shots, selected_voice = opening_shots(script)
+        actor, shots, selected_voice = opening_shots(script, 3)
         self.assertEqual(actor, 14)
         self.assertEqual(selected_voice, voice)
         self.assertEqual([(shot["clip"], shot["duration"], shot["near_clip"]) for shot in shots],
                          [("first", 4.4, 0.8), ("second", 4.0, 2.0), ("third", 4.633334, 0.5)])
         timing[3]["flag"] = 9
         with self.assertRaisesRegex(ValueError, "opening synchronization"):
-            opening_shots(script)
+            opening_shots(script, 3)
 
     def test_camera_track_preserves_the_player_creation_gate_and_terrain_change(self):
         events = [
