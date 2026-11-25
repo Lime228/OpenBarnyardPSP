@@ -36,3 +36,12 @@ if ($LASTEXITCODE -ne 0) { throw 'The original gameplay terrain packaging failed
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_sky.py') `
     --tmdl $TMDLPath --phase dawn $installPath (Join-Path $outputPath 'Sky')
 if ($LASTEXITCODE -ne 0) { throw 'The original gameplay sky packaging failed.' }
+
+$locators = Join-Path $outputPath 'envmain-locators.json'
+& $TMDLPath -psp-locators (Join-Path $installPath 'Data\Terrain\EnvMain\envmain_skel.trb') -o $locators
+if ($LASTEXITCODE -ne 0) { throw 'The original gameplay locators could not be exported.' }
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'inventory_frontend_instances.py') $locators `
+    --model-definitions (Join-Path $repositoryRoot 'OpenBarnyard\Source\Helpers\AInstanceManagerModelList.inl') `
+    --game-loader (Join-Path $repositoryRoot 'OpenBarnyard\Source\Helpers\AGameLoader.cpp') --install-root $installPath `
+    --main-game-vis (Join-Path $outputPath 'envmain.vis.json') --output (Join-Path $outputPath 'envmain-instances.json')
+if ($LASTEXITCODE -ne 0) { throw 'The original gameplay instance inventory failed.' }

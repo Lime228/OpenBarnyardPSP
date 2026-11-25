@@ -96,6 +96,23 @@ class FrontendInstanceInventoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "overlaps locator 1"):
                 inventory(dump, definitions, loader, install, root / "inventory.json")
 
+    def test_main_game_uses_visible_sections_and_keeps_regrowth_separate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            root = pathlib.Path(temporary_name)
+            dump, definitions, loader, install = self.create_fixture(root)
+            loader.write_text("static TUINT s_aInstanceModels0[] = {0x0, 0x1, 0x2};", encoding="utf-8")
+            (root / "AInstanceManager.cpp").write_text('static const TCHAR* s_apszRegrowthNames[] = {"rock01"};',
+                                                      encoding="utf-8")
+            vis = root / "vis.json"
+            vis.write_text(json.dumps({"sections": [
+                {"name": "barn", "visibility": ["high", "low"]}, {"name": "NoLocators"},
+            ]}), encoding="utf-8")
+            result = inventory(dump, definitions, loader, install, root / "inventory.json", main_game_vis=vis)
+            self.assertEqual(result["main_game_model_count"], 3)
+            self.assertEqual(result["resident_section_names"], ["Barn", "undefined"])
+            self.assertEqual(result["skipped_regrowth_locator_count"], 1)
+            self.assertEqual([entry["model_name"] for entry in result["instances"]], ["fncb01", "unused"])
+
     def test_rejects_missing_retail_model(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_name:
             root = pathlib.Path(temporary_name)
