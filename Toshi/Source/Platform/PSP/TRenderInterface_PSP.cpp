@@ -65,7 +65,8 @@ static void TRenderSetTexture_PSP(
 	const T2Texture& a_rTexture,
 	TINT a_iTextureFunction,
 	TRenderTextureAddress_PSP a_eAddressU,
-	TRenderTextureAddress_PSP a_eAddressV
+	TRenderTextureAddress_PSP a_eAddressV,
+	TINT a_iFilter = GU_NEAREST
 )
 {
 	sceGuEnable( GU_TEXTURE_2D );
@@ -78,11 +79,12 @@ static void TRenderSetTexture_PSP(
 	    a_rTexture.GetImageData()
 	);
 	sceGuTexFunc( a_iTextureFunction, GU_TCC_RGBA );
-	sceGuTexFilter( GU_NEAREST, GU_NEAREST );
+	sceGuTexFilter( a_iFilter, a_iFilter );
 	sceGuTexWrap(
 		TRenderGetTextureAddress_PSP( a_eAddressU ),
 		TRenderGetTextureAddress_PSP( a_eAddressV )
 	);
+	// GU_TRANSFORM_3D uses normalized UVs. 2D vertices supply texel coordinates.
 	sceGuTexScale( 1.0f, 1.0f );
 	sceGuTexOffset( 0.0f, 0.0f );
 }
@@ -456,9 +458,9 @@ void TRenderInterface_PSP::DrawModel(
 			*a_pTexture,
 			TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ),
 			a_rMaterial.eAddressU,
-			a_rMaterial.eAddressV
+			a_rMaterial.eAddressV,
+			GU_LINEAR
 		);
-		sceGuTexScale( TFLOAT( a_pTexture->GetWidth() ), TFLOAT( a_pTexture->GetHeight() ) );
 	}
 	else
 		sceGuDisable( GU_TEXTURE_2D );
@@ -562,9 +564,9 @@ TBOOL TRenderInterface_PSP::DrawSkinnedModel(
 			*a_pTexture,
 			TRenderGetTextureFunction_PSP( a_rMaterial.eTextureFunction ),
 			a_rMaterial.eAddressU,
-			a_rMaterial.eAddressV
+			a_rMaterial.eAddressV,
+			GU_LINEAR
 		);
-		sceGuTexScale( TFLOAT( a_pTexture->GetWidth() ), TFLOAT( a_pTexture->GetHeight() ) );
 	}
 	else
 		sceGuDisable( GU_TEXTURE_2D );
