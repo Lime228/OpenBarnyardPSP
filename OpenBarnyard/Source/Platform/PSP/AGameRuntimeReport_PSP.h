@@ -121,6 +121,12 @@ struct AGameRuntimeReport_PSP
 	TUINT uiSimTerrainDraws;
 	TUINT uiSimSkyDraws;
 	TUINT uiSimPlayerDraws;
+	Toshi::TVector4 vSimPlayerPosition;
+	Toshi::TVector4 vSimCameraPosition;
+	TFLOAT fSimPlayerSpeed;
+	TUINT uiSimPlayerMotion;
+	TUINT uiSimPlayerMotionMask;
+	TBOOL bSimPlayerSteering;
 	TINT iNewGamePlayerPage;
 	TINT iNewGamePlayerGender;
 	TINT iNewGamePlayerCostume;

@@ -20,4 +20,5 @@ private:
 	ASimPlayer_PSP m_Player;
 	ATerrainCollision_PSP m_TerrainCollision;
 	Toshi::TRenderCamera_PSP m_Camera;
+	Toshi::TVector2 m_vStick = Toshi::TVector2::VEC_ZERO;
 };

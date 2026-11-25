@@ -91,7 +91,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 4608 ];
+	static TCHAR s_aReportBuffer_PSP[ 4864 ];
 	TCHAR szActorDraws[ AGameRuntimeReport_PSP::MAX_OPENING_SHOTS * 11 + 1 ];
 	TCHAR szContinuationDraws[ sizeof( szActorDraws ) ];
 	TSIZE uiActorOffset = 0;
@@ -108,7 +108,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=30\n"
+		"version=31\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -240,6 +240,12 @@ void AWriteGameRuntimeReport_PSP()
 		"sim_terrain_draws=%u\n"
 		"sim_sky_draws=%u\n"
 		"sim_player_draws=%u\n"
+		"sim_player_steering=%d\n"
+		"sim_player_position=%.6f,%.6f,%.6f\n"
+		"sim_player_speed=%.4f\n"
+		"sim_player_motion=%u\n"
+		"sim_player_motion_mask=%u\n"
+		"sim_camera_position=%.6f,%.6f,%.6f\n"
 		"new_game_player_page=%d\n"
 		"new_game_player_gender=%d\n"
 		"new_game_player_costume=%d\n"
@@ -408,6 +414,16 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiSimTerrainDraws,
 		s_GameRuntimeReport_PSP.uiSimSkyDraws,
 		s_GameRuntimeReport_PSP.uiSimPlayerDraws,
+		s_GameRuntimeReport_PSP.bSimPlayerSteering,
+		s_GameRuntimeReport_PSP.vSimPlayerPosition.x,
+		s_GameRuntimeReport_PSP.vSimPlayerPosition.y,
+		s_GameRuntimeReport_PSP.vSimPlayerPosition.z,
+		s_GameRuntimeReport_PSP.fSimPlayerSpeed,
+		s_GameRuntimeReport_PSP.uiSimPlayerMotion,
+		s_GameRuntimeReport_PSP.uiSimPlayerMotionMask,
+		s_GameRuntimeReport_PSP.vSimCameraPosition.x,
+		s_GameRuntimeReport_PSP.vSimCameraPosition.y,
+		s_GameRuntimeReport_PSP.vSimCameraPosition.z,
 		s_GameRuntimeReport_PSP.iNewGamePlayerPage,
 		s_GameRuntimeReport_PSP.iNewGamePlayerGender,
 		s_GameRuntimeReport_PSP.iNewGamePlayerCostume,

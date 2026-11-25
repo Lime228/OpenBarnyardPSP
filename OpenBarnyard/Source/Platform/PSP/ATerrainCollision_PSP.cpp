@@ -98,7 +98,7 @@ TBOOL ATerrainCollision_PSP::LoadPack( const TCHAR* a_szName )
 
 	const auto* pCollision = rPack.oTRB.CastSymbol<TTMDBase::CollisionHeader>( "Collision" );
 	if ( !ContainsTRBData( rPack.oTRB, pCollision, sizeof( *pCollision ) ) ||
-	     pCollision->m_iNumMeshes <= 0 || pCollision->m_iNumMeshes > 32 ||
+	     pCollision->m_iNumMeshes <= 0 || TUINT( pCollision->m_iNumMeshes ) > MAX_MESHES_PER_PACK ||
 	     !ContainsTRBData( rPack.oTRB, pCollision->m_pMeshes, pCollision->m_iNumMeshes * sizeof( TTMDBase::CollisionMesh ) ) )
 		return TFALSE;
 
@@ -115,6 +115,19 @@ TBOOL ATerrainCollision_PSP::LoadPack( const TCHAR* a_szName )
 		{
 			if ( rMesh.m_pIndices[ j ] >= rMesh.m_uiNumVertices )
 				return TFALSE;
+		}
+		const TVector3& rFirst = rMesh.m_pVertices[ 0 ];
+		MeshBounds& rBounds = rPack.aBounds[ i ];
+		rBounds = { rFirst.x, rFirst.x, rFirst.y, rFirst.y };
+		for ( TUINT j = 0; j < rMesh.m_uiNumVertices; j++ )
+		{
+			const TVector3& rVertex = rMesh.m_pVertices[ j ];
+			if ( !TMath::IsFinite( rVertex.x ) || !TMath::IsFinite( rVertex.y ) || !TMath::IsFinite( rVertex.z ) )
+				return TFALSE;
+			rBounds.fMinX = TMath::Min( rBounds.fMinX, rVertex.x );
+			rBounds.fMaxX = TMath::Max( rBounds.fMaxX, rVertex.x );
+			rBounds.fMinZ = TMath::Min( rBounds.fMinZ, rVertex.y );
+			rBounds.fMaxZ = TMath::Max( rBounds.fMaxZ, rVertex.y );
 		}
 		m_uiTriangles += rMesh.m_uiNumIndices / 3;
 	}
@@ -139,6 +152,9 @@ static TBOOL AGetTerrainTriangleHeight_PSP( const TVector3& a_rA, const TVector3
 {
 	// ATerrainInterface::CreateModelInstance rotates terrain by +90 degrees around X.
 	// The stored triangle's XY plane is world XZ and its Z becomes world -Y.
+	if ( ( a_fX < a_rA.x && a_fX < a_rB.x && a_fX < a_rC.x ) || ( a_fX > a_rA.x && a_fX > a_rB.x && a_fX > a_rC.x ) ||
+	     ( a_fZ < a_rA.y && a_fZ < a_rB.y && a_fZ < a_rC.y ) || ( a_fZ > a_rA.y && a_fZ > a_rB.y && a_fZ > a_rC.y ) )
+		return TFALSE;
 	const TFLOAT fABX = a_rB.x - a_rA.x;
 	const TFLOAT fABY = a_rB.y - a_rA.y;
 	const TFLOAT fACX = a_rC.x - a_rA.x;
@@ -164,6 +180,9 @@ TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a
 		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
 		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
 		{
+			const MeshBounds& rBounds = m_aPacks[ i ].aBounds[ mesh ];
+			if ( a_fX < rBounds.fMinX || a_fX > rBounds.fMaxX || a_fZ < rBounds.fMinZ || a_fZ > rBounds.fMaxZ )
+				continue;
 			const TTMDBase::CollisionMesh& rMesh = rCollision.m_pMeshes[ mesh ];
 			for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += 3 )
 			{
@@ -182,4 +201,23 @@ TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a
 		}
 	}
 	return bHit;
+}
+
+TBOOL ATerrainCollision_PSP::ResolveGroundedStep( TVector4& a_rTarget, const TVector4& a_rFacing, TFLOAT a_fRadius ) const
+{
+	// APlayerSteer::GetGroundHeight uses two rays at half the unit radius and keeps the higher contact.
+	const TFLOAT fSideX = a_rFacing.z * a_fRadius * 0.5f;
+	const TFLOAT fSideZ = -a_rFacing.x * a_fRadius * 0.5f;
+	const TFLOAT fOriginY = a_rTarget.y - 1.0f;
+	TFLOAT fLeft = 40.0f;
+	TFLOAT fRight = 40.0f;
+	if ( !CollideVertical( a_rTarget.x + fSideX, a_rTarget.z + fSideZ, fOriginY, TTRUE, fRight ) ||
+	     !CollideVertical( a_rTarget.x - fSideX, a_rTarget.z - fSideZ, fOriginY, TTRUE, fLeft ) )
+		return TFALSE;
+
+	// Keep this path grounded until the original swept-sphere and airborne states are available.
+	if ( TMath::Max( TMath::Abs( fLeft - 1.0f ), TMath::Abs( fRight - 1.0f ) ) > a_fRadius )
+		return TFALSE;
+	a_rTarget.y = fOriginY + TMath::Min( fLeft, fRight );
+	return TTRUE;
 }
