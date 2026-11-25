@@ -36,6 +36,8 @@ project "OpenBarnyardPSPBootstrap"
 		"../../Toshi/Source/Input/TInputDeviceController.cpp",
 		"../../Toshi/Source/Input/TInputInterface.cpp",
 		"../../Toshi/Source/Math/TMatrix44.cpp",
+		"../../Toshi/Source/Math/TVector3.cpp",
+		"../../Toshi/Source/Math/TVector4.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
 		"../../Toshi/Source/Toshi/T2String8.cpp",
 		"../../Toshi/Source/Toshi/TClass.cpp",
