@@ -104,6 +104,11 @@ struct AGameRuntimeReport_PSP
 	TUINT uiNewGameSkyDraws;
 	TUINT uiNewGameOpeningShot;
 	TUINT auiNewGameActorDraws[ MAX_OPENING_SHOTS ];
+	TUINT uiNewGameContinuationShot;
+	TUINT auiNewGameContinuationActorDraws[ MAX_OPENING_SHOTS ];
+	TINT iNewGameContinuationVoiceMS;
+	TBOOL bNewGameBeadyIntDay;
+	TBOOL bNewGameContinuationComplete;
 	TINT iNewGamePlayerPage;
 	TINT iNewGamePlayerGender;
 	TINT iNewGamePlayerCostume;

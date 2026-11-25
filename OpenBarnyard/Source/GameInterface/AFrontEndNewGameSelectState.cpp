@@ -139,7 +139,12 @@ TBOOL AFrontEndNewGameSelectState::ProcessCommand( AInputCommand a_eInputCommand
 				AGetGameRuntimeReport_PSP().uiNewGamePlayerNameLength = uiLength;
 				AGetGameRuntimeReport_PSP().bNewGamePlayerAccepted = TTRUE;
 				StopCharacterSetup_PSP();
-				ASetGameRuntimePhase_PSP( "frontend-new-game-player-ready" );
+				if ( !AHasSSeqContinuation_PSP() )
+					ASetGameRuntimePhase_PSP( "frontend-new-game-player-ready" );
+				else if ( AStartSSeqContinuation_PSP( s_PlayerSelection_PSP.iGender, s_PlayerSelection_PSP.iCostume ) )
+					ASetGameRuntimePhase_PSP( "frontend-new-game-continuation" );
+				else
+					AStopSSeqOpening_PSP( TTRUE );
 			}
 			return TTRUE;
 		}
@@ -218,6 +223,12 @@ TBOOL AFrontEndNewGameSelectState::OnUpdate( TFLOAT a_fDeltaTime )
 			{
 				m_pCharacterSetup_PSP->Update( a_fDeltaTime );
 				return TTRUE;
+			}
+			AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+			if ( !rReport.bNewGameContinuationComplete && AIsSSeqContinuationComplete_PSP() )
+			{
+				rReport.bNewGameContinuationComplete = TTRUE;
+				ASetGameRuntimePhase_PSP( "frontend-new-game-sequence-complete" );
 			}
 			if ( s_PlayerSelection_PSP.bReady || !AIsSSeqCharacterSetupReady_PSP() || StartCharacterSetup_PSP() )
 				return TTRUE;

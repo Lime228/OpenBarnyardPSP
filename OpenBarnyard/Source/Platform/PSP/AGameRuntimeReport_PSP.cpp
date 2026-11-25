@@ -91,19 +91,24 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 4096 ];
+	static TCHAR s_aReportBuffer_PSP[ 4608 ];
 	TCHAR szActorDraws[ AGameRuntimeReport_PSP::MAX_OPENING_SHOTS * 11 + 1 ];
+	TCHAR szContinuationDraws[ sizeof( szActorDraws ) ];
 	TSIZE uiActorOffset = 0;
+	TSIZE uiContinuationOffset = 0;
 	for ( TUINT i = 0; i < AGameRuntimeReport_PSP::MAX_OPENING_SHOTS; i++ )
 	{
+		const TCHAR* szFormat = i == 0 ? "%u" : ",%u";
 		uiActorOffset += std::snprintf( szActorDraws + uiActorOffset, sizeof( szActorDraws ) - uiActorOffset,
-		                                i == 0 ? "%u" : ",%u", s_GameRuntimeReport_PSP.auiNewGameActorDraws[ i ] );
+		                                szFormat, s_GameRuntimeReport_PSP.auiNewGameActorDraws[ i ] );
+		uiContinuationOffset += std::snprintf( szContinuationDraws + uiContinuationOffset, sizeof( szContinuationDraws ) - uiContinuationOffset,
+		                                       szFormat, s_GameRuntimeReport_PSP.auiNewGameContinuationActorDraws[ i ] );
 	}
 	const TAnimationMemoryStats_PSP oAnimation = TAnimationMemory_PSP::GetStats();
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=27\n"
+		"version=28\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -218,6 +223,10 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_actor_draws_shot2=%u\n"
 		"new_game_actor_draws_shot3=%u\n"
 		"new_game_actor_draws_by_shot=%s\n"
+		"new_game_continuation_shot=%u\n"
+		"new_game_continuation_actor_draws_by_shot=%s\n"
+		"new_game_continuation_voice_ms=%d\n"
+		"new_game_beady_int_day=%d\n"
 		"new_game_player_page=%d\n"
 		"new_game_player_gender=%d\n"
 		"new_game_player_costume=%d\n"
@@ -365,6 +374,10 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 1 ],
 		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 2 ],
 		szActorDraws,
+		s_GameRuntimeReport_PSP.uiNewGameContinuationShot,
+		szContinuationDraws,
+		s_GameRuntimeReport_PSP.iNewGameContinuationVoiceMS,
+		s_GameRuntimeReport_PSP.bNewGameBeadyIntDay,
 		s_GameRuntimeReport_PSP.iNewGamePlayerPage,
 		s_GameRuntimeReport_PSP.iNewGamePlayerGender,
 		s_GameRuntimeReport_PSP.iNewGamePlayerCostume,
