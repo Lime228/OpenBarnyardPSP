@@ -51,6 +51,7 @@ class RetailSequenceTests(unittest.TestCase):
                 "master_timing": [],
                 "attachment_tracks": [],
                 "animation_tracks": [],
+                "visibility_tracks": [],
             })
 
             path.write_bytes(header + script + body[:-1])
@@ -62,15 +63,18 @@ class RetailSequenceTests(unittest.TestCase):
                 inspect_script(path)
 
     def test_resolves_camera_commands_and_clip_through_string_relocations(self):
-        strings = b"Intro\0bindCamera\0CH_Cam\0CH_CamT\0FirstShot\0"
+        strings = b"Intro\0bindCamera\0CH_Cam\0CH_CamT\0FirstShot\0Hide\0show\0"
         strings += bytes(-len(strings) % 4)
         script = struct.pack("<IiIII", 0, 0, 1, 0, 4)
         command = struct.pack("<iIi4I", 12, 0, 0, strings.index(b"bindCamera"),
                               strings.index(b"CH_Cam"), strings.index(b"CH_CamT"), 0)
         clip = struct.pack("<iIi4I", 4, 4, 0, 0xFFFFFFFF, strings.index(b"FirstShot"), 1, 0)
+        hide = struct.pack("<iIi4I", 12, 0, 0, strings.index(b"Hide"), 0, 0, 0)
+        pause = struct.pack("<iIi", 10, 0, 0)
+        show = struct.pack("<iIi4I", 12, 0, 0, strings.index(b"show"), 0, 0, 0)
         end = struct.pack("<iIi", 13, 0, 0)
-        code = script + command + clip + end
-        string_relocs = struct.pack("<5I", 0, 32, 36, 40, 64)
+        code = script + command + clip + hide + pause + show + end
+        string_relocs = struct.pack("<7I", 0, 32, 36, 40, 64, 88, 128)
         pointer_relocs = struct.pack("<2I", 12, 16)
         pointer_base = len(code) + len(string_relocs) + len(strings) + len(pointer_relocs)
         header = struct.pack("<6I", len(code), len(string_relocs), len(code) + len(string_relocs),
@@ -88,6 +92,12 @@ class RetailSequenceTests(unittest.TestCase):
             }])
             self.assertEqual(inventory["animation_tracks"], [{
                 "track": 0, "actor": 14, "clips": [{"clip": "FirstShot", "after_pause": 0}],
+            }])
+            self.assertEqual(inventory["visibility_tracks"], [{
+                "track": 0, "actor": 14, "events": [
+                    {"name": "Hide", "after_pause": 0, "after_clip": "FirstShot"},
+                    {"name": "show", "after_pause": 1, "after_clip": None},
+                ],
             }])
 
     def test_uses_model_types_and_the_original_symbol_case(self):

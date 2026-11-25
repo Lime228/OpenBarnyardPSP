@@ -25,6 +25,7 @@ TSO_INSTRUCTION_SIZES = (0x1C, 0x14, 0x1C, 0x14, 0x1C, 0x18, 0x18, 0x14, 0x10, 0
 TSO_SOUND_TYPES = ("vostream", "cue")
 CAMERA_COMMANDS = {"bindCamera", "Set_FOV", "anim_FOV", "SetTerrain", "SetNearClip"}
 ATTACHMENT_COMMANDS = {"parentNode_Config", "attachToParentNode"}
+VISIBILITY_COMMANDS = {"Hide", "show"}
 
 
 def retail_file(install: Path, name: str) -> Path:
@@ -99,6 +100,7 @@ def inspect_script(path: Path) -> dict:
     master = []
     attachments = []
     animations = []
+    visibility = []
     for track, (actor, start) in enumerate(zip(actors, starts)):
         limit = limits[start]
         if start % 4 or not TSO_SCRIPT.size <= start < limit <= code_end:
@@ -107,7 +109,9 @@ def inspect_script(path: Path) -> dict:
         camera_events = []
         attachment_events = []
         clip_events = []
+        visibility_events = []
         pauses = 0
+        previous_clip = None
         while cursor + TSO_INSTRUCTION.size <= limit:
             opcode, _, _ = TSO_INSTRUCTION.unpack_from(data, cursor)
             if opcode == TSO_OP_END:
@@ -126,6 +130,7 @@ def inspect_script(path: Path) -> dict:
                 if clip:
                     camera_events.append({"type": "animation", "name": clip})
                     clip_events.append({"clip": clip, "after_pause": pauses})
+                    previous_clip = clip
             elif opcode == TSO_OP_COMMAND:
                 command = read_string_field(cursor + 0x0C)
                 if command in CAMERA_COMMANDS or command in ATTACHMENT_COMMANDS:
@@ -134,8 +139,11 @@ def inspect_script(path: Path) -> dict:
                         camera_events.append({"type": "command", "name": command, "arguments": arguments})
                     else:
                         attachment_events.append({"name": command, "arguments": arguments})
+                elif command in VISIBILITY_COMMANDS:
+                    visibility_events.append({"name": command, "after_pause": pauses, "after_clip": previous_clip})
             elif opcode == TSO_OP_PAUSE:
                 pauses += 1
+                previous_clip = None
             elif actor == 0 and opcode == TSO_OP_WAIT:
                 flag, duration = struct.unpack_from("<if", data, cursor + TSO_INSTRUCTION.size)
                 master.append({"type": "wait", "flag": flag, "duration": duration})
@@ -150,9 +158,11 @@ def inspect_script(path: Path) -> dict:
             attachments.append({"track": track, "actor": actor, "events": attachment_events})
         if clip_events:
             animations.append({"track": track, "actor": actor, "clips": clip_events})
+        if visibility_events:
+            visibility.append({"track": track, "actor": actor, "events": visibility_events})
     return {"name": name, "tracks": count, "track_actors": actors, "voice_instructions": voices,
             "camera_tracks": cameras, "master_timing": master, "attachment_tracks": attachments,
-            "animation_tracks": animations}
+            "animation_tracks": animations, "visibility_tracks": visibility}
 
 
 def describe_resources(properties: list, type_properties: list, symbols: dict) -> dict:
