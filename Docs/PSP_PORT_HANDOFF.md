@@ -72,7 +72,7 @@ Current estimates:
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
 | Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
-| Complete playable-game port | 33% | Original startup movies and frontend run with the complete initial terrain residency. Rooms, player, world streaming, collision, saves and most in-game audio remain. |
+| Complete playable-game port | 33% | Original startup, frontend and SS01 run. The port renders the opening EnvMain scene with the selected player. Movement, world streaming, collision sweeps, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
 
@@ -559,8 +559,9 @@ the 54 terrain sections). The report keeps the stored source coordinates
 and facing. The engine resolves the final Y against gameplay collision.
 `ConvertRetailMainGameTerrain.ps1` drives the inventory and converts all
 62 row model files from the original install. The initial packed map in
-`EnvMain/TerrainPack_Barn` has 394 mesh groups and 128 shared textures
-totaling 5,221,386 bytes.
+`EnvMain/TerrainPack_Barn` has 388 dawn-visible mesh groups and 128 shared
+textures totaling 5,216,526 bytes. The original row contributes 394 groups
+before applying the initial light visibility.
 The terrain VIS export also reads each section's original collision file.
 With host tools from build `23c28f12`, `sim_start.json` lists 31 original
 collision TRBs. The host symbol check found the original `Collision` and
@@ -579,10 +580,9 @@ the PSP engine reads `INetwork` and the six `Collision` symbols directly
 through `TTRB`. It reads the spawn and facing from the original goal and
 checks the ground at that point using the area's short terrain ray. The
 static query covers 5,559 original triangles and uses the +90° X
-rotation applied by `ATerrainInterface::CreateModelInstance`. The final
-SS01 shot remains visible. The next runtime work is to give the terrain
-and collision lifetime to `ASimState`, load the selected player and wire
-the original camera and steering.
+rotation applied by `ATerrainInterface::CreateModelInstance`. With only
+the start package staged, the final SS01 shot remains visible after the
+ground check.
 
 Build `d4aa9a92` from Actions run `45664043946` passed the complete SS01
 walkthrough in PPSSPP. The guest read area 105, the original position and
@@ -609,12 +609,48 @@ The same manifest reads the original `player` entry from
 `AAlienSteer` data and control binding to `NormalBarnyard` for
 `ASimState`. The runtime already stages the original
 `Data/Options/Controls_Win.trb` with all 21 `NormalBarnyard` bindings.
-The sim camera uses the original
-`AGTAStyleCameraHelper` with the player proxy as its target.
+The desktop sim targets the player proxy through
+`AGTAStyleCameraHelper`.
 
 ```powershell
 python Ports/PSP/Tools/package_retail_sim_player.py --tmdl <TMDL.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/EnvMain/Player
 ```
+
+Adding `-MainGameScene` stages the first rendered EnvMain scene. After
+SS01, the PSP controller replaces the slot chooser with
+`ASimState_PSP`. The state releases the SS01 resources before loading the
+original `Barn` terrain, dawn sky, initial terrain collision and selected
+gameplay player model. The player uses the original costume and idle
+loop. The camera uses the original follow camera's default distance,
+height offset, pitch and horizontal FOV, aimed from behind the original
+spawn. The fixed camera, missing movement and collision sweeps, and
+temporary Start-to-frontend route define the current scene scope.
+
+The EnvMain terrain batch also exports the original instance locators.
+`envmain-instances.json` uses the type-0 table from `AGameLoader` and
+includes the always-visible `undefined` cell. It identifies 1,239 static
+instances from 45 models in the initial VIS row. The original regrowth
+manager owns the locators that this table excludes. The batch bakes the
+static instances from their source transforms and shares their original
+textures. `-MainGameInstances` stages the combined pack with 445 mesh
+groups and 152 shared textures. Both EnvMain variants begin at 06:00 and
+omit the six light-cone meshes that retail turns off by 05:30. The
+source terrain manifests keep those materials for later time-of-day work.
+
+```powershell
+$ss01 = 'Game/BarnyardPC/Workspace/SS01'
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalEnvMainInstancesValidation -SS01OpeningDirectory "$ss01/Opening" -SS01CharacterSetupDirectory "$ss01/CharacterSetup" -SS01AfterCharacterSetupDirectory "$ss01/AfterCharacterSetup" -MainGameDirectory Game/BarnyardPC/Workspace/EnvMain -MainGameScene -MainGameInstances
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainInstancesValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -Capture
+```
+
+Build `a33be3b3` from Actions run `45710259331` passed two upright
+terrain-only walks through SS01, one for each original player model.
+The combined dawn pack with 1,239 instances drew 200 terrain and
+instance groups, two sky draws and two player meshes from the start
+camera. The full run peaked at 13,764,048 bytes out of the 16,777,216-byte
+renderer budget, returned on Start and released the player's animation
+buffers. The full scene screenshot `envmain-barn.png`, runtime and
+validation log are in `Runtime/OriginalEnvMainInstancesValidation`.
 
 ## Known limitations
 
@@ -638,8 +674,9 @@ python Ports/PSP/Tools/package_retail_sim_player.py --tmdl <TMDL.exe> Game/Barny
   reaches the visible main menu. Build `92112565` played all four tracks with
   zero PCM underruns in PPSSPP. Physical PSP playback performance still needs
   measurement.
-- ACollisionModel_PSP preserves the interface but returns no hits. Gameplay must
-  not start until a bounded collision backend exists.
+- `ATerrainCollision_PSP` reads the six initial terrain colliders and
+  resolves vertical rays. Camera sweeps, player movement contacts and the
+  general `ACollisionModel_PSP` queries still need integration.
 - The PSP frontend plays its original resident UI cues and streamed music.
   Gameplay still needs the original cue, voice-over and multiplex playback paths.
 - The texture cache holds at most 16 unique GUI textures. The current menu fits;
