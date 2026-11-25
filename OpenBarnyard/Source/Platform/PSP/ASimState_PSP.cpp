@@ -15,9 +15,9 @@ static TRenderCamera_PSP ACreateSimStartCamera_PSP( const ASimStart_PSP& a_rStar
 {
 	// AGTAStyleCameraHelper's default orbit and ResetPosition's direction behind the unit.
 	TVector3 vBackward( -a_rStart.vFacing.x, 0.0f, -a_rStart.vFacing.z );
-	vBackward.Normalise();
+	vBackward.Normalize();
 	vBackward.y = -TMath::ATan( TMath::DegToRad( 11.0f ) );
-	vBackward.Normalise();
+	vBackward.Normalize();
 	const TVector4& rSpawn = a_rStart.vPosition;
 	const TFLOAT fAspect = TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TRenderInterface_PSP::SCREEN_HEIGHT;
 	const TFLOAT fFOV = TMath::ATan( TMath::Tan( TMath::DegToRad( 30.0f ) ) / fAspect ) * ( 360.0f / TMath::PI );
