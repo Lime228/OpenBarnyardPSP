@@ -5,6 +5,7 @@
 #include <Core/TMemory.h>
 #include <Math/TMath.h>
 #include <Platform/PSP/TRenderMemory_PSP.h>
+#include <Platform/PSP/TAnimationMemory_PSP.h>
 #include <Platform/PSP/Input/TInputInterface_PSP.h>
 #include <Toshi/TStringManager.h>
 
@@ -91,10 +92,18 @@ void AWriteGameRuntimeReport_PSP()
 	}
 
 	static TCHAR s_aReportBuffer_PSP[ 4096 ];
+	TCHAR szActorDraws[ AGameRuntimeReport_PSP::MAX_OPENING_SHOTS * 11 + 1 ];
+	TSIZE uiActorOffset = 0;
+	for ( TUINT i = 0; i < AGameRuntimeReport_PSP::MAX_OPENING_SHOTS; i++ )
+	{
+		uiActorOffset += std::snprintf( szActorDraws + uiActorOffset, sizeof( szActorDraws ) - uiActorOffset,
+		                                i == 0 ? "%u" : ",%u", s_GameRuntimeReport_PSP.auiNewGameActorDraws[ i ] );
+	}
+	const TAnimationMemoryStats_PSP oAnimation = TAnimationMemory_PSP::GetStats();
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=26\n"
+		"version=27\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -208,6 +217,10 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_actor_draws_shot1=%u\n"
 		"new_game_actor_draws_shot2=%u\n"
 		"new_game_actor_draws_shot3=%u\n"
+		"new_game_actor_draws_by_shot=%s\n"
+		"animation_live_vertices=%u\n"
+		"animation_peak_vertices=%u\n"
+		"animation_sample_bytes=%u\n"
 		"new_game_voice_ms=%d\n"
 		"new_game_voice_underruns=%u\n"
 		"new_game_voice_non_silent_blocks=%u\n"
@@ -345,6 +358,10 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 0 ],
 		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 1 ],
 		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 2 ],
+		szActorDraws,
+		oAnimation.uiAnimatedVertices,
+		oAnimation.uiAnimatedVertexPeak,
+		TUINT( oAnimation.uiSampleCurrent ),
 		s_GameRuntimeReport_PSP.iNewGameVoiceMS,
 		s_GameRuntimeReport_PSP.uiNewGameVoiceUnderruns,
 		s_GameRuntimeReport_PSP.uiNewGameVoiceNonSilentBlocks,

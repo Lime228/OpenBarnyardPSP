@@ -4,6 +4,8 @@
 
 struct AGameRuntimeReport_PSP
 {
+	static constexpr TUINT MAX_OPENING_SHOTS = 16;
+
 	TCHAR szPhase[ 48 ];
 	TCHAR szPicture[ 64 ];
 	TCHAR szFailedPath[ 96 ];
@@ -101,7 +103,7 @@ struct AGameRuntimeReport_PSP
 	TUINT uiNewGameOpeningFrames;
 	TUINT uiNewGameSkyDraws;
 	TUINT uiNewGameOpeningShot;
-	TUINT auiNewGameActorDraws[ 3 ];
+	TUINT auiNewGameActorDraws[ MAX_OPENING_SHOTS ];
 	TINT iNewGameVoiceMS;
 	TUINT uiNewGameVoiceUnderruns;
 	TUINT uiNewGameVoiceNonSilentBlocks;

@@ -14,9 +14,10 @@ TOSHI_NAMESPACE_USING
 static constexpr TCHAR s_szActorsRoot_PSP[] = "local:Data/ScriptedSequence/SS01/Actors";
 
 static TBOOL ASetSSeqActorPose_PSP( TSkeletonInstance_PSP& a_rPose, const TAnimationClip_PSP& a_rClip,
-                                  TFLOAT a_fProgress )
+                                  TFLOAT a_fProgress, TFLOAT a_fShotDuration )
 {
-	const TFLOAT fTime = TFLOAT( a_rClip.GetFrameCount() - 1 ) * 1000.0f / TFLOAT( a_rClip.GetSampleRate() );
+	const TFLOAT fTime = a_rClip.IsLooping() ? a_fShotDuration * 1000.0f :
+	                     TFLOAT( a_rClip.GetFrameCount() - 1 ) * 1000.0f / TFLOAT( a_rClip.GetSampleRate() );
 	return a_rPose.SetAnimationPose( a_rClip, TUINT( a_fProgress * fTime + 0.5f ) );
 }
 
@@ -35,13 +36,20 @@ TBOOL ASSeqActors_PSP::Load( TUINT a_uiShotCount )
 		TUINT32 uiActors;
 		TUINT32 uiShots;
 	};
-	static_assert( sizeof( Header ) == 16 && sizeof( ActorConfig ) == 20 );
-	Header oHeader;
-	const TBOOL bRead = pFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
-	                    oHeader.uiMagic == 0x43415350 && oHeader.uiVersion == 1 &&
-	                    oHeader.uiActors != 0 && oHeader.uiActors <= MAX_ACTORS && oHeader.uiShots == a_uiShotCount && oHeader.uiShots >= 2 && oHeader.uiShots <= 3 &&
-	                    pFile->GetSize() == sizeof( oHeader ) + oHeader.uiActors * sizeof( ActorConfig ) &&
-	                    pFile->Read( m_aConfig, oHeader.uiActors * sizeof( ActorConfig ) ) == oHeader.uiActors * sizeof( ActorConfig );
+	static_assert( sizeof( Header ) == 16 && sizeof( ActorConfig ) == 24 );
+	Header oHeader = {};
+	TBOOL bRead = pFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
+	              oHeader.uiMagic == 0x43415350 && ( oHeader.uiVersion == 1 || oHeader.uiVersion == 2 ) &&
+	              oHeader.uiActors != 0 && oHeader.uiActors <= MAX_ACTORS &&
+	              oHeader.uiShots == a_uiShotCount && oHeader.uiShots >= 2 && oHeader.uiShots < 32;
+	const TSIZE uiRecordSize = oHeader.uiVersion == 1 ? 20 : sizeof( ActorConfig );
+	bRead = bRead && pFile->GetSize() == sizeof( oHeader ) + oHeader.uiActors * uiRecordSize;
+	for ( TUINT i = 0; bRead && i < oHeader.uiActors; i++ )
+	{
+		m_aConfig[ i ] = {};
+		bRead = pFile->Read( &m_aConfig[ i ], uiRecordSize ) == uiRecordSize &&
+		        ( oHeader.uiVersion == 2 || m_aConfig[ i ].uiMeshes <= 2 );
+	}
 	pFile->Destroy();
 	if ( !bRead )
 		return TFALSE;
@@ -92,13 +100,17 @@ TBOOL ASSeqActors_PSP::SetShot( TUINT a_uiShot )
 		return TTRUE;
 
 	const TUINT uiMask = 1U << a_uiShot;
+	for ( Actor& rActor : m_aActors )
+	{
+		if ( rActor.iConfigIndex >= 0 && ( m_aConfig[ rActor.iConfigIndex ].uiShots & uiMask ) == 0 )
+			UnloadActor( rActor );
+	}
+
 	TBOOL abUsedTextures[ MAX_TEXTURES ] = {};
 	for ( TUINT i = 0; i < m_uiActorCount; i++ )
 	{
 		const ActorConfig& rConfig = m_aConfig[ i ];
-		if ( ( rConfig.uiShots & uiMask ) == 0 )
-			UnloadActor( m_aActors[ i ] );
-		else
+		if ( ( rConfig.uiShots & uiMask ) != 0 )
 		{
 			for ( TUINT j = 0; j < rConfig.uiMeshes; j++ )
 				abUsedTextures[ rConfig.auiTextures[ j ] ] = TTRUE;
@@ -110,11 +122,28 @@ TBOOL ASSeqActors_PSP::SetShot( TUINT a_uiShot )
 			m_aTextures[ i ].Unload();
 	}
 
-	if ( !LoadClip( m_Rig, "actor-root", a_uiShot ) )
+	if ( !LoadClip( m_Rig, "actor-root", a_uiShot ) || m_Rig.oClip.IsLooping() )
 		return TFALSE;
 	for ( TUINT i = 0; i < m_uiActorCount; i++ )
 	{
-		if ( ( m_aConfig[ i ].uiShots & uiMask ) != 0 && !LoadActor( i, a_uiShot ) )
+		if ( ( m_aConfig[ i ].uiShots & uiMask ) == 0 )
+			continue;
+
+		Actor* pActor = TNULL;
+		Actor* pFreeActor = TNULL;
+		for ( Actor& rActor : m_aActors )
+		{
+			if ( rActor.iConfigIndex == TINT( i ) )
+			{
+				pActor = &rActor;
+				break;
+			}
+			if ( rActor.iConfigIndex < 0 && pFreeActor == TNULL )
+				pFreeActor = &rActor;
+		}
+		if ( pActor == TNULL )
+			pActor = pFreeActor;
+		if ( pActor == TNULL || !LoadActor( *pActor, i, a_uiShot ) )
 			return TFALSE;
 	}
 
@@ -124,26 +153,26 @@ TBOOL ASSeqActors_PSP::SetShot( TUINT a_uiShot )
 	return TTRUE;
 }
 
-TBOOL ASSeqActors_PSP::LoadActor( TUINT a_uiActor, TUINT a_uiShot )
+TBOOL ASSeqActors_PSP::LoadActor( Actor& a_rActor, TUINT a_uiActor, TUINT a_uiShot )
 {
-	Actor& rActor = m_aActors[ a_uiActor ];
+	a_rActor.iConfigIndex = TINT( a_uiActor );
 	const ActorConfig& rConfig = m_aConfig[ a_uiActor ];
 	TCHAR szPrefix[ 16 ];
 	TStringManager::String8Format( szPrefix, TARRAYSIZE( szPrefix ), "actor-%u", a_uiActor );
-	if ( !rActor.oClips.oSkeleton.IsLoaded() && !LoadSkeleton( rActor.oClips, szPrefix ) )
+	if ( !a_rActor.oClips.oSkeleton.IsLoaded() && !LoadSkeleton( a_rActor.oClips, szPrefix ) )
 		return TFALSE;
-	if ( !LoadClip( rActor.oClips, szPrefix, a_uiShot ) )
+	if ( !LoadClip( a_rActor.oClips, szPrefix, a_uiShot ) )
 		return TFALSE;
 
 	const TModelFactory_PSP oModelFactory;
 	const TTextureFactory_PSP oTextureFactory;
 	for ( TUINT i = 0; i < rConfig.uiMeshes; i++ )
 	{
-		if ( !rActor.aSkins[ i ].IsCreated() )
+		if ( !a_rActor.aSkins[ i ].IsCreated() )
 		{
 			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.pmes", s_szActorsRoot_PSP, szPrefix, i );
-			if ( !oModelFactory.CreateModelFromFile( rActor.aModels[ i ], m_szPath ) ||
-			     !rActor.aSkins[ i ].Create( &rActor.aModels[ i ], &rActor.oClips.oSkeleton ) )
+			if ( !oModelFactory.CreateModelFromFile( a_rActor.aModels[ i ], m_szPath ) ||
+			     !a_rActor.aSkins[ i ].Create( &a_rActor.aModels[ i ], &a_rActor.oClips.oSkeleton ) )
 				return TFALSE;
 		}
 
@@ -172,8 +201,7 @@ TBOOL ASSeqActors_PSP::LoadClip( ClipSet& a_rClips, const TCHAR* a_szPrefix, TUI
 	const TAnimationClipFactory_PSP oAnimationFactory;
 	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.panm", s_szActorsRoot_PSP, a_szPrefix, a_uiShot );
 	a_rClips.oClip.Unload();
-	return oAnimationFactory.CreateAnimationFromFile( a_rClips.oClip, &a_rClips.oSkeleton, m_szPath ) &&
-	       !a_rClips.oClip.IsLooping();
+	return oAnimationFactory.CreateAnimationFromFile( a_rClips.oClip, &a_rClips.oSkeleton, m_szPath );
 }
 
 void ASSeqActors_PSP::UnloadActor( Actor& a_rActor )
@@ -184,6 +212,7 @@ void ASSeqActors_PSP::UnloadActor( Actor& a_rActor )
 		a_rActor.aModels[ i ].Unload();
 	}
 	UnloadClips( a_rActor.oClips );
+	a_rActor.iConfigIndex = -1;
 	a_rActor.bPoseReady = TFALSE;
 }
 
@@ -196,8 +225,8 @@ void ASSeqActors_PSP::UnloadClips( ClipSet& a_rClips )
 
 void ASSeqActors_PSP::Unload()
 {
-	for ( TUINT i = 0; i < m_uiActorCount; i++ )
-		UnloadActor( m_aActors[ i ] );
+	for ( Actor& rActor : m_aActors )
+		UnloadActor( rActor );
 	for ( T2Texture& rTexture : m_aTextures )
 		rTexture.Unload();
 	UnloadClips( m_Rig );
@@ -208,7 +237,7 @@ void ASSeqActors_PSP::Unload()
 }
 
 TUINT ASSeqActors_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderCamera_PSP& a_rCamera,
-                             TUINT a_uiShot, TFLOAT a_fShotProgress )
+                             TUINT a_uiShot, TFLOAT a_fShotProgress, TFLOAT a_fShotDuration )
 {
 	if ( m_uiActorCount == 0 || a_uiShot != m_uiShot )
 		return 0;
@@ -218,7 +247,7 @@ TUINT ASSeqActors_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderC
 	if ( bUpdate )
 	{
 		m_uiLastTime = uiTime;
-		m_bRigReady = ASetSSeqActorPose_PSP( m_Rig.oPose, m_Rig.oClip, a_fShotProgress );
+		m_bRigReady = ASetSSeqActorPose_PSP( m_Rig.oPose, m_Rig.oClip, a_fShotProgress, a_fShotDuration );
 	}
 	if ( !m_bRigReady )
 		return 0;
@@ -231,16 +260,15 @@ TUINT ASSeqActors_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderC
 	oBase.Identity();
 	oBase.RotateX( TMath::HALF_PI ); // ASSeqAttachmentManager's transform for SS01.
 	TUINT uiDraws = 0;
-	for ( TUINT i = 0; i < m_uiActorCount; i++ )
+	for ( Actor& rActor : m_aActors )
 	{
-		const ActorConfig& rConfig = m_aConfig[ i ];
-		if ( ( rConfig.uiShots & ( 1U << a_uiShot ) ) == 0 )
+		if ( rActor.iConfigIndex < 0 )
 			continue;
 
-		Actor& rActor = m_aActors[ i ];
+		const ActorConfig& rConfig = m_aConfig[ rActor.iConfigIndex ];
 		if ( bUpdate )
 		{
-			rActor.bPoseReady = ASetSSeqActorPose_PSP( rActor.oClips.oPose, rActor.oClips.oClip, a_fShotProgress );
+			rActor.bPoseReady = ASetSSeqActorPose_PSP( rActor.oClips.oPose, rActor.oClips.oClip, a_fShotProgress, a_fShotDuration );
 			for ( TUINT j = 0; j < rConfig.uiMeshes && rActor.bPoseReady; j++ )
 				rActor.bPoseReady = rActor.aSkins[ j ].Skin( rActor.oClips.oPose );
 		}

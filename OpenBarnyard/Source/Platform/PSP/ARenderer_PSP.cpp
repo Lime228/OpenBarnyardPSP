@@ -48,13 +48,8 @@ static ASkyDome_PSP s_SSeqSkyDome_PSP;
 static ASSeqActors_PSP s_SSeqActors_PSP;
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 static constexpr TCHAR s_szOpeningConfig_PSP[] = "local:Data/ScriptedSequence/SS01/opening.psco";
-static const TCHAR* const s_aszOpeningCameras_PSP[] = {
-	"local:Data/ScriptedSequence/SS01/opening.pcam",
-	"local:Data/ScriptedSequence/SS01/opening-1.pcam",
-	"local:Data/ScriptedSequence/SS01/opening-2.pcam",
-};
-static AFrontEndCamera_PSP s_aSSeqOpeningCameras_PSP[ TARRAYSIZE( s_aszOpeningCameras_PSP ) ];
-static TFLOAT s_afOpeningDurations_PSP[ TARRAYSIZE( s_aszOpeningCameras_PSP ) ];
+static AFrontEndCamera_PSP s_aSSeqOpeningCameras_PSP[ AGameRuntimeReport_PSP::MAX_OPENING_SHOTS ];
+static TFLOAT s_afOpeningDurations_PSP[ AGameRuntimeReport_PSP::MAX_OPENING_SHOTS ];
 static TFLOAT s_fOpeningTotal_PSP = 0.0f;
 static TUINT s_uiOpeningShots_PSP = 0;
 static TFLOAT s_fOpeningElapsed_PSP = 0.0f;
@@ -263,7 +258,8 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 		s_RenderInterface_PSP.BeginScene( 0xff000000 );
 		rReport.uiNewGameSkyDraws += s_SSeqSkyDome_PSP.Render( s_RenderInterface_PSP, rCamera, a_fDeltaTime );
 		rReport.uiNewGameOpeningDraws += s_SSeqTerrain_PSP.Render( s_RenderInterface_PSP, rCamera );
-		const TUINT uiActorDraws = s_SSeqActors_PSP.Render( s_RenderInterface_PSP, rCamera, uiShot, s_fOpeningShotProgress_PSP );
+		const TUINT uiActorDraws = s_SSeqActors_PSP.Render(
+		    s_RenderInterface_PSP, rCamera, uiShot, s_fOpeningShotProgress_PSP, s_afOpeningDurations_PSP[ uiShot ] );
 		rReport.auiNewGameActorDraws[ uiShot ] = TMath::Max( rReport.auiNewGameActorDraws[ uiShot ], uiActorDraws );
 		s_RenderInterface_PSP.EndScene();
 		rReport.uiNewGameOpeningFrames++;
@@ -463,7 +459,7 @@ static TBOOL AReadSSeqOpening_PSP( ASSeqOpeningShot_PSP* a_pShots, TUINT32& a_ru
 	{
 		bRead = pFile->Read( &a_ruiShotCount, sizeof( a_ruiShotCount ) ) == sizeof( a_ruiShotCount ) &&
 		        pFile->Read( &a_riVoice, sizeof( a_riVoice ) ) == sizeof( a_riVoice ) && a_riVoice >= 0 &&
-		        a_ruiShotCount >= 2 && a_ruiShotCount <= TARRAYSIZE( s_aszOpeningCameras_PSP );
+		        a_ruiShotCount >= 2 && a_ruiShotCount <= TARRAYSIZE( s_aSSeqOpeningCameras_PSP );
 		if ( bRead )
 		{
 			const TSIZE uiBytes = a_ruiShotCount * sizeof( ASSeqOpeningShot_PSP );
@@ -478,7 +474,7 @@ static TBOOL AReadSSeqOpening_PSP( ASSeqOpeningShot_PSP* a_pShots, TUINT32& a_ru
 
 TBOOL AStartSSeqOpening_PSP()
 {
-	ASSeqOpeningShot_PSP aShots[ TARRAYSIZE( s_aszOpeningCameras_PSP ) ] = {};
+	ASSeqOpeningShot_PSP aShots[ TARRAYSIZE( s_aSSeqOpeningCameras_PSP ) ] = {};
 	TUINT32 uiShotCount = 0;
 	TINT32 iVoice = -1;
 	if ( !AReadSSeqOpening_PSP( aShots, uiShotCount, iVoice ) )
@@ -501,10 +497,15 @@ TBOOL AStartSSeqOpening_PSP()
 		}
 		const TFLOAT fHalfFOV = TMath::DegToRad( rShot.fHorizontalFOV * 0.5f );
 		const TFLOAT fVerticalFOV = TMath::ATan( TMath::Tan( fHalfFOV ) / fAspect ) * ( 360.0f / TMath::PI );
-		if ( !s_aSSeqOpeningCameras_PSP[ i ].Load( s_aszOpeningCameras_PSP[ i ], fVerticalFOV, rShot.fNear ) )
+		TCHAR szCameraPath[ 64 ];
+		if ( i == 0 )
+			TStringManager::String8Copy( szCameraPath, "local:Data/ScriptedSequence/SS01/opening.pcam", sizeof( szCameraPath ) );
+		else
+			TStringManager::String8Format( szCameraPath, sizeof( szCameraPath ), "local:Data/ScriptedSequence/SS01/opening-%u.pcam", i );
+		if ( !s_aSSeqOpeningCameras_PSP[ i ].Load( szCameraPath, fVerticalFOV, rShot.fNear ) )
 		{
 			AStopSSeqOpening_PSP( TFALSE );
-			ASetGameRuntimeFailedPath_PSP( s_aszOpeningCameras_PSP[ i ] );
+			ASetGameRuntimeFailedPath_PSP( szCameraPath );
 			return TFALSE;
 		}
 		s_afOpeningDurations_PSP[ i ] = rShot.fDuration;
