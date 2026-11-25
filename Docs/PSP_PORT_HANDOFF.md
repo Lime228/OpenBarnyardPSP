@@ -570,9 +570,51 @@ queues these colliders when it enters the corresponding high LOD.
 `SpawnSimPlayer` spawns the `player` unit and applies the saved gender and
 costume.
 `APlayerSteer::PlaceAtNamedGoal` resolves the original goal and uses
-collision for placement in Toshi's Y-down world. The selected profile,
-native collision queries, steering and the transition to `ASimState`
-still need PSP runtime integration.
+collision for placement in Toshi's Y-down world.
+
+The optional EnvMain start package stages the original `park2.trb` and
+six original collision TRBs byte for byte. Its generated `initial.pscl`
+lists the collision files for the initial `Barn` row. At the end of SS01,
+the PSP engine reads `INetwork` and the six `Collision` symbols directly
+through `TTRB`. It reads the spawn and facing from the original goal and
+checks the ground at that point using the area's short terrain ray. The
+static query covers 5,559 original triangles and uses the +90° X
+rotation applied by `ATerrainInterface::CreateModelInstance`. The final
+SS01 shot remains visible. The next runtime work is to give the terrain
+and collision lifetime to `ASimState`, load the selected player and wire
+the original camera and steering.
+
+Build `d4aa9a92` from Actions run `45664043946` passed the complete SS01
+walkthrough in PPSSPP. The guest read area 105, the original position and
+facing, and ground Y `-8.363581`. The host check independently resolved
+the same Y against triangle 525 of `Barn_col.trb`. All seven staged TRBs
+match their installed source files by SHA-256. The verified EBOOT and the
+before and after reports are in `Runtime/OriginalEnvMainStartValidation`.
+
+```powershell
+$ss01 = 'Game/BarnyardPC/Workspace/SS01'
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalEnvMainStartValidation -SS01OpeningDirectory "$ss01/Opening" -SS01CharacterSetupDirectory "$ss01/CharacterSetup" -SS01AfterCharacterSetupDirectory "$ss01/AfterCharacterSetup" -MainGameDirectory Game/BarnyardPC/Workspace/EnvMain
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainStartValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart
+```
+
+`package_retail_sim_player.py` follows the original `lib_maingame`
+player declarations. It prepares the standalone gameplay models
+`americanM_anims` and `americanF_anims`, their two mesh groups per
+gender, the seven original costume libraries for each model, and 98 male
+plus 109 female base animation clips. The manifest keeps the original
+animation names, sets and transitions. The existing PANM baker handles
+the base clips. The ten overlay clips per gender still require support.
+The same manifest reads the original `player` entry from
+`Data/Units/AllUnitTypes.trz`. It keeps the `AUnitPlayer` class,
+`AAlienSteer` data and control binding to `NormalBarnyard` for
+`ASimState`. The runtime already stages the original
+`Data/Options/Controls_Win.trb` with all 21 `NormalBarnyard` bindings.
+The sim camera uses the original
+`AGTAStyleCameraHelper` with the player proxy as its target.
+
+```powershell
+python Ports/PSP/Tools/package_retail_sim_player.py --tmdl <TMDL.exe> Game/BarnyardPC/Install Game/BarnyardPC/Workspace/EnvMain/Player
+```
 
 ## Known limitations
 
