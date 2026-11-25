@@ -784,13 +784,14 @@ static TBOOL TestProbeSkinning_PSP()
 
 static TBOOL TestAnimationBudgets_PSP()
 {
-	Toshi::TSkeletonInstance_PSP aInstances[ 7 ];
+	static constexpr TUINT uiFreeInstances = Toshi::TAnimationMemory_PSP::INSTANCE_BUDGET - 2;
+	static Toshi::TSkeletonInstance_PSP s_aInstances[ uiFreeInstances + 1 ];
 	TBOOL bCreated = TTRUE;
-	for ( TUINT32 i = 0; i < 6; i++ )
-		bCreated = aInstances[ i ].Create( &g_ProbeSkeleton_PSP ) && bCreated;
-	const TBOOL bInstanceRejected = !aInstances[ 6 ].Create( &g_ProbeSkeleton_PSP );
-	for ( TUINT32 i = 0; i < 6; i++ )
-		aInstances[ i ].Destroy();
+	for ( TUINT32 i = 0; i < uiFreeInstances; i++ )
+		bCreated = s_aInstances[ i ].Create( &g_ProbeSkeleton_PSP ) && bCreated;
+	const TBOOL bInstanceRejected = !s_aInstances[ uiFreeInstances ].Create( &g_ProbeSkeleton_PSP );
+	for ( Toshi::TSkeletonInstance_PSP& rInstance : s_aInstances )
+		rInstance.Destroy();
 
 	const TBOOL bSamplesRejected = !Toshi::TAnimationMemory_PSP::ReserveSamples(
 	    Toshi::TAnimationMemory_PSP::SAMPLE_BUDGET
