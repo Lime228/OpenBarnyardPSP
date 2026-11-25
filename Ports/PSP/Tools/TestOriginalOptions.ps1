@@ -369,7 +369,7 @@ try {
                         throw "Original EnvMain start did not resolve. See $gameLog"
                     }
                     $ground = [double]::Parse($complete.new_game_sim_ground_y, [Globalization.CultureInfo]::InvariantCulture)
-                    if ([Math]::Abs($ground + 8.363579) -gt 0.25) { throw "Unexpected EnvMain ground Y $ground. See $gameLog" }
+                    if ([Math]::Abs($ground + 8.363581) -gt 0.0001) { throw "Unexpected EnvMain ground Y $ground. See $gameLog" }
                     "Resolved the original park2 start and queried ground Y $ground against $triangles original EnvMain collision triangles."
                 }
             }
