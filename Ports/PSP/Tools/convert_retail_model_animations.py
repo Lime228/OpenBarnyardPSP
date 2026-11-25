@@ -49,7 +49,8 @@ def clip_sample_rate(clip: dict) -> int:
     return min(30, math.floor(intervals / duration))
 
 
-def bake_clip(tool: Path, model: Path, library: Path, clip: dict, rate: int, destination: Path, scratch: Path) -> dict:
+def bake_clip(tool: Path, model: Path, library: Path, clip: dict, rate: int, destination: Path, scratch: Path,
+              reference_bones: list | None = None) -> dict:
     dump = scratch / "clip.json"
     dump.unlink(missing_ok=True)
     process = subprocess.run(
@@ -65,6 +66,9 @@ def bake_clip(tool: Path, model: Path, library: Path, clip: dict, rate: int, des
     if document["sequence"] != clip["name"] or document["loop"] != (clip["mode"] == 0) or document["sample_rate"] != rate:
         raise ValueError("TMDL selected a different source sequence")
     source_bones = document["bones"]
+    if reference_bones is not None and [(bone["name"], bone["parent"]) for bone in source_bones] != [
+            (bone["name"], bone["parent"]) for bone in reference_bones]:
+        raise ValueError("the exported animation and model use different skeletons")
     bones = []
     for index, bone in enumerate(source_bones):
         parent = bone["parent"]
