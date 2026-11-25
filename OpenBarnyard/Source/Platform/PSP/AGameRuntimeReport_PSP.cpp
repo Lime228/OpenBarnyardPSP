@@ -205,6 +205,8 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_opening_frames=%u\n"
 		"new_game_sky_draws=%u\n"
 		"new_game_opening_shot=%u\n"
+		"new_game_actor_draws_shot1=%u\n"
+		"new_game_actor_draws_shot2=%u\n"
 		"new_game_voice_ms=%d\n"
 		"new_game_voice_underruns=%u\n"
 		"new_game_voice_non_silent_blocks=%u\n"
@@ -339,6 +341,8 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiNewGameOpeningFrames,
 		s_GameRuntimeReport_PSP.uiNewGameSkyDraws,
 		s_GameRuntimeReport_PSP.uiNewGameOpeningShot,
+		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 0 ],
+		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 1 ],
 		s_GameRuntimeReport_PSP.iNewGameVoiceMS,
 		s_GameRuntimeReport_PSP.uiNewGameVoiceUnderruns,
 		s_GameRuntimeReport_PSP.uiNewGameVoiceNonSilentBlocks,

@@ -101,6 +101,7 @@ struct AGameRuntimeReport_PSP
 	TUINT uiNewGameOpeningFrames;
 	TUINT uiNewGameSkyDraws;
 	TUINT uiNewGameOpeningShot;
+	TUINT auiNewGameActorDraws[ 2 ];
 	TINT iNewGameVoiceMS;
 	TUINT uiNewGameVoiceUnderruns;
 	TUINT uiNewGameVoiceNonSilentBlocks;

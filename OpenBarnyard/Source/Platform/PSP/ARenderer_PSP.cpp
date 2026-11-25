@@ -7,6 +7,7 @@
 #include "AFrontEndTerrain_PSP.h"
 #include "AFrontEndTerrainPack_PSP.h"
 #include "AGameRuntimeReport_PSP.h"
+#include "ASSeqActors_PSP.h"
 #include "ASSeqTerrain_PSP.h"
 #include "ASkyDome_PSP.h"
 #include "AVOStream_PSP.h"
@@ -44,6 +45,7 @@ static AFrontEndTerrainPack_PSP s_FrontEndMeadowsouth_PSP;
 static AFrontEndInstanceManager_PSP s_FrontEndInstanceManager_PSP;
 static ASSeqTerrain_PSP s_SSeqTerrain_PSP;
 static ASkyDome_PSP s_SSeqSkyDome_PSP;
+static ASSeqActors_PSP s_SSeqActors_PSP;
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
 static constexpr TCHAR s_szOpeningConfig_PSP[] = "local:Data/ScriptedSequence/SS01/opening.psco";
 static const TCHAR* const s_aszOpeningCameras_PSP[] = {
@@ -54,6 +56,7 @@ static AFrontEndCamera_PSP s_aSSeqOpeningCameras_PSP[ TARRAYSIZE( s_aszOpeningCa
 static TFLOAT s_afOpeningDurations_PSP[ TARRAYSIZE( s_aszOpeningCameras_PSP ) ];
 static TUINT s_uiOpeningShots_PSP = 0;
 static TFLOAT s_fOpeningElapsed_PSP = 0.0f;
+static TFLOAT s_fOpeningShotProgress_PSP = 0.0f;
 
 struct ASSeqOpeningShot_PSP
 {
@@ -94,7 +97,8 @@ static const TRenderCamera_PSP& AUpdateSSeqOpeningCamera_PSP( TFLOAT a_fDeltaTim
 	const TFLOAT fShotElapsed = uiShot == 0 ? s_fOpeningElapsed_PSP : s_fOpeningElapsed_PSP - s_afOpeningDurations_PSP[ 0 ];
 	AFrontEndCamera_PSP& rCamera = s_aSSeqOpeningCameras_PSP[ uiShot ];
 	const TFLOAT fSampleDuration = TFLOAT( rCamera.GetFrameCount() - 1 ) / rCamera.GetSampleRate();
-	rCamera.SetTime( fShotElapsed * fSampleDuration / s_afOpeningDurations_PSP[ uiShot ] );
+	s_fOpeningShotProgress_PSP = TMath::Min( fShotElapsed / s_afOpeningDurations_PSP[ uiShot ], 1.0f );
+	rCamera.SetTime( s_fOpeningShotProgress_PSP * fSampleDuration );
 	a_rReport.uiNewGameOpeningShot = uiShot + 1;
 	return rCamera.GetRenderCamera();
 }
@@ -246,6 +250,9 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 		s_RenderInterface_PSP.BeginScene( 0xff000000 );
 		rReport.uiNewGameSkyDraws += s_SSeqSkyDome_PSP.Render( s_RenderInterface_PSP, rCamera, a_fDeltaTime );
 		rReport.uiNewGameOpeningDraws += s_SSeqTerrain_PSP.Render( s_RenderInterface_PSP, rCamera );
+		const TUINT uiShot = rReport.uiNewGameOpeningShot - 1;
+		const TUINT uiActorDraws = s_SSeqActors_PSP.Render( s_RenderInterface_PSP, rCamera, uiShot, s_fOpeningShotProgress_PSP );
+		rReport.auiNewGameActorDraws[ uiShot ] = TMath::Max( rReport.auiNewGameActorDraws[ uiShot ], uiActorDraws );
 		s_RenderInterface_PSP.EndScene();
 		rReport.uiNewGameOpeningFrames++;
 		if ( uiPreviousShot != rReport.uiNewGameOpeningShot || rReport.uiRendererFrames % 60 == 0 )
@@ -503,6 +510,12 @@ TBOOL AStartSSeqOpening_PSP()
 		ASetGameRuntimeFailedPath_PSP( s_SSeqSkyDome_PSP.GetFailedPath() );
 		return TFALSE;
 	}
+	if ( uiShotCount == TARRAYSIZE( s_aszOpeningCameras_PSP ) && !s_SSeqActors_PSP.Load() )
+	{
+		AStopSSeqOpening_PSP( TTRUE );
+		ASetGameRuntimeFailedPath_PSP( s_SSeqActors_PSP.GetFailedPath() );
+		return TFALSE;
+	}
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiNewGameTerrainMeshes = s_SSeqTerrain_PSP.GetMeshCount();
 	rReport.uiNewGameTerrainTextures = s_SSeqTerrain_PSP.GetTextureCount();
@@ -510,10 +523,13 @@ TBOOL AStartSSeqOpening_PSP()
 	rReport.uiNewGameOpeningFrames = 0;
 	rReport.uiNewGameSkyDraws = 0;
 	rReport.uiNewGameOpeningShot = 0;
+	for ( TUINT& ruiDraws : rReport.auiNewGameActorDraws )
+		ruiDraws = 0;
 	rReport.iNewGameVoiceMS = -1;
 	rReport.uiNewGameVoiceUnderruns = 0;
 	rReport.uiNewGameVoiceNonSilentBlocks = 0;
 	s_fOpeningElapsed_PSP = 0.0f;
+	s_fOpeningShotProgress_PSP = 0.0f;
 	s_uiOpeningShots_PSP = uiShotCount;
 	if ( iVoice >= 0 )
 		APlaySSeqVO_PSP( iVoice );
@@ -528,6 +544,7 @@ void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend )
 	for ( AFrontEndCamera_PSP& rCamera : s_aSSeqOpeningCameras_PSP )
 		rCamera.Unload();
 	s_SSeqSkyDome_PSP.Unload();
+	s_SSeqActors_PSP.Unload();
 	s_SSeqTerrain_PSP.Unload();
 	if ( a_bRestoreFrontend )
 		ALoadFrontEndWorld_PSP();
