@@ -16,15 +16,18 @@ MAX_MESHES = 512
 MAX_TEXTURES = 256
 
 
-def package(source: Path, output: Path) -> dict:
+def package(source: Path, output: Path, envmain_dawn: bool = False) -> dict:
     terrain = json.loads(source.read_text(encoding="utf-8-sig"))
     if terrain.get("version") != 1 or terrain["failed"] or terrain["converted"] != len(terrain["packs"]):
         raise ValueError("expected a complete sequence terrain conversion")
+    if envmain_dawn and terrain["terrain"] != "EnvMain":
+        raise ValueError("the dawn material visibility applies to EnvMain")
 
     meshes = []
     textures = {}
     entries = []
     packs = []
+    hidden_light_cones = 0
     for pack in terrain["packs"]:
         manifest = source.parent / pack["manifest"]
         data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -55,6 +58,10 @@ def package(source: Path, output: Path) -> dict:
                     texture != data["models"][model]["texture_index"]):
                 raise ValueError(f"invalid terrain material entry: {manifest}")
             seen.add(model)
+            # ATerrainInterface turns these night light cones off by 05:30.
+            if envmain_dawn and data["models"][model]["material"].casefold() in {"lightcone_outer", "lightcone_inner"}:
+                hidden_light_cones += 1
+                continue
             path = manifest.parent / data["models"][model]["mesh"]
             if path.stat().st_size != data["models"][model]["bytes"]:
                 raise ValueError(f"PMES size does not match the manifest: {path}")
@@ -80,17 +87,20 @@ def package(source: Path, output: Path) -> dict:
               "mesh_count": len(meshes), "texture_count": len(textures), "packs": packs,
               "geometry_bytes": sum(mesh.stat().st_size for mesh in meshes),
               "texture_bytes": sum(size for _, _, size in textures.values())}
+    if envmain_dawn:
+        report["dawn_hidden_light_cones"] = hidden_light_cones
     (output / "terrain.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--envmain-dawn", action="store_true")
     parser.add_argument("source", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     try:
-        report = package(args.source, args.output)
+        report = package(args.source, args.output, args.envmain_dawn)
     except (KeyError, OSError, ValueError, struct.error) as error:
         parser.exit(1, f"Sequence terrain packaging failed: {error}\n")
     print(f"Packaged {report['mesh_count']} meshes and {report['texture_count']} shared textures "
