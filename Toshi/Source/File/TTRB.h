@@ -333,6 +333,7 @@ public:
 	template <typename T>
 	T* CastSymbol( const TCHAR* symbName ) { return TSTATICCAST( T, GetSymbolAddress( symbName ) ); }
 
+	TINT32 GetNumSections() const { return m_pHeader != TNULL ? m_pHeader->m_i32SectionCount : 0; }
 	SecInfo* GetSectionInfoList() const { return reinterpret_cast<SecInfo*>( m_pHeader + 1 ); }
 	SecInfo* GetSectionInfo( TINT index ) const { return GetSectionInfoList() + index; }
 
