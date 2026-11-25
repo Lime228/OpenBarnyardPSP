@@ -199,7 +199,13 @@ TString16& TString16::Format( const TWCHAR* a_pcFormat, ... )
 
 	va_start( args, a_pcFormat );
 
+#ifdef TOSHI_SKU_PSP
+	TINT iResult = vswprintf( buffer, TARRAYSIZE( buffer ), a_pcFormat, args );
+	if ( iResult < 0 )
+		buffer[ 0 ] = L'\0';
+#else
 	TINT iResult = _vsnwprintf( buffer, TARRAYSIZE( buffer ), a_pcFormat, args );
+#endif
 	TASSERT( iResult != -1, "PS2/GC/X360 do not correctly support _vsnprintf, this code will cause memory to be clobbered on those platforms! Increase the size of the destination string to avoid this problem" );
 	Copy( buffer, -1 );
 
@@ -224,7 +230,13 @@ TString16& TString16::VFormat( const TWCHAR* a_pcFormat, va_list a_vargs )
 {
 	TWCHAR buffer[ 0x400 ];
 
+#ifdef TOSHI_SKU_PSP
+	TINT iResult = vswprintf( buffer, TARRAYSIZE( buffer ), a_pcFormat, a_vargs );
+	if ( iResult < 0 )
+		buffer[ 0 ] = L'\0';
+#else
 	TINT iResult = _vsnwprintf( buffer, sizeof( buffer ), a_pcFormat, a_vargs );
+#endif
 	TASSERT( iResult != -1, "PS2/GC/X360 do not correctly support _vsnprintf, this code will cause memory to be clobbered on those platforms! Increase the size of the destination string to avoid this problem" );
 	Copy( buffer, -1 );
 
@@ -506,6 +518,9 @@ TINT TString16::CompareNoCase( const TWCHAR* a_pcString, TINT param_2 ) const
 	TASSERT( IsIndexValid( 0 ), "TWString::CompareNoCase - Index 0 is not valid" );
 	TASSERT( GetString() != TNULL, "TWString::CompareNoCase - String cannot be TNULL" );
 
+#ifdef TOSHI_SKU_PSP
+	return T2String16::CompareNoCase( GetString(), a_pcString, TSIZE( param_2 ) );
+#else
 	if ( param_2 == -1 )
 	{
 		return _wcsicmp( GetString(), a_pcString );
@@ -514,6 +529,7 @@ TINT TString16::CompareNoCase( const TWCHAR* a_pcString, TINT param_2 ) const
 	TASSERT( IsIndexValid( 0 ), "TWString::CompareNoCase - Index 0 is not valid" );
 
 	return _wcsnicmp( GetString(), a_pcString, param_2 );
+#endif
 }
 
 TString16 TString16::Mid( TINT a_iFirst, TINT a_iCount ) const

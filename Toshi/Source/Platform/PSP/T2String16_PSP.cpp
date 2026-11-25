@@ -1,5 +1,6 @@
 #include "Toshi/Defines.h"
 #include "Toshi/T2String16.h"
+#include <cwctype>
 
 TOSHI_NAMESPACE_START
 
@@ -19,6 +20,20 @@ TINT T2String16::Compare( const TWCHAR* a_pLeft, const TWCHAR* a_pRight, TSIZE a
 		return 0;
 
 	return a_pLeft[ uiIndex ] < a_pRight[ uiIndex ] ? -1 : 1;
+}
+
+TINT T2String16::CompareNoCase( const TWCHAR* a_pLeft, const TWCHAR* a_pRight, TSIZE a_uiSize )
+{
+	for ( TSIZE i = 0; i < a_uiSize; i++ )
+	{
+		const auto wLeft = std::towlower( a_pLeft[ i ] );
+		const auto wRight = std::towlower( a_pRight[ i ] );
+		if ( wLeft != wRight )
+			return wLeft < wRight ? -1 : 1;
+		if ( wLeft == L'\0' )
+			break;
+	}
+	return 0;
 }
 
 TSIZE T2String16::Length( const TWCHAR* a_pString )
