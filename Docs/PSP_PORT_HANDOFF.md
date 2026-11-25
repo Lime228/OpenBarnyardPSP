@@ -473,10 +473,38 @@ still need verification.
 atlases into `SS01/CharacterSetup`. The 14 sections use their original
 coordinates from `Data/GUI/texsec.trb`. The male atlas comes from
 `lib_ss01.trb::gui_by_ssequi_TTL` and the female atlas from
-`lib_startup.trb::gui_hud_TTL`. Both stay at 256 by 128. At the player
-creation gate the original `ASSeqUI` still needs to update the runtime
-profile and actor-18 costume. The current pre-UI playback does not
-execute that command.
+`lib_startup.trb::gui_hud_TTL`. Both stay at 256 by 128. Staging with
+`-SS01CharacterSetupDirectory` enables the original native `ASSeqUI`
+after the first narration. It uses the original `SS01_GUI_idle` camera,
+localized gender, hide and name pages, and the three original VOs from
+`SS.fsb` (substreams 47 through 49). The confirmation retains the gender,
+costume and name in memory for the next phase.
+
+PPSSPP build `857604c6` from Actions run `45653038789` verified all three
+pages, gender 1, the original costume cycle from 2 to 5, a localized name
+edited to one letter, and confirmation through the original grid. The
+three voice substreams started and the test returned to the menu. The
+captures and the tested EBOOT are in
+`Runtime/OriginalSS01PlayerSetupValidation`.
+
+The character creation background retains the last animated poses from
+shot 16 while the original idle camera runs. All ten idle actor clips
+and the female actor-18 replacement clip exported successfully in the
+host preflight. The live idle actor residency, the profile-to-actor
+material update and the second narration timeline remain open.
+`CharacterSetup/Costumes/player_costumes.json` records the original
+`Skins.Tex` entries for both actor-18 models. Fourteen PSP texture files
+retain their retail indices and material targets, with lighting profile
+names preserved for the renderer.
+
+The batch also exports the original actor meshes and clips for all 13
+timed shots after `Player_select` into `SS01/AfterCharacterSetup`. The
+largest of those shots contains 8 resident meshes and 10,574 vertices,
+within the current skinning limits. All six timed female actor-18
+replacement clips also export. The end of `SS01b` precedes the end of the
+timed camera track by about 0.4 seconds. The runtime must continue from
+game time after that voice ends and switch to `BeadyIntDay` for the last
+shot.
 
 Build `4187fa2a` fixes the 3D texture scale and uses bilinear sampling.
 The before and after captures in `Runtime/OriginalSS01TextureValidation`
@@ -489,6 +517,11 @@ graphics check and the return to the menu.
 ```powershell
 .\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -Capture
+```
+
+```powershell
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01PlayerSetupValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening -SS01CharacterSetupDirectory Game/BarnyardPC/Workspace/SS01/CharacterSetup
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01PlayerSetupValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -Capture
 ```
 
 ### Main game entry
