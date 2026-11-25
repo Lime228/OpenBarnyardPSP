@@ -43,6 +43,11 @@ if ($LASTEXITCODE -ne 0) { throw 'SS01 opening camera packaging failed.' }
     --all-shots --tmdl $TMDLPath $installPath $sequenceManifestPath (Join-Path $outputPath 'CameraSequence')
 if ($LASTEXITCODE -ne 0) { throw 'SS01 camera sequence conversion failed.' }
 
+$continuationPath = Join-Path $outputPath 'AfterCharacterSetup'
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_sequence_opening.py') `
+    --after-character-setup (Join-Path $outputPath 'CameraSequence\camera_sequence.json') $continuationPath
+if ($LASTEXITCODE -ne 0) { throw 'SS01 second narration camera packaging failed.' }
+
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_character_setup.py') `
     --tmdl $TMDLPath --camera-sequence (Join-Path $outputPath 'CameraSequence\camera_sequence.json') `
     $installPath (Join-Path $outputPath 'CharacterSetup')
@@ -60,9 +65,14 @@ if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence model conversion failed.' }
     --tmdl $TMDLPath $installPath $sequenceManifestPath $modelsPath (Join-Path $outputPath 'Opening')
 if ($LASTEXITCODE -ne 0) { throw 'SS01 opening actor packaging failed.' }
 
-& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_actors.py') `
-    --after-character-setup --tmdl $TMDLPath $installPath $sequenceManifestPath $modelsPath (Join-Path $outputPath 'AfterCharacterSetup')
-if ($LASTEXITCODE -ne 0) { throw 'SS01 second narration actor packaging failed.' }
+$costumes = Join-Path $outputPath 'CharacterSetup\Costumes\player_costumes.json'
+foreach ($gender in 'Male', 'Female') {
+    $variant = @(if ($gender -ceq 'Female') { '--female-player' })
+    & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_actors.py') `
+        --after-character-setup --costumes $costumes @variant --tmdl $TMDLPath `
+        $installPath $sequenceManifestPath $modelsPath (Join-Path $continuationPath $gender)
+    if ($LASTEXITCODE -ne 0) { throw "SS01 second narration actor packaging failed for '$gender'." }
+}
 
 if ($encodedAudioRequired -or (Test-Path -LiteralPath (Join-Path $EncodedAudioDirectory 'fsb.encode.json') -PathType Leaf)) {
     & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_sequence_voice.py') `

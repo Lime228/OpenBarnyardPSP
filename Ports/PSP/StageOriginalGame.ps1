@@ -25,6 +25,7 @@ param(
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
     [string] $SS01CharacterSetupDirectory = '',
+    [string] $SS01AfterCharacterSetupDirectory = '',
     [switch] $SkipConversion
 )
 
@@ -1017,6 +1018,21 @@ else {
     Write-Warning "Converted movies are missing at $movieSource. Run convert_retail_movies.py to enable startup playback."
 }
 
+function Get-SS01ActorSources($directory, $manifest) {
+    foreach ($file in $manifest.files.PSObject.Properties) {
+        if ($file.Name -cnotmatch '^(actors\.psac|actor-(root|[0-9]|1[0-2])(\.pskl|-([0-9]|1[0-5])\.panm|-[0-2]\.pmes)|texture-([0-9]|1[0-4])\.ptex)$') {
+            throw "Invalid cached SS01 actor name: $($file.Name)"
+        }
+        $source = Get-Item -LiteralPath (Join-Path (Join-Path $directory 'Actors') $file.Name)
+        if ($source.PSIsContainer -or $source.Length -ne $file.Value) { throw "Invalid cached SS01 actor: $($file.Name)" }
+        $source.FullName
+    }
+}
+
+if ($SS01AfterCharacterSetupDirectory -and (-not $SS01OpeningDirectory -or -not $SS01CharacterSetupDirectory)) {
+    throw 'The second SS01 narration requires the original opening and character creation packages.'
+}
+
 if ($SS01OpeningDirectory) {
     $SS01OpeningDirectory = (Resolve-Path -LiteralPath $SS01OpeningDirectory).Path
     $opening = Get-Content -LiteralPath (Join-Path $SS01OpeningDirectory 'opening.json') -Raw | ConvertFrom-Json
@@ -1088,20 +1104,70 @@ if ($SS01OpeningDirectory) {
             $actors.actors.Count -lt 1 -or $actors.actors.Count -gt 13 -or -not $actors.files.'actors.psac') {
             throw 'Expected the SS01 opening actor manifest.'
         }
-        $actorSources = @(foreach ($file in $actors.files.PSObject.Properties) {
-            if ($file.Name -cnotmatch '^(actors\.psac|actor-(root|[0-9]|1[0-2])(\.pskl|-([0-9]|1[0-5])\.panm|-[0-2]\.pmes)|texture-([0-9]|1[0-4])\.ptex)$') {
-                throw "Invalid cached SS01 actor name: $($file.Name)"
-            }
-            $source = Get-Item -LiteralPath (Join-Path (Join-Path $SS01OpeningDirectory 'Actors') $file.Name)
-            if ($source.PSIsContainer -or $source.Length -ne $file.Value) { throw "Invalid cached SS01 actor: $($file.Name)" }
-            $source.FullName
-        })
+        $actorSources = @(Get-SS01ActorSources $SS01OpeningDirectory $actors)
     }
 }
 
-if ($SS01TerrainDirectory) {
-    $SS01TerrainDirectory = (Resolve-Path -LiteralPath $SS01TerrainDirectory).Path
-    $ss01Index = Join-Path $SS01TerrainDirectory 'terrain.ptld'
+if ($SS01AfterCharacterSetupDirectory) {
+    $continuationRoot = (Resolve-Path -LiteralPath $SS01AfterCharacterSetupDirectory).Path
+    $continuation = Get-Content -LiteralPath (Join-Path $continuationRoot 'continuation.json') -Raw | ConvertFrom-Json
+    if ($continuation.version -ne 3 -or $continuation.sequence -cne $opening.sequence -or
+        $opening.visibility_row -cne 'Barn' -or $continuation.shots.Count -lt 2 -or $continuation.shots.Count -gt 16) {
+        throw 'Expected the generated SS01 timeline after Player_select.'
+    }
+    $continuationFiles = @('opening.psco', 'opening.pcam')
+    for ($i = 1; $i -lt $continuation.shots.Count; $i++) {
+        $continuationFiles += "opening-$i.pcam"
+    }
+    $continuationSources = @(foreach ($name in $continuationFiles) {
+        $source = Get-Item -LiteralPath (Join-Path $continuationRoot $name)
+        if ($source.PSIsContainer -or $source.Length -ne $continuation.files.$name) { throw "Invalid cached SS01 camera: $name" }
+        $source.FullName
+    })
+
+    $continuationStream = @($voice.streams | Where-Object substream -EQ $continuation.voice.index)
+    $name = "$($continuation.voice.index).padp"
+    if (-not $openingVoice -or $continuationStream.Count -ne 1 -or $continuationStream[0].name -cne $continuation.voice.name -or
+        $continuationStream[0].path -cne $name) { throw 'Missing the original SS01 second narration in the voice package.' }
+    $continuationVoice = Get-Item -LiteralPath (Join-Path $voiceSource $name)
+    if ($continuationVoice.PSIsContainer -or $continuationVoice.Length -ne $continuationStream[0].bytes) {
+        throw 'Invalid cached SS01 second narration.'
+    }
+
+    $costumeRoot = Join-Path $setupRoot 'Costumes'
+    $costumes = Get-Content -LiteralPath (Join-Path $costumeRoot 'player_costumes.json') -Raw | ConvertFrom-Json
+    if ($costumes.version -ne 1 -or $costumes.sequence -cne $opening.sequence) { throw 'Expected the original SS01 costume manifest.' }
+    $continuationActors = @{}
+    $costumeSources = @(foreach ($variant in 'Male', 'Female') {
+        $model = if ($variant -ceq 'Male') { 'ss_player_quad' } else { 'ss_playerf_quad' }
+        $variantRoot = Join-Path $continuationRoot $variant
+        $cast = Get-Content -LiteralPath (Join-Path $variantRoot 'opening_actors.json') -Raw | ConvertFrom-Json
+        if ($cast.version -ne 3 -or $cast.sequence -cne $opening.sequence -or $cast.player_model -cne $model -or
+            $cast.actors.Count -lt 1 -or $cast.actors.Count -gt 13 -or
+            $cast.shot_mesh_counts.Count -ne $continuation.shots.Count -or -not $cast.files.'actors.psac') {
+            throw "Invalid SS01 actor manifest for '$variant'."
+        }
+        $continuationActors[$variant] = @(Get-SS01ActorSources $variantRoot $cast)
+        $skins = @($costumes.models | Where-Object model -CEQ $model)
+        if ($skins.Count -ne 1 -or $skins[0].costumes.Count -ne 7) { throw "Missing original costumes for '$model'." }
+        for ($i = 0; $i -lt 7; $i++) {
+            $costume = $skins[0].costumes[$i]
+            $name = "$model-$i.ptex"
+            if ($costume.index -ne $i -or $costume.file -cne $name) { throw "Invalid cached SS01 costume name: $name" }
+            $source = Get-Item -LiteralPath (Join-Path $costumeRoot $name)
+            if ($source.PSIsContainer -or $source.Length -ne $costume.bytes) { throw "Invalid cached SS01 costume: $name" }
+            $source.FullName
+        }
+    })
+    $beadyTerrain = Join-Path (Split-Path -Parent $continuationRoot) 'TerrainPack_BeadyIntDay'
+    $terrainManifest = Get-Content -LiteralPath (Join-Path $beadyTerrain 'terrain.json') -Raw | ConvertFrom-Json
+    if ($terrainManifest.terrain -cne 'ss01' -or $terrainManifest.visibility_row -cne 'BeadyIntDay') {
+        throw 'The SS01 continuation requires the original BeadyIntDay terrain row.'
+    }
+}
+
+function Copy-SS01Terrain($directory, $destination) {
+    $ss01Index = Join-Path $directory 'terrain.ptld'
     $index = [IO.File]::ReadAllBytes($ss01Index)
     if ($index.Length -lt 16 -or [Text.Encoding]::ASCII.GetString($index, 0, 4) -cne 'PTLD' -or
         [BitConverter]::ToUInt32($index, 4) -ne 1) {
@@ -1117,13 +1183,18 @@ if ($SS01TerrainDirectory) {
     $ss01Files = @(for ($i = 0; $i -lt $meshes; $i++) { "mesh_$i.pmes" }
                    for ($i = 0; $i -lt $textures; $i++) { "texture_$i.ptex" })
     $sources = foreach ($name in $ss01Files) {
-        (Get-Item -LiteralPath (Join-Path $SS01TerrainDirectory $name)).FullName
+        (Get-Item -LiteralPath (Join-Path $directory $name)).FullName
     }
-    $ss01Destination = Join-Path $runtimePath 'Data\Terrain\SS01'
-    New-Item -ItemType Directory -Force -Path $ss01Destination | Out-Null
-    Copy-Item -LiteralPath $sources -Destination $ss01Destination -Force
-    Copy-Item -LiteralPath $ss01Index -Destination $ss01Destination -Force
+    New-Item -ItemType Directory -Force -Path $destination | Out-Null
+    Copy-Item -LiteralPath $sources -Destination $destination -Force
+    Copy-Item -LiteralPath $ss01Index -Destination $destination -Force
     Write-Output "Staged SS01 terrain ($meshes meshes and $textures shared textures)"
+}
+
+if ($SS01TerrainDirectory) {
+    $ss01Destination = Join-Path $runtimePath 'Data\Terrain\SS01'
+    Copy-SS01Terrain $SS01TerrainDirectory $ss01Destination
+    if ($beadyTerrain) { Copy-SS01Terrain $beadyTerrain (Join-Path $ss01Destination 'BeadyIntDay') }
 }
 
 if ($SS01OpeningDirectory) {
@@ -1155,6 +1226,22 @@ if ($SS01OpeningDirectory) {
         Copy-Item -LiteralPath $openingVoice.FullName -Destination $voiceDestination -Force
         if ($setupVoice.Count) { Copy-Item -LiteralPath $setupVoice -Destination $voiceDestination -Force }
         Write-Output "Staged the original voice stream $($opening.voice.name)"
+    }
+    $continuationDestination = Join-Path $openingDestination 'AfterCharacterSetup'
+    $continuationIndex = Join-Path $continuationDestination 'opening.psco'
+    if (Test-Path -LiteralPath $continuationIndex -PathType Leaf) { Remove-Item -LiteralPath $continuationIndex -Force }
+    if ($SS01AfterCharacterSetupDirectory) {
+        foreach ($variant in 'Male', 'Female') {
+            $destination = Join-Path $continuationDestination "$variant\Actors"
+            New-Item -ItemType Directory -Force -Path $destination | Out-Null
+            Copy-Item -LiteralPath $continuationActors[$variant] -Destination $destination -Force
+        }
+        $destination = Join-Path $openingDestination 'Costumes'
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
+        Copy-Item -LiteralPath $costumeSources -Destination $destination -Force
+        Copy-Item -LiteralPath $continuationVoice.FullName -Destination $voiceDestination -Force
+        Copy-Item -LiteralPath $continuationSources -Destination $continuationDestination -Force
+        Write-Output "Staged the second SS01 narration ($($continuation.shots.Count) shots) with both original player models and costumes"
     }
     Write-Output 'Staged the original SS01 opening'
 }

@@ -15,7 +15,7 @@ from convert_retail_model_animations import clip_sample_rate
 from convert_skeleton import convert as convert_skeleton
 from inventory_retail_models import run_export, run_tmdl
 from inventory_retail_sequence import retail_file
-from package_retail_sequence_opening import camera_shots, opening_shots
+from package_retail_sequence_opening import camera_shots, opening_shots, split_at_character_setup
 
 
 MAX_ACTORS = 13
@@ -75,14 +75,14 @@ def pack_clips(tool: Path, install: Path, pack: Path, libraries: dict, model: st
 
 
 def package(tool: Path, install: Path, sequence: dict, models_path: Path,
-            actor_names: list[str], output: Path, after_character_setup: bool = False) -> dict:
+            actor_names: list[str], output: Path, after_character_setup: bool = False,
+            female_player: bool = False, costumes: Path | None = None) -> dict:
     script = sequence["script"]
     first_pause = 1
     if after_character_setup:
         _, shots = camera_shots(script)
-        gate, = [index for index, shot in enumerate(shots) if shot["ui"] == "Player_select"]
+        gate, shots = split_at_character_setup(shots)
         first_pause = gate + 2
-        shots = shots[gate + 1:]
     else:
         _, shots, _ = opening_shots(script)
     attachment, = script["attachment_tracks"]
@@ -113,6 +113,17 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
     if manifest["sequence"] != sequence["sequence"]:
         raise ValueError("actor models and script come from different sequences")
     models = {entry["model"].casefold(): entry for entry in manifest["models"]}
+    player_actor = "ss_player_quad"
+    player_model = "ss_playerf_quad" if female_player else player_actor
+    costume_model = None
+    if costumes is not None:
+        costume_manifest = json.loads(costumes.read_text(encoding="utf-8"))
+        if not after_character_setup or costume_manifest["sequence"] != sequence["sequence"] or player_actor not in active:
+            raise ValueError("player costumes require the original actor timeline after Player_select")
+        costume_model, = [entry for entry in costume_manifest["models"] if entry["model"] == player_model]
+        if [entry["index"] for entry in costume_model["costumes"]] != list(range(7)):
+            raise ValueError(f"{player_model}: expected seven original costumes")
+        models[player_actor] = models[player_model]
     shot_mesh_counts = []
     for shot in range(len(shots)):
         names = [name for name, clips in active.items() if shot in clips]
@@ -127,7 +138,9 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
     output.mkdir(parents=True, exist_ok=True)
     actors = []
     textures = {}
-    payload = bytearray(struct.pack("<4sIII", b"PSAC", 2, len(active), len(shots)))
+    version = 3 if costume_model else 2
+    payload = bytearray(struct.pack("<4sIII", b"PSAC", version, len(active), len(shots)))
+    costume_slot = None
     with tempfile.TemporaryDirectory(dir=output) as temporary:
         work = Path(temporary)
         runtime = work / "Actors"
@@ -142,29 +155,43 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
             directory = models_path / model["directory"]
             prefix = f"actor-{index}"
             bind_bones = json.loads((directory / "model.json").read_text(encoding="utf-8"))["skeleton"]
-            pack_clips(tool, install, pack, libraries, name, clips, prefix, runtime, work, bind_bones)
+            pack_clips(tool, install, pack, libraries, model["model"], clips, prefix, runtime, work, bind_bones)
             shutil.copyfile(directory / model["skeleton"], runtime / f"{prefix}.pskl")
             indices = []
             for mesh_index, mesh in enumerate(model["meshes"]):
+                use_costume = (costume_model is not None and name == player_actor and
+                               ("ss_" + mesh["material"]).casefold() == costume_model["material"].casefold())
                 texture = mesh["texture_path"]
+                if use_costume:
+                    if costume_slot is not None or mesh["texture"].casefold() != costume_model["costumes"][0]["texture"].casefold():
+                        raise ValueError(f"{player_model}: unexpected costume material")
+                    costume_slot = len(textures)
+                    texture = "player-costume"
                 if texture not in textures:
                     if len(textures) == MAX_TEXTURES:
                         raise ValueError("the opening exceeds the resident PSP actor texture limit")
                     textures[texture] = len(textures)
-                    shutil.copyfile(models_path / texture, runtime / f"texture-{textures[texture]}.ptex")
+                    if not use_costume:
+                        shutil.copyfile(models_path / texture, runtime / f"texture-{textures[texture]}.ptex")
                 indices.append(textures[texture])
                 shutil.copyfile(directory / mesh["path"], runtime / f"{prefix}-{mesh_index}.pmes")
             payload.extend(struct.pack("<6I", rig_bones[sockets[name].casefold()], sum(1 << shot for shot in clips),
                                        len(indices), *indices, *([0] * (MAX_MESHES_PER_ACTOR - len(indices)))))
-            actors.append({"model": name, "socket": sockets[name], "clips": clips, "meshes": len(indices)})
+            actors.append({"model": model["model"], "socket": sockets[name], "clips": clips, "meshes": len(indices)})
+        if costume_model:
+            if costume_slot is None:
+                raise ValueError(f"{player_model}: missing costume material")
+            payload.extend(struct.pack("<I", costume_slot))
         (runtime / "actors.psac").write_bytes(payload)
         files = {path.name: path.stat().st_size for path in sorted(runtime.iterdir())}
         destination = output / "Actors"
         destination.mkdir(exist_ok=True)
         for name in files:
             (runtime / name).replace(destination / name)
-        report = {"version": 2, "sequence": sequence["sequence"], "root": root, "actors": actors,
+        report = {"version": version, "sequence": sequence["sequence"], "root": root, "actors": actors,
                   "first_pause": first_pause, "shot_mesh_counts": shot_mesh_counts, "files": files}
+        if costume_model:
+            report.update(player_model=player_model, costume_slot=costume_slot)
         pending = work / "opening_actors.json"
         pending.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         pending.replace(output / "opening_actors.json")
@@ -175,18 +202,22 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tmdl", required=True, type=Path)
     parser.add_argument("--after-character-setup", action="store_true", help="bake the timed shots following Player_select")
+    parser.add_argument("--female-player", action="store_true", help="use the original female player model")
+    parser.add_argument("--costumes", type=Path, help="reserve the texture slot for the selected original costume")
     parser.add_argument("install", type=Path)
     parser.add_argument("sequence", type=Path)
     parser.add_argument("models", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
+    if args.female_player and args.costumes is None:
+        parser.error("--female-player requires --costumes")
     try:
         tool = args.tmdl.resolve(strict=True)
         (tool.parent / "Logs").mkdir(exist_ok=True)
         engine = Path(__file__).resolve().parents[3] / "OpenBarnyard/Source/Units/ASSeqActorData.cpp"
         sequence = json.loads(args.sequence.read_text(encoding="utf-8"))
         report = package(tool, args.install.resolve(strict=True), sequence, args.models, read_actor_names(engine),
-                         args.output.resolve(), args.after_character_setup)
+                         args.output.resolve(), args.after_character_setup, args.female_player, args.costumes)
     except (IndexError, KeyError, OSError, TypeError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Opening actor packaging failed: {error}\n")
     print(f"Packaged {len(report['actors'])} SS01 opening actors ({sum(report['files'].values())} bytes)")
