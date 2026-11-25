@@ -72,7 +72,7 @@ Current estimates:
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
 | Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
-| Complete playable-game port | 35% | Original startup, frontend and SS01 run. The selected player can walk and run in the opening EnvMain yard. World streaming, collision sweeps, gameplay systems, saves and most in-game audio remain. |
+| Complete playable-game port | 36% | Original startup, frontend and SS01 run. The opening EnvMain yard has grounded movement, terrain wall contacts and a camera that retracts at walls. World streaming, dynamic colliders, gameplay systems, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
 
@@ -629,10 +629,19 @@ packs still load with their idle loop.
 input thresholds. The PSP grounded path uses the original acceleration,
 braking, turning rates and measured-speed animation thresholds. It
 samples the two foot contacts against the resident terrain collision
-TRBs. The camera retains the original default distance, height offset,
-pitch and horizontal FOV and follows the current player position.
-Swept collision against walls and props, airborne motion, camera
-obstruction, animation blending and the original pause menu remain.
+TRBs. For walls it sweeps the lower and upper player spheres from
+`APlayerSteer::SweepAndSlide`, tests the original triangles with
+`TMath::SweptSphereVsTriangle` and uses `TMath::SlideAlongPlane` for
+the remaining horizontal movement. Mesh and 32-triangle block bounds
+serve both the wall sweeps and the foot rays. The bounded index uses
+about 17 KiB for its blocks and keeps the vertices and indices in their
+original TRBs. The camera retains the original follow position, height
+offset, pitch and FOV. It keeps the free orbit for steering and shortens
+the rendered orbit against the resident terrain. The obstruction query
+uses the 0.43 m and 0.2 m spheres and ignored terrain groups from
+`AGTAStyleCameraHelper`. Airborne motion, the retail pitch response,
+colliders owned by movable objects, animation blending and the pause
+menu remain.
 
 The EnvMain terrain batch also exports the original instance locators.
 `envmain-instances.json` uses the type-0 table from `AGameLoader` and
@@ -655,6 +664,11 @@ Add `-CheckMainGameMovement` with a v2 player pack to drive a half-tilt
 walk and a full-tilt run through PPSSPP. The check reads the avatar and
 camera positions, verifies the two original movement loops and confirms
 that releasing the stick returns the avatar to idle at the new position.
+`-CheckMainGameCollision` holds the stick towards the original wall
+behind the spawn, checks that the player stays outside its plane under
+continued input, then uses diagonal input to check sliding along it.
+`-CheckMainGameCamera` also checks which side of the wall the render
+camera occupies and its return to five metres in the open yard.
 
 Build `a33be3b3` from Actions run `45710259331` passed two upright
 terrain-only walks through SS01, one for each original player model.
@@ -675,6 +689,26 @@ and peak renderer use across both runs was 13,764,048 bytes out of
 16,777,216. Start returned to the original menu and live animated vertices
 dropped to zero. The EBOOT, screenshots and reports are in
 `Runtime/OriginalEnvMainMovementValidation`.
+
+Player collision build `32899e66` passed Actions run `45716936993`.
+The combined walkthrough still walked and ran in the original yard,
+stopped at Z −40.41 while pushing toward the wall, and travelled
+0.69 m along it on diagonal input. After sliding, the report recorded
+97 contact steps and a peak of 13,764,048 renderer bytes. The first test
+also exposed the old camera clipping into the roof. The screenshot and
+logs are in `Runtime/OriginalEnvMainCollisionValidation`.
+
+Camera build `5c248f3b` passed Actions run `45717938105` and the same
+complete walkthrough in PPSSPP. The player stopped at Z −40.41 and slid
+0.68 m along the wall. The camera retracted to 1.00 m, stayed in front of
+the wall, then recovered to 5.00 m as the player ran back into the yard.
+Peak render use was 13,764,048 out of 16,777,216 bytes. Start still
+returned to the original menu and released the animation vertices.
+The EBOOT, captures and logs are in `Runtime/OriginalEnvMainCameraValidation`.
+
+```powershell
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainCameraValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -CheckMainGameMovement -CheckMainGameCollision -CheckMainGameCamera -Capture
+```
 
 ## Known limitations
 
@@ -700,11 +734,9 @@ dropped to zero. The EBOOT, screenshots and reports are in
   zero PCM underruns in PPSSPP. Physical PSP playback performance still needs
   measurement.
 - `ATerrainCollision_PSP` reads the six initial terrain colliders and
-  resolves vertical rays for the spawn and player foot contacts.
-  The next collision path needs lower and upper player sweeps from
-  `APlayerSteer::SweepAndSlide`, using `TMath::SweptSphereVsTriangle`
-  as the original `ACollisionModel` does. Camera obstruction, dynamic
-  colliders and the general `ACollisionModel_PSP` queries also remain.
+  resolves vertical rays, grounded player sweeps and terrain obstruction
+  for the camera. Step-up, airborne movement, dynamic colliders and the
+  general `ACollisionModel_PSP` queries remain.
 - The PSP frontend plays its original resident UI cues and streamed music.
   Gameplay still needs the original cue, voice-over and multiplex playback paths.
 - The texture cache holds at most 16 unique GUI textures. The current menu fits;
