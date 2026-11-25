@@ -26,6 +26,7 @@ param(
     [string] $PythonPath = '',
     [string] $SS01CharacterSetupDirectory = '',
     [string] $SS01AfterCharacterSetupDirectory = '',
+    [string] $MainGameDirectory = '',
     [switch] $SkipConversion
 )
 
@@ -1244,6 +1245,48 @@ if ($SS01OpeningDirectory) {
         Write-Output "Staged the second SS01 narration ($($continuation.shots.Count) shots) with both original player models and costumes"
     }
     Write-Output 'Staged the original SS01 opening'
+}
+
+$collisionDestination = Join-Path $runtimePath 'Data\Terrain\EnvMain'
+$collisionIndex = Join-Path $collisionDestination 'initial.pscl'
+if ($MainGameDirectory) {
+    if (-not $SS01AfterCharacterSetupDirectory) { throw 'The EnvMain start check requires the staged SS01 continuation.' }
+    $manifestPath = Join-Path $MainGameDirectory 'sim_start.json'
+    $start = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ($start.version -ne 1 -or $start.network -cne 'Data/Networks/park2.trb' -or
+        $start.terrain -cne 'Data/Terrain/EnvMain/EnvMain.trb' -or $start.initial_visibility_row -cne 'Barn' -or
+        $start.start_goal.name -cne 'park2_goals_playerstart') {
+        throw 'Expected the original EnvMain start inventory.'
+    }
+    $colliders = @($start.collision | Where-Object initial_lod -CEQ 'high')
+    if ($colliders.Count -ne 6 -or @($colliders.path | Select-Object -Unique).Count -ne $colliders.Count) {
+        throw 'Expected the six original collision TRBs in the initial high LOD. Refresh the EnvMain inventory with current TMDL.'
+    }
+    $index = [byte[]]::new(12 + 48 * $colliders.Count)
+    [Text.Encoding]::ASCII.GetBytes('PSCL').CopyTo($index, 0)
+    [BitConverter]::GetBytes([uint32]1).CopyTo($index, 4)
+    [BitConverter]::GetBytes([uint32]$colliders.Count).CopyTo($index, 8)
+    $sources = @(for ($i = 0; $i -lt $colliders.Count; $i++) {
+        $collider = $colliders[$i]
+        if ($collider.path -cnotmatch '^Data/Terrain/EnvMain/([A-Za-z0-9_]{1,39}_col\.trb)$') {
+            throw "Invalid original EnvMain collision path: $($collider.path)"
+        }
+        [Text.Encoding]::ASCII.GetBytes($Matches[1]).CopyTo($index, 12 + 48 * $i)
+        $source = Get-Item -LiteralPath (Join-Path $installPath $collider.path)
+        if ($source.PSIsContainer -or $source.Length -ne $collider.bytes) { throw "Invalid EnvMain collision file: $($collider.path)" }
+        $source.FullName
+    })
+    $network = Get-Item -LiteralPath (Join-Path $installPath $start.network)
+    if ($network.PSIsContainer) { throw 'Expected the original park2 network TRB.' }
+    $networkDestination = Join-Path $runtimePath 'Data\Networks'
+    New-Item -ItemType Directory -Force -Path $networkDestination, $collisionDestination | Out-Null
+    Copy-Item -LiteralPath $network.FullName -Destination $networkDestination -Force
+    Copy-Item -LiteralPath $sources -Destination $collisionDestination -Force
+    [IO.File]::WriteAllBytes($collisionIndex, $index)
+    Write-Output 'Staged the original park2 network and six initial EnvMain collision TRBs'
+}
+elseif (Test-Path -LiteralPath $collisionIndex -PathType Leaf) {
+    Remove-Item -LiteralPath $collisionIndex -Force
 }
 
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force

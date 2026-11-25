@@ -11,6 +11,7 @@ param(
     [switch] $OpeningOnly,
     [switch] $CheckCharacterSetup,
     [switch] $CheckContinuation,
+    [switch] $CheckMainGameStart,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -44,6 +45,10 @@ if ($CheckCharacterSetup -and (-not $CheckNewGameOpening -or -not (Test-Path -Li
 $continuationConfig = Join-Path $runtimePath 'Data\ScriptedSequence\SS01\AfterCharacterSetup\opening.psco'
 if ($CheckContinuation -and (-not $CheckCharacterSetup -or -not (Test-Path -LiteralPath $continuationConfig -PathType Leaf))) {
     throw 'Continuation validation requires -CheckCharacterSetup and the staged second SS01 narration.'
+}
+$mainGameIndex = Join-Path $runtimePath 'Data\Terrain\EnvMain\initial.pscl'
+if ($CheckMainGameStart -and (-not $CheckContinuation -or -not (Test-Path -LiteralPath $mainGameIndex -PathType Leaf))) {
+    throw 'The EnvMain start check requires -CheckContinuation and the staged original collision TRBs.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -85,7 +90,7 @@ function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}, [
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         $status = Read-GameLog
-        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed|opening-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
+        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed|opening-failed|sim-start-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
         $matching = $status.phase -eq $Phase
         if ($Focus -ge 0) {
             $matching = $matching -and $status.menu_state -eq '5' -and $status.menu_focus -eq "$Focus"
@@ -355,6 +360,18 @@ try {
                 }
                 if ($Capture) { Send-Key Screenshot }
                 "SS01b played to $($complete.new_game_continuation_voice_ms) ms without underruns, drew all 13 original shots and finished in BeadyIntDay."
+                if ($CheckMainGameStart) {
+                    $triangles = [int]$complete.new_game_sim_collision_triangles
+                    if ($complete.new_game_sim_start_ready -ne '1' -or $complete.new_game_sim_collision_packs -ne '6' -or
+                        $complete.new_game_sim_area -ne '105' -or $triangles -le 0 -or $triangles -gt 16384 -or
+                        $complete.new_game_sim_spawn -ne '19.087500,-8.363579,-35.884602' -or
+                        $complete.new_game_sim_facing -ne '-0.012220,0.000000,0.999925') {
+                        throw "Original EnvMain start did not resolve. See $gameLog"
+                    }
+                    $ground = [double]::Parse($complete.new_game_sim_ground_y, [Globalization.CultureInfo]::InvariantCulture)
+                    if ([Math]::Abs($ground + 8.363579) -gt 0.25) { throw "Unexpected EnvMain ground Y $ground. See $gameLog" }
+                    "Resolved the original park2 start and queried ground Y $ground against $triangles original EnvMain collision triangles."
+                }
             }
         }
         Send-Key Triangle
