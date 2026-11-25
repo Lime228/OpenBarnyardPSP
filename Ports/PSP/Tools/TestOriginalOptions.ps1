@@ -14,6 +14,7 @@ param(
     [switch] $CheckMainGameStart,
     [switch] $CheckMainGameScene,
     [switch] $CheckMainGameInstances,
+    [switch] $CheckMainGameMovement,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -58,6 +59,9 @@ if ($CheckMainGameScene -and (-not $CheckMainGameStart -or -not $mainGameTerrain
 }
 if ($CheckMainGameInstances -and -not $CheckMainGameScene) {
     throw 'Use -CheckMainGameInstances with -CheckMainGameScene.'
+}
+if ($CheckMainGameMovement -and -not $CheckMainGameScene) {
+    throw 'Use -CheckMainGameMovement with -CheckMainGameScene.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -112,6 +116,49 @@ function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}, [
         Start-Sleep -Milliseconds 150
     } while ((Get-Date) -lt $deadline)
     throw "Expected $Phase focus $Focus. Current phase $($status.phase), state $($status.menu_state), focus $($status.menu_focus), effects $($status.option_effects), inverted $($status.option_inverted), sensitivity $($status.option_sensitivity). See $gameLog"
+}
+
+function Convert-SimPosition([string] $Value) {
+    $position = $Value -split ','
+    if ($position.Count -ne 3) { throw "Invalid simulation position '$Value'. See $gameLog" }
+    foreach ($axis in $position) {
+        [double]::Parse($axis, [Globalization.CultureInfo]::InvariantCulture)
+    }
+}
+
+function Test-MainGameMovement([hashtable] $Scene) {
+    if ($Scene.sim_player_steering -ne '1' -or $Scene.sim_player_motion -ne '0') {
+        throw "Expected the original player steering data and an idle avatar. See $gameLog"
+    }
+    $spawn = Convert-SimPosition $Scene.sim_player_position
+    $cameraStart = Convert-SimPosition $Scene.sim_camera_position
+    & $runner @runnerArguments -Action Press -Key AnalogUp -AnalogMagnitude 0.5 -AnalogHoldMilliseconds 2000 | Write-Host
+    $walking = Wait-Menu 'sim-world-ready' -1 @{ sim_player_motion = 0; sim_player_motion_mask = 3; sim_player_speed = '0.0000' } 15
+    $walkEnd = Convert-SimPosition $walking.sim_player_position
+    $walkDistance = $walkEnd[2] - $spawn[2]
+    if ($walkDistance -lt 0.4) { throw "The half-tilt stick moved only $walkDistance metres. See $gameLog" }
+
+    & $runner @runnerArguments -Action Press -Key AnalogUp -AnalogHoldMilliseconds 2000 | Write-Host
+    $running = Wait-Menu 'sim-world-ready' -1 @{ sim_player_motion = 0; sim_player_motion_mask = 7; sim_player_speed = '0.0000' } 15
+    $runEnd = Convert-SimPosition $running.sim_player_position
+    $runDistance = $runEnd[2] - $walkEnd[2]
+    $cameraEnd = Convert-SimPosition $running.sim_camera_position
+    if ($runDistance -le $walkDistance -or $cameraEnd[2] -le $cameraStart[2] + $walkDistance) {
+        throw "Expected full-tilt movement and the following gameplay camera. See $gameLog"
+    }
+    if ([Math]::Abs($runEnd[1] - $spawn[1]) -gt 0.75) {
+        throw "The player left the starting yard surface. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    $deadline = (Get-Date).AddSeconds(15)
+    do {
+        Start-Sleep -Milliseconds 150
+        $settled = Read-GameLog
+    } while ([int]$settled.sim_frames -le [int]$running.sim_frames -and (Get-Date) -lt $deadline)
+    if ($settled.sim_player_position -ne $running.sim_player_position -or [int]$settled.sim_frames -le [int]$running.sim_frames) {
+        throw "The avatar did not remain idle after releasing the analog stick. See $gameLog"
+    }
+    "Original EnvMain walked {0:F2} m, ran {1:F2} m, and returned to Idle at ({2})." -f $walkDistance, $runDistance, $settled.sim_player_position
 }
 
 function Wait-MenuCue([int] $Cue, [hashtable] $Before) {
@@ -398,6 +445,7 @@ try {
                     }
                     if ($Capture) { Send-Key Screenshot }
                     "Rendered $($scene.sim_frames) EnvMain frames with $($scene.sim_terrain_draws) terrain draws and two gameplay player meshes."
+                    if ($CheckMainGameMovement) { Test-MainGameMovement $scene }
                 }
             }
         }
