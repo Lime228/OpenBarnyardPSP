@@ -32,3 +32,7 @@ $terrainOutput = Join-Path $outputPath "Terrain_$row"
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_sequence_terrain.py') `
     (Join-Path $terrainOutput 'EnvMain_terrain.json') (Join-Path $outputPath "TerrainPack_$row")
 if ($LASTEXITCODE -ne 0) { throw 'The original gameplay terrain packaging failed.' }
+
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_sky.py') `
+    --tmdl $TMDLPath --phase dawn $installPath (Join-Path $outputPath 'Sky')
+if ($LASTEXITCODE -ne 0) { throw 'The original gameplay sky packaging failed.' }

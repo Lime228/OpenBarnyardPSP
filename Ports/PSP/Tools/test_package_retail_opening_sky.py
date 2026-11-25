@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from package_retail_opening_sky import bake_dome, read_morning_fx
+from package_retail_opening_sky import bake_dome, read_time_fx
 
 
 class OpeningSkyTests(unittest.TestCase):
@@ -27,7 +27,7 @@ class OpeningSkyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "GameTimeFXSettings.trb"
             source.write_bytes(struct.pack("<4sI", b"TSFL", len(form)) + form)
-            profile = read_morning_fx(source, symbols)
+            profile = read_time_fx(source, symbols)
         self.assertEqual(profile["name"], "morning")
         self.assertEqual(profile["texture_index"], 1)
         self.assertEqual(profile["colour_matrix"][0][:3], (90, 137, 230))

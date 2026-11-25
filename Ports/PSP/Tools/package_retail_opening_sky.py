@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Bake the dome and cloud layer for the original SS01 forced morning sky."""
+"""Bake the original normal-weather dome and cloud layer."""
 
+import argparse
 import json
 import math
 import struct
@@ -14,14 +15,13 @@ from inventory_retail_sequence import retail_file
 from read_retail_trb import read_sections
 
 
-def read_morning_fx(source: Path, symbols: dict) -> dict:
+def read_time_fx(source: Path, symbols: dict, phase: int = 1) -> dict:
     sections, follow = read_sections(source)
 
     weather, = [symbol for symbol in symbols["symbols"] if symbol["name"] == "weathersettings"]
-    # The SS01_start entry in AScriptedSequenceActivity selects normal weather
-    # and the morning phase. These are entries 0 and 1 in the retail enum tables.
+    # The first weather is normal. SS01 uses morning (1); LoadMainGameImpl uses dawn (0).
     weather_section, weather_offset = follow(weather["stream"], weather["offset"])
-    fx_section, fx_offset = follow(weather_section, weather_offset + 4)
+    fx_section, fx_offset = follow(weather_section, weather_offset + 4 * phase)
     fx = sections[fx_section][fx_offset:fx_offset + 0x178]
     if len(fx) != 0x178:
         raise ValueError("truncated AGameTimeFX record")
@@ -67,10 +67,10 @@ def bake_dome(matrix: list) -> dict:
     return {"vertices": vertices, "indices": indices}
 
 
-def package(tool: Path, install: Path, output: Path) -> dict:
+def package(tool: Path, install: Path, output: Path, phase: int = 1) -> dict:
     source = retail_file(install, "Data/GameTimeFXSettings.trb")
     symbols = run_export(tool, "-psp-symbols", source, output / "timefx-symbols.json")
-    fx = read_morning_fx(source, symbols)
+    fx = read_time_fx(source, symbols, phase)
     sky_library = retail_file(install, "Data/Sky/sky.ttl")
     texture_name = ("sky_sunny_16.tga", "sky_night_16.tga")[fx["texture_index"]]
     dds = output / "sky-clouds.dds"
@@ -92,3 +92,15 @@ def package(tool: Path, install: Path, output: Path) -> dict:
               "texture_height": texture["height"], "bytes": len(payload) + clouds["bytes"] + texture["bytes"]}
     (output / "sky.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tmdl", type=Path, required=True)
+    parser.add_argument("--phase", choices=("dawn", "morning"), required=True)
+    parser.add_argument("install", type=Path)
+    parser.add_argument("output", type=Path)
+    args = parser.parse_args()
+    result = package(args.tmdl.resolve(strict=True), args.install.resolve(strict=True), args.output.resolve(),
+                     phase=("dawn", "morning").index(args.phase))
+    print(f"Packaged the original {result['time_fx']} sky")

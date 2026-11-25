@@ -27,10 +27,12 @@ param(
     [string] $SS01CharacterSetupDirectory = '',
     [string] $SS01AfterCharacterSetupDirectory = '',
     [string] $MainGameDirectory = '',
+    [switch] $MainGameScene,
     [switch] $SkipConversion
 )
 
 $ErrorActionPreference = 'Stop'
+if ($MainGameScene -and -not $MainGameDirectory) { throw 'Use -MainGameScene with the original EnvMain workspace.' }
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if (-not $BuildDirectory) {
@@ -1167,18 +1169,18 @@ if ($SS01AfterCharacterSetupDirectory) {
     }
 }
 
-function Copy-SS01Terrain($directory, $destination) {
+function Copy-OriginalTerrainPack($directory, $destination) {
     $ss01Index = Join-Path $directory 'terrain.ptld'
     $index = [IO.File]::ReadAllBytes($ss01Index)
     if ($index.Length -lt 16 -or [Text.Encoding]::ASCII.GetString($index, 0, 4) -cne 'PTLD' -or
         [BitConverter]::ToUInt32($index, 4) -ne 1) {
-        throw "Expected the generated SS01 terrain index at $ss01Index"
+        throw "Expected the generated terrain index at $ss01Index"
     }
     $meshes = [BitConverter]::ToUInt32($index, 8)
     $textures = [BitConverter]::ToUInt32($index, 12)
     if ($meshes -lt 1 -or $meshes -gt 512 -or $textures -lt 1 -or $textures -gt 256 -or
         $index.Length -ne 16 + 16 * $meshes) {
-        throw "Invalid SS01 terrain counts in $ss01Index"
+        throw "Invalid terrain counts in $ss01Index"
     }
 
     $ss01Files = @(for ($i = 0; $i -lt $meshes; $i++) { "mesh_$i.pmes" }
@@ -1189,13 +1191,13 @@ function Copy-SS01Terrain($directory, $destination) {
     New-Item -ItemType Directory -Force -Path $destination | Out-Null
     Copy-Item -LiteralPath $sources -Destination $destination -Force
     Copy-Item -LiteralPath $ss01Index -Destination $destination -Force
-    Write-Output "Staged SS01 terrain ($meshes meshes and $textures shared textures)"
+    Write-Output "Staged terrain at $destination ($meshes meshes and $textures shared textures)"
 }
 
 if ($SS01TerrainDirectory) {
     $ss01Destination = Join-Path $runtimePath 'Data\Terrain\SS01'
-    Copy-SS01Terrain $SS01TerrainDirectory $ss01Destination
-    if ($beadyTerrain) { Copy-SS01Terrain $beadyTerrain (Join-Path $ss01Destination 'BeadyIntDay') }
+    Copy-OriginalTerrainPack $SS01TerrainDirectory $ss01Destination
+    if ($beadyTerrain) { Copy-OriginalTerrainPack $beadyTerrain (Join-Path $ss01Destination 'BeadyIntDay') }
 }
 
 if ($SS01OpeningDirectory) {
@@ -1287,6 +1289,64 @@ if ($MainGameDirectory) {
 }
 elseif (Test-Path -LiteralPath $collisionIndex -PathType Leaf) {
     Remove-Item -LiteralPath $collisionIndex -Force
+}
+
+$barnDestination = Join-Path $collisionDestination 'Barn'
+$barnIndex = Join-Path $barnDestination 'terrain.ptld'
+if (Test-Path -LiteralPath $barnIndex -PathType Leaf) { Remove-Item -LiteralPath $barnIndex -Force }
+if ($MainGameScene) {
+    $terrain = Join-Path $MainGameDirectory 'TerrainPack_Barn'
+    $row = Get-Content -LiteralPath (Join-Path $terrain 'terrain.json') -Raw | ConvertFrom-Json
+    if ($row.terrain -cne 'EnvMain' -or $row.visibility_row -cne $start.initial_visibility_row) {
+        throw 'The main game scene requires the original EnvMain Barn terrain pack.'
+    }
+    $sky = Join-Path $MainGameDirectory 'Sky'
+    $skyProfile = Get-Content -LiteralPath (Join-Path $sky 'sky.json') -Raw | ConvertFrom-Json
+    if ($skyProfile.time_fx -cne 'dawn') { throw 'Expected the original EnvMain dawn sky.' }
+    $skyDestination = Join-Path $collisionDestination 'Sky'
+    New-Item -ItemType Directory -Force -Path $skyDestination | Out-Null
+    foreach ($name in 'sky.psky', 'sky-base.pmes', 'sky-clouds.pmes', 'sky-clouds.ptex') {
+        Copy-Item -LiteralPath (Join-Path $sky $name) -Destination $skyDestination -Force
+    }
+
+    $playerRoot = Join-Path $MainGameDirectory 'Player'
+    $players = Get-Content -LiteralPath (Join-Path $playerRoot 'sim_players.json') -Raw | ConvertFrom-Json
+    if ($players.version -ne 1 -or $players.library -cne 'lib_maingame' -or $players.players.Count -ne 2) {
+        throw 'Expected the original gameplay player assets.'
+    }
+    foreach ($gender in 'male', 'female') {
+        $expectedActor = if ($gender -ceq 'male') { 'american_m' } else { 'american_f' }
+        $profiles = @($players.players | Where-Object gender -CEQ $gender)
+        if ($profiles.Count -ne 1) { throw "Invalid player model for $gender." }
+        $player = $profiles[0]
+        if ($player.actor -cne $expectedActor -or $player.meshes.Count -ne 2 -or $player.costumes.Count -ne 7 -or
+            $null -eq $player.costume_mesh -or $player.costume_mesh -notin 0, 1) { throw "Invalid assets for $expectedActor." }
+        $defaultSet = @($player.animation_sets | Where-Object name -CEQ 'default')[0]
+        $idleName = @($defaultSet.animations | Where-Object Name -CEQ 'idle_lp')[0].ExportedName
+        $idle = @($player.clips | Where-Object name -EQ $idleName)
+        if ($idle.Count -ne 1 -or $idle[0].mode -ne 0 -or $idle[0].overlay -or $idle[0].path -cnotmatch '^clip-[0-9]{3}\.panm$') {
+            throw "Missing original idle loop for $expectedActor."
+        }
+        $otherMesh = 'mesh-{0:D3}.ptex' -f (1 - [int]$player.costume_mesh)
+        $names = @('mesh-000.pmes', 'mesh-001.pmes', 'skeleton.pskl', $otherMesh, $idle[0].path)
+        $names += @(0..6 | ForEach-Object { "costume-$_.ptex" })
+        $sourceRoot = Join-Path $playerRoot $gender
+        $destination = Join-Path $runtimePath "Data\Player\$gender"
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
+        foreach ($name in $names) {
+            $source = Get-Item -LiteralPath (Join-Path $sourceRoot $name)
+            if ($source.PSIsContainer -or $source.Length -ne $player.files.$name) { throw "Invalid gameplay player asset $name." }
+            $target = if ($name -ceq $idle[0].path) { 'idle.panm' } else { $name }
+            Copy-Item -LiteralPath $source.FullName -Destination (Join-Path $destination $target) -Force
+        }
+        $config = [byte[]]::new(12)
+        [Text.Encoding]::ASCII.GetBytes('PSPL').CopyTo($config, 0)
+        [BitConverter]::GetBytes([uint32]1).CopyTo($config, 4)
+        [BitConverter]::GetBytes([uint32]$player.costume_mesh).CopyTo($config, 8)
+        [IO.File]::WriteAllBytes((Join-Path $destination 'player.pspl'), $config)
+    }
+    Copy-OriginalTerrainPack $terrain $barnDestination
+    Write-Output 'Staged the original EnvMain scene and both gameplay player models'
 }
 
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force
