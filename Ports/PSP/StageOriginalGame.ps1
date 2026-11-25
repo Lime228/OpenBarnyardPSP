@@ -28,11 +28,13 @@ param(
     [string] $SS01AfterCharacterSetupDirectory = '',
     [string] $MainGameDirectory = '',
     [switch] $MainGameScene,
+    [switch] $MainGameInstances,
     [switch] $SkipConversion
 )
 
 $ErrorActionPreference = 'Stop'
 if ($MainGameScene -and -not $MainGameDirectory) { throw 'Use -MainGameScene with the original EnvMain workspace.' }
+if ($MainGameInstances -and -not $MainGameScene) { throw 'Use -MainGameInstances with -MainGameScene.' }
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if (-not $BuildDirectory) {
@@ -1295,10 +1297,14 @@ $barnDestination = Join-Path $collisionDestination 'Barn'
 $barnIndex = Join-Path $barnDestination 'terrain.ptld'
 if (Test-Path -LiteralPath $barnIndex -PathType Leaf) { Remove-Item -LiteralPath $barnIndex -Force }
 if ($MainGameScene) {
-    $terrain = Join-Path $MainGameDirectory 'TerrainPack_Barn'
+    $pack = if ($MainGameInstances) { 'TerrainPack_BarnWithInstances' } else { 'TerrainPack_Barn' }
+    $terrain = Join-Path $MainGameDirectory $pack
     $row = Get-Content -LiteralPath (Join-Path $terrain 'terrain.json') -Raw | ConvertFrom-Json
     if ($row.terrain -cne 'EnvMain' -or $row.visibility_row -cne $start.initial_visibility_row) {
         throw 'The main game scene requires the original EnvMain Barn terrain pack.'
+    }
+    if ($MainGameInstances -and (-not $row.instance_count -or -not $row.instance_draw_groups)) {
+        throw 'Expected the original EnvMain terrain and instance pack.'
     }
     $sky = Join-Path $MainGameDirectory 'Sky'
     $skyProfile = Get-Content -LiteralPath (Join-Path $sky 'sky.json') -Raw | ConvertFrom-Json
