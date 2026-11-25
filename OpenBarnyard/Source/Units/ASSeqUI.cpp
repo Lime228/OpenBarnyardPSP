@@ -1,19 +1,24 @@
 #include "pch.h"
 #include "ASSeqUI.h"
-#include "AUnitManager.h"
-#include "AUnitActor.h"
-#include "Animation/AAnimatableObject.h"
-#include "Animation/AAnimatableObjectManager.h"
 #include "GameInterface/AGameStateController.h"
 #include "GUI/AGUI2.h"
 #include "GUI/T2GUIFontManager.h"
 #include <Input/TInputDeviceMouse.h>
-#include "HUD/AHudManager.h"
-#include "HUD/AMenuNavHudElement.h"
 #include "Locale/ALocaleManager.h"
-#include "Player/APlayerProfileManager.h"
 #include "Sound/ASoundManager.h"
-#include "Sound/AVOStream.h"
+#include "Player/APlayerProfile.h"
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+#  include <cwctype>
+#else
+#  include "AUnitManager.h"
+#  include "AUnitActor.h"
+#  include "Animation/AAnimatableObject.h"
+#  include "Animation/AAnimatableObjectManager.h"
+#  include "HUD/AHudManager.h"
+#  include "HUD/AMenuNavHudElement.h"
+#  include "Player/APlayerProfileManager.h"
+#  include "Sound/AVOStream.h"
+#endif
 
 #include <GUI/T2GUITextureSectionManager.h>
 #include <Toshi/TSystem.h>
@@ -34,6 +39,40 @@ TDEFINE_CLASS_NORUNTIME( ASSeqUI );
 TPSTRING8_DECLARE( ss_player_quad );
 TPSTRING8_DECLARE( ss_playerf_quad );
 TPSTRING8_DECLARE( DialogInputMap );
+
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+static TWCHAR AChangeNameCase_PSP( TWCHAR a_wCharacter, TBOOL a_bUpper )
+{
+	if ( a_bUpper )
+	{
+		if ( a_wCharacter >= 0x0430 && a_wCharacter <= 0x044f )
+			return a_wCharacter - 0x20;
+		if ( a_wCharacter == 0x0451 )
+			return 0x0401;
+		return TWCHAR( std::towupper( a_wCharacter ) );
+	}
+
+	if ( a_wCharacter >= 0x0410 && a_wCharacter <= 0x042f )
+		return a_wCharacter + 0x20;
+	if ( a_wCharacter == 0x0401 )
+		return 0x0451;
+	return TWCHAR( std::towlower( a_wCharacter ) );
+}
+#endif
+
+TINT ASSeqUI::GetGender() const
+{
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	return m_iGender_PSP;
+#else
+	return APlayerProfileManager::GetSingleton()->GetMainGender();
+#endif
+}
+
+const TCHAR* ASSeqUI::GetHideTextureName( TINT a_iSkin, TINT a_iGender ) const
+{
+	return APlayerProfile::GetHideTextureNameForGender( a_iSkin, a_iGender );
+}
 
 // Text shadow of every text of the UI
 // NOTE: inlined in the original
@@ -272,6 +311,7 @@ void ASSeqUI::CycleSkin( TINT a_iDirection )
 // $Barnyard: FUNCTION 0062b8c0
 void ASSeqUI::Reset()
 {
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	if ( !m_bNoSound )
 	{
 		AVOStream* pVOStream = AVOStream::GetSingleton();
@@ -279,6 +319,7 @@ void ASSeqUI::Reset()
 		if ( pVOStream->IsPlaying() )
 			pVOStream->Stop();
 	}
+#endif
 
 	for ( TINT i = 0; i < NUM_GENDERS; i++ )
 	{
@@ -380,6 +421,7 @@ void ASSeqUI::Update( TFLOAT a_fDeltaTime )
 	}
 	else if ( m_ePage == PAGE_NAME )
 	{
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( m_bNoSound == TFALSE )
 		{
 			// The voice-over asking for the name, once the previous line is over
@@ -393,6 +435,7 @@ void ASSeqUI::Update( TFLOAT a_fDeltaTime )
 				m_fVOTime -= a_fDeltaTime;
 			}
 		}
+#endif
 
 		// Done can only be chosen once there's a name
 		AGUI2MenuGridTextItem& rDone = m_aLetters[ NUM_LETTERS - 1 ];
@@ -450,20 +493,28 @@ void ASSeqUI::OnLetterActivated( AGUI2MenuGridItem* a_pItem )
 	{
 		// Done
 		if ( m_strName.Length() == 0 )
-			m_strName.Copy( ( APlayerProfileManager::GetSingleton()->GetMainGender() != APlayerProfile::GENDER_MALE ) ? wszDefaultFemale : wszDefaultMale );
+			m_strName.Copy( ( GetGender() != APlayerProfile::GENDER_MALE ) ? wszDefaultFemale : wszDefaultMale );
 
 		// First letter in upper case, the rest in lower case
 		// NOTE: the original removes the first character and inserts it back in upper case
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+		for ( TINT i = 1; i < m_strName.Length(); i++ )
+			m_strName[ i ] = AChangeNameCase_PSP( m_strName[ i ], TFALSE );
+		if ( m_strName.Length() != 0 )
+			m_strName[ 0 ] = AChangeNameCase_PSP( m_strName[ 0 ], TTRUE );
+#else
 		m_strName.MakeLower();
 		m_strName[ 0 ] = T2String16::CharToUpperCase( TUINT8( m_strName[ 0 ] ) );
-
 		APlayerProfileManager::GetSingleton()->GetMainProfile()->SetName( m_strName );
+#endif
 
 		Reset();
 		m_bActive = TFALSE;
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( m_bNoSound == TFALSE )
 			AHudManager::GetSingleton()->FindElement<AMenuNavHudElement>()->SetForceHide( TTRUE );
+#endif
 	}
 	else
 	{
@@ -509,7 +560,7 @@ void ASSeqUI::SetPage( PAGE a_ePage )
 		m_oTitle.SetTextAndFitWidth( ALocaleManager::Interface()->GetString( 1053 ) );
 		m_oTitleBackground.SetWidth( m_oTitle.GetWidth() * 1.2f );
 
-		const TCHAR* szPicture = APlayerProfileManager::GetSingleton()->GetMainProfile()->GetHideTextureName( m_iSkin, APlayerProfile::GENDER_NONE );
+		const TCHAR* szPicture = GetHideTextureName( m_iSkin, GetGender() );
 		m_oSkinPicture.SetTextureSection( T2GUITextureSectionManager::GetTextureSection( szPicture ) );
 
 		m_oDialog.SetDialogSize( TMath::Max( m_oSkinMenu.GetWidth(), m_fDialogWidth * 0.9f ), m_oTitleBackground.GetHeight() * 0.5f + m_fDialogHeight * 0.9f );
@@ -520,21 +571,27 @@ void ASSeqUI::SetPage( PAGE a_ePage )
 		m_oNameBackground.Hide();
 		m_oSkinPicture.Show();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( m_bNoSound == TFALSE )
 			AVOStream::GetSingleton()->Play( 47, TFALSE );
+#endif
 	}
 	else if ( a_ePage == PAGE_NAME )
 	{
 		if ( m_bSkipName == TTRUE )
 		{
 			// Done without a name
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 			APlayerProfileManager::GetSingleton()->GetMainProfile()->SetName( m_strName );
+#endif
 
 			Reset();
 			m_bActive = TFALSE;
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 			if ( m_bNoSound == TFALSE )
 				AHudManager::GetSingleton()->FindElement<AMenuNavHudElement>()->SetForceHide( TTRUE );
+#endif
 
 			return;
 		}
@@ -550,6 +607,7 @@ void ASSeqUI::SetPage( PAGE a_ePage )
 		m_oGenderMenu.Hide();
 		m_oSkinPicture.Hide();
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( m_bNoSound == TTRUE )
 			return;
 
@@ -559,8 +617,10 @@ void ASSeqUI::SetPage( PAGE a_ePage )
 			pVOStream->Stop();
 
 		pVOStream->Play( 48, TFALSE );
+#endif
 	}
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	if ( m_bNoSound == TFALSE )
 	{
 		AMenuNavHudElement* pMenuNav = AHudManager::GetSingleton()->FindElement<AMenuNavHudElement>();
@@ -570,6 +630,7 @@ void ASSeqUI::SetPage( PAGE a_ePage )
 		else
 			pMenuNav->SetTexts( 1047, -1, -1 );
 	}
+#endif
 }
 
 // $Barnyard: FUNCTION 0062c4d0
@@ -623,11 +684,13 @@ TBOOL ASSeqUI::Show( const TCHAR* a_szUnused )
 	m_bActive = TTRUE;
 
 	AGameStateController::GetSingleton()->GetCurrentState()->SetInputMap( TPS8( DialogInputMap ) );
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AGUI2::GetSingleton()->SetCursorVisible( TTRUE );
+#endif
 
 	// The skin
 	m_iSkin = 0;
-	m_oSkinPicture.SetTextureSection( *T2GUITextureSectionManager::GetTextureSection( APlayerProfileManager::GetSingleton()->GetMainProfile()->GetHideTextureName( 0, APlayerProfile::GENDER_MALE ) ) );
+	m_oSkinPicture.SetTextureSection( *T2GUITextureSectionManager::GetTextureSection( GetHideTextureName( 0, APlayerProfile::GENDER_MALE ) ) );
 
 	m_oSkinPicture.AddChildTail( m_oSkinName );
 	m_oSkinName.SetAttachment( T2GUIATTACHMENT_BOTTOMCENTER, T2GUIATTACHMENT_TOPCENTER );
@@ -647,10 +710,12 @@ TBOOL ASSeqUI::Show( const TCHAR* a_szUnused )
 
 	SetPage( PAGE_GENDER );
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	AGameStateController::GetSingleton()->GetCurrentState()->GetHUDParams().SetFlags( AHudElement::MASK_LETTERBOX | AHudElement::MASK_MENU_NAV );
 
 	if ( m_bNoSound == TFALSE )
 		AHudManager::GetSingleton()->FindElement<AMenuNavHudElement>()->SetForceHide( TFALSE );
+#endif
 
 	return TTRUE;
 }
@@ -658,6 +723,9 @@ TBOOL ASSeqUI::Show( const TCHAR* a_szUnused )
 // $Barnyard: FUNCTION 0062c790
 void ASSeqUI::SetGender( TINT a_iGender )
 {
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	m_iGender_PSP = a_iGender;
+#else
 	APlayerProfileManager* pProfileManager = APlayerProfileManager::GetSingleton();
 
 	if ( pProfileManager->GetMainGender() == a_iGender )
@@ -691,6 +759,7 @@ void ASSeqUI::SetGender( TINT a_iGender )
 
 	pObject->ApplyMaterial( m_iSkin, TTRUE );
 	pObject->SetSkeletonUpdating( TTRUE, TTRUE );
+#endif
 }
 
 // $Barnyard: FUNCTION 0062c9d0
@@ -720,10 +789,12 @@ void ASSeqUI::OnMenuItemActivated( AGUI2MenuItem* a_pItem )
 	}
 	else if ( m_ePage == PAGE_SKIN )
 	{
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( m_bNoSound == TFALSE )
 			TSTATICCAST( AAnimatedUnit, AUnitManager::GetSingleton()->FindActorBySSeqId( 18 ) )->GetAnimatableObject()->ApplyMaterial( iId, TTRUE );
 
 		APlayerProfileManager::GetSingleton()->GetMainProfile()->SetCostume( iId );
+#endif
 		SetPage( PAGE_NAME );
 	}
 }
@@ -836,10 +907,12 @@ TBOOL ASSeqUI::ProcessInputCommand( AInputCommand a_eCommand, const TInputInterf
 			CycleSkin( ( a_eCommand == AInputCommand_Left ) ? -1 : 1 );
 
 			m_oSkinName.SetTextAndFitWidth( ms_awszSkinNames[ m_iSkin ] );
-			m_oSkinPicture.SetTextureSection( T2GUITextureSectionManager::GetTextureSection( APlayerProfileManager::GetSingleton()->GetMainProfile()->GetHideTextureName( m_iSkin, APlayerProfile::GENDER_NONE ) ) );
+			m_oSkinPicture.SetTextureSection( T2GUITextureSectionManager::GetTextureSection( GetHideTextureName( m_iSkin, GetGender() ) ) );
 
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 			if ( m_bNoSound == TFALSE )
 				TSTATICCAST( AAnimatedUnit, AUnitManager::GetSingleton()->FindActorBySSeqId( 18 ) )->GetAnimatableObject()->ApplyMaterial( m_iSkin, TTRUE );
+#endif
 
 			a_pEvent->StartRepeat( 0.5f, 0.1f );
 			return TTRUE;
@@ -848,7 +921,9 @@ TBOOL ASSeqUI::ProcessInputCommand( AInputCommand a_eCommand, const TInputInterf
 		if ( a_eCommand == AInputCommand_Start )
 		{
 			ASoundManager::GetSingleton()->PlayCue( 168 );
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 			APlayerProfileManager::GetSingleton()->GetMainProfile()->SetCostume( m_iSkin );
+#endif
 			SetPage( PAGE_NAME );
 			return TTRUE;
 		}

@@ -218,6 +218,11 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_actor_draws_shot2=%u\n"
 		"new_game_actor_draws_shot3=%u\n"
 		"new_game_actor_draws_by_shot=%s\n"
+		"new_game_player_page=%d\n"
+		"new_game_player_gender=%d\n"
+		"new_game_player_costume=%d\n"
+		"new_game_player_name_length=%u\n"
+		"new_game_player_accepted=%d\n"
 		"animation_live_vertices=%u\n"
 		"animation_peak_vertices=%u\n"
 		"animation_sample_bytes=%u\n"
@@ -359,6 +364,11 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 1 ],
 		s_GameRuntimeReport_PSP.auiNewGameActorDraws[ 2 ],
 		szActorDraws,
+		s_GameRuntimeReport_PSP.iNewGamePlayerPage,
+		s_GameRuntimeReport_PSP.iNewGamePlayerGender,
+		s_GameRuntimeReport_PSP.iNewGamePlayerCostume,
+		s_GameRuntimeReport_PSP.uiNewGamePlayerNameLength,
+		s_GameRuntimeReport_PSP.bNewGamePlayerAccepted,
 		oAnimation.uiAnimatedVertices,
 		oAnimation.uiAnimatedVertexPeak,
 		TUINT( oAnimation.uiSampleCurrent ),

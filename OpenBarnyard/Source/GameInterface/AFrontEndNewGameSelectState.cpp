@@ -11,6 +11,8 @@
 #  include "Platform/PSP/AGameRuntimeReport_PSP.h"
 #  include "Platform/PSP/ARenderer_PSP.h"
 #  include "Units/ASSeqFile.h"
+#  include "Units/ASSeqUI.h"
+#  include <GUI/T2GUITextureSectionManager.h>
 #else
 #  include "AHackedQuickSave.h"
 #  include "Player/APlayerProfileManager.h"
@@ -32,6 +34,13 @@
 TOSHI_NAMESPACE_USING
 
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
+static AFrontEndNewGameSelectState::PlayerSelection_PSP s_PlayerSelection_PSP;
+
+const AFrontEndNewGameSelectState::PlayerSelection_PSP& AFrontEndNewGameSelectState::GetPlayerSelection_PSP()
+{
+	return s_PlayerSelection_PSP;
+}
+
 static void APauseMenuMusicForOpening_PSP( TBOOL a_bPause )
 {
 	AGameState* pState = AGameStateController::GetSingleton()->FindGameStateOnStack( TPString8( "AFrontEndMainMenuState2" ) );
@@ -114,6 +123,26 @@ TBOOL AFrontEndNewGameSelectState::ProcessCommand( AInputCommand a_eInputCommand
 	if ( m_bOpeningPlaying_PSP )
 	{
 		a_rStopEvents = TTRUE;
+		if ( m_pCharacterSetup_PSP != TNULL )
+		{
+			m_pCharacterSetup_PSP->ProcessInputCommand( a_eInputCommand, a_pInputEvent );
+			ReportCharacterSetup_PSP();
+			if ( !m_pCharacterSetup_PSP->IsActive() )
+			{
+				s_PlayerSelection_PSP.iGender = m_pCharacterSetup_PSP->GetGender_PSP();
+				s_PlayerSelection_PSP.iCostume = m_pCharacterSetup_PSP->GetCostume_PSP();
+				const TWCHAR* pName = m_pCharacterSetup_PSP->GetName_PSP();
+				const TSIZE uiLength = TMath::Min( T2String16::Length( pName ), TARRAYSIZE( s_PlayerSelection_PSP.wszName ) - 1 );
+				T2String16::Copy( s_PlayerSelection_PSP.wszName, pName, uiLength );
+				s_PlayerSelection_PSP.wszName[ uiLength ] = 0;
+				s_PlayerSelection_PSP.bReady = TTRUE;
+				AGetGameRuntimeReport_PSP().uiNewGamePlayerNameLength = uiLength;
+				AGetGameRuntimeReport_PSP().bNewGamePlayerAccepted = TTRUE;
+				StopCharacterSetup_PSP();
+				ASetGameRuntimePhase_PSP( "frontend-new-game-player-ready" );
+			}
+			return TTRUE;
+		}
 		if ( a_eInputCommand == AInputCommand_Cancel )
 		{
 			m_bOpeningPlaying_PSP = TFALSE;
@@ -132,12 +161,68 @@ TBOOL AFrontEndNewGameSelectState::ProcessCommand( AInputCommand a_eInputCommand
 }
 
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
+TBOOL AFrontEndNewGameSelectState::StartCharacterSetup_PSP()
+{
+	static const TCHAR* const s_aszRequiredSections[] = {
+		"Panel_01", "left_arrow", "left_arrow2", "Hide_American", "Hide_Girl_American",
+	};
+	for ( const TCHAR* pName : s_aszRequiredSections )
+	{
+		const T2GUITextureSection* pSection = T2GUITextureSectionManager::GetTextureSection( pName );
+		if ( pSection == TNULL || pSection->GetMaterial() == TNULL )
+		{
+			ASetGameRuntimeFailedPath_PSP( pName );
+			return TFALSE;
+		}
+	}
+	m_pCharacterSetup_PSP = new ASSeqUI();
+	m_pCharacterSetup_PSP->Show( "Player_select" );
+	ASetSSeqCharacterSetupVisible_PSP( TTRUE );
+	ReportCharacterSetup_PSP();
+	ASetGameRuntimePhase_PSP( "frontend-new-game-character-setup" );
+	return TTRUE;
+}
+
+void AFrontEndNewGameSelectState::StopCharacterSetup_PSP()
+{
+	if ( m_pCharacterSetup_PSP == TNULL )
+		return;
+	if ( m_pCharacterSetup_PSP->IsActive() )
+		m_pCharacterSetup_PSP->Reset();
+	delete m_pCharacterSetup_PSP;
+	m_pCharacterSetup_PSP = TNULL;
+	ASetSSeqCharacterSetupVisible_PSP( TFALSE );
+}
+
+void AFrontEndNewGameSelectState::ReportCharacterSetup_PSP()
+{
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	if ( rReport.iNewGamePlayerPage != m_pCharacterSetup_PSP->GetPage() ||
+	     rReport.iNewGamePlayerGender != m_pCharacterSetup_PSP->GetGender_PSP() ||
+	     rReport.iNewGamePlayerCostume != m_pCharacterSetup_PSP->GetCostume_PSP() )
+	{
+		rReport.iNewGamePlayerPage = m_pCharacterSetup_PSP->GetPage();
+		rReport.iNewGamePlayerGender = m_pCharacterSetup_PSP->GetGender_PSP();
+		rReport.iNewGamePlayerCostume = m_pCharacterSetup_PSP->GetCostume_PSP();
+		AWriteGameRuntimeReport_PSP();
+	}
+}
+
 TBOOL AFrontEndNewGameSelectState::OnUpdate( TFLOAT a_fDeltaTime )
 {
 	if ( m_bOpeningPlaying_PSP )
 	{
 		if ( AIsSSeqOpeningPlaying_PSP() )
-			return TTRUE;
+		{
+			if ( m_pCharacterSetup_PSP != TNULL )
+			{
+				m_pCharacterSetup_PSP->Update( a_fDeltaTime );
+				return TTRUE;
+			}
+			if ( s_PlayerSelection_PSP.bReady || !AIsSSeqCharacterSetupReady_PSP() || StartCharacterSetup_PSP() )
+				return TTRUE;
+			AStopSSeqOpening_PSP( TTRUE );
+		}
 		m_bOpeningPlaying_PSP = TFALSE;
 		APauseMenuMusicForOpening_PSP( TFALSE );
 		OnActivate();
@@ -266,6 +351,7 @@ void AFrontEndNewGameSelectState::OnInsertion()
 void AFrontEndNewGameSelectState::OnRemoval()
 {
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
+	StopCharacterSetup_PSP();
 	if ( m_bOpeningPlaying_PSP )
 		AStopSSeqOpening_PSP( TFALSE );
 #endif
@@ -319,6 +405,12 @@ void AFrontEndNewGameSelectState::OnMenuClose()
 	static constexpr TCHAR s_szIntroScript_PSP[] = "local:Data/ScriptedSequence/SS01_start.tso";
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.iNewGameRequestedSlot = m_iActivatedSlot;
+	s_PlayerSelection_PSP = {};
+	rReport.iNewGamePlayerPage = -1;
+	rReport.iNewGamePlayerGender = -1;
+	rReport.iNewGamePlayerCostume = -1;
+	rReport.uiNewGamePlayerNameLength = 0;
+	rReport.bNewGamePlayerAccepted = TFALSE;
 	TUINT8* pScript = ASSeqFile::Read( s_szIntroScript_PSP, rReport.iNewGameScriptTracks );
 	const TBOOL bScriptLoaded = pScript != TNULL;
 	const TCHAR* szPhase = "frontend-new-game-script-failed";

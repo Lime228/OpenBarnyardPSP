@@ -28,6 +28,14 @@ public:
 	//-----------------------------------------------------------------------------
 	virtual TBOOL ProcessCommand( AInputCommand a_eInputCommand, const Toshi::TInputInterface::InputEvent* a_pInputEvent, TBOOL& a_rStopEvents ) OVERRIDE; // +0x10
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
+	struct PlayerSelection_PSP
+	{
+		TINT iGender = 0;
+		TINT iCostume = 0;
+		TWCHAR wszName[ 16 ] = {};
+		TBOOL bReady = TFALSE;
+	};
+	static const PlayerSelection_PSP& GetPlayerSelection_PSP();
 	virtual TBOOL OnUpdate( TFLOAT a_fDeltaTime ) OVERRIDE;
 #endif
 	virtual void  OnInsertion() OVERRIDE;                                                                                                                  // +0x50
@@ -65,6 +73,10 @@ private:
 	PopupListener         m_oPopupListener;                                         // 0x15ac
 	TBOOL                 m_bOverwrite;                                             // 0x15c0, the chosen slot is in use
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
+	TBOOL StartCharacterSetup_PSP();
+	void StopCharacterSetup_PSP();
+	void ReportCharacterSetup_PSP();
+	class ASSeqUI*        m_pCharacterSetup_PSP = TNULL;
 	TBOOL                 m_bOpeningPlaying_PSP = TFALSE;
 #endif
 };

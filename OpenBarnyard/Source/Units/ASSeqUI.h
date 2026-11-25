@@ -54,6 +54,12 @@ public:
 	TBOOL IsActive() const { return m_bActive; }
 	PAGE  GetPage() const { return m_ePage; }
 
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	TINT GetGender_PSP() const { return m_iGender_PSP; }
+	TINT GetCostume_PSP() const { return m_iSkin; }
+	const TWCHAR* GetName_PSP() const { return m_strName.GetString(); }
+#endif
+
 private:
 	// Shows the elements of a_ePage
 	void SetPage( PAGE a_ePage );
@@ -63,6 +69,8 @@ private:
 
 	// Applies the gender (0: male, 1: female) to the player character
 	void SetGender( TINT a_iGender );
+	TINT GetGender() const;
+	const TCHAR* GetHideTextureName( TINT a_iSkin, TINT a_iGender ) const;
 
 	void OnLetterActivated( AGUI2MenuGridItem* a_pItem );
 	void OnMenuItemActivated( AGUI2MenuItem* a_pItem );
@@ -104,6 +112,9 @@ private:
 	AGUI2TextBox          m_oSkinName;                     // 0x5598
 	Toshi::T2GUIRectangle m_aSkinArrows[ 2 ];              // 0x5610
 	TINT                  m_iSkin;                         // 0x5700
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	TINT                  m_iGender_PSP = 0;
+#endif
 	TFLOAT                m_fTime;                         // 0x5704
 	TFLOAT                m_fVOTime;                       // 0x5708
 	TBOOL                 m_bUnk2;                         // 0x570c

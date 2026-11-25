@@ -54,6 +54,10 @@ static TFLOAT s_fOpeningTotal_PSP = 0.0f;
 static TUINT s_uiOpeningShots_PSP = 0;
 static TFLOAT s_fOpeningElapsed_PSP = 0.0f;
 static TFLOAT s_fOpeningShotProgress_PSP = 0.0f;
+static AFrontEndCamera_PSP s_SSeqCharacterCamera_PSP;
+static TBOOL s_bSSeqCharacterSetupVisible_PSP = TFALSE;
+static constexpr TCHAR s_szSSeqCharacterConfig_PSP[] = "local:Data/ScriptedSequence/SS01/opening-ui.psui";
+static constexpr TCHAR s_szSSeqCharacterCamera_PSP[] = "local:Data/ScriptedSequence/SS01/opening-ui.pcam";
 
 struct ASSeqOpeningShot_PSP
 {
@@ -87,6 +91,14 @@ static const TRenderCamera_PSP& AUpdateSSeqOpeningCamera_PSP( TFLOAT a_fDeltaTim
 			s_fOpeningElapsed_PSP = s_fOpeningTotal_PSP;
 			AStopSSeqVO_PSP();
 		}
+	}
+
+	if ( AIsSSeqCharacterSetupReady_PSP() )
+	{
+		s_fOpeningShotProgress_PSP = 1.0f;
+		s_SSeqCharacterCamera_PSP.Update( a_fDeltaTime );
+		a_rReport.uiNewGameOpeningShot = s_uiOpeningShots_PSP;
+		return s_SSeqCharacterCamera_PSP.GetRenderCamera();
 	}
 
 	TUINT uiShot = 0;
@@ -261,6 +273,8 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 		const TUINT uiActorDraws = s_SSeqActors_PSP.Render(
 		    s_RenderInterface_PSP, rCamera, uiShot, s_fOpeningShotProgress_PSP, s_afOpeningDurations_PSP[ uiShot ] );
 		rReport.auiNewGameActorDraws[ uiShot ] = TMath::Max( rReport.auiNewGameActorDraws[ uiShot ], uiActorDraws );
+		if ( s_bSSeqCharacterSetupVisible_PSP && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
+			RenderGUI();
 		s_RenderInterface_PSP.EndScene();
 		rReport.uiNewGameOpeningFrames++;
 		if ( uiPreviousShot != rReport.uiNewGameOpeningShot || rReport.uiRendererFrames % 60 == 0 )
@@ -472,6 +486,41 @@ static TBOOL AReadSSeqOpening_PSP( ASSeqOpeningShot_PSP* a_pShots, TUINT32& a_ru
 	return bRead;
 }
 
+static TBOOL ALoadSSeqCharacterCamera_PSP( TUINT a_uiShotCount, TFLOAT a_fAspect )
+{
+	s_SSeqCharacterCamera_PSP.Unload();
+	TFile* pFile = TFile::Create( s_szSSeqCharacterConfig_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	if ( pFile == TNULL )
+		return TTRUE;
+
+	struct Config
+	{
+		TUINT32 uiMagic;
+		TUINT32 uiVersion;
+		TFLOAT fFOV;
+		TFLOAT fNear;
+	};
+	static_assert( sizeof( Config ) == 16 );
+	Config oConfig = {};
+	const TBOOL bRead = pFile->GetSize() == sizeof( oConfig ) && pFile->Read( &oConfig, sizeof( oConfig ) ) == sizeof( oConfig );
+	pFile->Destroy();
+	if ( !bRead || oConfig.uiMagic != 0x49555350 || oConfig.uiVersion != 1 ||
+	     a_uiShotCount != AGameRuntimeReport_PSP::MAX_OPENING_SHOTS ||
+	     !( oConfig.fFOV >= 1.0f && oConfig.fFOV < 170.0f && oConfig.fNear > 0.0f && oConfig.fNear < 280.0f ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_szSSeqCharacterConfig_PSP );
+		return TFALSE;
+	}
+	const TFLOAT fHalfFOV = TMath::DegToRad( oConfig.fFOV * 0.5f );
+	const TFLOAT fVerticalFOV = TMath::ATan( TMath::Tan( fHalfFOV ) / a_fAspect ) * ( 360.0f / TMath::PI );
+	if ( !s_SSeqCharacterCamera_PSP.Load( s_szSSeqCharacterCamera_PSP, fVerticalFOV, oConfig.fNear ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_szSSeqCharacterCamera_PSP );
+		return TFALSE;
+	}
+	return TTRUE;
+}
+
 TBOOL AStartSSeqOpening_PSP()
 {
 	ASSeqOpeningShot_PSP aShots[ TARRAYSIZE( s_aSSeqOpeningCameras_PSP ) ] = {};
@@ -512,6 +561,11 @@ TBOOL AStartSSeqOpening_PSP()
 		s_fOpeningTotal_PSP += rShot.fDuration;
 	}
 
+	if ( !ALoadSSeqCharacterCamera_PSP( uiShotCount, fAspect ) )
+	{
+		AStopSSeqOpening_PSP( TFALSE );
+		return TFALSE;
+	}
 	AUnloadFrontEndWorld_PSP();
 	if ( !s_SSeqTerrain_PSP.LoadSS01() )
 	{
@@ -557,10 +611,22 @@ TBOOL AIsSSeqOpeningPlaying_PSP()
 	return s_uiOpeningShots_PSP != 0;
 }
 
+TBOOL AIsSSeqCharacterSetupReady_PSP()
+{
+	return s_SSeqCharacterCamera_PSP.IsLoaded() && s_fOpeningElapsed_PSP >= s_fOpeningTotal_PSP;
+}
+
+void ASetSSeqCharacterSetupVisible_PSP( TBOOL a_bVisible )
+{
+	s_bSSeqCharacterSetupVisible_PSP = a_bVisible;
+}
+
 void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend )
 {
 	AStopSSeqVO_PSP();
 	s_uiOpeningShots_PSP = 0;
+	s_bSSeqCharacterSetupVisible_PSP = TFALSE;
+	s_SSeqCharacterCamera_PSP.Unload();
 	for ( AFrontEndCamera_PSP& rCamera : s_aSSeqOpeningCameras_PSP )
 		rCamera.Unload();
 	s_SSeqSkyDome_PSP.Unload();

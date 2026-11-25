@@ -9,4 +9,6 @@ TBOOL ACheckNewGameTerrain_PSP();
 TBOOL AHasSSeqOpening_PSP();
 TBOOL AStartSSeqOpening_PSP();
 TBOOL AIsSSeqOpeningPlaying_PSP();
+TBOOL AIsSSeqCharacterSetupReady_PSP();
+void ASetSSeqCharacterSetupVisible_PSP( TBOOL a_bVisible );
 void AStopSSeqOpening_PSP( TBOOL a_bRestoreFrontend );

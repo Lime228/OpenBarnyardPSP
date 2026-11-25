@@ -203,7 +203,8 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Platform/PSP/AppBoot_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/AppMain_PSP.cpp",
 		"../../OpenBarnyard/Source/Tasks/ARootTask.cpp",
-		"../../OpenBarnyard/Source/Units/ASSeqFile.cpp"
+		"../../OpenBarnyard/Source/Units/ASSeqFile.cpp",
+		"../../OpenBarnyard/Source/Units/ASSeqUI.cpp"
 	}
 
 	includedirs
@@ -310,6 +311,7 @@ project "OpenBarnyardPSPGame"
 		"../../Toshi/Source/Toshi/T2Allocator.cpp",
 		"../../Toshi/Source/Toshi/T2RedBlackTree.cpp",
 		"../../Toshi/Source/Toshi/T2String16Copy.cpp",
+		"../../Toshi/Source/Toshi/TString16.cpp",
 		"../../Toshi/Source/Toshi/T2String8.cpp",
 		"../../Toshi/Source/Toshi/TApplication.cpp",
 		"../../Toshi/Source/Toshi/TClass.cpp",
