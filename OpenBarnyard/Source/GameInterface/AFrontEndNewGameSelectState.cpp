@@ -10,6 +10,7 @@
 #  include "AFrontEndMainMenuState2.h"
 #  include "Platform/PSP/AGameRuntimeReport_PSP.h"
 #  include "Platform/PSP/ARenderer_PSP.h"
+#  include "Platform/PSP/ATerrainCollision_PSP.h"
 #  include "Units/ASSeqFile.h"
 #  include "Units/ASSeqUI.h"
 #  include <GUI/T2GUITextureSectionManager.h>
@@ -228,7 +229,15 @@ TBOOL AFrontEndNewGameSelectState::OnUpdate( TFLOAT a_fDeltaTime )
 			if ( !rReport.bNewGameContinuationComplete && AIsSSeqContinuationComplete_PSP() )
 			{
 				rReport.bNewGameContinuationComplete = TTRUE;
-				ASetGameRuntimePhase_PSP( "frontend-new-game-sequence-complete" );
+				const TBOOL bHasSimStart = ATerrainCollision_PSP::HasInitialPack();
+				if ( bHasSimStart )
+				{
+					rReport.bNewGameSimStartReady = AReadSimStart_PSP( rReport.oNewGameSimStart, rReport.uiNewGameSimCollisionPacks,
+					                                                 rReport.uiNewGameSimCollisionTriangles );
+				}
+				ASetGameRuntimePhase_PSP( bHasSimStart && !rReport.bNewGameSimStartReady
+				                             ? "frontend-new-game-sim-start-failed"
+				                             : "frontend-new-game-sequence-complete" );
 			}
 			if ( s_PlayerSelection_PSP.bReady || !AIsSSeqCharacterSetupReady_PSP() || StartCharacterSetup_PSP() )
 				return TTRUE;

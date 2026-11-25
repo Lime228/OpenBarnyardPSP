@@ -651,6 +651,10 @@ TBOOL AStartSSeqOpening_PSP()
 	rReport.iNewGameContinuationVoiceMS = -1;
 	rReport.bNewGameBeadyIntDay = TFALSE;
 	rReport.bNewGameContinuationComplete = TFALSE;
+	rReport.bNewGameSimStartReady = TFALSE;
+	rReport.uiNewGameSimCollisionPacks = 0;
+	rReport.uiNewGameSimCollisionTriangles = 0;
+	rReport.oNewGameSimStart = {};
 	for ( TUINT& ruiDraws : rReport.auiNewGameActorDraws )
 		ruiDraws = 0;
 	for ( TUINT& ruiDraws : rReport.auiNewGameContinuationActorDraws )

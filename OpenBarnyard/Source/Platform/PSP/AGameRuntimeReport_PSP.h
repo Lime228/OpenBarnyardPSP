@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ASimStart_PSP.h"
+
 #include <Toshi/Defines.h>
 
 struct AGameRuntimeReport_PSP
@@ -109,6 +111,10 @@ struct AGameRuntimeReport_PSP
 	TINT iNewGameContinuationVoiceMS;
 	TBOOL bNewGameBeadyIntDay;
 	TBOOL bNewGameContinuationComplete;
+	TBOOL bNewGameSimStartReady;
+	TUINT uiNewGameSimCollisionPacks;
+	TUINT uiNewGameSimCollisionTriangles;
+	ASimStart_PSP oNewGameSimStart;
 	TINT iNewGamePlayerPage;
 	TINT iNewGamePlayerGender;
 	TINT iNewGamePlayerCostume;

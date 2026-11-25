@@ -108,7 +108,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=28\n"
+		"version=29\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -227,6 +227,13 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_continuation_actor_draws_by_shot=%s\n"
 		"new_game_continuation_voice_ms=%d\n"
 		"new_game_beady_int_day=%d\n"
+		"new_game_sim_start_ready=%d\n"
+		"new_game_sim_collision_packs=%u\n"
+		"new_game_sim_collision_triangles=%u\n"
+		"new_game_sim_area=%d\n"
+		"new_game_sim_spawn=%.6f,%.6f,%.6f\n"
+		"new_game_sim_facing=%.6f,%.6f,%.6f\n"
+		"new_game_sim_ground_y=%.6f\n"
 		"new_game_player_page=%d\n"
 		"new_game_player_gender=%d\n"
 		"new_game_player_costume=%d\n"
@@ -378,6 +385,17 @@ void AWriteGameRuntimeReport_PSP()
 		szContinuationDraws,
 		s_GameRuntimeReport_PSP.iNewGameContinuationVoiceMS,
 		s_GameRuntimeReport_PSP.bNewGameBeadyIntDay,
+		s_GameRuntimeReport_PSP.bNewGameSimStartReady,
+		s_GameRuntimeReport_PSP.uiNewGameSimCollisionPacks,
+		s_GameRuntimeReport_PSP.uiNewGameSimCollisionTriangles,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.iArea,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.vPosition.x,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.vPosition.y,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.vPosition.z,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.vFacing.x,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.vFacing.y,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.vFacing.z,
+		s_GameRuntimeReport_PSP.oNewGameSimStart.fGroundY,
 		s_GameRuntimeReport_PSP.iNewGamePlayerPage,
 		s_GameRuntimeReport_PSP.iNewGamePlayerGender,
 		s_GameRuntimeReport_PSP.iNewGamePlayerCostume,
