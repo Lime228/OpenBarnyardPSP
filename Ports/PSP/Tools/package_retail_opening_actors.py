@@ -18,6 +18,13 @@ from inventory_retail_sequence import retail_file
 from package_retail_sequence_opening import opening_shots
 
 
+MAX_ACTORS = 4
+MAX_MESHES_PER_ACTOR = 2
+MAX_SKIN_MESHES = 5
+MAX_TEXTURES = 5
+MAX_ANIMATED_VERTICES = 8192
+
+
 def read_actor_names(source: Path) -> list[str]:
     table = re.search(r"ASSeqActorData::ms_aActorNames\[ NUM_ACTORS \] = \{([^}]+)\};",
                       source.read_text(encoding="utf-8"))
@@ -78,7 +85,7 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
         for clip in entry["clips"] if 1 <= clip["after_pause"] <= len(shots)
     } for entry in script["animation_tracks"] if 0 <= entry["actor"] < len(actor_names)}
     active = {name: clips for name, clips in tracks.items() if name in sockets and clips}
-    if sequence["sequence"] != "SS01_start" or not 0 < len(active) <= 4:
+    if sequence["sequence"] != "SS01_start" or not 0 < len(active) <= MAX_ACTORS:
         raise ValueError("the opening exceeds the PSP actor limit")
     if len(tracks[root.casefold()]) != len(shots):
         raise ValueError("every shot must animate the opening attachment rig")
@@ -87,6 +94,11 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
     if manifest["sequence"] != sequence["sequence"]:
         raise ValueError("actor models and script come from different sequences")
     models = {entry["model"].casefold(): entry for entry in manifest["models"]}
+    meshes = [mesh for name in active for mesh in models[name]["meshes"]]
+    if len(meshes) > MAX_SKIN_MESHES:
+        raise ValueError("the opening exceeds the resident PSP skin mesh limit")
+    if sum(mesh["vertices"] for mesh in meshes) > MAX_ANIMATED_VERTICES:
+        raise ValueError("the opening exceeds the PSP animated vertex limit")
     pack = retail_file(install, sequence["sources"]["asset_pack"]["path"])
     libraries = {entry["name"].casefold(): entry["symbol"] for entry in sequence["key_libraries"] if entry["symbol"]}
     output.mkdir(parents=True, exist_ok=True)
@@ -101,7 +113,8 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
         rig_bones = {bone.casefold(): index for index, (bone, _) in enumerate(rig)}
         for index, (name, clips) in enumerate(active.items()):
             model = models[name]
-            if model["kind"] != "skin" or model["status"] != "converted" or not 0 < len(model["meshes"]) <= 2:
+            if (model["kind"] != "skin" or model["status"] != "converted" or
+                    not 0 < len(model["meshes"]) <= MAX_MESHES_PER_ACTOR):
                 raise ValueError(f"{name}: expected one or two converted skin meshes")
             directory = models_path / model["directory"]
             prefix = f"actor-{index}"
@@ -112,12 +125,14 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
             for mesh_index, mesh in enumerate(model["meshes"]):
                 texture = mesh["texture_path"]
                 if texture not in textures:
+                    if len(textures) == MAX_TEXTURES:
+                        raise ValueError("the opening exceeds the resident PSP actor texture limit")
                     textures[texture] = len(textures)
                     shutil.copyfile(models_path / texture, runtime / f"texture-{textures[texture]}.ptex")
                 indices.append(textures[texture])
                 shutil.copyfile(directory / mesh["path"], runtime / f"{prefix}-{mesh_index}.pmes")
             payload.extend(struct.pack("<5I", rig_bones[sockets[name].casefold()], sum(1 << shot for shot in clips),
-                                       len(indices), *indices, *([0] * (2 - len(indices)))))
+                                       len(indices), *indices, *([0] * (MAX_MESHES_PER_ACTOR - len(indices)))))
             actors.append({"model": name, "socket": sockets[name], "clips": clips, "meshes": len(indices)})
         (runtime / "actors.psac").write_bytes(payload)
         files = {path.name: path.stat().st_size for path in sorted(runtime.iterdir())}
