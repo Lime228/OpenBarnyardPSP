@@ -72,7 +72,7 @@ Current estimates:
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
 | Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
-| Complete playable-game port | 33% | Original startup, frontend and SS01 run. The port renders the opening EnvMain scene with the selected player. Movement, world streaming, collision sweeps, saves and most in-game audio remain. |
+| Complete playable-game port | 35% | Original startup, frontend and SS01 run. The selected player can walk and run in the opening EnvMain yard. World streaming, collision sweeps, gameplay systems, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
 
@@ -620,11 +620,19 @@ Adding `-MainGameScene` stages the first rendered EnvMain scene. After
 SS01, the PSP controller replaces the slot chooser with
 `ASimState_PSP`. The state releases the SS01 resources before loading the
 original `Barn` terrain, dawn sky, initial terrain collision and selected
-gameplay player model. The player uses the original costume and idle
-loop. The camera uses the original follow camera's default distance,
-height offset, pitch and horizontal FOV, aimed from behind the original
-spawn. The fixed camera, missing movement and collision sweeps, and
-temporary Start-to-frontend route define the current scene scope.
+gameplay player model. The player uses the selected costume and the
+original `Idle`, `Walk` and `Run` loops. New `PSPL` version 2 packs
+carry the unladen steering traits from `AllUnitTypes.trz`. Version 1
+packs still load with their idle loop.
+
+`NormalBarnyard` routes the left stick to the original camera-relative
+input thresholds. The PSP grounded path uses the original acceleration,
+braking, turning rates and measured-speed animation thresholds. It
+samples the two foot contacts against the resident terrain collision
+TRBs. The camera retains the original default distance, height offset,
+pitch and horizontal FOV and follows the current player position.
+Swept collision against walls and props, airborne motion, camera
+obstruction, animation blending and the original pause menu remain.
 
 The EnvMain terrain batch also exports the original instance locators.
 `envmain-instances.json` uses the type-0 table from `AGameLoader` and
@@ -643,6 +651,11 @@ $ss01 = 'Game/BarnyardPC/Workspace/SS01'
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainInstancesValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -Capture
 ```
 
+Add `-CheckMainGameMovement` with a v2 player pack to drive a half-tilt
+walk and a full-tilt run through PPSSPP. The check reads the avatar and
+camera positions, verifies the two original movement loops and confirms
+that releasing the stick returns the avatar to idle at the new position.
+
 Build `a33be3b3` from Actions run `45710259331` passed two upright
 terrain-only walks through SS01, one for each original player model.
 The combined dawn pack with 1,239 instances drew 200 terrain and
@@ -651,6 +664,17 @@ camera. The full run peaked at 13,764,048 bytes out of the 16,777,216-byte
 renderer budget, returned on Start and released the player's animation
 buffers. The full scene screenshot `envmain-barn.png`, runtime and
 validation log are in `Runtime/OriginalEnvMainInstancesValidation`.
+
+Movement build `c60b0e88` passed Actions run `45713697448`. In the
+combined dawn scene, the female model walked 0.57 m, ran another 1.20 m
+and stopped at `(19.065813, -8.425559, -34.109749)`. The male walkthrough
+used the current two-second test holds and recorded 0.92 m walking and
+2.13 m running to `(19.050138, -8.431163, -32.826515)`. In both runs the
+camera moved with the actor, the report recorded all three motion loops
+and peak renderer use across both runs was 13,764,048 bytes out of
+16,777,216. Start returned to the original menu and live animated vertices
+dropped to zero. The EBOOT, screenshots and reports are in
+`Runtime/OriginalEnvMainMovementValidation`.
 
 ## Known limitations
 
@@ -664,7 +688,8 @@ validation log are in `Runtime/OriginalEnvMainInstancesValidation`.
   weather vane and the water wheel belong to gameplay `ASimState`.
 - Options opens the original Audio and Controls states with their localized
   labels and widgets. Settings are applied within the session. Memory Stick
-  persistence, the music preview and gameplay input still need integration.
+  persistence, the music preview and the remaining gameplay actions still
+  need integration.
   New Game displays the original slot chooser and starts `SS01_start`
   when its assets are staged. Save import and save writes still need
   integration.
@@ -675,8 +700,11 @@ validation log are in `Runtime/OriginalEnvMainInstancesValidation`.
   zero PCM underruns in PPSSPP. Physical PSP playback performance still needs
   measurement.
 - `ATerrainCollision_PSP` reads the six initial terrain colliders and
-  resolves vertical rays. Camera sweeps, player movement contacts and the
-  general `ACollisionModel_PSP` queries still need integration.
+  resolves vertical rays for the spawn and player foot contacts.
+  The next collision path needs lower and upper player sweeps from
+  `APlayerSteer::SweepAndSlide`, using `TMath::SweptSphereVsTriangle`
+  as the original `ACollisionModel` does. Camera obstruction, dynamic
+  colliders and the general `ACollisionModel_PSP` queries also remain.
 - The PSP frontend plays its original resident UI cues and streamed music.
   Gameplay still needs the original cue, voice-over and multiplex playback paths.
 - The texture cache holds at most 16 unique GUI textures. The current menu fits;
