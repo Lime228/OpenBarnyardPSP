@@ -11,48 +11,11 @@ from convert_frontend_terrain_pack import write_model
 from convert_mesh import PMES_COLOUR_VERTEX_SIZE, PMES_FORMAT_COLOUR_XYZ, PMES_MAGIC, PMES_VERSION
 from inventory_retail_models import run_export, run_tmdl
 from inventory_retail_sequence import retail_file
+from read_retail_trb import read_sections
 
 
 def read_morning_fx(source: Path, symbols: dict) -> dict:
-    data = source.read_bytes()
-    magic, size, form = struct.unpack_from("<4sI4s", data)
-    if (magic, size, form) != (b"TSFL", len(data) - 8, b"TRBF"):
-        raise ValueError("expected the little-endian GameTimeFX TRB")
-    chunks = {}
-    cursor = 12
-    while cursor < len(data):
-        name, length = struct.unpack_from("<4sI", data, cursor)
-        end = cursor + 8 + length
-        if end > len(data) or name in chunks:
-            raise ValueError("invalid GameTimeFX TRB chunk")
-        chunks[name] = memoryview(data)[cursor + 8:end]
-        cursor = (end + 3) & ~3
-
-    header, payload, reloc = (chunks[name] for name in (b"HDRX", b"SECT", b"RELC"))
-    count, = struct.unpack_from("<I", header, 4)
-    if len(header) != 8 + 16 * count:
-        raise ValueError("invalid GameTimeFX section headers")
-    sections = []
-    start = 0
-    for i in range(count):
-        length, = struct.unpack_from("<I", header, 12 + 16 * i)
-        sections.append(payload[start:start + length])
-        start += length
-    if start != len(payload):
-        raise ValueError("invalid GameTimeFX section lengths")
-    relocation_count, = struct.unpack_from("<I", reloc)
-    if len(reloc) != 4 + relocation_count * 8:
-        raise ValueError("invalid GameTimeFX relocation count")
-    relocations = {(section, offset): target for section, target, offset in struct.iter_unpack("<HHI", reloc[4:])}
-    if len(relocations) != relocation_count:
-        raise ValueError("duplicate GameTimeFX relocation")
-
-    def follow(section: int, offset: int) -> tuple[int, int]:
-        target = relocations[section, offset]
-        target_offset, = struct.unpack_from("<I", sections[section], offset)
-        if target_offset >= len(sections[target]):
-            raise ValueError("invalid GameTimeFX pointer target")
-        return target, target_offset
+    sections, follow = read_sections(source)
 
     weather, = [symbol for symbol in symbols["symbols"] if symbol["name"] == "weathersettings"]
     # The SS01_start entry in AScriptedSequenceActivity selects normal weather
