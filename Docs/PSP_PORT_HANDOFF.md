@@ -441,6 +441,14 @@ records both bird tracks' `Hide` following the second-shot animation.
 The current runtime stops at the previous cut. Further shots need actor
 lifetimes driven by their original track commands.
 
+Build `4187fa2a` fixes the 3D texture scale and uses bilinear sampling.
+The before and after captures in `Runtime/OriginalSS01TextureValidation`
+used the same 979 staged inputs, verified by SHA-256. The roof, walls and
+slopes lost the dense stripes and speckles that came from overscaled UVs.
+The PSP terrain textures still contain one level per texture and some fine
+details remain aliased at a distance. Use `-OpeningOnly` for an SS01
+graphics check and the return to the menu.
+
 ```powershell
 .\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -Capture
