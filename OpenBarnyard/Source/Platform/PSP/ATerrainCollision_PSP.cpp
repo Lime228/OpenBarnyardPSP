@@ -135,12 +135,11 @@ TBOOL ATerrainCollision_PSP::LoadPack( const TCHAR* a_szName )
 				return TFALSE;
 			rBounds.oBounds.Include( rVertex );
 		}
-		static constexpr TUINT uiIndicesPerBlock = 3 * TRIANGLES_PER_BLOCK;
-		for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += uiIndicesPerBlock )
+		for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += INDICES_PER_BLOCK )
 		{
 			if ( m_uiTriangleBlocks == MAX_TRIANGLE_BLOCKS )
 				return TFALSE;
-			const TUINT uiEnd = TMath::Min( rMesh.m_uiNumIndices, j + uiIndicesPerBlock );
+			const TUINT uiEnd = TMath::Min<TUINT>( rMesh.m_uiNumIndices, j + INDICES_PER_BLOCK );
 			if ( rMesh.m_pIndices[ j ] >= rMesh.m_uiNumVertices )
 				return TFALSE;
 			const TVector3& rBlockFirst = rMesh.m_pVertices[ rMesh.m_pIndices[ j ] ];
@@ -200,28 +199,38 @@ static TBOOL AGetTerrainTriangleHeight_PSP( const TVector3& a_rA, const TVector3
 
 TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance ) const
 {
+	const TFLOAT fStartZ = -a_fOriginY;
+	const TFLOAT fEndZ = fStartZ + ( a_bDown ? -a_rfDistance : a_rfDistance );
+	const Bounds oRay{ { a_fX, a_fZ, TMath::Min( fStartZ, fEndZ ) }, { a_fX, a_fZ, TMath::Max( fStartZ, fEndZ ) } };
 	TBOOL bHit = TFALSE;
 	for ( TUINT i = 0; i < m_uiPacks; i++ )
 	{
 		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
 		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
 		{
-			const Bounds& rBounds = m_aPacks[ i ].aBounds[ mesh ].oBounds;
-			if ( a_fX < rBounds.vMin.x || a_fX > rBounds.vMax.x || a_fZ < rBounds.vMin.y || a_fZ > rBounds.vMax.y )
+			const MeshBounds& rMeshBounds = m_aPacks[ i ].aBounds[ mesh ];
+			if ( !rMeshBounds.oBounds.Overlaps( oRay ) )
 				continue;
 			const TTMDBase::CollisionMesh& rMesh = rCollision.m_pMeshes[ mesh ];
-			for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += 3 )
+			TUINT uiBlock = rMeshBounds.uiFirstBlock;
+			for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += INDICES_PER_BLOCK, uiBlock++ )
 			{
-				const TUINT16* pFace = &rMesh.m_pIndices[ j ];
-				const TVector3* pVertices = rMesh.m_pVertices;
-				TFLOAT fY;
-				if ( !AGetTerrainTriangleHeight_PSP( pVertices[ pFace[ 0 ] ], pVertices[ pFace[ 1 ] ], pVertices[ pFace[ 2 ] ], a_fX, a_fZ, fY ) )
+				if ( !m_aTriangleBounds[ uiBlock ].Overlaps( oRay ) )
 					continue;
-				const TFLOAT fDistance = a_bDown ? fY - a_fOriginY : a_fOriginY - fY;
-				if ( fDistance >= 0.0f && fDistance < a_rfDistance )
+				const TUINT uiEnd = TMath::Min<TUINT>( rMesh.m_uiNumIndices, j + INDICES_PER_BLOCK );
+				for ( TUINT k = j; k < uiEnd; k += 3 )
 				{
-					a_rfDistance = fDistance;
-					bHit = TTRUE;
+					const TUINT16* pFace = &rMesh.m_pIndices[ k ];
+					const TVector3* pVertices = rMesh.m_pVertices;
+					TFLOAT fY;
+					if ( !AGetTerrainTriangleHeight_PSP( pVertices[ pFace[ 0 ] ], pVertices[ pFace[ 1 ] ], pVertices[ pFace[ 2 ] ], a_fX, a_fZ, fY ) )
+						continue;
+					const TFLOAT fDistance = a_bDown ? fY - a_fOriginY : a_fOriginY - fY;
+					if ( fDistance >= 0.0f && fDistance < a_rfDistance )
+					{
+						a_rfDistance = fDistance;
+						bHit = TTRUE;
+					}
 				}
 			}
 		}
@@ -270,7 +279,6 @@ TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLO
 
 	TBOOL bHit = TFALSE;
 	TVector4 vNormal;
-	static constexpr TUINT uiIndicesPerBlock = 3 * TRIANGLES_PER_BLOCK;
 	for ( TUINT i = 0; i < m_uiPacks; i++ )
 	{
 		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
@@ -281,11 +289,11 @@ TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLO
 				continue;
 			const TTMDBase::CollisionMesh& rMesh = rCollision.m_pMeshes[ mesh ];
 			TUINT uiBlock = rMeshBounds.uiFirstBlock;
-			for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += uiIndicesPerBlock, uiBlock++ )
+			for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += INDICES_PER_BLOCK, uiBlock++ )
 			{
 				if ( !m_aTriangleBounds[ uiBlock ].Overlaps( oSweep ) )
 					continue;
-				const TUINT uiEnd = TMath::Min( rMesh.m_uiNumIndices, j + uiIndicesPerBlock );
+				const TUINT uiEnd = TMath::Min<TUINT>( rMesh.m_uiNumIndices, j + INDICES_PER_BLOCK );
 				for ( TUINT k = j; k < uiEnd; k += 3 )
 				{
 					const TUINT16* pFace = &rMesh.m_pIndices[ k ];

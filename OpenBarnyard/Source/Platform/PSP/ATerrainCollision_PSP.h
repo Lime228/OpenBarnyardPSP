@@ -33,6 +33,7 @@ private:
 	static constexpr TUINT MAX_MESHES_PER_PACK = 32;
 	static constexpr TUINT MAX_TRIANGLES = 16 * 1024;
 	static constexpr TUINT TRIANGLES_PER_BLOCK = 32;
+	static constexpr TUINT INDICES_PER_BLOCK = 3 * TRIANGLES_PER_BLOCK;
 	static constexpr TUINT MAX_TRIANGLE_BLOCKS = MAX_TRIANGLES / TRIANGLES_PER_BLOCK + MAX_PACKS * MAX_MESHES_PER_PACK;
 
 	struct Bounds
