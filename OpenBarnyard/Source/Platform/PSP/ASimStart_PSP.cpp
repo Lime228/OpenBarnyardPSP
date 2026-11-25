@@ -78,6 +78,8 @@ TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, TUINT& a_ruiPacks, TUINT& a_ru
 		ASetGameRuntimeFailedPath_PSP( oTerrain.GetFailedPath() );
 		return TFALSE;
 	}
+	a_ruiPacks = oTerrain.GetPackCount();
+	a_ruiTriangles = oTerrain.GetTriangleCount();
 
 	// Match the short terrain ray and the bottom-ray fallback in AInteriorNetwork::ResolvePointHeight.
 	const TFLOAT fRayY = -fAreaHeight - 0.25f;
@@ -99,7 +101,5 @@ TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, TUINT& a_ruiPacks, TUINT& a_ru
 		a_rStart.vPosition.y = a_rStart.fGroundY;
 	if ( a_rStart.vFacing.MagnitudeSq() < 0.5f )
 		a_rStart.vFacing = TVector4::VEC_NEGZ;
-	a_ruiPacks = oTerrain.GetPackCount();
-	a_ruiTriangles = oTerrain.GetTriangleCount();
 	return TTRUE;
 }

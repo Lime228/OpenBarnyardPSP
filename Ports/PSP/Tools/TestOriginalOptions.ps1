@@ -363,7 +363,7 @@ try {
                 if ($CheckMainGameStart) {
                     $triangles = [int]$complete.new_game_sim_collision_triangles
                     if ($complete.new_game_sim_start_ready -ne '1' -or $complete.new_game_sim_collision_packs -ne '6' -or
-                        $complete.new_game_sim_area -ne '105' -or $triangles -le 0 -or $triangles -gt 16384 -or
+                        $complete.new_game_sim_area -ne '105' -or $triangles -ne 5559 -or
                         $complete.new_game_sim_spawn -ne '19.087500,-8.363579,-35.884602' -or
                         $complete.new_game_sim_facing -ne '-0.012220,0.000000,0.999925') {
                         throw "Original EnvMain start did not resolve. See $gameLog"

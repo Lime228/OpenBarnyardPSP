@@ -137,20 +137,22 @@ void ATerrainCollision_PSP::Unload()
 static TBOOL AGetTerrainTriangleHeight_PSP( const TVector3& a_rA, const TVector3& a_rB, const TVector3& a_rC,
                                            TFLOAT a_fX, TFLOAT a_fZ, TFLOAT& a_rfY )
 {
+	// ATerrainInterface::CreateModelInstance rotates terrain by +90 degrees around X.
+	// The stored triangle's XY plane is world XZ and its Z becomes world -Y.
 	const TFLOAT fABX = a_rB.x - a_rA.x;
-	const TFLOAT fABZ = a_rB.z - a_rA.z;
+	const TFLOAT fABY = a_rB.y - a_rA.y;
 	const TFLOAT fACX = a_rC.x - a_rA.x;
-	const TFLOAT fACZ = a_rC.z - a_rA.z;
-	const TFLOAT fDet = fABX * fACZ - fABZ * fACX;
+	const TFLOAT fACY = a_rC.y - a_rA.y;
+	const TFLOAT fDet = fABX * fACY - fABY * fACX;
 	if ( TMath::Abs( fDet ) < TMath::TFLOAT_EPSILON )
 		return TFALSE;
 	const TFLOAT fAX = a_fX - a_rA.x;
-	const TFLOAT fAZ = a_fZ - a_rA.z;
-	const TFLOAT fU = ( fAX * fACZ - fAZ * fACX ) / fDet;
-	const TFLOAT fV = ( fABX * fAZ - fABZ * fAX ) / fDet;
+	const TFLOAT fAY = a_fZ - a_rA.y;
+	const TFLOAT fU = ( fAX * fACY - fAY * fACX ) / fDet;
+	const TFLOAT fV = ( fABX * fAY - fABY * fAX ) / fDet;
 	if ( !( fU >= 0.0f && fV >= 0.0f && fU + fV <= 1.0f ) )
 		return TFALSE;
-	a_rfY = a_rA.y + fU * ( a_rB.y - a_rA.y ) + fV * ( a_rC.y - a_rA.y );
+	a_rfY = -( a_rA.z + fU * ( a_rB.z - a_rA.z ) + fV * ( a_rC.z - a_rA.z ) );
 	return TMath::IsFinite( a_rfY );
 }
 
