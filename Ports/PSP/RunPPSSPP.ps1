@@ -6,7 +6,7 @@ param(
     [switch] $OriginalGame,
     [switch] $ShowWindow,
 
-    [ValidateSet('Cross', 'Circle', 'Triangle', 'Start', 'DpadUp', 'DpadDown', 'DpadLeft', 'DpadRight', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'Screenshot')]
+    [ValidateSet('Cross', 'Circle', 'Triangle', 'Start', 'DpadUp', 'DpadDown', 'DpadLeft', 'DpadRight', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'AnalogDownLeft', 'AnalogDownRight', 'Screenshot')]
     [string] $Key = 'Cross',
 
     [ValidateRange(1, 60)]
@@ -521,11 +521,14 @@ function Send-OpenBarnyardPPSSPPKey {
             }
 
             # PPSSPP converts positive debugger Y to a smaller PSP Ly value.
+            $diagonal = $AnalogMagnitude * [Math]::Sqrt(0.5)
             $analog = switch ($Button) {
                 'AnalogUp' { @{ x = 0.0; y = $AnalogMagnitude } }
                 'AnalogDown' { @{ x = 0.0; y = -$AnalogMagnitude } }
                 'AnalogLeft' { @{ x = -$AnalogMagnitude; y = 0.0 } }
                 'AnalogRight' { @{ x = $AnalogMagnitude; y = 0.0 } }
+                'AnalogDownLeft' { @{ x = -$diagonal; y = -$diagonal } }
+                'AnalogDownRight' { @{ x = $diagonal; y = -$diagonal } }
             }
             $null = Invoke-PPSSPPDebuggerRequest `
                 -Socket $socket `

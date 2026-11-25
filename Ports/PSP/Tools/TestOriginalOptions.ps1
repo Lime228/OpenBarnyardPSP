@@ -15,6 +15,8 @@ param(
     [switch] $CheckMainGameScene,
     [switch] $CheckMainGameInstances,
     [switch] $CheckMainGameMovement,
+    [switch] $CheckMainGameCollision,
+    [switch] $CheckMainGameCamera,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -63,6 +65,12 @@ if ($CheckMainGameInstances -and -not $CheckMainGameScene) {
 if ($CheckMainGameMovement -and -not $CheckMainGameScene) {
     throw 'Use -CheckMainGameMovement with -CheckMainGameScene.'
 }
+if ($CheckMainGameCollision -and -not $CheckMainGameScene) {
+    throw 'Use -CheckMainGameCollision with -CheckMainGameScene.'
+}
+if ($CheckMainGameCamera -and -not $CheckMainGameCollision) {
+    throw 'Use -CheckMainGameCamera with -CheckMainGameCollision.'
+}
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
 }
@@ -99,12 +107,12 @@ function Read-GameLog {
     return $status
 }
 
-function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}, [int] $TimeoutSeconds = 10) {
+function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}, [int] $TimeoutSeconds = 10, [int] $AfterSimFrame = -1) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         $status = Read-GameLog
         if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed|opening-failed|sim-start-failed|sim-world-failed)$') { throw "Game resource failure: $($status.failed_path)" }
-        $matching = $status.phase -eq $Phase
+        $matching = $status.phase -eq $Phase -and [int]$status.sim_frames -gt $AfterSimFrame
         if ($Focus -ge 0) {
             $matching = $matching -and $status.menu_state -eq '5' -and $status.menu_focus -eq "$Focus"
         }
@@ -122,8 +130,12 @@ function Convert-SimPosition([string] $Value) {
     $position = $Value -split ','
     if ($position.Count -ne 3) { throw "Invalid simulation position '$Value'. See $gameLog" }
     foreach ($axis in $position) {
-        [double]::Parse($axis, [Globalization.CultureInfo]::InvariantCulture)
+        Convert-SimNumber $axis
     }
+}
+
+function Convert-SimNumber([string] $Value) {
+    [double]::Parse($Value, [Globalization.CultureInfo]::InvariantCulture)
 }
 
 function Test-MainGameMovement([hashtable] $Scene) {
@@ -159,6 +171,61 @@ function Test-MainGameMovement([hashtable] $Scene) {
         throw "The avatar did not remain idle after releasing the analog stick. See $gameLog"
     }
     "Original EnvMain walked {0:F2} m, ran {1:F2} m, and returned to Idle at ({2})." -f $walkDistance, $runDistance, $settled.sim_player_position
+}
+
+function Send-SimAnalog([hashtable] $Before, [string] $Key, [int] $HoldMilliseconds) {
+    & $runner @runnerArguments -Action Press -Key $Key -AnalogHoldMilliseconds $HoldMilliseconds | Write-Host
+    $idle = @{ sim_player_motion = 0; sim_player_speed = '0.0000' }
+    Wait-Menu 'sim-world-ready' -1 $idle 15 ([int]$Before.sim_frames)
+}
+
+function Test-MainGameCollision([hashtable] $Scene) {
+    if ($Scene.sim_player_steering -ne '1' -or -not $Scene.ContainsKey('sim_terrain_contacts')) {
+        throw "Expected player steering and terrain contact reporting. See $gameLog"
+    }
+    $blocked = $Scene
+    # Barn_col contains the wall behind the original Barn spawn, near world Z -41.8.
+    for ($press = 0; $press -lt 4 -and [uint32]$blocked.sim_terrain_contacts -eq [uint32]$Scene.sim_terrain_contacts; $press++) {
+        $blocked = Send-SimAnalog $blocked AnalogDown 5000
+    }
+    $wallPosition = Convert-SimPosition $blocked.sim_player_position
+    if ([uint32]$blocked.sim_terrain_contacts -le [uint32]$Scene.sim_terrain_contacts -or $wallPosition[2] -lt -41.65 -or $wallPosition[2] -gt -39.8) {
+        throw "Expected the original Barn wall to stop the player. Observed ($($blocked.sim_player_position)), contacts $($blocked.sim_terrain_contacts). See $gameLog"
+    }
+    $pressed = Send-SimAnalog $blocked AnalogDown 1800
+    $pressedPosition = Convert-SimPosition $pressed.sim_player_position
+    if ([uint32]$pressed.sim_terrain_contacts -le [uint32]$blocked.sim_terrain_contacts -or [Math]::Abs($pressedPosition[2] - $wallPosition[2]) -gt 0.3) {
+        throw "The player did not stay against the wall under continued input. See $gameLog"
+    }
+    $slid = Send-SimAnalog $pressed AnalogDownRight 1700
+    $slidePosition = Convert-SimPosition $slid.sim_player_position
+    $sideDistance = $slidePosition[0] - $pressedPosition[0]
+    if ([uint32]$slid.sim_terrain_slides -le [uint32]$pressed.sim_terrain_slides -or $sideDistance -lt 0.25 -or $slidePosition[2] -lt -41.65) {
+        throw "Expected lateral movement along the outside of the wall. Observed ($($slid.sim_player_position)), slides $($slid.sim_terrain_slides). See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "Original Barn wall stopped the player at Z {0:F2}. The diagonal input slid {1:F2} m along the wall." -f $pressedPosition[2], $sideDistance
+    if ($CheckMainGameCamera) { Test-MainGameCamera $slid }
+}
+
+function Test-MainGameCamera([hashtable] $Wall) {
+    $distance = Convert-SimNumber $Wall.sim_camera_distance
+    $cameraAtWall = Convert-SimPosition $Wall.sim_camera_position
+    if ($distance -gt 2.5 -or $cameraAtWall[2] -lt -41.65) {
+        throw "Expected the camera to stay outside the original wall. Observed ($($Wall.sim_camera_position)), distance $distance. See $gameLog"
+    }
+    $recovered = $Wall
+    for ($press = 0; $press -lt 3 -and (Convert-SimNumber $recovered.sim_camera_distance) -lt 4.95; $press++) {
+        $recovered = Send-SimAnalog $recovered AnalogUp 4500
+    }
+    $openDistance = Convert-SimNumber $recovered.sim_camera_distance
+    $openPosition = Convert-SimPosition $recovered.sim_player_position
+    $wallPosition = Convert-SimPosition $Wall.sim_player_position
+    if ($openDistance -lt 4.95 -or $openPosition[2] -le $wallPosition[2] + 3.0) {
+        throw "The camera did not recover its open-yard distance. Observed ($($recovered.sim_camera_position)), distance $openDistance. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "The original wall shortened the camera orbit to {0:F2} m. The camera returned to {1:F2} m in the open yard." -f $distance, $openDistance
 }
 
 function Wait-MenuCue([int] $Cue, [hashtable] $Before) {
@@ -446,6 +513,7 @@ try {
                     if ($Capture) { Send-Key Screenshot }
                     "Rendered $($scene.sim_frames) EnvMain frames with $($scene.sim_terrain_draws) terrain draws and two gameplay player meshes."
                     if ($CheckMainGameMovement) { Test-MainGameMovement $scene }
+                    if ($CheckMainGameCollision) { Test-MainGameCollision (Read-GameLog) }
                 }
             }
         }
