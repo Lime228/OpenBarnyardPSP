@@ -1048,6 +1048,14 @@ if ($SS01OpeningDirectory) {
             }
             $openingVoice = Get-Item -LiteralPath (Join-Path $voiceSource $name)
             if ($openingVoice.PSIsContainer -or $openingVoice.Length -ne $selected[0].bytes) { throw 'Invalid cached SS01 opening voice.' }
+            if ($SS01CharacterSetupDirectory) {
+                $setupVoice = @(foreach ($stream in ($voice.streams | Where-Object substream -in 47, 48, 49)) {
+                    if ($stream.path -cne "$($stream.substream).padp") { throw 'Invalid cached character creation voice name.' }
+                    $audio = Get-Item -LiteralPath (Join-Path $voiceSource $stream.path)
+                    if ($audio.PSIsContainer -or $audio.Length -ne $stream.bytes) { throw 'Invalid cached character creation voice.' }
+                    $audio.FullName
+                })
+            }
         }
     }
     if ($opening.sky) { $openingFiles += @('sky-base.pmes', 'sky-clouds.pmes', 'sky-clouds.ptex', 'sky.psky') }
@@ -1145,6 +1153,7 @@ if ($SS01OpeningDirectory) {
         $voiceDestination = Join-Path $openingDestination 'Voice'
         New-Item -ItemType Directory -Force -Path $voiceDestination | Out-Null
         Copy-Item -LiteralPath $openingVoice.FullName -Destination $voiceDestination -Force
+        if ($setupVoice.Count) { Copy-Item -LiteralPath $setupVoice -Destination $voiceDestination -Force }
         Write-Output "Staged the original voice stream $($opening.voice.name)"
     }
     Write-Output 'Staged the original SS01 opening'

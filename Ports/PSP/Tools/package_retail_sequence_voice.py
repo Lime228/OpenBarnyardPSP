@@ -7,6 +7,10 @@ import shutil
 from pathlib import Path, PurePosixPath
 
 
+# AVOStream substreams used by ASSeqUI::SetPage and ASSeqUI::Update.
+PLAYER_SELECT_VOICES = ((47, "start_13_bill"), (48, "start_14_bill"), (49, "start_15_farmer"))
+
+
 def package(inventory: Path, encoded: Path, output: Path) -> dict:
     sequence = json.loads(inventory.read_text(encoding="utf-8"))
     audio = json.loads((encoded / "fsb.encode.json").read_text(encoding="utf-8"))
@@ -14,6 +18,11 @@ def package(inventory: Path, encoded: Path, output: Path) -> dict:
         raise ValueError("expected sequence inventory and FSB encode manifests")
 
     voices = [entry for entry in sequence["script"]["voice_instructions"] if entry["type"] == "vostream"]
+    if sequence["sequence"] == "SS01_start" and any(
+        cue.get("name") == "UI" and cue["arguments"][0] == "Player_select"
+        for cue in sequence["script"].get("master_cues", [])
+    ):
+        voices.extend({"index": index, "name": name} for index, name in PLAYER_SELECT_VOICES)
     copies = {}
     bank_path = dict(sequence["properties"]).get("VOStream")
     if voices:
