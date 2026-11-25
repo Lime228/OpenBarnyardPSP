@@ -11,20 +11,33 @@ TOSHI_NAMESPACE_USING
 
 TDEFINE_CLASS( ASimState_PSP );
 
-static void AUpdateSimCamera_PSP( TRenderCamera_PSP& a_rCamera, const TVector4& a_rPlayerPosition, TVector3 a_vBackward )
+void ASimState_PSP::UpdateCamera( const TVector4& a_rPlayerPosition, TFLOAT a_fDeltaTime, TBOOL a_bPlayerMoved )
 {
-	// AGTAStyleCameraHelper's orbit around the new pivot, keeping the previous camera side.
-	a_vBackward.Normalize();
-	a_vBackward.y = -TMath::ATan( TMath::DegToRad( 11.0f ) );
-	a_vBackward.Normalize();
+	if ( !a_bPlayerMoved && m_fCameraDistance == m_fCameraTargetDistance )
+		return;
+	const TVector4 vPivot( a_rPlayerPosition.x, a_rPlayerPosition.y - 1.7f, a_rPlayerPosition.z, 1.0f );
+	// AGTAStyleCameraHelper keeps the default orbit separate from the camera that is moved in.
+	TVector4 vBackward( m_vCameraOrbitPosition.x - vPivot.x, 0.0f, m_vCameraOrbitPosition.z - vPivot.z, 0.0f );
+	vBackward.NormaliseXZ();
+	vBackward.y = -TMath::ATan( TMath::DegToRad( 11.0f ) );
+	vBackward.Normalise();
+	if ( a_bPlayerMoved )
+	{
+		m_vCameraOrbitPosition.Set( vPivot.x + vBackward.x * CAMERA_DISTANCE, vPivot.y + vBackward.y * CAMERA_DISTANCE,
+		                           vPivot.z + vBackward.z * CAMERA_DISTANCE );
+		m_fCameraTargetDistance = m_TerrainCollision.GetCameraDistance( vPivot, vBackward, CAMERA_DISTANCE );
+	}
+	// Clamp to a new obstruction immediately and move out at the retail maximum recovery speed.
+	m_fCameraDistance = TMath::Min( m_fCameraTargetDistance, m_fCameraDistance + TMath::Max( a_fDeltaTime, 0.0f ) * 3.0f );
 	// TRenderCamera_PSP stores the inverse of visual up, like the converted retail cameras.
-	TVector3 vUp( -a_vBackward.x * a_vBackward.y, 1.0f - a_vBackward.y * a_vBackward.y, -a_vBackward.z * a_vBackward.y );
+	TVector3 vUp( -vBackward.x * vBackward.y, 1.0f - vBackward.y * vBackward.y, -vBackward.z * vBackward.y );
 	vUp.Normalize();
-	a_rCamera = {
-		{ a_rPlayerPosition.x + a_vBackward.x * 5.0f, a_rPlayerPosition.y - 1.7f + a_vBackward.y * 5.0f, a_rPlayerPosition.z + a_vBackward.z * 5.0f },
-		{ -a_vBackward.x, -a_vBackward.y, -a_vBackward.z },
+	m_Camera = {
+		{ vPivot.x + vBackward.x * m_fCameraDistance, vPivot.y + vBackward.y * m_fCameraDistance, vPivot.z + vBackward.z * m_fCameraDistance },
+		{ -vBackward.x, -vBackward.y, -vBackward.z },
 		{ vUp.x, vUp.y, vUp.z },
-		a_rCamera.fFOV,
+		m_Camera.fFOV,
+		TMath::Min( 1.0f, TMath::Max( 0.05f, 0.25f * m_fCameraDistance ) ),
 	};
 }
 
@@ -39,7 +52,9 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	const ASimStart_PSP& rStart = rReport.oNewGameSimStart;
 	const TFLOAT fAspect = TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TRenderInterface_PSP::SCREEN_HEIGHT;
 	m_Camera.fFOV = TMath::ATan( TMath::Tan( TMath::DegToRad( 30.0f ) ) / fAspect ) * ( 360.0f / TMath::PI );
-	AUpdateSimCamera_PSP( m_Camera, rStart.vPosition, TVector3( -rStart.vFacing.x, 0.0f, -rStart.vFacing.z ) );
+	m_vCameraOrbitPosition.Set( rStart.vPosition.x - rStart.vFacing.x * CAMERA_DISTANCE, rStart.vPosition.y,
+	                           rStart.vPosition.z - rStart.vFacing.z * CAMERA_DISTANCE );
+	UpdateCamera( rStart.vPosition, 0.0f, TTRUE );
 	if ( !m_Player.Load( rReport.oNewGameSimStart, a_uiGender, a_uiCostume ) )
 	{
 		ASetGameRuntimeFailedPath_PSP( m_Player.GetFailedPath() );
@@ -58,6 +73,8 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	rReport.uiSimPlayerMotionMask = 0;
 	rReport.uiSimTerrainContacts = 0;
 	rReport.uiSimTerrainSlides = 0;
+	rReport.fSimCameraDistance = m_fCameraDistance;
+	rReport.fSimCameraMinDistance = m_fCameraDistance;
 	return TTRUE;
 }
 
@@ -87,8 +104,8 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 		ASetGameRuntimePhase_PSP( "sim-world-failed" );
 	}
 	const TVector4& rPosition = m_Player.GetPosition();
-	if ( rPosition.x != vPrevious.x || rPosition.y != vPrevious.y || rPosition.z != vPrevious.z )
-		AUpdateSimCamera_PSP( m_Camera, rPosition, TVector3( m_Camera.aPosition[ 0 ] - rPosition.x, 0.0f, m_Camera.aPosition[ 2 ] - rPosition.z ) );
+	const TBOOL bPlayerMoved = rPosition.x != vPrevious.x || rPosition.y != vPrevious.y || rPosition.z != vPrevious.z;
+	UpdateCamera( rPosition, a_fDeltaTime, bPlayerMoved );
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.vSimPlayerPosition = rPosition;
 	rReport.vSimCameraPosition.Set( m_Camera.aPosition[ 0 ], m_Camera.aPosition[ 1 ], m_Camera.aPosition[ 2 ], 1.0f );
@@ -97,6 +114,8 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	rReport.uiSimPlayerMotionMask |= 1U << rReport.uiSimPlayerMotion;
 	rReport.uiSimTerrainContacts = m_Player.GetTerrainContactCount();
 	rReport.uiSimTerrainSlides = m_Player.GetTerrainSlideCount();
+	rReport.fSimCameraDistance = m_fCameraDistance;
+	rReport.fSimCameraMinDistance = TMath::Min( rReport.fSimCameraMinDistance, m_fCameraDistance );
 	return BaseClass::OnUpdate( a_fDeltaTime );
 }
 

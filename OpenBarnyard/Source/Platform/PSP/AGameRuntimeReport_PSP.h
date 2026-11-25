@@ -128,6 +128,8 @@ struct AGameRuntimeReport_PSP
 	TUINT uiSimPlayerMotionMask;
 	TUINT uiSimTerrainContacts;
 	TUINT uiSimTerrainSlides;
+	TFLOAT fSimCameraDistance;
+	TFLOAT fSimCameraMinDistance;
 	TBOOL bSimPlayerSteering;
 	TINT iNewGamePlayerPage;
 	TINT iNewGamePlayerGender;

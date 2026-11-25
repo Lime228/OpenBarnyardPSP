@@ -125,6 +125,9 @@ TBOOL ATerrainCollision_PSP::LoadPack( const TCHAR* a_szName )
 		     !ContainsTRBData( rPack.oTRB, rMesh.m_pVertices, rMesh.m_uiNumVertices * sizeof( TVector3 ) ) ||
 		     !ContainsTRBData( rPack.oTRB, rMesh.m_pIndices, rMesh.m_uiNumIndices * sizeof( TUINT16 ) ) )
 			return TFALSE;
+		if ( rMesh.m_uiNumCollTypes > rMesh.m_uiNumIndices / 3 ||
+		     ( rMesh.m_uiNumCollTypes > 0 && !ContainsTRBData( rPack.oTRB, rMesh.m_pCollGroups, rMesh.m_uiNumCollTypes * sizeof( TTMDBase::CollisionGroup ) ) ) )
+			return TFALSE;
 		const TVector3& rFirst = rMesh.m_pVertices[ 0 ];
 		MeshBounds& rBounds = rPack.aBounds[ i ];
 		rBounds = { { rFirst, rFirst }, m_uiTriangleBlocks };
@@ -238,9 +241,36 @@ TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a
 	return bHit;
 }
 
-static TBOOL ASweepGroundedTriangle_PSP( const TVector3& a_rA, const TVector3& a_rB, const TVector3& a_rC,
-                                        const TVector4& a_rCenter, TFLOAT a_fRadius, const TVector4& a_rDirection,
-                                        TFLOAT& a_rfDistance, TVector4& a_rNormal )
+static TBOOL ACameraIgnoresTriangle_PSP( const TTRB& a_rTRB, const TTMDBase::CollisionMesh& a_rMesh, TUINT a_uiFace )
+{
+	if ( a_rMesh.m_uiNumCollTypes == 0 )
+		return TFALSE;
+
+	// TModelCollisionData groups consecutive triangles and falls back to group zero.
+	const TCHAR* szGroup = a_rMesh.m_pCollGroups[ 0 ].pszName;
+	for ( TUINT i = 0; i < a_rMesh.m_uiNumCollTypes; i++ )
+	{
+		const auto& rGroup = a_rMesh.m_pCollGroups[ i ];
+		if ( a_uiFace < rGroup.uiNumFaces )
+		{
+			szGroup = rGroup.pszName;
+			break;
+		}
+		a_uiFace -= rGroup.uiNumFaces;
+	}
+
+	// AGTAStyleCameraHelper's default mask is WATERWALL | CAMERA.
+	static constexpr TCHAR s_szWaterWall[] = "coll_waterwall";
+	static constexpr TCHAR s_szCamera[] = "collision_camera";
+	return ( ATerrainCollision_PSP::ContainsTRBData( a_rTRB, szGroup, sizeof( s_szWaterWall ) ) &&
+	         TStringManager::String8Compare( szGroup, s_szWaterWall, sizeof( s_szWaterWall ) ) == 0 ) ||
+	       ( ATerrainCollision_PSP::ContainsTRBData( a_rTRB, szGroup, sizeof( s_szCamera ) ) &&
+	         TStringManager::String8Compare( szGroup, s_szCamera, sizeof( s_szCamera ) ) == 0 );
+}
+
+static TBOOL ASweepTerrainTriangle_PSP( const TVector3& a_rA, const TVector3& a_rB, const TVector3& a_rC,
+                                       const TVector4& a_rCenter, TFLOAT a_fRadius, const TVector4& a_rDirection,
+                                       TFLOAT& a_rfDistance, TVector4& a_rNormal, TBOOL a_bCamera )
 {
 	TVector3 vNormal;
 	vNormal.CrossProduct( a_rB - a_rA, a_rC - a_rA );
@@ -249,7 +279,7 @@ static TBOOL ASweepGroundedTriangle_PSP( const TVector3& a_rA, const TVector3& a
 		return TFALSE;
 	vNormal.Normalize();
 	// The grounded path resolves upward-facing walkable surfaces with the two foot rays.
-	if ( vNormal.z >= 0.55f )
+	if ( !a_bCamera && vNormal.z >= 0.55f )
 		return TFALSE;
 
 	const TPlane oPlane( vNormal, a_rA );
@@ -265,7 +295,7 @@ static TBOOL ASweepGroundedTriangle_PSP( const TVector3& a_rA, const TVector3& a
 }
 
 TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLOAT a_fRadius, const TVector4& a_rDirection,
-                                                 TFLOAT& a_rfDistance, TVector4& a_rNormal ) const
+                                                 TFLOAT& a_rfDistance, TVector4& a_rNormal, TBOOL a_bCamera ) const
 {
 	// Inverse of the original terrain transform, used by the foot rays as well.
 	const TVector4 vCenter( a_rCenter.x, a_rCenter.z, -a_rCenter.y, 1.0f );
@@ -303,7 +333,9 @@ TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLO
 					Bounds oFace{ rA, rA };
 					oFace.Include( rB );
 					oFace.Include( rC );
-					if ( oFace.Overlaps( oSweep ) && ASweepGroundedTriangle_PSP( rA, rB, rC, vCenter, a_fRadius, vDirection, a_rfDistance, vNormal ) )
+					if ( !oFace.Overlaps( oSweep ) || ( a_bCamera && ACameraIgnoresTriangle_PSP( m_aPacks[ i ].oTRB, rMesh, k / 3 ) ) )
+						continue;
+					if ( ASweepTerrainTriangle_PSP( rA, rB, rC, vCenter, a_fRadius, vDirection, a_rfDistance, vNormal, a_bCamera ) )
 						bHit = TTRUE;
 				}
 			}
@@ -329,8 +361,8 @@ ATerrainCollision_PSP::GroundedMove ATerrainCollision_PSP::MoveGrounded( const T
 		const TVector4 vUpper( vLower.x, vLower.y - a_fRadius * 1.8f, vLower.z, 1.0f );
 		TFLOAT fTravel = fRemaining;
 		TVector4 vNormal;
-		const TBOOL bLower = CollideSweptSphere( vLower, a_fRadius, vDirection, fTravel, vNormal );
-		const TBOOL bUpper = CollideSweptSphere( vUpper, a_fRadius, vDirection, fTravel, vNormal );
+		const TBOOL bLower = CollideSweptSphere( vLower, a_fRadius, vDirection, fTravel, vNormal, TFALSE );
+		const TBOOL bUpper = CollideSweptSphere( vUpper, a_fRadius, vDirection, fTravel, vNormal, TFALSE );
 		a_rTarget.x += vDirection.x * fTravel;
 		a_rTarget.z += vDirection.z * fTravel;
 		if ( fTravel > 0.0001f && eMove == GROUNDED_CONTACT )
@@ -354,6 +386,20 @@ ATerrainCollision_PSP::GroundedMove ATerrainCollision_PSP::MoveGrounded( const T
 	if ( a_rTarget.x == a_rPosition.x && a_rTarget.z == a_rPosition.z )
 		return eMove;
 	return ResolveGroundedHeight( a_rTarget, a_rFacing, a_fRadius ) ? eMove : GROUNDED_UNSUPPORTED;
+}
+
+TFLOAT ATerrainCollision_PSP::GetCameraDistance( const TVector4& a_rPivot, const TVector4& a_rDirection, TFLOAT a_fDistance ) const
+{
+	TFLOAT fDistance = a_fDistance;
+	TVector4 vNormal;
+	// AGTAStyleCameraHelper tries its smaller sphere only when the camera is close to the pivot.
+	if ( CollideSweptSphere( a_rPivot, 0.43f, a_rDirection, fDistance, vNormal, TTRUE ) && fDistance < 1.0f )
+	{
+		fDistance = a_fDistance;
+		CollideSweptSphere( a_rPivot, 0.2f, a_rDirection, fDistance, vNormal, TTRUE );
+		fDistance = TMath::Min( fDistance, 1.0f );
+	}
+	return TMath::Max( fDistance, 0.01f );
 }
 
 TBOOL ATerrainCollision_PSP::ResolveGroundedHeight( TVector4& a_rTarget, const TVector4& a_rFacing, TFLOAT a_fRadius ) const

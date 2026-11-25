@@ -22,6 +22,7 @@ public:
 	TBOOL CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance ) const;
 	GroundedMove MoveGrounded( const Toshi::TVector4& a_rPosition, const Toshi::TVector4& a_rFacing, TFLOAT a_fDistance,
 	                           TFLOAT a_fRadius, Toshi::TVector4& a_rTarget ) const;
+	TFLOAT GetCameraDistance( const Toshi::TVector4& a_rPivot, const Toshi::TVector4& a_rDirection, TFLOAT a_fDistance ) const;
 	TUINT GetPackCount() const { return m_uiPacks; }
 	TUINT GetTriangleCount() const { return m_uiTriangles; }
 	const TCHAR* GetFailedPath() const { return m_szPath; }
@@ -60,7 +61,7 @@ private:
 
 	TBOOL LoadPack( const TCHAR* a_szName );
 	TBOOL CollideSweptSphere( const Toshi::TVector4& a_rCenter, TFLOAT a_fRadius, const Toshi::TVector4& a_rDirection,
-	                         TFLOAT& a_rfDistance, Toshi::TVector4& a_rNormal ) const;
+	                         TFLOAT& a_rfDistance, Toshi::TVector4& a_rNormal, TBOOL a_bCamera ) const;
 	TBOOL ResolveGroundedHeight( Toshi::TVector4& a_rTarget, const Toshi::TVector4& a_rFacing, TFLOAT a_fRadius ) const;
 
 	Pack m_aPacks[ MAX_PACKS ];

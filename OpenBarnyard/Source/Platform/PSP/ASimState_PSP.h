@@ -17,8 +17,15 @@ public:
 	TBOOL ProcessCommand( AInputCommand a_eCommand, const Toshi::TInputInterface::InputEvent* a_pEvent, TBOOL& a_rStopEvents ) override;
 
 private:
+	static constexpr TFLOAT CAMERA_DISTANCE = 5.0f;
+
+	void UpdateCamera( const Toshi::TVector4& a_rPlayerPosition, TFLOAT a_fDeltaTime, TBOOL a_bPlayerMoved );
+
 	ASimPlayer_PSP m_Player;
 	ATerrainCollision_PSP m_TerrainCollision;
 	Toshi::TRenderCamera_PSP m_Camera;
+	Toshi::TVector3 m_vCameraOrbitPosition;
+	TFLOAT m_fCameraDistance = CAMERA_DISTANCE;
+	TFLOAT m_fCameraTargetDistance = CAMERA_DISTANCE;
 	Toshi::TVector2 m_vStick = Toshi::TVector2::VEC_ZERO;
 };
