@@ -490,21 +490,36 @@ captures and the tested EBOOT are in
 The character creation background retains the last animated poses from
 shot 16 while the original idle camera runs. All ten idle actor clips
 and the female actor-18 replacement clip exported successfully in the
-host preflight. The live idle actor residency, the profile-to-actor
-material update and the second narration timeline remain open.
+host preflight. The complete idle cast totals 22,641 animated vertices.
+The in-menu preview still uses the frozen cast to fit the 12,288-vertex
+budget.
 `CharacterSetup/Costumes/player_costumes.json` records the original
 `Skins.Tex` entries for both actor-18 models. Fourteen PSP texture files
 retain their retail indices and material targets, with lighting profile
 names preserved for the renderer.
 
-The batch also exports the original actor meshes and clips for all 13
-timed shots after `Player_select` into `SS01/AfterCharacterSetup`. The
-largest of those shots contains 8 resident meshes and 10,574 vertices,
-within the current skinning limits. All six timed female actor-18
-replacement clips also export. The end of `SS01b` precedes the end of the
-timed camera track by about 0.4 seconds. The runtime must continue from
-game time after that voice ends and switch to `BeadyIntDay` for the last
-shot.
+Confirming `Player_select` with the continuation staged resumes the
+sequence at retail shot 18. The pack contains all 13 timed cameras and
+the `SS01b` voice stream. The runtime follows the voice clock while it
+plays, then advances the final fraction of a second with the game clock.
+It uses `Barn` for shots 18–29 and swaps to `BeadyIntDay` at shot 30.
+The interior has 54 meshes and 46 shared textures. The final shot stays
+visible until Cancel while the transition through `AGameLoader` is ported.
+
+The two cast packs use the original male and female actor-18 models and
+their animation clips. They take about 5.1 MiB together on the Memory
+Stick. The runtime loads one pack, keeps the cast for the current shot
+resident and binds the chosen original costume texture to the player
+material. The exporter measured up to 8 meshes and 10,574 male or
+11,183 female animated vertices in a shot. The retail costume lighting
+profile names are available in the manifest for later renderer work.
+
+PPSSPP build `c561c2e1` from Actions run `45657467131` reached all 13
+continuation shots with each player model, costume index 5 and a name
+edited in the original UI. Both runs reported zero voice underruns and
+released all animation vertices and clip samples on return to the menu.
+The tested EBOOT, runtime data, screenshots and both validation logs are
+in `Runtime/OriginalSS01ContinuationValidation`.
 
 Build `4187fa2a` fixes the 3D texture scale and uses bilinear sampling.
 The before and after captures in `Runtime/OriginalSS01TextureValidation`
@@ -524,6 +539,14 @@ graphics check and the return to the menu.
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01PlayerSetupValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -Capture
 ```
 
+```powershell
+$ss01 = 'Game/BarnyardPC/Workspace/SS01'
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01ContinuationValidation -SS01OpeningDirectory "$ss01/Opening" -SS01CharacterSetupDirectory "$ss01/CharacterSetup" -SS01AfterCharacterSetupDirectory "$ss01/AfterCharacterSetup"
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01ContinuationValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -Capture
+```
+
+Repeat with `-PlayerGender 0` to exercise the original male model.
+
 ### Main game entry
 
 After SS01, `AGameLoader::LeaveScriptedSequence` returns to the sim by
@@ -538,8 +561,18 @@ and facing. The engine resolves the final Y against gameplay collision.
 62 row model files from the original install. The initial packed map in
 `EnvMain/TerrainPack_Barn` has 394 mesh groups and 128 shared textures
 totaling 5,221,386 bytes.
-The original player profile, collision, steering and `ASimState` still
-need PSP runtime integration.
+The terrain VIS export also reads each section's original collision file.
+With host tools from build `23c28f12`, `sim_start.json` lists 31 original
+collision TRBs. The host symbol check found the original `Collision` and
+`CollisionTree` in all 31. The six high-LOD sections in the initial
+`Barn` row reference 332,144 bytes of source TRBs. The desktop loader
+queues these colliders when it enters the corresponding high LOD.
+`SpawnSimPlayer` spawns the `player` unit and applies the saved gender and
+costume.
+`APlayerSteer::PlaceAtNamedGoal` resolves the original goal and uses
+collision for placement in Toshi's Y-down world. The selected profile,
+native collision queries, steering and the transition to `ASimState`
+still need PSP runtime integration.
 
 ## Known limitations
 
@@ -554,8 +587,9 @@ need PSP runtime integration.
 - Options opens the original Audio and Controls states with their localized
   labels and widgets. Settings are applied within the session. Memory Stick
   persistence, the music preview and gameplay input still need integration.
-  New Game displays the chooser and records a requested slot. Save import,
-  save writes and the transition into `SS01_start` still need integration.
+  New Game displays the original slot chooser and starts `SS01_start`
+  when its assets are staged. Save import and save writes still need
+  integration.
 - Startup images currently follow the original GUI presentation path. The 15
   PMVF v2 movies preserve all original frames at about 29.97 FPS. The game
   streams `NickMovs`, `THQ`, `BTE` and `Attract` with their original audio and
