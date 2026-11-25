@@ -10,6 +10,7 @@
 #  include "AFrontEndMainMenuState2.h"
 #  include "Platform/PSP/AGameRuntimeReport_PSP.h"
 #  include "Platform/PSP/ARenderer_PSP.h"
+#  include "Platform/PSP/ASimState_PSP.h"
 #  include "Platform/PSP/ATerrainCollision_PSP.h"
 #  include "Units/ASSeqFile.h"
 #  include "Units/ASSeqUI.h"
@@ -230,10 +231,29 @@ TBOOL AFrontEndNewGameSelectState::OnUpdate( TFLOAT a_fDeltaTime )
 			{
 				rReport.bNewGameContinuationComplete = TTRUE;
 				const TBOOL bHasSimStart = ATerrainCollision_PSP::HasInitialPack();
+				if ( bHasSimStart && AHasSimWorld_PSP() )
+				{
+					AStopSSeqOpening_PSP( TFALSE );
+					m_bOpeningPlaying_PSP = TFALSE;
+					ASimState_PSP* pSimState = new ASimState_PSP();
+					if ( pSimState->Create( s_PlayerSelection_PSP.iGender, s_PlayerSelection_PSP.iCostume ) )
+					{
+						AGameStateController::GetSingleton()->ReplaceState( pSimState );
+						return TTRUE;
+					}
+					delete pSimState;
+					ALoadFrontEndWorld_PSP();
+					APauseMenuMusicForOpening_PSP( TFALSE );
+					OnActivate();
+					ASetGameRuntimePhase_PSP( "sim-world-failed" );
+					return TTRUE;
+				}
 				if ( bHasSimStart )
 				{
-					rReport.bNewGameSimStartReady = AReadSimStart_PSP( rReport.oNewGameSimStart, rReport.uiNewGameSimCollisionPacks,
-					                                                 rReport.uiNewGameSimCollisionTriangles );
+					ATerrainCollision_PSP oTerrain;
+					rReport.bNewGameSimStartReady = AReadSimStart_PSP( rReport.oNewGameSimStart, oTerrain );
+					rReport.uiNewGameSimCollisionPacks = oTerrain.GetPackCount();
+					rReport.uiNewGameSimCollisionTriangles = oTerrain.GetTriangleCount();
 				}
 				ASetGameRuntimePhase_PSP( bHasSimStart && !rReport.bNewGameSimStartReady
 				                             ? "frontend-new-game-sim-start-failed"
