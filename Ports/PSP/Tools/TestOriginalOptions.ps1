@@ -9,6 +9,7 @@ param(
     [switch] $CheckNewGameTerrain,
     [switch] $CheckNewGameOpening,
     [switch] $OpeningOnly,
+    [switch] $CheckCharacterSetup,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
     [switch] $RequireOpeningActors
@@ -33,6 +34,10 @@ if ($CheckNewGameOpening -and (-not $hasOpening -or $CheckNewGameTerrain)) {
 }
 if ($OpeningOnly -and (-not $CheckNewGameOpening -or $RequireMenuAudio -or $RequireMenuMusic)) {
     throw 'Use -OpeningOnly with -CheckNewGameOpening and the opening checks.'
+}
+$setupConfig = Join-Path $runtimePath 'Data\ScriptedSequence\SS01\opening-ui.psui'
+if ($CheckCharacterSetup -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath $setupConfig -PathType Leaf))) {
+    throw 'Character creation validation requires the staged original character creation camera and textures.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -251,7 +256,9 @@ try {
                 $terminal = $null
                 do {
                     $now = Read-GameLog
-                    if ($now.phase -eq 'frontend-new-game-opening' -and [int]$now.new_game_voice_ms -ge $endMs) {
+                    if (($now.phase -eq 'frontend-new-game-opening' -or
+                         ($CheckCharacterSetup -and $now.phase -eq 'frontend-new-game-character-setup')) -and
+                        [int]$now.new_game_voice_ms -ge $endMs) {
                         if (-not $terminal) { $terminal = $now }
                         elseif ([int]$now.new_game_opening_frames -gt [int]$terminal.new_game_opening_frames) { break }
                     }
@@ -281,6 +288,34 @@ try {
                 }
             }
             "Loaded SS01 terrain: $($newGame.new_game_terrain_meshes) meshes, $($newGame.new_game_terrain_textures) textures, $($newGame.new_game_terrain_bytes) render bytes, $($newGame.new_game_terrain_heap_free) heap bytes free. Restored the menu."
+        }
+        if ($CheckCharacterSetup) {
+            $setupPhase = 'frontend-new-game-character-setup'
+            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 0 } 30
+            if ($Capture) { Send-Key Screenshot }
+            Send-Key DpadDown
+            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 0; new_game_player_gender = 1 }
+            Send-Key Cross
+            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 1; new_game_player_gender = 1 }
+            foreach ($costume in 1, 2, 5) {
+                Send-Key DpadRight
+                $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 1; new_game_player_costume = $costume }
+            }
+            if ($Capture) { Send-Key Screenshot }
+            Send-Key Cross
+            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 2 }
+            if ($Capture) { Send-Key Screenshot }
+            Send-Key DpadLeft
+            Send-Key DpadLeft
+            Send-Key Cross
+            Send-Key Start
+            $profile = Wait-Menu 'frontend-new-game-player-ready' -1 @{
+                new_game_player_accepted = 1; new_game_player_gender = 1; new_game_player_costume = 5
+            }
+            if ([int]$profile.new_game_player_name_length -ne 1) {
+                throw "Expected one localized letter in the accepted player name. See $gameLog"
+            }
+            'The original character creation screens accepted gender, the fifth costume and an edited name.'
         }
         Send-Key Triangle
         $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
