@@ -449,10 +449,34 @@ alongside the first three runtime clips. The 17th clip is a loop
 (`SS01_GUI_idle`) while the original `UI Player_select` command waits
 for gender, skin and name. The master then resets its voice clock using
 flag 4. The final shot switches to `BeadyIntDay`; the previous 29 cameras
-use `Barn`. The current EBOOT plays the first three clips. The next shot
-has six animated actor tracks, 11 skin meshes and 10,652 vertices before
-culling or reduction. It exceeds the current five-mesh and 8,192-vertex
-runtime limits.
+use `Barn`.
+
+The opening package now has the 16 timed shots before that UI gate.
+Six resident actor slots cover the 13 models used across the shots.
+The fourth shot peaks at 11 skin meshes and 10,652 animated vertices.
+The PSP skinning path computes the current-pose and inverse-bind matrix
+product once per bone and reuses it in both vertex influences. Its limits
+are 11 resident skins, 12,288 animated vertices and 2 MiB of decoded
+animation samples. The original `ss_quadcow` `pose_01` loops on its
+own clock in shot four. The runtime checker reads the actor index and
+matches draw counts across all shots, including the short cuts.
+PPSSPP build `eda4dea4` from Actions run `45607190132` drew all 16
+expected actor sets and held at 50,456 ms on the original `SS01a`
+clock with zero underruns. The screenshot and EBOOT are in
+`Runtime/OriginalSS01PreUIValidation`. The checker confirmed that live
+animated vertices and animation sample bytes return to zero on menu
+entry. The separate bootstrap from run `45607354346` passed its skinning
+and animation-budget checks. Hardware frame time and retail skin lighting
+still need verification.
+
+`ConvertRetailSS01.ps1` also exports the original character creation hide
+atlases into `SS01/CharacterSetup`. The 14 sections use their original
+coordinates from `Data/GUI/texsec.trb`. The male atlas comes from
+`lib_ss01.trb::gui_by_ssequi_TTL` and the female atlas from
+`lib_startup.trb::gui_hud_TTL`. Both stay at 256 by 128. At the player
+creation gate the original `ASSeqUI` still needs to update the runtime
+profile and actor-18 costume. The current pre-UI playback does not
+execute that command.
 
 Build `4187fa2a` fixes the 3D texture scale and uses bilinear sampling.
 The before and after captures in `Runtime/OriginalSS01TextureValidation`
