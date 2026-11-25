@@ -126,6 +126,7 @@ void ASimPlayer_PSP::Unload()
 	m_Pose.Destroy();
 	m_Skeleton.Unload();
 	m_fSpeed = m_fTurnSpeed = m_fMeasuredSpeed = 0.0f;
+	m_uiTerrainContacts = m_uiTerrainSlides = 0;
 	m_fAnimationTime = 0.0f;
 	m_eMotion = MOTION_IDLE;
 	m_bHasSteering = TFALSE;
@@ -197,11 +198,18 @@ void ASimPlayer_PSP::UpdateMovement( TFLOAT a_fDeltaTime, const TVector2& a_rSti
 			continue;
 
 		const TFLOAT fDistance = m_fSpeed * fStep;
-		TVector4 vTarget( m_vPosition.x + m_vFacing.x * fDistance, m_vPosition.y, m_vPosition.z + m_vFacing.z * fDistance, 1.0f );
-		if ( a_rCollision.ResolveGroundedStep( vTarget, m_vFacing, m_SteerTraits.fRadius ) )
-			m_vPosition = vTarget;
-		else
+		TVector4 vTarget;
+		const auto eMove = a_rCollision.MoveGrounded( m_vPosition, m_vFacing, fDistance, m_SteerTraits.fRadius, vTarget );
+		if ( eMove == ATerrainCollision_PSP::GROUNDED_UNSUPPORTED )
+		{
 			m_fSpeed = 0.0f;
+			continue;
+		}
+		m_vPosition = vTarget;
+		if ( eMove == ATerrainCollision_PSP::GROUNDED_CONTACT || eMove == ATerrainCollision_PSP::GROUNDED_SLID )
+			m_uiTerrainContacts++;
+		if ( eMove == ATerrainCollision_PSP::GROUNDED_SLID )
+			m_uiTerrainSlides++;
 	}
 	const TFLOAT fDX = m_vPosition.x - vPrevious.x;
 	const TFLOAT fDZ = m_vPosition.z - vPrevious.z;

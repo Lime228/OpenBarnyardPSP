@@ -21,6 +21,8 @@ public:
 	const Toshi::TVector4& GetPosition() const { return m_vPosition; }
 	TFLOAT GetMeasuredSpeed() const { return m_fMeasuredSpeed; }
 	TUINT GetMotion() const { return m_eMotion; }
+	TUINT GetTerrainContactCount() const { return m_uiTerrainContacts; }
+	TUINT GetTerrainSlideCount() const { return m_uiTerrainSlides; }
 	TBOOL HasSteering() const { return m_bHasSteering; }
 
 private:
@@ -70,6 +72,8 @@ private:
 	TFLOAT m_fSpeed = 0.0f;
 	TFLOAT m_fTurnSpeed = 0.0f;
 	TFLOAT m_fMeasuredSpeed = 0.0f;
+	TUINT m_uiTerrainContacts = 0;
+	TUINT m_uiTerrainSlides = 0;
 	TFLOAT m_fAnimationTime = 0.0f;
 	Motion m_eMotion = MOTION_IDLE;
 	TBOOL m_bHasSteering = TFALSE;

@@ -56,6 +56,8 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	rReport.fSimPlayerSpeed = 0.0f;
 	rReport.uiSimPlayerMotion = 0;
 	rReport.uiSimPlayerMotionMask = 0;
+	rReport.uiSimTerrainContacts = 0;
+	rReport.uiSimTerrainSlides = 0;
 	return TTRUE;
 }
 
@@ -93,6 +95,8 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	rReport.fSimPlayerSpeed = m_Player.GetMeasuredSpeed();
 	rReport.uiSimPlayerMotion = m_Player.GetMotion();
 	rReport.uiSimPlayerMotionMask |= 1U << rReport.uiSimPlayerMotion;
+	rReport.uiSimTerrainContacts = m_Player.GetTerrainContactCount();
+	rReport.uiSimTerrainSlides = m_Player.GetTerrainSlideCount();
 	return BaseClass::OnUpdate( a_fDeltaTime );
 }
 

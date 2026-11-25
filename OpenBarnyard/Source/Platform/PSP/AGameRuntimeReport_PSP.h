@@ -126,6 +126,8 @@ struct AGameRuntimeReport_PSP
 	TFLOAT fSimPlayerSpeed;
 	TUINT uiSimPlayerMotion;
 	TUINT uiSimPlayerMotionMask;
+	TUINT uiSimTerrainContacts;
+	TUINT uiSimTerrainSlides;
 	TBOOL bSimPlayerSteering;
 	TINT iNewGamePlayerPage;
 	TINT iNewGamePlayerGender;

@@ -2,7 +2,9 @@
 #include "ATerrainCollision_PSP.h"
 
 #include <File/TFile.h>
+#include <Math/TMath.h>
 #include <Math/TMathInline.h>
+#include <Math/TPlane.h>
 #include <Math/TVector3.h>
 #include <Toshi/TStringManager.h>
 
@@ -10,11 +12,23 @@ TOSHI_NAMESPACE_USING
 
 static constexpr TCHAR s_szInitialCollision_PSP[] = "local:Data/Terrain/EnvMain/initial.pscl";
 static constexpr TSIZE s_uiCollisionNameBytes_PSP = 48;
-static constexpr TUINT s_uiMaxTerrainTriangles_PSP = 16 * 1024;
 
 static_assert( sizeof( TTMDBase::CollisionHeader ) == 8 );
 static_assert( sizeof( TTMDBase::CollisionMesh ) == 28 );
 static_assert( sizeof( TVector3 ) == 12 );
+
+void ATerrainCollision_PSP::Bounds::Include( const TVector3& a_rPoint )
+{
+	vMin.Set( TMath::Min( vMin.x, a_rPoint.x ), TMath::Min( vMin.y, a_rPoint.y ), TMath::Min( vMin.z, a_rPoint.z ) );
+	vMax.Set( TMath::Max( vMax.x, a_rPoint.x ), TMath::Max( vMax.y, a_rPoint.y ), TMath::Max( vMax.z, a_rPoint.z ) );
+}
+
+TBOOL ATerrainCollision_PSP::Bounds::Overlaps( const Bounds& a_rBounds ) const
+{
+	return vMin.x <= a_rBounds.vMax.x && vMax.x >= a_rBounds.vMin.x &&
+	       vMin.y <= a_rBounds.vMax.y && vMax.y >= a_rBounds.vMin.y &&
+	       vMin.z <= a_rBounds.vMax.z && vMax.z >= a_rBounds.vMin.z;
+}
 
 TBOOL ATerrainCollision_PSP::ContainsTRBData( const TTRB& a_rTRB, const void* a_pData, TSIZE a_uiBytes )
 {
@@ -107,27 +121,38 @@ TBOOL ATerrainCollision_PSP::LoadPack( const TCHAR* a_szName )
 		const TTMDBase::CollisionMesh& rMesh = pCollision->m_pMeshes[ i ];
 		if ( rMesh.m_uiNumVertices < 3 || rMesh.m_uiNumVertices > 65536 ||
 		     rMesh.m_uiNumIndices < 3 || rMesh.m_uiNumIndices % 3 != 0 ||
-		     rMesh.m_uiNumIndices / 3 > s_uiMaxTerrainTriangles_PSP - m_uiTriangles ||
+		     rMesh.m_uiNumIndices / 3 > MAX_TRIANGLES - m_uiTriangles ||
 		     !ContainsTRBData( rPack.oTRB, rMesh.m_pVertices, rMesh.m_uiNumVertices * sizeof( TVector3 ) ) ||
 		     !ContainsTRBData( rPack.oTRB, rMesh.m_pIndices, rMesh.m_uiNumIndices * sizeof( TUINT16 ) ) )
 			return TFALSE;
-		for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j++ )
-		{
-			if ( rMesh.m_pIndices[ j ] >= rMesh.m_uiNumVertices )
-				return TFALSE;
-		}
 		const TVector3& rFirst = rMesh.m_pVertices[ 0 ];
 		MeshBounds& rBounds = rPack.aBounds[ i ];
-		rBounds = { rFirst.x, rFirst.x, rFirst.y, rFirst.y };
+		rBounds = { { rFirst, rFirst }, m_uiTriangleBlocks };
 		for ( TUINT j = 0; j < rMesh.m_uiNumVertices; j++ )
 		{
 			const TVector3& rVertex = rMesh.m_pVertices[ j ];
 			if ( !TMath::IsFinite( rVertex.x ) || !TMath::IsFinite( rVertex.y ) || !TMath::IsFinite( rVertex.z ) )
 				return TFALSE;
-			rBounds.fMinX = TMath::Min( rBounds.fMinX, rVertex.x );
-			rBounds.fMaxX = TMath::Max( rBounds.fMaxX, rVertex.x );
-			rBounds.fMinZ = TMath::Min( rBounds.fMinZ, rVertex.y );
-			rBounds.fMaxZ = TMath::Max( rBounds.fMaxZ, rVertex.y );
+			rBounds.oBounds.Include( rVertex );
+		}
+		static constexpr TUINT uiIndicesPerBlock = 3 * TRIANGLES_PER_BLOCK;
+		for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += uiIndicesPerBlock )
+		{
+			if ( m_uiTriangleBlocks == MAX_TRIANGLE_BLOCKS )
+				return TFALSE;
+			const TUINT uiEnd = TMath::Min( rMesh.m_uiNumIndices, j + uiIndicesPerBlock );
+			if ( rMesh.m_pIndices[ j ] >= rMesh.m_uiNumVertices )
+				return TFALSE;
+			const TVector3& rBlockFirst = rMesh.m_pVertices[ rMesh.m_pIndices[ j ] ];
+			Bounds& rBlock = m_aTriangleBounds[ m_uiTriangleBlocks++ ];
+			rBlock = { rBlockFirst, rBlockFirst };
+			for ( TUINT k = j + 1; k < uiEnd; k++ )
+			{
+				const TUINT16 uiVertex = rMesh.m_pIndices[ k ];
+				if ( uiVertex >= rMesh.m_uiNumVertices )
+					return TFALSE;
+				rBlock.Include( rMesh.m_pVertices[ uiVertex ] );
+			}
 		}
 		m_uiTriangles += rMesh.m_uiNumIndices / 3;
 	}
@@ -145,6 +170,7 @@ void ATerrainCollision_PSP::Unload()
 	}
 	m_uiPacks = 0;
 	m_uiTriangles = 0;
+	m_uiTriangleBlocks = 0;
 }
 
 static TBOOL AGetTerrainTriangleHeight_PSP( const TVector3& a_rA, const TVector3& a_rB, const TVector3& a_rC,
@@ -180,8 +206,8 @@ TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a
 		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
 		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
 		{
-			const MeshBounds& rBounds = m_aPacks[ i ].aBounds[ mesh ];
-			if ( a_fX < rBounds.fMinX || a_fX > rBounds.fMaxX || a_fZ < rBounds.fMinZ || a_fZ > rBounds.fMaxZ )
+			const Bounds& rBounds = m_aPacks[ i ].aBounds[ mesh ].oBounds;
+			if ( a_fX < rBounds.vMin.x || a_fX > rBounds.vMax.x || a_fZ < rBounds.vMin.y || a_fZ > rBounds.vMax.y )
 				continue;
 			const TTMDBase::CollisionMesh& rMesh = rCollision.m_pMeshes[ mesh ];
 			for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += 3 )
@@ -203,7 +229,126 @@ TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a
 	return bHit;
 }
 
-TBOOL ATerrainCollision_PSP::ResolveGroundedStep( TVector4& a_rTarget, const TVector4& a_rFacing, TFLOAT a_fRadius ) const
+static TBOOL ASweepGroundedTriangle_PSP( const TVector3& a_rA, const TVector3& a_rB, const TVector3& a_rC,
+                                        const TVector4& a_rCenter, TFLOAT a_fRadius, const TVector4& a_rDirection,
+                                        TFLOAT& a_rfDistance, TVector4& a_rNormal )
+{
+	TVector3 vNormal;
+	vNormal.CrossProduct( a_rB - a_rA, a_rC - a_rA );
+	const TFLOAT fNormalSq = vNormal.MagnitudeSq();
+	if ( fNormalSq <= TMath::TFLOAT_EPSILON )
+		return TFALSE;
+	vNormal.Normalize();
+	// The grounded path resolves upward-facing walkable surfaces with the two foot rays.
+	if ( vNormal.z >= 0.55f )
+		return TFALSE;
+
+	const TPlane oPlane( vNormal, a_rA );
+	const TVector3* const apVertices[] = { &a_rA, &a_rB, &a_rC };
+	TFLOAT fDistance = a_rfDistance;
+	TVector4 vHitNormal( vNormal );
+	if ( TMath::SweptSphereVsTriangle( a_rCenter, a_fRadius, a_rDirection, apVertices, fDistance, oPlane, vHitNormal ) == 0 ||
+	     !( fDistance < a_rfDistance && TVector4::DotProduct3( vHitNormal, a_rDirection ) < -0.0001f ) )
+		return TFALSE;
+	a_rfDistance = fDistance;
+	a_rNormal = vHitNormal;
+	return TTRUE;
+}
+
+TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLOAT a_fRadius, const TVector4& a_rDirection,
+                                                 TFLOAT& a_rfDistance, TVector4& a_rNormal ) const
+{
+	// Inverse of the original terrain transform, used by the foot rays as well.
+	const TVector4 vCenter( a_rCenter.x, a_rCenter.z, -a_rCenter.y, 1.0f );
+	const TVector4 vDirection( a_rDirection.x, a_rDirection.z, -a_rDirection.y, 0.0f );
+	const TVector3 vPadding( a_fRadius, a_fRadius, a_fRadius );
+	Bounds oSweep{ vCenter.AsVector3(), vCenter.AsVector3() };
+	const TVector4 vEnd = vCenter + vDirection * a_rfDistance;
+	oSweep.Include( vEnd.AsVector3() );
+	oSweep.vMin = oSweep.vMin - vPadding;
+	oSweep.vMax = oSweep.vMax + vPadding;
+
+	TBOOL bHit = TFALSE;
+	TVector4 vNormal;
+	static constexpr TUINT uiIndicesPerBlock = 3 * TRIANGLES_PER_BLOCK;
+	for ( TUINT i = 0; i < m_uiPacks; i++ )
+	{
+		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
+		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
+		{
+			const MeshBounds& rMeshBounds = m_aPacks[ i ].aBounds[ mesh ];
+			if ( !rMeshBounds.oBounds.Overlaps( oSweep ) )
+				continue;
+			const TTMDBase::CollisionMesh& rMesh = rCollision.m_pMeshes[ mesh ];
+			TUINT uiBlock = rMeshBounds.uiFirstBlock;
+			for ( TUINT j = 0; j < rMesh.m_uiNumIndices; j += uiIndicesPerBlock, uiBlock++ )
+			{
+				if ( !m_aTriangleBounds[ uiBlock ].Overlaps( oSweep ) )
+					continue;
+				const TUINT uiEnd = TMath::Min( rMesh.m_uiNumIndices, j + uiIndicesPerBlock );
+				for ( TUINT k = j; k < uiEnd; k += 3 )
+				{
+					const TUINT16* pFace = &rMesh.m_pIndices[ k ];
+					const TVector3& rA = rMesh.m_pVertices[ pFace[ 0 ] ];
+					const TVector3& rB = rMesh.m_pVertices[ pFace[ 1 ] ];
+					const TVector3& rC = rMesh.m_pVertices[ pFace[ 2 ] ];
+					Bounds oFace{ rA, rA };
+					oFace.Include( rB );
+					oFace.Include( rC );
+					if ( oFace.Overlaps( oSweep ) && ASweepGroundedTriangle_PSP( rA, rB, rC, vCenter, a_fRadius, vDirection, a_rfDistance, vNormal ) )
+						bHit = TTRUE;
+				}
+			}
+		}
+	}
+	if ( bHit )
+		a_rNormal.Set( vNormal.x, -vNormal.z, vNormal.y, 0.0f );
+	return bHit;
+}
+
+ATerrainCollision_PSP::GroundedMove ATerrainCollision_PSP::MoveGrounded( const TVector4& a_rPosition, const TVector4& a_rFacing,
+                                                                        TFLOAT a_fDistance, TFLOAT a_fRadius, TVector4& a_rTarget ) const
+{
+	a_rTarget = a_rPosition;
+	TVector4 vDirection = a_rFacing;
+	TFLOAT fRemaining = a_fDistance;
+	GroundedMove eMove = GROUNDED_ADVANCED;
+	static constexpr TUINT uiMaxContacts = 3;
+	for ( TUINT i = 0; i < uiMaxContacts && fRemaining > 0.0001f; i++ )
+	{
+		// APlayerSteer::SweepAndSlide uses a lower sphere and a second sphere 1.8 radii above it.
+		const TVector4 vLower( a_rTarget.x, a_rTarget.y - a_fRadius, a_rTarget.z, 1.0f );
+		const TVector4 vUpper( vLower.x, vLower.y - a_fRadius * 1.8f, vLower.z, 1.0f );
+		TFLOAT fTravel = fRemaining;
+		TVector4 vNormal;
+		const TBOOL bLower = CollideSweptSphere( vLower, a_fRadius, vDirection, fTravel, vNormal );
+		const TBOOL bUpper = CollideSweptSphere( vUpper, a_fRadius, vDirection, fTravel, vNormal );
+		a_rTarget.x += vDirection.x * fTravel;
+		a_rTarget.z += vDirection.z * fTravel;
+		if ( fTravel > 0.0001f && eMove == GROUNDED_CONTACT )
+			eMove = GROUNDED_SLID;
+		if ( !bLower && !bUpper )
+			break;
+		if ( eMove == GROUNDED_ADVANCED )
+			eMove = GROUNDED_CONTACT;
+
+		// Keep the slide in the horizontal plane so the foot rays own the vertical motion.
+		if ( vNormal.x * vNormal.x + vNormal.z * vNormal.z <= TMath::TFLOAT_EPSILON )
+			break;
+		vNormal.NormaliseXZ();
+		TFLOAT fSlide = 0.0f;
+		TVector4 vSlide;
+		TMath::SlideAlongPlane( vDirection, vNormal, 1.0f, fRemaining, fTravel, fSlide, vSlide, 0.1f, 0.004f, 1.0f );
+		fRemaining = fSlide;
+		if ( fRemaining > 0.0f )
+			vDirection = vSlide;
+	}
+	if ( a_rTarget.x == a_rPosition.x && a_rTarget.z == a_rPosition.z )
+		return eMove;
+	return ResolveGroundedHeight( a_rTarget, a_rFacing, a_fRadius ) ? eMove : GROUNDED_UNSUPPORTED;
+}
+
+TBOOL ATerrainCollision_PSP::ResolveGroundedHeight( TVector4& a_rTarget, const TVector4& a_rFacing, TFLOAT a_fRadius ) const
 {
 	// APlayerSteer::GetGroundHeight uses two rays at half the unit radius and keeps the higher contact.
 	const TFLOAT fSideX = a_rFacing.z * a_fRadius * 0.5f;
@@ -215,7 +360,7 @@ TBOOL ATerrainCollision_PSP::ResolveGroundedStep( TVector4& a_rTarget, const TVe
 	     !CollideVertical( a_rTarget.x - fSideX, a_rTarget.z - fSideZ, fOriginY, TTRUE, fLeft ) )
 		return TFALSE;
 
-	// Keep this path grounded until the original swept-sphere and airborne states are available.
+	// This path keeps both feet supported until the airborne states are available.
 	if ( TMath::Max( TMath::Abs( fLeft - 1.0f ), TMath::Abs( fRight - 1.0f ) ) > a_fRadius )
 		return TFALSE;
 	a_rTarget.y = fOriginY + TMath::Min( fLeft, fRight );

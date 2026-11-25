@@ -108,7 +108,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=31\n"
+		"version=32\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -245,6 +245,8 @@ void AWriteGameRuntimeReport_PSP()
 		"sim_player_speed=%.4f\n"
 		"sim_player_motion=%u\n"
 		"sim_player_motion_mask=%u\n"
+		"sim_terrain_contacts=%u\n"
+		"sim_terrain_slides=%u\n"
 		"sim_camera_position=%.6f,%.6f,%.6f\n"
 		"new_game_player_page=%d\n"
 		"new_game_player_gender=%d\n"
@@ -421,6 +423,8 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.fSimPlayerSpeed,
 		s_GameRuntimeReport_PSP.uiSimPlayerMotion,
 		s_GameRuntimeReport_PSP.uiSimPlayerMotionMask,
+		s_GameRuntimeReport_PSP.uiSimTerrainContacts,
+		s_GameRuntimeReport_PSP.uiSimTerrainSlides,
 		s_GameRuntimeReport_PSP.vSimCameraPosition.x,
 		s_GameRuntimeReport_PSP.vSimCameraPosition.y,
 		s_GameRuntimeReport_PSP.vSimCameraPosition.z,
