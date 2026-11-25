@@ -10,6 +10,7 @@ param(
     [switch] $CheckNewGameOpening,
     [switch] $OpeningOnly,
     [switch] $CheckCharacterSetup,
+    [switch] $CheckContinuation,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
     [switch] $RequireOpeningActors
@@ -38,6 +39,10 @@ if ($OpeningOnly -and (-not $CheckNewGameOpening -or $RequireMenuAudio -or $Requ
 $setupConfig = Join-Path $runtimePath 'Data\ScriptedSequence\SS01\opening-ui.psui'
 if ($CheckCharacterSetup -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath $setupConfig -PathType Leaf))) {
     throw 'Character creation validation requires the staged original character creation camera and textures.'
+}
+$continuationConfig = Join-Path $runtimePath 'Data\ScriptedSequence\SS01\AfterCharacterSetup\opening.psco'
+if ($CheckContinuation -and (-not $CheckCharacterSetup -or -not (Test-Path -LiteralPath $continuationConfig -PathType Leaf))) {
+    throw 'Continuation validation requires -CheckCharacterSetup and the staged second SS01 narration.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -318,13 +323,31 @@ try {
             Send-Key DpadRight
             Send-Key DpadRight
             Send-Key Cross
-            $profile = Wait-Menu 'frontend-new-game-player-ready' -1 @{
+            $profilePhase = if ($CheckContinuation) { 'frontend-new-game-continuation' } else { 'frontend-new-game-player-ready' }
+            $profile = Wait-Menu $profilePhase -1 @{
                 new_game_player_accepted = 1; new_game_player_gender = 1; new_game_player_costume = 5
             }
             if ([int]$profile.new_game_player_name_length -ne 1) {
                 throw "Expected one localized letter in the accepted player name. See $gameLog"
             }
-            'The original character creation screens accepted gender, the fifth costume and an edited name.'
+            'The original character creation screens accepted gender, costume index 5 and an edited name.'
+            if ($CheckContinuation) {
+                $firstShot = Wait-Menu $profilePhase -1 @{ new_game_continuation_shot = 1; new_game_beady_int_day = 0 }
+                if ($Capture) { Send-Key Screenshot }
+                $complete = Wait-Menu 'frontend-new-game-sequence-complete' -1 @{
+                    new_game_continuation_shot = 13; new_game_beady_int_day = 1
+                    new_game_terrain_meshes = 54; new_game_terrain_textures = 46
+                } 65
+                $expectedDraws = '8,2,2,2,3,8,3,5,1,3,2,2,6'
+                $draws = ($complete.new_game_continuation_actor_draws_by_shot -split ',' | Select-Object -First 13) -join ','
+                if ($draws -ne $expectedDraws -or [int]$complete.new_game_continuation_voice_ms -lt 35000 -or
+                    [int]$complete.new_game_voice_non_silent_blocks -le [int]$firstShot.new_game_voice_non_silent_blocks -or
+                    [int]$complete.animation_peak_vertices -gt 12288) {
+                    throw "Unexpected SS01 continuation cast or narration. Draws $draws, voice $($complete.new_game_continuation_voice_ms) ms, peak $($complete.animation_peak_vertices) vertices. See $gameLog"
+                }
+                if ($Capture) { Send-Key Screenshot }
+                "SS01b played to $($complete.new_game_continuation_voice_ms) ms, drew all 13 original shots and finished in BeadyIntDay."
+            }
         }
         Send-Key Triangle
         $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
