@@ -9,7 +9,8 @@ param(
     [switch] $CheckNewGameTerrain,
     [switch] $CheckNewGameOpening,
     [switch] $RequireOpeningSky,
-    [switch] $RequireOpeningVoice
+    [switch] $RequireOpeningVoice,
+    [switch] $RequireOpeningActors
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,6 +38,9 @@ if ($RequireOpeningSky -and (-not $CheckNewGameOpening -or -not (Test-Path -Lite
 }
 if ($RequireOpeningVoice -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\Voice') -PathType Container))) {
     throw 'The voice check needs the opening check and a staged voice cache.'
+}
+if ($RequireOpeningActors -and (-not $CheckNewGameOpening -or -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\ScriptedSequence\SS01\Actors\actors.psac') -PathType Leaf))) {
+    throw 'The actor check needs the opening check and a staged actor cache.'
 }
 if (Get-Process -Name PPSSPPWindows64, PPSSPPWindows -ErrorAction SilentlyContinue) {
     throw 'An existing PPSSPP process is running.'
@@ -157,9 +161,16 @@ try {
             if ($RequireOpeningSky -and [int]$newGame.new_game_sky_draws -ne 2 * [int]$newGame.new_game_opening_frames) {
                 throw "The original opening sky did not render both layers. See $gameLog"
             }
+            if ($RequireOpeningActors) {
+                if ($newGame.new_game_actor_draws_shot1 -ne '2') {
+                    throw "The first shot did not draw both original birds. See $gameLog"
+                }
+                $expected.new_game_actor_draws_shot2 = 5
+            }
             if ($Capture) {
                 Send-Key Screenshot
-                Start-Sleep -Milliseconds 750
+                $shotCaptureDelay = if ($RequireOpeningActors) { 2000 } else { 750 }
+                Start-Sleep -Milliseconds $shotCaptureDelay
                 Send-Key Screenshot
             }
             "Rendered the original SS01 opening ($($newGame.new_game_opening_draws) draws across $($newGame.new_game_opening_frames) frames)."
@@ -174,12 +185,18 @@ try {
                 $endMs = [int](1000 * ($firstShotSeconds + $secondShotSeconds))
                 $expected.new_game_opening_shot = 2
                 $spoken = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
+                if ($RequireOpeningActors) {
+                    "Submitted two bird meshes in the first shot and all five bird, farmer and bull meshes in the second."
+                }
                 if ([int]$spoken.new_game_voice_ms -lt $firstCutMs -or [int]$spoken.new_game_voice_underruns -ne 0 -or
                     [int]$spoken.new_game_voice_non_silent_blocks -lt 40) {
                     throw "The second original shot did not follow a playing SS01 voice stream. See $gameLog"
                 }
                 "Original narration reached the camera cut at $($spoken.new_game_voice_ms) ms with no underruns."
-                if ($Capture) { Send-Key Screenshot }
+                if ($Capture) {
+                    if ($RequireOpeningActors) { Start-Sleep -Milliseconds 1500 }
+                    Send-Key Screenshot
+                }
 
                 $deadline = (Get-Date).AddSeconds(45)
                 $terminal = $null
@@ -199,6 +216,14 @@ try {
                     throw "Narration did not stop at the end of the two-shot preview. See $gameLog"
                 }
                 "Narration stopped at $($now.new_game_voice_ms) ms while the last pose held."
+            }
+            elseif ($RequireOpeningActors) {
+                $null = Wait-Menu 'frontend-new-game-opening' -1 $expected 90
+                if ($Capture) {
+                    Start-Sleep -Milliseconds 1500
+                    Send-Key Screenshot
+                }
+                "Submitted two bird meshes in the first shot and all five bird, farmer and bull meshes in the second."
             }
         }
         else {
