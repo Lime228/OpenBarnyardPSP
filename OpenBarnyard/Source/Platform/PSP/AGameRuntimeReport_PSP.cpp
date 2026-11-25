@@ -223,6 +223,7 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_player_costume=%d\n"
 		"new_game_player_name_length=%u\n"
 		"new_game_player_accepted=%d\n"
+		"new_game_player_voice=%d\n"
 		"animation_live_vertices=%u\n"
 		"animation_peak_vertices=%u\n"
 		"animation_sample_bytes=%u\n"
@@ -369,6 +370,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.iNewGamePlayerCostume,
 		s_GameRuntimeReport_PSP.uiNewGamePlayerNameLength,
 		s_GameRuntimeReport_PSP.bNewGamePlayerAccepted,
+		s_GameRuntimeReport_PSP.iNewGamePlayerVoice,
 		oAnimation.uiAnimatedVertices,
 		oAnimation.uiAnimatedVertexPeak,
 		TUINT( oAnimation.uiSampleCurrent ),

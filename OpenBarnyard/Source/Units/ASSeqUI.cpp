@@ -8,6 +8,8 @@
 #include "Sound/ASoundManager.h"
 #include "Player/APlayerProfile.h"
 #ifdef BARNYARD_PSP_FRONTEND_SLICE
+#  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#  include "Platform/PSP/AVOStream_PSP.h"
 #  include <cwctype>
 #else
 #  include "AUnitManager.h"
@@ -59,6 +61,39 @@ static TWCHAR AChangeNameCase_PSP( TWCHAR a_wCharacter, TBOOL a_bUpper )
 	return TWCHAR( std::towlower( a_wCharacter ) );
 }
 #endif
+
+static void APlayCharacterSetupVoice( TINT a_iVoice )
+{
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	if ( APlaySSeqVO_PSP( a_iVoice ) )
+	{
+		AGetGameRuntimeReport_PSP().iNewGamePlayerVoice = a_iVoice;
+		AWriteGameRuntimeReport_PSP();
+	}
+#else
+	AVOStream::GetSingleton()->Play( a_iVoice, TFALSE );
+#endif
+}
+
+static TBOOL AIsCharacterSetupVoicePlaying()
+{
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	return AGetSSeqVOTime_PSP() >= 0;
+#else
+	return AVOStream::GetSingleton()->IsPlaying();
+#endif
+}
+
+static void AStopCharacterSetupVoice()
+{
+#ifdef BARNYARD_PSP_FRONTEND_SLICE
+	AStopSSeqVO_PSP();
+#else
+	AVOStream* pVoice = AVOStream::GetSingleton();
+	if ( pVoice->IsPlaying() )
+		pVoice->Stop();
+#endif
+}
 
 TINT ASSeqUI::GetGender() const
 {
@@ -311,15 +346,8 @@ void ASSeqUI::CycleSkin( TINT a_iDirection )
 // $Barnyard: FUNCTION 0062b8c0
 void ASSeqUI::Reset()
 {
-#ifndef BARNYARD_PSP_FRONTEND_SLICE
 	if ( !m_bNoSound )
-	{
-		AVOStream* pVOStream = AVOStream::GetSingleton();
-
-		if ( pVOStream->IsPlaying() )
-			pVOStream->Stop();
-	}
-#endif
+		AStopCharacterSetupVoice();
 
 	for ( TINT i = 0; i < NUM_GENDERS; i++ )
 	{
@@ -421,21 +449,13 @@ void ASSeqUI::Update( TFLOAT a_fDeltaTime )
 	}
 	else if ( m_ePage == PAGE_NAME )
 	{
-#ifndef BARNYARD_PSP_FRONTEND_SLICE
-		if ( m_bNoSound == TFALSE )
+		if ( m_bNoSound == TFALSE && m_fVOTime > 0.0f && !AIsCharacterSetupVoicePlaying() )
 		{
-			// The voice-over asking for the name, once the previous line is over
-			AVOStream* pVOStream = AVOStream::GetSingleton();
-
-			if ( m_fVOTime > 0.0f && !pVOStream->IsPlaying() )
-			{
-				if ( m_fVOTime - a_fDeltaTime < 0.0f )
-					pVOStream->Play( 49, TFALSE );
-
-				m_fVOTime -= a_fDeltaTime;
-			}
+			// Ask for the name once the previous line is over.
+			m_fVOTime -= a_fDeltaTime;
+			if ( m_fVOTime < 0.0f )
+				APlayCharacterSetupVoice( 49 );
 		}
-#endif
 
 		// Done can only be chosen once there's a name
 		AGUI2MenuGridTextItem& rDone = m_aLetters[ NUM_LETTERS - 1 ];
@@ -571,10 +591,8 @@ void ASSeqUI::SetPage( PAGE a_ePage )
 		m_oNameBackground.Hide();
 		m_oSkinPicture.Show();
 
-#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( m_bNoSound == TFALSE )
-			AVOStream::GetSingleton()->Play( 47, TFALSE );
-#endif
+			APlayCharacterSetupVoice( 47 );
 	}
 	else if ( a_ePage == PAGE_NAME )
 	{
@@ -607,17 +625,11 @@ void ASSeqUI::SetPage( PAGE a_ePage )
 		m_oGenderMenu.Hide();
 		m_oSkinPicture.Hide();
 
-#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		if ( m_bNoSound == TTRUE )
 			return;
 
-		AVOStream* pVOStream = AVOStream::GetSingleton();
-
-		if ( pVOStream->IsPlaying() )
-			pVOStream->Stop();
-
-		pVOStream->Play( 48, TFALSE );
-#endif
+		AStopCharacterSetupVoice();
+		APlayCharacterSetupVoice( 48 );
 	}
 
 #ifndef BARNYARD_PSP_FRONTEND_SLICE

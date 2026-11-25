@@ -296,15 +296,22 @@ try {
             Send-Key DpadDown
             $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 0; new_game_player_gender = 1 }
             Send-Key Cross
-            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 1; new_game_player_gender = 1 }
+            $skinPage = @{ new_game_player_page = 1; new_game_player_gender = 1 }
+            if ($RequireOpeningVoice) { $skinPage.new_game_player_voice = 47 }
+            $null = Wait-Menu $setupPhase -1 $skinPage
             foreach ($costume in 1, 2, 5) {
                 Send-Key DpadRight
                 $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 1; new_game_player_costume = $costume }
             }
             if ($Capture) { Send-Key Screenshot }
             Send-Key Cross
-            $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 2 }
+            $namePage = @{ new_game_player_page = 2 }
+            if ($RequireOpeningVoice) { $namePage.new_game_player_voice = 48 }
+            $null = Wait-Menu $setupPhase -1 $namePage
             if ($Capture) { Send-Key Screenshot }
+            if ($RequireOpeningVoice) {
+                $null = Wait-Menu $setupPhase -1 @{ new_game_player_page = 2; new_game_player_voice = 49 }
+            }
             Send-Key DpadLeft
             Send-Key DpadLeft
             Send-Key Cross

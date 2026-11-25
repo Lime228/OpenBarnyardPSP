@@ -109,6 +109,7 @@ struct AGameRuntimeReport_PSP
 	TINT iNewGamePlayerCostume;
 	TUINT uiNewGamePlayerNameLength;
 	TBOOL bNewGamePlayerAccepted;
+	TINT iNewGamePlayerVoice;
 	TINT iNewGameVoiceMS;
 	TUINT uiNewGameVoiceUnderruns;
 	TUINT uiNewGameVoiceNonSilentBlocks;

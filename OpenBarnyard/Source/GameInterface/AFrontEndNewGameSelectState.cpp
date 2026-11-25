@@ -411,6 +411,7 @@ void AFrontEndNewGameSelectState::OnMenuClose()
 	rReport.iNewGamePlayerCostume = -1;
 	rReport.uiNewGamePlayerNameLength = 0;
 	rReport.bNewGamePlayerAccepted = TFALSE;
+	rReport.iNewGamePlayerVoice = -1;
 	TUINT8* pScript = ASSeqFile::Read( s_szIntroScript_PSP, rReport.iNewGameScriptTracks );
 	const TBOOL bScriptLoaded = pScript != TNULL;
 	const TCHAR* szPhase = "frontend-new-game-script-failed";
