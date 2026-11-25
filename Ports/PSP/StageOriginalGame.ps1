@@ -1051,6 +1051,23 @@ if ($SS01OpeningDirectory) {
     $openingSources = foreach ($name in $openingFiles) {
         (Get-Item -LiteralPath (Join-Path $SS01OpeningDirectory $name)).FullName
     }
+    $actorManifest = Join-Path $SS01OpeningDirectory 'opening_actors.json'
+    $actorSources = @()
+    if (Test-Path -LiteralPath $actorManifest -PathType Leaf) {
+        $actors = Get-Content -LiteralPath $actorManifest -Raw | ConvertFrom-Json
+        if ($opening.version -ne 2 -or $actors.version -ne 1 -or $actors.sequence -cne $opening.sequence -or
+            $actors.actors.Count -lt 1 -or $actors.actors.Count -gt 4 -or -not $actors.files.'actors.psac') {
+            throw 'Expected the SS01 opening actor manifest for the two-shot timeline.'
+        }
+        $actorSources = @(foreach ($file in $actors.files.PSObject.Properties) {
+            if ($file.Name -cnotmatch '^(actors\.psac|actor-(root|[0-3])(\.pskl|-[01]\.panm|-[01]\.pmes)|texture-[0-4]\.ptex)$') {
+                throw "Invalid cached SS01 actor name: $($file.Name)"
+            }
+            $source = Get-Item -LiteralPath (Join-Path (Join-Path $SS01OpeningDirectory 'Actors') $file.Name)
+            if ($source.PSIsContainer -or $source.Length -ne $file.Value) { throw "Invalid cached SS01 actor: $($file.Name)" }
+            $source.FullName
+        })
+    }
 }
 
 if ($SS01TerrainDirectory) {
@@ -1084,6 +1101,16 @@ if ($SS01OpeningDirectory) {
     $openingDestination = Join-Path $runtimePath 'Data\ScriptedSequence\SS01'
     New-Item -ItemType Directory -Force -Path $openingDestination | Out-Null
     Copy-Item -LiteralPath $openingSources -Destination $openingDestination -Force
+    $actorDestination = Join-Path $openingDestination 'Actors'
+    $actorIndex = Join-Path $actorDestination 'actors.psac'
+    if ($actorSources.Count -gt 0) {
+        New-Item -ItemType Directory -Force -Path $actorDestination | Out-Null
+        Copy-Item -LiteralPath $actorSources -Destination $actorDestination -Force
+        Write-Output "Staged $($actors.actors.Count) original SS01 opening actors"
+    }
+    elseif (Test-Path -LiteralPath $actorIndex -PathType Leaf) {
+        Remove-Item -LiteralPath $actorIndex -Force
+    }
     if ($openingVoice) {
         $voiceDestination = Join-Path $openingDestination 'Voice'
         New-Item -ItemType Directory -Force -Path $voiceDestination | Out-Null

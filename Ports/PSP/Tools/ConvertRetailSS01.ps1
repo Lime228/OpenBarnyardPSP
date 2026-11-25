@@ -43,6 +43,10 @@ if ($LASTEXITCODE -ne 0) { throw 'SS01 opening camera packaging failed.' }
     --tmdl $TMDLPath --max-width $TextureMaxWidth $installPath $sequenceManifestPath $modelsPath
 if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence model conversion failed.' }
 
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_actors.py') `
+    --tmdl $TMDLPath $installPath $sequenceManifestPath $modelsPath (Join-Path $outputPath 'Opening')
+if ($LASTEXITCODE -ne 0) { throw 'SS01 opening actor packaging failed.' }
+
 if ($encodedAudioRequired -or (Test-Path -LiteralPath (Join-Path $EncodedAudioDirectory 'fsb.encode.json') -PathType Leaf)) {
     & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_sequence_voice.py') `
         $sequenceManifestPath $EncodedAudioDirectory $voicePath
