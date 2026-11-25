@@ -404,6 +404,7 @@ void ASSeqUI::Update( TFLOAT a_fDeltaTime )
 	}
 	else if ( m_ePage == PAGE_SKIN )
 	{
+#ifndef BARNYARD_PSP_FRONTEND_SLICE
 		// What the mouse cursor is over
 		T2GUITransform oInvTransform;
 		const TVector2 vecCursorPos = AGUI2::GetMouseCursor().GetCursorPos();
@@ -426,6 +427,7 @@ void ASSeqUI::Update( TFLOAT a_fDeltaTime )
 				m_bRightArrowHovered = m_aSkinArrows[ 1 ].IsPointInside( vecLocalPos.x, vecLocalPos.y );
 			}
 		}
+#endif
 
 		m_bUnk2 = TFALSE;
 
