@@ -17,11 +17,14 @@ class RetailSequenceTests(unittest.TestCase):
             {"type": "animation", "name": "first"},
             {"type": "command", "name": "SetNearClip", "arguments": ["2"]},
             {"type": "animation", "name": "second"},
+            {"type": "command", "name": "SetNearClip", "arguments": ["0.5"]},
+            {"type": "animation", "name": "third"},
         ]
         timing = [
             {"type": "wait", "flag": 1, "duration": 0}, {"type": "wait", "flag": 2, "duration": 0},
             {"type": "resume"}, {"type": "wait", "flag": 0, "duration": 4.4}, {"type": "resume"},
             {"type": "wait", "flag": 0, "duration": 4}, {"type": "resume"},
+            {"type": "wait", "flag": 0, "duration": 4.633334}, {"type": "resume"},
         ]
         voice = {"actor": 15, "type": "vostream", "opens_track": True, "index": 1}
         script = {"camera_tracks": [{"actor": 14, "events": events}], "master_timing": timing, "voice_instructions": [voice]}
@@ -29,7 +32,7 @@ class RetailSequenceTests(unittest.TestCase):
         self.assertEqual(actor, 14)
         self.assertEqual(selected_voice, voice)
         self.assertEqual([(shot["clip"], shot["duration"], shot["near_clip"]) for shot in shots],
-                         [("first", 4.4, 0.8), ("second", 4.0, 2.0)])
+                         [("first", 4.4, 0.8), ("second", 4.0, 2.0), ("third", 4.633334, 0.5)])
         timing[3]["flag"] = 9
         with self.assertRaisesRegex(ValueError, "opening synchronization"):
             opening_shots(script)

@@ -14,15 +14,17 @@ from inventory_retail_sequence import retail_file
 from package_retail_opening_sky import package as package_sky
 
 
+OPENING_SHOT_COUNT = 3
+
+
 def opening_shots(script: dict) -> tuple[int, list, dict]:
     camera_track, = script["camera_tracks"]
     voice, = [entry for entry in script["voice_instructions"]
               if entry["actor"] == 15 and entry["type"] == "vostream" and entry["opens_track"]]
     master = script["master_timing"]
-    if [(item["type"], item.get("flag")) for item in master[:7]] != [
-        ("wait", 1), ("wait", 2), ("resume", None), ("wait", 0),
-        ("resume", None), ("wait", 0), ("resume", None),
-    ]:
+    synchronization = [("wait", 1), ("wait", 2), ("resume", None)]
+    synchronization += [("wait", 0), ("resume", None)] * OPENING_SHOT_COUNT
+    if [(item["type"], item.get("flag")) for item in master[:len(synchronization)]] != synchronization:
         raise ValueError("unexpected SS01 opening synchronization")
 
     shots = []
@@ -42,10 +44,10 @@ def opening_shots(script: dict) -> tuple[int, list, dict]:
                 not 0.0 < shot["duration"] <= 60.0):
             raise ValueError("opening camera parameters are outside the PSP range")
         shots.append(shot)
-        if len(shots) == 2:
+        if len(shots) == OPENING_SHOT_COUNT:
             break
-    if len(shots) != 2 or shots[0]["visibility_row"] != shots[1]["visibility_row"]:
-        raise ValueError("the opening preview needs two shots in the same visibility row")
+    if len(shots) != OPENING_SHOT_COUNT or len({shot["visibility_row"] for shot in shots}) != 1:
+        raise ValueError("the opening preview needs all supported shots in the same visibility row")
     return camera_track["actor"], shots, voice
 
 

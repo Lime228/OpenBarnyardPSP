@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the retail actors animated in the first two SS01 shots."""
+"""Package the retail actors animated in the supported SS01 opening shots."""
 
 import argparse
 import json
@@ -18,7 +18,8 @@ from inventory_retail_sequence import retail_file
 from package_retail_sequence_opening import opening_shots
 
 
-MAX_ACTORS = 4
+MAX_ACTORS = 5
+MAX_RESIDENT_ACTORS = 4
 MAX_MESHES_PER_ACTOR = 2
 MAX_SKIN_MESHES = 5
 MAX_TEXTURES = 5
@@ -94,11 +95,13 @@ def package(tool: Path, install: Path, sequence: dict, models_path: Path,
     if manifest["sequence"] != sequence["sequence"]:
         raise ValueError("actor models and script come from different sequences")
     models = {entry["model"].casefold(): entry for entry in manifest["models"]}
-    meshes = [mesh for name in active for mesh in models[name]["meshes"]]
-    if len(meshes) > MAX_SKIN_MESHES:
-        raise ValueError("the opening exceeds the resident PSP skin mesh limit")
-    if sum(mesh["vertices"] for mesh in meshes) > MAX_ANIMATED_VERTICES:
-        raise ValueError("the opening exceeds the PSP animated vertex limit")
+    for shot in range(len(shots)):
+        names = [name for name, clips in active.items() if shot in clips]
+        meshes = [mesh for name in names for mesh in models[name]["meshes"]]
+        if len(names) > MAX_RESIDENT_ACTORS or len(meshes) > MAX_SKIN_MESHES:
+            raise ValueError(f"shot {shot + 1} exceeds the resident PSP actor or skin mesh limit")
+        if sum(mesh["vertices"] for mesh in meshes) > MAX_ANIMATED_VERTICES:
+            raise ValueError(f"shot {shot + 1} exceeds the PSP animated vertex limit")
     pack = retail_file(install, sequence["sources"]["asset_pack"]["path"])
     libraries = {entry["name"].casefold(): entry["symbol"] for entry in sequence["key_libraries"] if entry["symbol"]}
     output.mkdir(parents=True, exist_ok=True)
