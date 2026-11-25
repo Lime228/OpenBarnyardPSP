@@ -8,6 +8,8 @@
 
 TOSHI_NAMESPACE_START
 
+class TMatrix44;
+
 struct TRenderColourVertex_PSP
 {
 	TUINT32 uiColour;
@@ -130,6 +132,14 @@ public:
 	    const T2Texture* a_pTexture,
 	    const TRenderModelTransform_PSP& a_rTransform
 	);
+	TBOOL DrawSkinnedModel(
+	    const TModel_PSP& a_rModel,
+	    const TVertexPoolResource_PSP& a_rVertices,
+	    const TMatrix44& a_rWorld,
+	    const TRenderMaterial_PSP& a_rMaterial,
+	    const T2Texture* a_pTexture,
+	    const TRenderCamera_PSP& a_rCamera
+	);
 	void DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight );
 	void DrawTextureRegion(
 	    const T2Texture& a_rTexture,
@@ -150,6 +160,17 @@ public:
 	TBOOL IsDisplayCreated() const { return m_bDisplayCreated; }
 
 private:
+	TBOOL DrawSkinnedModel(
+	    const TModel_PSP& a_rModel,
+	    const TVertexPoolResource_PSP& a_rVertices,
+	    const TMatrix44* a_pWorld,
+	    const TRenderMaterial_PSP& a_rMaterial,
+	    const T2Texture* a_pTexture,
+	    const TRenderCamera_PSP* a_pCamera,
+	    TFLOAT a_fRotation,
+	    const TRenderModelTransform_PSP& a_rTransform
+	);
+
 	alignas( 16 ) TUINT32 m_aDisplayList[ 262144 ];
 	void*                 m_pDrawBuffer = TNULL;
 	TBOOL                 m_bDisplayCreated;

@@ -3,6 +3,7 @@
 
 #include "TRenderMemory_PSP.h"
 
+#include <Math/TMatrix44.h>
 #include <Render/TRenderInterface.h>
 
 #include <pspdisplay.h>
@@ -349,6 +350,43 @@ void TRenderInterface_PSP::DrawIndexedColourTriangles( const TVertexPoolResource
 	);
 }
 
+static void TRenderSetCamera_PSP( const TRenderCamera_PSP* a_pCamera )
+{
+	sceGumMatrixMode( GU_PROJECTION );
+	sceGumLoadIdentity();
+	sceGumPerspective(
+		a_pCamera != TNULL ? a_pCamera->fFOV : 45.0f,
+		TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TFLOAT( TRenderInterface_PSP::SCREEN_HEIGHT ),
+		a_pCamera != TNULL ? a_pCamera->fNear : 0.1f,
+		a_pCamera != TNULL ? 280.0f : 100.0f
+	);
+	sceGumMatrixMode( GU_VIEW );
+	sceGumLoadIdentity();
+	if ( a_pCamera != TNULL )
+	{
+		ScePspFVector3 oEye = {
+			a_pCamera->aPosition[ 0 ],
+			a_pCamera->aPosition[ 1 ],
+			a_pCamera->aPosition[ 2 ],
+		};
+		ScePspFVector3 oCenter = {
+			a_pCamera->aPosition[ 0 ] + a_pCamera->aDirection[ 0 ],
+			a_pCamera->aPosition[ 1 ] + a_pCamera->aDirection[ 1 ],
+			a_pCamera->aPosition[ 2 ] + a_pCamera->aDirection[ 2 ],
+		};
+		ScePspFVector3 oUp = {
+			-a_pCamera->aUp[ 0 ],
+			-a_pCamera->aUp[ 1 ],
+			-a_pCamera->aUp[ 2 ],
+		};
+		// Toshi stores the second camera basis as the inverse of visual world-up
+		// for the retail D3D view convention. GU look-at expects visual up.
+		sceGumLookAt( &oEye, &oCenter, &oUp );
+	}
+	sceGumMatrixMode( GU_MODEL );
+	sceGumLoadIdentity();
+}
+
 void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture )
 {
 	const TRenderMaterial_PSP oMaterial = {
@@ -428,39 +466,7 @@ void TRenderInterface_PSP::DrawModel(
 	TRenderSetAlphaMode_PSP( a_rMaterial.eAlphaMode );
 	sceGuEnable( GU_DEPTH_TEST );
 
-	sceGumMatrixMode( GU_PROJECTION );
-	sceGumLoadIdentity();
-	sceGumPerspective(
-		a_pCamera != TNULL ? a_pCamera->fFOV : 45.0f,
-		TFLOAT( SCREEN_WIDTH ) / TFLOAT( SCREEN_HEIGHT ),
-		a_pCamera != TNULL ? a_pCamera->fNear : 0.1f,
-		a_pCamera != TNULL ? 280.0f : 100.0f
-	);
-	sceGumMatrixMode( GU_VIEW );
-	sceGumLoadIdentity();
-	if ( a_pCamera != TNULL )
-	{
-		ScePspFVector3 oEye = {
-			a_pCamera->aPosition[ 0 ],
-			a_pCamera->aPosition[ 1 ],
-			a_pCamera->aPosition[ 2 ],
-		};
-		ScePspFVector3 oCenter = {
-			a_pCamera->aPosition[ 0 ] + a_pCamera->aDirection[ 0 ],
-			a_pCamera->aPosition[ 1 ] + a_pCamera->aDirection[ 1 ],
-			a_pCamera->aPosition[ 2 ] + a_pCamera->aDirection[ 2 ],
-		};
-		ScePspFVector3 oUp = {
-			-a_pCamera->aUp[ 0 ],
-			-a_pCamera->aUp[ 1 ],
-			-a_pCamera->aUp[ 2 ],
-		};
-		// Toshi stores the second camera basis as the inverse of visual world-up
-		// for the retail D3D view convention. GU look-at expects visual up.
-		sceGumLookAt( &oEye, &oCenter, &oUp );
-	}
-	sceGumMatrixMode( GU_MODEL );
-	sceGumLoadIdentity();
+	TRenderSetCamera_PSP( a_pCamera );
 
 	const ScePspFVector3 oTranslation = {
 		a_rTransform.aTranslation[ 0 ],
@@ -512,6 +518,33 @@ void TRenderInterface_PSP::DrawSkinnedModel(
     const TRenderModelTransform_PSP& a_rTransform
 )
 {
+	DrawSkinnedModel( a_rModel, a_rVertices, TNULL, a_rMaterial, a_pTexture, TNULL, a_fRotation, a_rTransform );
+}
+
+TBOOL TRenderInterface_PSP::DrawSkinnedModel(
+    const TModel_PSP& a_rModel,
+    const TVertexPoolResource_PSP& a_rVertices,
+    const TMatrix44& a_rWorld,
+    const TRenderMaterial_PSP& a_rMaterial,
+    const T2Texture* a_pTexture,
+    const TRenderCamera_PSP& a_rCamera
+)
+{
+	const TRenderModelTransform_PSP oTransform = { 1.0f, { 0.0f, 0.0f, 0.0f } };
+	return DrawSkinnedModel( a_rModel, a_rVertices, &a_rWorld, a_rMaterial, a_pTexture, &a_rCamera, 0.0f, oTransform );
+}
+
+TBOOL TRenderInterface_PSP::DrawSkinnedModel(
+    const TModel_PSP& a_rModel,
+    const TVertexPoolResource_PSP& a_rVertices,
+    const TMatrix44* a_pWorld,
+    const TRenderMaterial_PSP& a_rMaterial,
+    const T2Texture* a_pTexture,
+    const TRenderCamera_PSP* a_pCamera,
+    TFLOAT a_fRotation,
+    const TRenderModelTransform_PSP& a_rTransform
+)
+{
 	const TIndexPoolResource_PSP& rIndices = a_rModel.GetIndices();
 	if ( !a_rModel.IsLoaded() ||
 	     a_rModel.GetFormat() != TMODELFORMAT_PSP_SKIN_TEXTURE_COLOUR_XYZ ||
@@ -520,7 +553,7 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 	     rIndices.GetNumIndices() == 0 ||
 	     ( a_rMaterial.bTextureEnabled && ( a_pTexture == TNULL || a_pTexture->GetImageData() == TNULL ) ) )
 	{
-		return;
+		return TFALSE;
 	}
 
 	if ( a_rMaterial.bTextureEnabled )
@@ -539,26 +572,35 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 	TRenderSetAlphaMode_PSP( a_rMaterial.eAlphaMode );
 	sceGuEnable( GU_DEPTH_TEST );
 
-	sceGumMatrixMode( GU_PROJECTION );
-	sceGumLoadIdentity();
-	sceGumPerspective( 45.0f, TFLOAT( SCREEN_WIDTH ) / TFLOAT( SCREEN_HEIGHT ), 0.1f, 100.0f );
-	sceGumMatrixMode( GU_VIEW );
-	sceGumLoadIdentity();
-	sceGumMatrixMode( GU_MODEL );
-	sceGumLoadIdentity();
-
-	const ScePspFVector3 oTranslation = { 0.0f, 0.0f, -3.25f };
-	const ScePspFVector3 oRotation = { a_fRotation * 0.5f, a_fRotation, 0.0f };
-	const ScePspFVector3 oScale = { a_rTransform.fScale, a_rTransform.fScale, a_rTransform.fScale };
-	const ScePspFVector3 oCenter = {
-		-a_rTransform.aCenter[ 0 ],
-		-a_rTransform.aCenter[ 1 ],
-		-a_rTransform.aCenter[ 2 ],
-	};
-	sceGumTranslate( &oTranslation );
-	sceGumRotateXYZ( &oRotation );
-	sceGumScale( &oScale );
-	sceGumTranslate( &oCenter );
+	TRenderSetCamera_PSP( a_pCamera );
+	if ( a_pWorld != TNULL )
+	{
+		alignas( 16 ) ScePspFMatrix4 oWorld;
+		const TVector4& rRight = a_pWorld->AsBasisVector4( BASISVECTOR_RIGHT );
+		const TVector4& rUp = a_pWorld->AsBasisVector4( BASISVECTOR_UP );
+		const TVector4& rForward = a_pWorld->AsBasisVector4( BASISVECTOR_FORWARD );
+		const TVector4& rPosition = a_pWorld->GetTranslation();
+		oWorld.x = { rRight.x, rRight.y, rRight.z, rRight.w };
+		oWorld.y = { rUp.x, rUp.y, rUp.z, rUp.w };
+		oWorld.z = { rForward.x, rForward.y, rForward.z, rForward.w };
+		oWorld.w = { rPosition.x, rPosition.y, rPosition.z, rPosition.w };
+		sceGumLoadMatrix( &oWorld );
+	}
+	else
+	{
+		const ScePspFVector3 oTranslation = { 0.0f, 0.0f, -3.25f };
+		const ScePspFVector3 oRotation = { a_fRotation * 0.5f, a_fRotation, 0.0f };
+		const ScePspFVector3 oScale = { a_rTransform.fScale, a_rTransform.fScale, a_rTransform.fScale };
+		const ScePspFVector3 oCenter = {
+			-a_rTransform.aCenter[ 0 ],
+			-a_rTransform.aCenter[ 1 ],
+			-a_rTransform.aCenter[ 2 ],
+		};
+		sceGumTranslate( &oTranslation );
+		sceGumRotateXYZ( &oRotation );
+		sceGumScale( &oScale );
+		sceGumTranslate( &oCenter );
+	}
 	sceGumDrawArray(
 	    GU_TRIANGLES,
 	    GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_INDEX_16BIT | GU_TRANSFORM_3D,
@@ -572,6 +614,7 @@ void TRenderInterface_PSP::DrawSkinnedModel(
 	TRenderResetAlphaMode_PSP();
 	if ( a_rMaterial.bTextureEnabled )
 		sceGuDisable( GU_TEXTURE_2D );
+	return TTRUE;
 }
 
 void TRenderInterface_PSP::DrawTextureSprite( const T2Texture& a_rTexture, TFLOAT a_fX, TFLOAT a_fY, TFLOAT a_fWidth, TFLOAT a_fHeight )
