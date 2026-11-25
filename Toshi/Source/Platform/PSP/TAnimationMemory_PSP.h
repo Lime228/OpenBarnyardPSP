@@ -28,9 +28,9 @@ class TAnimationMemory_PSP
 {
 public:
 	static constexpr TSIZE SAMPLE_BUDGET = 2 * 1024 * 1024;
-	static constexpr TUINT INSTANCE_BUDGET = 10;
-	static constexpr TUINT SKINNED_MODEL_BUDGET = 5;
-	static constexpr TUINT ANIMATED_VERTEX_BUDGET = 8192;
+	static constexpr TUINT INSTANCE_BUDGET = 18;
+	static constexpr TUINT SKINNED_MODEL_BUDGET = 11;
+	static constexpr TUINT ANIMATED_VERTEX_BUDGET = 12 * 1024;
 
 public:
 	static TBOOL ReserveSamples( TSIZE a_uiBytes );
