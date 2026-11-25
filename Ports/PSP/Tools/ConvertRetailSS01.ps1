@@ -43,6 +43,10 @@ if ($LASTEXITCODE -ne 0) { throw 'SS01 opening camera packaging failed.' }
     --all-shots --tmdl $TMDLPath $installPath $sequenceManifestPath (Join-Path $outputPath 'CameraSequence')
 if ($LASTEXITCODE -ne 0) { throw 'SS01 camera sequence conversion failed.' }
 
+& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_character_setup.py') `
+    --tmdl $TMDLPath $installPath (Join-Path $outputPath 'CharacterSetup')
+if ($LASTEXITCODE -ne 0) { throw 'SS01 character creation graphics packaging failed.' }
+
 & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'convert_retail_sequence_models.py') `
     --tmdl $TMDLPath --max-width $TextureMaxWidth $installPath $sequenceManifestPath $modelsPath
 if ($LASTEXITCODE -ne 0) { throw 'SS01 sequence model conversion failed.' }
