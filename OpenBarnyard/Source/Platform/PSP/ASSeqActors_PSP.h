@@ -7,7 +7,7 @@
 class ASSeqActors_PSP
 {
 public:
-	TBOOL Load( TUINT a_uiShotCount );
+	TBOOL Load( TUINT a_uiShotCount, const TCHAR* a_szRoot = TNULL, const TCHAR* a_szCostume = TNULL );
 	TBOOL SetShot( TUINT a_uiShot );
 	void  Unload();
 	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderer, const Toshi::TRenderCamera_PSP& a_rCamera,
@@ -59,5 +59,8 @@ private:
 	TUINT m_uiShot = 0;
 	TUINT m_uiLastTime = 0;
 	TBOOL m_bRigReady = TFALSE;
+	const TCHAR* m_szRoot = TNULL;
+	TUINT32 m_uiCostumeTexture = MAX_TEXTURES;
+	TCHAR m_szCostumePath[ 80 ] = {};
 	TCHAR m_szPath[ 128 ] = {};
 };

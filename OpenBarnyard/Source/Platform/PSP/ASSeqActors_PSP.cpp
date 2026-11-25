@@ -21,13 +21,14 @@ static TBOOL ASetSSeqActorPose_PSP( TSkeletonInstance_PSP& a_rPose, const TAnima
 	return a_rPose.SetAnimationPose( a_rClip, TUINT( a_fProgress * fTime + 0.5f ) );
 }
 
-TBOOL ASSeqActors_PSP::Load( TUINT a_uiShotCount )
+TBOOL ASSeqActors_PSP::Load( TUINT a_uiShotCount, const TCHAR* a_szRoot, const TCHAR* a_szCostume )
 {
 	Unload();
-	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/actors.psac", s_szActorsRoot_PSP );
+	m_szRoot = a_szRoot != TNULL ? a_szRoot : s_szActorsRoot_PSP;
+	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/actors.psac", m_szRoot );
 	TFile* pFile = TFile::Create( m_szPath, TFILEMODE_READ | TFILEMODE_NOBUFFER );
 	if ( pFile == TNULL )
-		return TTRUE;
+		return a_szRoot == TNULL;
 
 	struct Header
 	{
@@ -39,20 +40,27 @@ TBOOL ASSeqActors_PSP::Load( TUINT a_uiShotCount )
 	static_assert( sizeof( Header ) == 16 && sizeof( ActorConfig ) == 24 );
 	Header oHeader = {};
 	TBOOL bRead = pFile->Read( &oHeader, sizeof( oHeader ) ) == sizeof( oHeader ) &&
-	              oHeader.uiMagic == 0x43415350 && ( oHeader.uiVersion == 1 || oHeader.uiVersion == 2 ) &&
+	              oHeader.uiMagic == 0x43415350 && oHeader.uiVersion >= 1 && oHeader.uiVersion <= 3 &&
 	              oHeader.uiActors != 0 && oHeader.uiActors <= MAX_ACTORS &&
 	              oHeader.uiShots == a_uiShotCount && oHeader.uiShots >= 2 && oHeader.uiShots < 32;
 	const TSIZE uiRecordSize = oHeader.uiVersion == 1 ? 20 : sizeof( ActorConfig );
-	bRead = bRead && pFile->GetSize() == sizeof( oHeader ) + oHeader.uiActors * uiRecordSize;
+	const TBOOL bHasCostume = oHeader.uiVersion == 3;
+	const TSIZE uiCostumeBytes = bHasCostume ? sizeof( m_uiCostumeTexture ) : 0;
+	bRead = bRead && bHasCostume == ( a_szCostume != TNULL ) &&
+	        pFile->GetSize() == sizeof( oHeader ) + oHeader.uiActors * uiRecordSize + uiCostumeBytes;
 	for ( TUINT i = 0; bRead && i < oHeader.uiActors; i++ )
 	{
 		m_aConfig[ i ] = {};
 		bRead = pFile->Read( &m_aConfig[ i ], uiRecordSize ) == uiRecordSize &&
-		        ( oHeader.uiVersion == 2 || m_aConfig[ i ].uiMeshes <= 2 );
+		        ( oHeader.uiVersion != 1 || m_aConfig[ i ].uiMeshes <= 2 );
 	}
+	if ( bRead && bHasCostume )
+		bRead = pFile->Read( &m_uiCostumeTexture, uiCostumeBytes ) == uiCostumeBytes && m_uiCostumeTexture < MAX_TEXTURES;
 	pFile->Destroy();
 	if ( !bRead )
 		return TFALSE;
+	if ( bHasCostume )
+		TStringManager::String8Copy( m_szCostumePath, a_szCostume, TARRAYSIZE( m_szCostumePath ) );
 
 	m_uiActorCount = oHeader.uiActors;
 	m_uiShotCount = oHeader.uiShots;
@@ -170,7 +178,7 @@ TBOOL ASSeqActors_PSP::LoadActor( Actor& a_rActor, TUINT a_uiActor, TUINT a_uiSh
 	{
 		if ( !a_rActor.aSkins[ i ].IsCreated() )
 		{
-			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.pmes", s_szActorsRoot_PSP, szPrefix, i );
+			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.pmes", m_szRoot, szPrefix, i );
 			if ( !oModelFactory.CreateModelFromFile( a_rActor.aModels[ i ], m_szPath ) ||
 			     !a_rActor.aSkins[ i ].Create( &a_rActor.aModels[ i ], &a_rActor.oClips.oSkeleton ) )
 				return TFALSE;
@@ -180,7 +188,10 @@ TBOOL ASSeqActors_PSP::LoadActor( Actor& a_rActor, TUINT a_uiActor, TUINT a_uiSh
 		T2Texture& rTexture = m_aTextures[ uiTexture ];
 		if ( rTexture.GetImageData() == TNULL )
 		{
-			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/texture-%u.ptex", s_szActorsRoot_PSP, uiTexture );
+			if ( uiTexture == m_uiCostumeTexture )
+				TStringManager::String8Copy( m_szPath, m_szCostumePath, TARRAYSIZE( m_szPath ) );
+			else
+				TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/texture-%u.ptex", m_szRoot, uiTexture );
 			if ( !oTextureFactory.CreateTextureFromFile( rTexture, m_szPath ) )
 				return TFALSE;
 		}
@@ -191,7 +202,7 @@ TBOOL ASSeqActors_PSP::LoadActor( Actor& a_rActor, TUINT a_uiActor, TUINT a_uiSh
 TBOOL ASSeqActors_PSP::LoadSkeleton( ClipSet& a_rClips, const TCHAR* a_szPrefix )
 {
 	const TSkeletonFactory_PSP oSkeletonFactory;
-	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s.pskl", s_szActorsRoot_PSP, a_szPrefix );
+	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s.pskl", m_szRoot, a_szPrefix );
 	return oSkeletonFactory.CreateSkeletonFromFile( a_rClips.oSkeleton, m_szPath ) &&
 	       a_rClips.oPose.Create( &a_rClips.oSkeleton );
 }
@@ -199,7 +210,7 @@ TBOOL ASSeqActors_PSP::LoadSkeleton( ClipSet& a_rClips, const TCHAR* a_szPrefix 
 TBOOL ASSeqActors_PSP::LoadClip( ClipSet& a_rClips, const TCHAR* a_szPrefix, TUINT a_uiShot )
 {
 	const TAnimationClipFactory_PSP oAnimationFactory;
-	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.panm", s_szActorsRoot_PSP, a_szPrefix, a_uiShot );
+	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s-%u.panm", m_szRoot, a_szPrefix, a_uiShot );
 	a_rClips.oClip.Unload();
 	return oAnimationFactory.CreateAnimationFromFile( a_rClips.oClip, &a_rClips.oSkeleton, m_szPath );
 }
@@ -234,6 +245,7 @@ void ASSeqActors_PSP::Unload()
 	m_uiShotCount = 0;
 	m_uiShot = 0;
 	m_bRigReady = TFALSE;
+	m_uiCostumeTexture = MAX_TEXTURES;
 }
 
 TUINT ASSeqActors_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderCamera_PSP& a_rCamera,

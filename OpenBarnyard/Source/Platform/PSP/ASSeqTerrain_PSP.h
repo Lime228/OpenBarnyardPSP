@@ -11,7 +11,7 @@ public:
 	static constexpr TUINT MAX_TEXTURES = 256;
 
 	static TBOOL HasSS01Pack();
-	TBOOL LoadSS01();
+	TBOOL LoadSS01( TBOOL a_bBeadyIntDay = TFALSE );
 	void Unload();
 	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderInterface, const Toshi::TRenderCamera_PSP& a_rCamera ) const;
 
