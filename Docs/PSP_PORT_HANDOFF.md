@@ -433,13 +433,26 @@ including the packed Direct3D meshes, need conversion to PSP buffers before
 staging. Other game resources are integrated as the PSP runtime gains the
 corresponding loaders and game systems.
 
-The next original camera clip is `SS01_shot01c_cam01c`, from 8.4 to
-approximately 13.03 seconds. It keeps the `Barn` visibility row, sets the
-near clip to 0.5 and animates the rig, Bull and `ss_quadcow`. All four
-source clips export successfully, including the camera. The inventory
-records both bird tracks' `Hide` following the second-shot animation.
-The current runtime stops at the previous cut. Further shots need actor
-lifetimes driven by their original track commands.
+The opening now reaches `SS01_shot01c_cam01c`, from 8.4 through 13.03
+seconds. It keeps the `Barn` visibility row, sets the near clip to 0.5
+and animates the rig, Bull and `ss_quadcow`. The PSP actor cache releases
+models and textures outside the next shot and reuses Bull's geometry across
+the second cut. The birds' original tracks end with `Hide` at this cut.
+PPSSPP verified skin draws of 2, 5 and 4 in the three shots on build
+`cbdf5500` from Actions run `45603085574`. The third shot starts at 8,405
+ms on the voice clock and the last pose holds at 13,049 ms with no stream
+underruns. The earlier two-shot package still runs with the same EBOOT.
+The third-shot capture is in `Runtime/OriginalSS01ThirdShotValidation`.
+
+`ConvertRetailSS01.ps1` exports all 30 camera clips in `SS01/CameraSequence`
+alongside the first three runtime clips. The 17th clip is a loop
+(`SS01_GUI_idle`) while the original `UI Player_select` command waits
+for gender, skin and name. The master then resets its voice clock using
+flag 4. The final shot switches to `BeadyIntDay`; the previous 29 cameras
+use `Barn`. The current EBOOT plays the first three clips. The next shot
+has six animated actor tracks, 11 skin meshes and 10,652 vertices before
+culling or reduction. It exceeds the current five-mesh and 8,192-vertex
+runtime limits.
 
 Build `4187fa2a` fixes the 3D texture scale and uses bilinear sampling.
 The before and after captures in `Runtime/OriginalSS01TextureValidation`
@@ -453,6 +466,23 @@ graphics check and the return to the menu.
 .\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -SS01OpeningDirectory Game/BarnyardPC/Workspace/SS01/Opening
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalSS01OpeningValidation -CheckNewGameOpening -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -Capture
 ```
+
+### Main game entry
+
+After SS01, `AGameLoader::LeaveScriptedSequence` returns to the sim by
+loading `lib_maingame`, `EnvMain` and the profile's player unit through
+`LoadMainGameImpl`. The original new-game goal `park2_goals_playerstart`
+comes from the `INetwork` symbol in `Data/Networks/park2.trb`.
+`inventory_retail_sim_start.py` verified that goal in area 105 and the
+initial `Barn` row from `EnvMain.trb` (six high LODs and 15 low LODs across
+the 54 terrain sections). The report keeps the stored source coordinates
+and facing. The engine resolves the final Y against gameplay collision.
+`ConvertRetailMainGameTerrain.ps1` drives the inventory and converts all
+62 row model files from the original install. The initial packed map in
+`EnvMain/TerrainPack_Barn` has 394 mesh groups and 128 shared textures
+totaling 5,221,386 bytes.
+The original player profile, collision, steering and `ASimState` still
+need PSP runtime integration.
 
 ## Known limitations
 
