@@ -12,6 +12,7 @@ param(
     [switch] $CheckCharacterSetup,
     [switch] $CheckContinuation,
     [switch] $CheckMainGameStart,
+    [switch] $CheckMainGameScene,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -49,6 +50,10 @@ if ($CheckContinuation -and (-not $CheckCharacterSetup -or -not (Test-Path -Lite
 $mainGameIndex = Join-Path $runtimePath 'Data\Terrain\EnvMain\initial.pscl'
 if ($CheckMainGameStart -and (-not $CheckContinuation -or -not (Test-Path -LiteralPath $mainGameIndex -PathType Leaf))) {
     throw 'The EnvMain start check requires -CheckContinuation and the staged original collision TRBs.'
+}
+$mainGameTerrain = Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Terrain\EnvMain\Barn\terrain.ptld') -PathType Leaf
+if ($CheckMainGameScene -and (-not $CheckMainGameStart -or -not $mainGameTerrain)) {
+    throw 'The EnvMain scene check requires -CheckMainGameStart and the staged original EnvMain scene.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -90,7 +95,7 @@ function Wait-Menu([string] $Phase, [int] $Focus, [hashtable] $Expected = @{}, [
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         $status = Read-GameLog
-        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed|opening-failed|sim-start-failed)$') { throw "Frontend resource failure: $($status.failed_path)" }
+        if ($status.phase -match '(?:data-failed|widgets-missing|script-failed|terrain-failed|opening-failed|sim-start-failed|sim-world-failed)$') { throw "Game resource failure: $($status.failed_path)" }
         $matching = $status.phase -eq $Phase
         if ($Focus -ge 0) {
             $matching = $matching -and $status.menu_state -eq '5' -and $status.menu_focus -eq "$Focus"
@@ -346,7 +351,8 @@ try {
             if ($CheckContinuation) {
                 $firstShot = Wait-Menu $profilePhase -1 @{ new_game_continuation_shot = 1; new_game_beady_int_day = 0 }
                 if ($Capture) { Send-Key Screenshot }
-                $complete = Wait-Menu 'frontend-new-game-sequence-complete' -1 @{
+                $completePhase = if ($CheckMainGameScene) { 'sim-world-ready' } else { 'frontend-new-game-sequence-complete' }
+                $complete = Wait-Menu $completePhase -1 @{
                     new_game_continuation_shot = 13; new_game_beady_int_day = 1
                     new_game_terrain_meshes = 54; new_game_terrain_textures = 46
                 } 65
@@ -372,9 +378,18 @@ try {
                     if ([Math]::Abs($ground + 8.363581) -gt 0.0001) { throw "Unexpected EnvMain ground Y $ground. See $gameLog" }
                     "Resolved the original park2 start and queried ground Y $ground against $triangles original EnvMain collision triangles."
                 }
+                if ($CheckMainGameScene) {
+                    $scene = Wait-Menu 'sim-world-ready' -1 @{
+                        sim_terrain_meshes = 394; sim_terrain_textures = 128; sim_sky_draws = 2; sim_player_draws = 2
+                    }
+                    if ([int]$scene.sim_frames -lt 1 -or [int]$scene.sim_terrain_draws -le 0) {
+                        throw "No original EnvMain terrain was rendered. See $gameLog"
+                    }
+                    "Rendered the original EnvMain scene with $($scene.sim_terrain_draws) terrain draws and two gameplay player meshes."
+                }
             }
         }
-        Send-Key Triangle
+        if ($CheckMainGameScene) { Send-Key Start } else { Send-Key Triangle }
         $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
         if ($RequireOpeningActors -and $main.ContainsKey('animation_live_vertices') -and
             ($main.animation_live_vertices -ne '0' -or $main.animation_sample_bytes -ne '0')) {
