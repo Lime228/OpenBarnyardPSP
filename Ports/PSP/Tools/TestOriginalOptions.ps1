@@ -13,6 +13,7 @@ param(
     [switch] $CheckContinuation,
     [switch] $CheckMainGameStart,
     [switch] $CheckMainGameScene,
+    [switch] $CheckMainGameInstances,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -54,6 +55,9 @@ if ($CheckMainGameStart -and (-not $CheckContinuation -or -not (Test-Path -Liter
 $mainGameTerrain = Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Terrain\EnvMain\Barn\terrain.ptld') -PathType Leaf
 if ($CheckMainGameScene -and (-not $CheckMainGameStart -or -not $mainGameTerrain)) {
     throw 'The EnvMain scene check requires -CheckMainGameStart and the staged original EnvMain scene.'
+}
+if ($CheckMainGameInstances -and -not $CheckMainGameScene) {
+    throw 'Use -CheckMainGameInstances with -CheckMainGameScene.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -380,11 +384,17 @@ try {
                 }
                 if ($CheckMainGameScene) {
                     Start-Sleep -Milliseconds 2500
+                    $terrainMeshes = if ($CheckMainGameInstances) { 445 } else { 388 }
+                    $terrainTextures = if ($CheckMainGameInstances) { 152 } else { 128 }
                     $scene = Wait-Menu 'sim-world-ready' -1 @{
-                        sim_terrain_meshes = 394; sim_terrain_textures = 128; sim_sky_draws = 2; sim_player_draws = 2
+                        sim_terrain_meshes = $terrainMeshes; sim_terrain_textures = $terrainTextures
+                        sim_sky_draws = 2; sim_player_draws = 2
                     }
                     if ([int]$scene.sim_frames -le [int]$complete.sim_frames -or [int]$scene.sim_terrain_draws -le 0) {
                         throw "The EnvMain scene did not continue rendering. See $gameLog"
+                    }
+                    if ([int]$scene.render_main_peak -gt [int]$scene.render_main_budget) {
+                        throw "EnvMain exceeded the PSP render budget. See $gameLog"
                     }
                     if ($Capture) { Send-Key Screenshot }
                     "Rendered $($scene.sim_frames) EnvMain frames with $($scene.sim_terrain_draws) terrain draws and two gameplay player meshes."
