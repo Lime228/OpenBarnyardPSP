@@ -17,6 +17,8 @@ param(
     [switch] $CheckMainGameMovement,
     [switch] $CheckMainGameCollision,
     [switch] $CheckMainGameCamera,
+    [switch] $CheckMainGameRegions,
+    [switch] $CheckMainGameCrossroads,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -70,6 +72,10 @@ if ($CheckMainGameCollision -and -not $CheckMainGameScene) {
 }
 if ($CheckMainGameCamera -and -not $CheckMainGameCollision) {
     throw 'Use -CheckMainGameCamera with -CheckMainGameCollision.'
+}
+if (($CheckMainGameRegions -or $CheckMainGameCrossroads) -and (-not $CheckMainGameScene -or
+    -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Terrain\EnvMain\rows.psvs') -PathType Leaf))) {
+    throw 'The region checks require -CheckMainGameScene and the staged VIS rows.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -173,8 +179,8 @@ function Test-MainGameMovement([hashtable] $Scene) {
     "Original EnvMain walked {0:F2} m, ran {1:F2} m, and returned to Idle at ({2})." -f $walkDistance, $runDistance, $settled.sim_player_position
 }
 
-function Send-SimAnalog([hashtable] $Before, [string] $Key, [int] $HoldMilliseconds) {
-    & $runner @runnerArguments -Action Press -Key $Key -AnalogHoldMilliseconds $HoldMilliseconds | Write-Host
+function Send-SimAnalog([hashtable] $Before, [string] $Key, [int] $HoldMilliseconds, [double] $AnalogX = 0.0, [double] $AnalogY = 0.0) {
+    & $runner @runnerArguments -Action Press -Key $Key -AnalogHoldMilliseconds $HoldMilliseconds -AnalogX $AnalogX -AnalogY $AnalogY | Write-Host
     $idle = @{ sim_player_motion = 0; sim_player_speed = '0.0000' }
     Wait-Menu 'sim-world-ready' -1 $idle 15 ([int]$Before.sim_frames)
 }
@@ -226,6 +232,71 @@ function Test-MainGameCamera([hashtable] $Wall) {
     }
     if ($Capture) { Send-Key Screenshot }
     "The original wall shortened the camera orbit to {0:F2} m. The camera returned to {1:F2} m in the open yard." -f $distance, $openDistance
+}
+
+function Move-SimTowards([hashtable] $Before, [double] $TargetX, [double] $TargetZ, [string] $TargetRow = '') {
+    $status = $Before
+    for ($press = 0; $press -lt 18; $press++) {
+        if ($TargetRow -and $status.sim_terrain_row -ceq $TargetRow) { return $status }
+        $position = Convert-SimPosition $status.sim_player_position
+        $camera = Convert-SimPosition $status.sim_camera_position
+        $dx = $TargetX - $position[0]
+        $dz = $TargetZ - $position[2]
+        $distance = [Math]::Sqrt($dx * $dx + $dz * $dz)
+        if ($distance -lt 0.65) {
+            if (-not $TargetRow) { return $status }
+            break
+        }
+        $fx = $position[0] - $camera[0]
+        $fz = $position[2] - $camera[2]
+        $length = [Math]::Sqrt($fx * $fx + $fz * $fz)
+        $denom = $length * $distance
+        $x = [Math]::Min(1.0, [Math]::Max(-1.0, ($dx * $fz - $dz * $fx) / $denom))
+        $y = [Math]::Min(1.0, [Math]::Max(-1.0, ($dx * $fx + $dz * $fz) / $denom))
+        $hold = [int][Math]::Min(4500.0, [Math]::Max(500.0, 950.0 * $distance))
+        $status = Send-SimAnalog $status AnalogVector $hold $x $y
+        if ($status.sim_terrain_swap_failures -ne '0') { throw "The terrain row swap failed. See $gameLog" }
+    }
+    if ($TargetRow -and $status.sim_terrain_row -ceq $TargetRow) { return $status }
+    $destination = if ($TargetRow) { $TargetRow } else { "($TargetX, $TargetZ)" }
+    throw "Expected to reach $destination. Current row $($status.sim_terrain_row) at ($($status.sim_player_position)). See $gameLog"
+}
+
+function Test-MainGameRegions([hashtable] $Scene) {
+    if ($Scene.sim_terrain_row -cne 'Barn' -or $Scene.sim_terrain_collision_mask -ne '3f') {
+        throw "Expected the original Barn VIS row and all six initial colliders. See $gameLog"
+    }
+    # The original northbound path crosses the Barn/barnnorth seam around X 19.
+    $north = Move-SimTowards $Scene 19.25 -3.0 barnnorth
+    $northMeshes = if ($CheckMainGameInstances) { 358 } else { 303 }
+    if ($north.sim_terrain_collision_mask -ne '03' -or [int]$north.sim_terrain_meshes -ne $northMeshes -or [int]$north.sim_terrain_draws -le 0) {
+        throw "The original barnnorth row did not activate its two high collision cells and render pack. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "Reached barnnorth at ($($north.sim_player_position)), camera ($($north.sim_camera_position)), $($north.sim_terrain_meshes) meshes."
+    $returned = Move-SimTowards $north 19.25 -24.0 Barn
+    if ($returned.sim_terrain_collision_mask -ne '3f' -or
+        $returned.sim_terrain_meshes -ne $Scene.sim_terrain_meshes -or
+        [int]$returned.render_main_peak -gt [int]$returned.render_main_budget) {
+        throw "Returning to Barn did not restore the original pack within the render budget. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "Returned to Barn at ($($returned.sim_player_position)), restored $($returned.sim_terrain_meshes) meshes and completed $($returned.sim_terrain_swaps) row swaps."
+}
+
+function Test-MainGameCrossroads([hashtable] $Scene) {
+    if ($Scene.sim_terrain_row -cne 'Barn') { throw "Expected to enter the original road from Barn. See $gameLog" }
+    # Approach the original road entrance from the southern side of the yard.
+    $south = Move-SimTowards $Scene 19.25 -36.75
+    $east = Move-SimTowards $south 34.5 -37.0
+    $road = Move-SimTowards $east 56.0 -48.5 xroad
+    $roadMeshes = if ($CheckMainGameInstances) { 387 } else { 335 }
+    if ($road.sim_terrain_collision_mask -ne '3d' -or [int]$road.sim_terrain_meshes -ne $roadMeshes -or
+        [int]$road.sim_terrain_draws -le 0 -or [int]$road.render_main_peak -gt [int]$road.render_main_budget) {
+        throw "The xroad row did not activate its five original high collision cells and render pack. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "Reached xroad at ($($road.sim_player_position)), camera ($($road.sim_camera_position)), $($road.sim_terrain_meshes) meshes."
 }
 
 function Wait-MenuCue([int] $Cue, [hashtable] $Before) {
@@ -514,6 +585,8 @@ try {
                     "Rendered $($scene.sim_frames) EnvMain frames with $($scene.sim_terrain_draws) terrain draws and two gameplay player meshes."
                     if ($CheckMainGameMovement) { Test-MainGameMovement $scene }
                     if ($CheckMainGameCollision) { Test-MainGameCollision (Read-GameLog) }
+                    if ($CheckMainGameRegions) { Test-MainGameRegions (Read-GameLog) }
+                    if ($CheckMainGameCrossroads) { Test-MainGameCrossroads (Read-GameLog) }
                 }
             }
         }

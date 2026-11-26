@@ -6,7 +6,7 @@ param(
     [switch] $OriginalGame,
     [switch] $ShowWindow,
 
-    [ValidateSet('Cross', 'Circle', 'Triangle', 'Start', 'DpadUp', 'DpadDown', 'DpadLeft', 'DpadRight', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'AnalogDownLeft', 'AnalogDownRight', 'Screenshot')]
+    [ValidateSet('Cross', 'Circle', 'Triangle', 'Start', 'DpadUp', 'DpadDown', 'DpadLeft', 'DpadRight', 'AnalogUp', 'AnalogDown', 'AnalogLeft', 'AnalogRight', 'AnalogDownLeft', 'AnalogDownRight', 'AnalogVector', 'Screenshot')]
     [string] $Key = 'Cross',
 
     [ValidateRange(1, 60)]
@@ -20,6 +20,12 @@ param(
 
     [ValidateRange(0.0, 1.0)]
     [double] $AnalogMagnitude = 1.0,
+
+    [ValidateRange(-1.0, 1.0)]
+    [double] $AnalogX = 0.0,
+
+    [ValidateRange(-1.0, 1.0)]
+    [double] $AnalogY = 0.0,
 
     [ValidateRange(1024, 65535)]
     [int] $DebuggerPort = 7755,
@@ -529,6 +535,7 @@ function Send-OpenBarnyardPPSSPPKey {
                 'AnalogRight' { @{ x = $AnalogMagnitude; y = 0.0 } }
                 'AnalogDownLeft' { @{ x = -$diagonal; y = -$diagonal } }
                 'AnalogDownRight' { @{ x = $diagonal; y = -$diagonal } }
+                'AnalogVector' { @{ x = $AnalogX; y = $AnalogY } }
             }
             $null = Invoke-PPSSPPDebuggerRequest `
                 -Socket $socket `
