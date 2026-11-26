@@ -72,7 +72,7 @@ Current estimates:
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
 | Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
-| Complete playable-game port | 36% | Original startup, frontend and SS01 run. The opening EnvMain yard has grounded movement, terrain wall contacts and a camera that retracts at walls. World streaming, dynamic colliders, gameplay systems, saves and most in-game audio remain. |
+| Complete playable-game port | 38% | Original startup, frontend and SS01 run. EnvMain has grounded movement, terrain wall contacts, a camera that retracts at walls, and its first VIS row transitions. Streaming the rest of EnvMain, dynamic colliders, gameplay systems, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
 
@@ -709,6 +709,47 @@ The EBOOT, captures and logs are in `Runtime/OriginalEnvMainCameraValidation`.
 ```powershell
 .\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainCameraValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -CheckMainGameMovement -CheckMainGameCollision -CheckMainGameCamera -Capture
 ```
+
+### Initial EnvMain visibility transitions
+
+The original `ATerrainInterface::GetSectionPlayerIsIn` keeps the current
+visibility section while its collision still intersects a downward ray from
+the camera, then checks the resident sections in VIS order. The PSP uses
+the same 100 m query against the original collision TRBs. The optional
+`rows.psvs` describes which visual rows are staged and lists the exact
+high-LOD colliders for each row. The initial six collider files stay
+resident, and the selected mask limits the ground, wall and camera queries.
+The renderer releases the old pack before loading its replacement in the
+same heap. If loading fails, it reloads the previous row and keeps its
+collision mask. Old runtime directories without `rows.psvs` still use Barn.
+
+The row exporter uses the original high- and low-LOD tables, material
+libraries and static instance locators for each row. Barn, barnnorth and
+xroad use 445, 358 and 387 draw groups respectively with the combined
+instance packs. This slice supports additional rows whose high collision
+cells fit within the original Barn set of six. Terrain beyond that set
+needs a collider residency change as well as new visual packs. Row swaps
+load synchronously during the gameplay update.
+
+```powershell
+$ss01 = 'Game/BarnyardPC/Workspace/SS01'
+.\Ports\PSP\Tools\ConvertRetailMainGameTerrain.ps1 -VisibilityRows xroad,barnnorth
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalEnvMainVISValidation -SS01OpeningDirectory "$ss01/Opening" -SS01CharacterSetupDirectory "$ss01/CharacterSetup" -SS01AfterCharacterSetupDirectory "$ss01/AfterCharacterSetup" -MainGameDirectory Game/BarnyardPC/Workspace/EnvMain -MainGameScene -MainGameInstances -MainGameVisibilityRows xroad,barnnorth
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainVISValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -CheckMainGameRegions -Capture
+```
+
+Run the same walkthrough with `-CheckMainGameCrossroads` in place of
+`-CheckMainGameRegions` to follow the original road from Barn to xroad.
+
+Build `fdc733f1` passed PSP Actions run `45798259183`. The hidden PPSSPP
+walkthrough reached barnnorth with mask `03`, returned to Barn with
+`3f` and recorded two completed swaps. A second walkthrough reached
+xroad on foot at `(53.519112, -0.782771, -47.110336)` and enabled its
+five high colliders with mask `3d`. It loaded 387 draw groups and 125
+textures. Both runs reported zero swap failures and a peak of 13,764,048
+out of 16,777,216 renderer bytes. Start returned to the original menu
+and released the active animation vertices. The EBOOT, screenshots and
+logs are in `Runtime/OriginalEnvMainVISValidation`.
 
 ## Known limitations
 
