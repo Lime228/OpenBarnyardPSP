@@ -57,10 +57,12 @@ def load_locator_dump(source: pathlib.Path) -> tuple[list[dict[str, object]], li
     return locators, sections
 
 
-def main_game_residency(vis: pathlib.Path, locator_sections: list) -> list[str]:
+def main_game_residency(vis: pathlib.Path, locator_sections: list, visibility_row: str | None = None) -> list[str]:
     sections = json.loads(vis.read_text(encoding="utf-8"))["sections"]
-    first = sections[0]
-    visible = {section["name"].casefold() for section, lod in zip(sections, first["visibility"], strict=True)
+    rows = sections[:1] if visibility_row is None else [section for section in sections if section["name"] == visibility_row]
+    if len(rows) != 1:
+        raise ValueError(f"missing or ambiguous main game visibility row: {visibility_row}")
+    visible = {section["name"].casefold() for section, lod in zip(sections, rows[0]["visibility"], strict=True)
                if lod != "none"}
     # AInstanceManager always includes the undefined locator cell.
     visible.add("undefined")
@@ -75,6 +77,7 @@ def inventory(
     destination: pathlib.Path,
     resident_sections: list[str] | None = None,
     main_game_vis: pathlib.Path | None = None,
+    visibility_row: str | None = None,
 ) -> dict[str, object]:
     locators, sections = load_locator_dump(locator_dump)
     definitions = parse_model_definitions(model_definitions_source)
@@ -172,7 +175,7 @@ def inventory(
     if main_game_vis is not None:
         if resident_sections:
             raise ValueError("the main game derives its resident sections from the original VIS")
-        resident_sections = main_game_residency(main_game_vis, sections)
+        resident_sections = main_game_residency(main_game_vis, sections, visibility_row)
     if len(resident_sections) != len(set(resident_sections)):
         raise ValueError("resident VIS section list contains duplicates")
     available_section_names = {str(section["name"]) for section in sections}
@@ -214,8 +217,11 @@ def main() -> None:
     parser.add_argument("--install-root", type=pathlib.Path, required=True)
     parser.add_argument("--resident-section", action="append", default=[])
     parser.add_argument("--main-game-vis", type=pathlib.Path)
+    parser.add_argument("--visibility-row")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
+    if args.visibility_row is not None and args.main_game_vis is None:
+        parser.error("--visibility-row requires --main-game-vis")
     result = inventory(
         args.locator_dump,
         args.model_definitions,
@@ -224,6 +230,7 @@ def main() -> None:
         args.output,
         args.resident_section,
         args.main_game_vis,
+        args.visibility_row,
     )
     kind = "frontend" if args.main_game_vis is None else "main_game"
     print(

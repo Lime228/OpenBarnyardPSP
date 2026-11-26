@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bake and add the original initial EnvMain static instances to the terrain pack."""
+"""Bake the original static instances for an EnvMain visibility row."""
 
 import argparse
 import json
@@ -17,16 +17,18 @@ from inventory_retail_sequence import retail_file
 from package_sequence_terrain import package as package_terrain
 
 
-def package(tool: Path, install: Path, workspace: Path, max_width: int) -> dict:
-    inventory = workspace / "envmain-instances.json"
+def package(tool: Path, install: Path, workspace: Path, max_width: int, row: str = "Barn") -> dict:
+    if not row.isascii() or not row.replace("_", "").isalnum():
+        raise ValueError(f"invalid EnvMain visibility row name: {row}")
+    inventory = workspace / ("envmain-instances.json" if row == "Barn" else f"envmain-{row}-instances.json")
     instances = json.loads(inventory.read_text(encoding="utf-8"))
     sections = set(instances["resident_section_names"])
     models = {entry["model_name"]: entry["model_path"] for entry in instances["instances"]
               if entry["vis_section_name"] in sections}
     if instances["main_game_model_count"] <= 0 or len(models) != instances["resident_used_model_count"]:
-        raise ValueError("expected the original initial EnvMain instance inventory")
+        raise ValueError("expected the original EnvMain instance inventory")
 
-    intermediate = workspace / "Instances"
+    intermediate = workspace / ("Instances" if row == "Barn" else f"Instances_{row}")
     material_source = retail_file(install, "Data/MiscTextures/MaterialProperties.trb")
     properties = intermediate / "material-properties.json"
     run_export(tool, "-psp-material-properties", material_source, properties)
@@ -42,10 +44,10 @@ def package(tool: Path, install: Path, workspace: Path, max_width: int) -> dict:
     cache = intermediate / "Textures"
     cache.mkdir(exist_ok=True)
     converted_textures = {}
-    terrain_source = workspace / "Terrain_Barn/EnvMain_terrain.json"
+    terrain_source = workspace / f"Terrain_{row}/EnvMain_terrain.json"
     terrain = json.loads(terrain_source.read_text(encoding="utf-8-sig"))
-    if terrain["terrain"] != "EnvMain" or terrain["visibility_row"] != "Barn":
-        raise ValueError("expected the original EnvMain Barn terrain plan")
+    if terrain["terrain"] != "EnvMain" or terrain["visibility_row"] != row:
+        raise ValueError(f"expected the original EnvMain {row} terrain plan")
     for entry in terrain["packs"]:
         entry["manifest"] = (terrain_source.parent / entry["manifest"]).relative_to(workspace).as_posix()
 
@@ -73,16 +75,16 @@ def package(tool: Path, install: Path, workspace: Path, max_width: int) -> dict:
 
         filename = output / f"{prefix}.json"
         finalize(filename, properties, filename.with_suffix(".pcfg"), modes)
-        terrain["packs"].append({"source": source, "section": "Barn", "lod": "instance", "glow": False,
+        terrain["packs"].append({"source": source, "section": row, "lod": "instance", "glow": False,
                                  "manifest": filename.relative_to(workspace).as_posix()})
         total_instances += manifest["source_instances"]
 
     if total_instances != instances["resident_instance_count"]:
         raise ValueError("converted instance count differs from the original visible locators")
     terrain["converted"] = len(terrain["packs"])
-    combined = workspace / "envmain-barn-with-instances.json"
+    combined = workspace / f"envmain-{row.casefold()}-with-instances.json"
     combined.write_text(json.dumps(terrain, indent=2) + "\n", encoding="utf-8")
-    destination = workspace / "TerrainPack_BarnWithInstances"
+    destination = workspace / f"TerrainPack_{row}WithInstances"
     report = package_terrain(combined, destination, envmain_dawn=True)
     report["instance_count"] = total_instances
     report["instance_model_count"] = len(models)
@@ -95,13 +97,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tmdl", required=True, type=Path)
     parser.add_argument("--max-width", type=int, default=64)
+    parser.add_argument("--visibility-row", default="Barn")
     parser.add_argument("install", type=Path)
     parser.add_argument("workspace", type=Path)
     args = parser.parse_args()
     try:
         tool = args.tmdl.resolve(strict=True)
         (tool.parent / "Logs").mkdir(exist_ok=True)
-        report = package(tool, args.install.resolve(strict=True), args.workspace.resolve(strict=True), args.max_width)
+        report = package(tool, args.install.resolve(strict=True), args.workspace.resolve(strict=True),
+                         args.max_width, args.visibility_row)
     except (KeyError, OSError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"EnvMain instance packaging failed: {error}\n")
     print(f"Packed {report['instance_count']} instances into {report['instance_draw_groups']} draw groups, "

@@ -29,12 +29,14 @@ param(
     [string] $MainGameDirectory = '',
     [switch] $MainGameScene,
     [switch] $MainGameInstances,
+    [string[]] $MainGameVisibilityRows = @(),
     [switch] $SkipConversion
 )
 
 $ErrorActionPreference = 'Stop'
 if ($MainGameScene -and -not $MainGameDirectory) { throw 'Use -MainGameScene with the original EnvMain workspace.' }
 if ($MainGameInstances -and -not $MainGameScene) { throw 'Use -MainGameInstances with -MainGameScene.' }
+if ($MainGameVisibilityRows -and -not $MainGameScene) { throw 'Use -MainGameVisibilityRows with -MainGameScene.' }
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if (-not $BuildDirectory) {
@@ -1373,7 +1375,59 @@ if ($MainGameScene) {
         [IO.File]::WriteAllBytes((Join-Path $destination 'player.pspl'), $config)
     }
     Copy-OriginalTerrainPack $terrain $barnDestination
+    if ($MainGameVisibilityRows) {
+        $visibility = Get-Content -LiteralPath (Join-Path $MainGameDirectory 'envmain.vis.json') -Raw | ConvertFrom-Json
+        $initialRow = [string]$start.initial_visibility_row
+        $rows = @($initialRow) + $MainGameVisibilityRows
+        if ($visibility.version -ne 2 -or $rows.Count -gt $colliders.Count -or
+            @($rows | Select-Object -Unique).Count -ne $rows.Count) {
+            throw 'Expected distinct original EnvMain visibility rows for the resident collision cells.'
+        }
+        $residentSections = @($colliders | ForEach-Object section)
+        $rowIndex = [byte[]]::new(12 + 32 * $rows.Count)
+        [Text.Encoding]::ASCII.GetBytes('PSVS').CopyTo($rowIndex, 0)
+        [BitConverter]::GetBytes([uint32]1).CopyTo($rowIndex, 4)
+        [BitConverter]::GetBytes([uint32]$rows.Count).CopyTo($rowIndex, 8)
+        for ($i = 0; $i -lt $rows.Count; $i++) {
+            $name = $rows[$i]
+            $sourceRow = @($visibility.sections | Where-Object name -CEQ $name)
+            $section = [Array]::IndexOf($residentSections, $name)
+            if ($name -cnotmatch '^[A-Za-z0-9_]{1,23}$' -or $section -lt 0 -or $sourceRow.Count -ne 1 -or
+                $sourceRow[0].visibility.Count -ne $visibility.sections.Count) {
+                throw "Invalid initial EnvMain visibility row '$name'."
+            }
+            [uint32]$mask = 0
+            for ($j = 0; $j -lt $visibility.sections.Count; $j++) {
+                $cell = $visibility.sections[$j]
+                if ($sourceRow[0].visibility[$j] -ceq 'high' -and $cell.collision) {
+                    $local = [Array]::IndexOf($residentSections, $cell.name)
+                    if ($local -lt 0) { throw "EnvMain row $name needs collision outside the staged initial cells: $($cell.name)." }
+                    $mask = $mask -bor (1 -shl $local)
+                }
+            }
+            if (($mask -band (1 -shl $section)) -eq 0) { throw "EnvMain row $name does not retain its own collision." }
+            $offset = 12 + 32 * $i
+            [BitConverter]::GetBytes([uint32]$section).CopyTo($rowIndex, $offset)
+            [BitConverter]::GetBytes($mask).CopyTo($rowIndex, $offset + 4)
+            [Text.Encoding]::ASCII.GetBytes($name).CopyTo($rowIndex, $offset + 8)
+            if ($name -ceq $initialRow) { continue }
+            $pack = if ($MainGameInstances) { "TerrainPack_${name}WithInstances" } else { "TerrainPack_$name" }
+            $packRoot = Join-Path $MainGameDirectory $pack
+            $manifest = Get-Content -LiteralPath (Join-Path $packRoot 'terrain.json') -Raw | ConvertFrom-Json
+            if ($manifest.terrain -cne 'EnvMain' -or $manifest.visibility_row -cne $name -or
+                ($MainGameInstances -and -not $manifest.instance_count)) {
+                throw "Expected the original EnvMain terrain pack for '$name'."
+            }
+            Copy-OriginalTerrainPack $packRoot (Join-Path $collisionDestination $name)
+        }
+        [IO.File]::WriteAllBytes((Join-Path $collisionDestination 'rows.psvs'), $rowIndex)
+        Write-Output "Staged original EnvMain visibility rows $($rows -join ', ')"
+    }
     Write-Output 'Staged the original EnvMain scene and both gameplay player models'
+}
+if (-not $MainGameVisibilityRows) {
+    $rowIndexPath = Join-Path $collisionDestination 'rows.psvs'
+    if (Test-Path -LiteralPath $rowIndexPath -PathType Leaf) { Remove-Item -LiteralPath $rowIndexPath -Force }
 }
 
 Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.PBP') -Force

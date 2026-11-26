@@ -3,6 +3,7 @@ param(
     [string] $TMDLPath = '',
     [string] $PythonPath = '',
     [string] $OutputDirectory = '',
+    [string[]] $VisibilityRows = @(),
     [ValidateSet(32, 64, 128, 256, 512)]
     [int] $TextureMaxWidth = 128
 )
@@ -25,28 +26,34 @@ $installPath = Join-Path $assetRoot 'Install'
 if ($LASTEXITCODE -ne 0) { throw 'The original gameplay start inventory failed.' }
 
 $start = Get-Content -LiteralPath (Join-Path $outputPath 'sim_start.json') -Raw | ConvertFrom-Json
-$row = $start.initial_visibility_row
-$terrainOutput = Join-Path $outputPath "Terrain_$row"
-& (Join-Path $PSScriptRoot 'ConvertRetailSS01Terrain.ps1') -TMDLPath $TMDLPath -PythonPath $PythonPath `
-    -TerrainName EnvMain -VisibilityRow $row -OutputDirectory $terrainOutput -TextureMaxWidth $TextureMaxWidth
-& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_sequence_terrain.py') `
-    --envmain-dawn (Join-Path $terrainOutput 'EnvMain_terrain.json') (Join-Path $outputPath "TerrainPack_$row")
-if ($LASTEXITCODE -ne 0) { throw 'The original gameplay terrain packaging failed.' }
+if (-not $VisibilityRows) { $VisibilityRows = @($start.initial_visibility_row) }
 
-& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_sky.py') `
-    --tmdl $TMDLPath --phase dawn $installPath (Join-Path $outputPath 'Sky')
-if ($LASTEXITCODE -ne 0) { throw 'The original gameplay sky packaging failed.' }
+if ($start.initial_visibility_row -cin $VisibilityRows -or -not (Test-Path -LiteralPath (Join-Path $outputPath 'Sky'))) {
+    & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_opening_sky.py') `
+        --tmdl $TMDLPath --phase dawn $installPath (Join-Path $outputPath 'Sky')
+    if ($LASTEXITCODE -ne 0) { throw 'The original gameplay sky packaging failed.' }
+}
 
 $locators = Join-Path $outputPath 'envmain-locators.json'
-$instancesPath = Join-Path $outputPath 'envmain-instances.json'
 & $TMDLPath -psp-locators (Join-Path $installPath 'Data\Terrain\EnvMain\envmain_skel.trb') -o $locators
 if ($LASTEXITCODE -ne 0) { throw 'The original gameplay locators could not be exported.' }
-& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'inventory_frontend_instances.py') $locators `
-    --model-definitions (Join-Path $repositoryRoot 'OpenBarnyard\Source\Helpers\AInstanceManagerModelList.inl') `
-    --game-loader (Join-Path $repositoryRoot 'OpenBarnyard\Source\Helpers\AGameLoader.cpp') --install-root $installPath `
-    --main-game-vis (Join-Path $outputPath 'envmain.vis.json') --output $instancesPath
-if ($LASTEXITCODE -ne 0) { throw 'The original gameplay instance inventory failed.' }
+foreach ($row in $VisibilityRows) {
+    if ($row -cnotmatch '^[A-Za-z0-9_]{1,23}$') { throw "Invalid EnvMain VIS row name '$row'." }
+    $terrainOutput = Join-Path $outputPath "Terrain_$row"
+    & (Join-Path $PSScriptRoot 'ConvertRetailSS01Terrain.ps1') -TMDLPath $TMDLPath -PythonPath $PythonPath `
+        -TerrainName EnvMain -VisibilityRow $row -OutputDirectory $terrainOutput -TextureMaxWidth $TextureMaxWidth
+    & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_sequence_terrain.py') `
+        --envmain-dawn (Join-Path $terrainOutput 'EnvMain_terrain.json') (Join-Path $outputPath "TerrainPack_$row")
+    if ($LASTEXITCODE -ne 0) { throw "The original gameplay terrain packaging failed for $row." }
 
-& $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_main_game_instances.py') `
-    --tmdl $TMDLPath --max-width ([Math]::Min(64, $TextureMaxWidth)) $installPath $outputPath
-if ($LASTEXITCODE -ne 0) { throw 'The original gameplay instance packaging failed.' }
+    $filename = if ($row -ceq 'Barn') { 'envmain-instances.json' } else { "envmain-$row-instances.json" }
+    & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'inventory_frontend_instances.py') $locators `
+        --model-definitions (Join-Path $repositoryRoot 'OpenBarnyard\Source\Helpers\AInstanceManagerModelList.inl') `
+        --game-loader (Join-Path $repositoryRoot 'OpenBarnyard\Source\Helpers\AGameLoader.cpp') --install-root $installPath `
+        --main-game-vis (Join-Path $outputPath 'envmain.vis.json') --visibility-row $row --output (Join-Path $outputPath $filename)
+    if ($LASTEXITCODE -ne 0) { throw "The original gameplay instance inventory failed for $row." }
+
+    & $python.Path @pythonArguments (Join-Path $PSScriptRoot 'package_retail_main_game_instances.py') `
+        --tmdl $TMDLPath --max-width ([Math]::Min(64, $TextureMaxWidth)) --visibility-row $row $installPath $outputPath
+    if ($LASTEXITCODE -ne 0) { throw "The original gameplay instance packaging failed for $row." }
+}
