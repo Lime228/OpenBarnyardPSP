@@ -1379,33 +1379,39 @@ if ($MainGameScene) {
         $visibility = Get-Content -LiteralPath (Join-Path $MainGameDirectory 'envmain.vis.json') -Raw | ConvertFrom-Json
         $initialRow = [string]$start.initial_visibility_row
         $rows = @($initialRow) + $MainGameVisibilityRows
-        if ($visibility.version -ne 2 -or $rows.Count -gt $colliders.Count -or
+        if ($visibility.version -ne 2 -or $rows.Count -gt 32 -or
             @($rows | Select-Object -Unique).Count -ne $rows.Count) {
-            throw 'Expected distinct original EnvMain visibility rows for the resident collision cells.'
+            throw 'Expected distinct original EnvMain visibility rows.'
         }
-        $residentSections = @($colliders | ForEach-Object section)
+        $sectionNames = @($visibility.sections | ForEach-Object name)
+        $catalog = [System.Collections.Generic.List[string]]::new()
+        foreach ($cell in $colliders) { $catalog.Add($cell.section) }
+        $highCells = @{}
+        foreach ($name in $rows) {
+            $section = [Array]::IndexOf($sectionNames, $name)
+            if ($name -cnotmatch '^[A-Za-z0-9_]{1,23}$' -or $section -lt 0 -or
+                $visibility.sections[$section].visibility.Count -ne $sectionNames.Count) {
+                throw "Invalid EnvMain visibility row '$name'."
+            }
+            $sourceRow = $visibility.sections[$section]
+            $required = @(for ($j = 0; $j -lt $sectionNames.Count; $j++) {
+                $cell = $visibility.sections[$j]
+                if ($sourceRow.visibility[$j] -ceq 'high' -and $cell.collision) { $cell.name }
+            })
+            if ($name -cnotin $required -or $required.Count -gt 7) { throw "EnvMain row $name exceeds the resident collision slots or lacks its own collider." }
+            $highCells[$name] = $required
+            foreach ($cell in $required) { if (-not $catalog.Contains($cell)) { $catalog.Add($cell) } }
+        }
+        if ($catalog.Count -gt 32) { throw 'The EnvMain collision catalogue exceeds its 32-bit index.' }
         $rowIndex = [byte[]]::new(12 + 32 * $rows.Count)
         [Text.Encoding]::ASCII.GetBytes('PSVS').CopyTo($rowIndex, 0)
         [BitConverter]::GetBytes([uint32]1).CopyTo($rowIndex, 4)
         [BitConverter]::GetBytes([uint32]$rows.Count).CopyTo($rowIndex, 8)
         for ($i = 0; $i -lt $rows.Count; $i++) {
             $name = $rows[$i]
-            $sourceRow = @($visibility.sections | Where-Object name -CEQ $name)
-            $section = [Array]::IndexOf($residentSections, $name)
-            if ($name -cnotmatch '^[A-Za-z0-9_]{1,23}$' -or $section -lt 0 -or $sourceRow.Count -ne 1 -or
-                $sourceRow[0].visibility.Count -ne $visibility.sections.Count) {
-                throw "Invalid initial EnvMain visibility row '$name'."
-            }
+            $section = $catalog.IndexOf($name)
             [uint32]$mask = 0
-            for ($j = 0; $j -lt $visibility.sections.Count; $j++) {
-                $cell = $visibility.sections[$j]
-                if ($sourceRow[0].visibility[$j] -ceq 'high' -and $cell.collision) {
-                    $local = [Array]::IndexOf($residentSections, $cell.name)
-                    if ($local -lt 0) { throw "EnvMain row $name needs collision outside the staged initial cells: $($cell.name)." }
-                    $mask = $mask -bor (1 -shl $local)
-                }
-            }
-            if (($mask -band (1 -shl $section)) -eq 0) { throw "EnvMain row $name does not retain its own collision." }
+            foreach ($cell in $highCells[$name]) { $mask = $mask -bor ([uint32]1 -shl $catalog.IndexOf($cell)) }
             $offset = 12 + 32 * $i
             [BitConverter]::GetBytes([uint32]$section).CopyTo($rowIndex, $offset)
             [BitConverter]::GetBytes($mask).CopyTo($rowIndex, $offset + 4)
@@ -1419,6 +1425,30 @@ if ($MainGameScene) {
                 throw "Expected the original EnvMain terrain pack for '$name'."
             }
             Copy-OriginalTerrainPack $packRoot (Join-Path $collisionDestination $name)
+        }
+        if ($catalog.Count -gt $colliders.Count) {
+            $index = [byte[]]::new(16 + 52 * $catalog.Count)
+            [Text.Encoding]::ASCII.GetBytes('PSCL').CopyTo($index, 0)
+            [BitConverter]::GetBytes([uint32]2).CopyTo($index, 4)
+            [BitConverter]::GetBytes([uint32]$catalog.Count).CopyTo($index, 8)
+            [BitConverter]::GetBytes([BitConverter]::ToUInt32($rowIndex, 16)).CopyTo($index, 12)
+            for ($i = 0; $i -lt $catalog.Count; $i++) {
+                $cell = $catalog[$i]
+                $matchesForCell = @($start.collision | Where-Object section -CEQ $cell)
+                if ($matchesForCell.Count -ne 1 -or $matchesForCell[0].path -cnotmatch '^Data/Terrain/EnvMain/([A-Za-z0-9_]{1,39}_col\.trb)$') {
+                    throw "Missing or invalid original EnvMain collider for '$cell'."
+                }
+                $filename = $Matches[1]
+                $offset = 16 + 52 * $i
+                [BitConverter]::GetBytes([uint32][Array]::IndexOf($sectionNames, $cell)).CopyTo($index, $offset)
+                [Text.Encoding]::ASCII.GetBytes($filename).CopyTo($index, $offset + 4)
+                if ($i -lt $colliders.Count) { continue }
+                $source = Get-Item -LiteralPath (Join-Path $installPath $matchesForCell[0].path)
+                if ($source.PSIsContainer -or $source.Length -ne $matchesForCell[0].bytes) { throw "Invalid EnvMain collider '$filename'." }
+                Copy-Item -LiteralPath $source.FullName -Destination $collisionDestination -Force
+            }
+            [IO.File]::WriteAllBytes($collisionIndex, $index)
+            Write-Output "Staged $($catalog.Count - $colliders.Count) additional EnvMain collision TRBs for on-demand loading"
         }
         [IO.File]::WriteAllBytes((Join-Path $collisionDestination 'rows.psvs'), $rowIndex)
         Write-Output "Staged original EnvMain visibility rows $($rows -join ', ')"
