@@ -5,6 +5,7 @@ param(
     [string] $OutputDirectory = '',
     [ValidatePattern('^[A-Za-z0-9_]+$')]
     [string] $VisibilityRow = 'Dummy',
+    [hashtable] $ConvertedModelManifests,
     [ValidateSet(32, 64, 128, 256, 512)]
     [int] $TextureMaxWidth = 128,
     [ValidatePattern('^[A-Za-z0-9_]+$')]
@@ -66,7 +67,6 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
             throw "Unexpected $TerrainName terrain model name '$model'."
         }
         $directory = Join-Path $outputPath $model
-        New-Item -ItemType Directory -Force -Path $directory | Out-Null
         $modelLog = Join-Path $directory 'conversion.log'
         $pack = [ordered]@{
             section = $section.name
@@ -78,21 +78,32 @@ $packs = foreach ($index in 0..($vis.sections.Count - 1)) {
             manifest = "$model/$model.json"
         }
         try {
-            & (Join-Path $PSScriptRoot 'ConvertRetailFrontendDetail.ps1') -TerrainName $TerrainName `
-                -SourceModelName $model -SourceMaterialLibraryPath $materialPath `
-                -Prefix $model -OutputDirectory $directory -TextureMaxWidth $TextureMaxWidth `
-                -TMDLPath $TMDLPath -PythonPath $PythonPath *> $modelLog
-            $manifest = Get-Content -LiteralPath (Join-Path $directory "$model.json") -Raw | ConvertFrom-Json
+            $key = "$($pack.source)|$materialLibrary"
+            $manifestPath = Join-Path $directory "$model.json"
+            if ($null -ne $ConvertedModelManifests -and $ConvertedModelManifests.ContainsKey($key)) {
+                $manifestPath = $ConvertedModelManifests[$key]
+                $pack.manifest = ([IO.Path]::GetRelativePath($outputPath, $manifestPath)) -replace '\\', '/'
+            }
+            else {
+                New-Item -ItemType Directory -Force -Path $directory | Out-Null
+                & (Join-Path $PSScriptRoot 'ConvertRetailFrontendDetail.ps1') -TerrainName $TerrainName `
+                    -SourceModelName $model -SourceMaterialLibraryPath $materialPath `
+                    -Prefix $model -OutputDirectory $directory -TextureMaxWidth $TextureMaxWidth `
+                    -TMDLPath $TMDLPath -PythonPath $PythonPath *> $modelLog
+            }
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+            $assetDirectory = Split-Path -Parent $manifestPath
             $pack.source_meshes = $manifest.source_meshes
             $pack.models = $manifest.models.Count
             $pack.textures = $manifest.textures.Count
             $pack.geometry_bytes = ($manifest.models | ForEach-Object {
-                (Get-Item -LiteralPath (Join-Path $directory $_.mesh)).Length
+                (Get-Item -LiteralPath (Join-Path $assetDirectory $_.mesh)).Length
             } | Measure-Object -Sum).Sum
             $pack.texture_bytes = ($manifest.textures | ForEach-Object {
-                (Get-Item -LiteralPath (Join-Path $directory $_.texture)).Length
+                (Get-Item -LiteralPath (Join-Path $assetDirectory $_.texture)).Length
             } | Measure-Object -Sum).Sum
             $pack.status = 'converted'
+            if ($null -ne $ConvertedModelManifests) { $ConvertedModelManifests[$key] = $manifestPath }
             $converted++
         }
         catch {

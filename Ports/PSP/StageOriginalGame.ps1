@@ -30,13 +30,19 @@ param(
     [switch] $MainGameScene,
     [switch] $MainGameInstances,
     [string[]] $MainGameVisibilityRows = @(),
+    [switch] $MainGameAllVisibilityRows,
     [switch] $SkipConversion
 )
 
 $ErrorActionPreference = 'Stop'
 if ($MainGameScene -and -not $MainGameDirectory) { throw 'Use -MainGameScene with the original EnvMain workspace.' }
 if ($MainGameInstances -and -not $MainGameScene) { throw 'Use -MainGameInstances with -MainGameScene.' }
-if ($MainGameVisibilityRows -and -not $MainGameScene) { throw 'Use -MainGameVisibilityRows with -MainGameScene.' }
+if (($MainGameVisibilityRows -or $MainGameAllVisibilityRows) -and -not $MainGameScene) {
+    throw 'Staging additional visibility rows requires -MainGameScene.'
+}
+if ($MainGameVisibilityRows -and $MainGameAllVisibilityRows) {
+    throw 'Choose -MainGameAllVisibilityRows or list particular -MainGameVisibilityRows.'
+}
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if (-not $BuildDirectory) {
@@ -1375,9 +1381,12 @@ if ($MainGameScene) {
         [IO.File]::WriteAllBytes((Join-Path $destination 'player.pspl'), $config)
     }
     Copy-OriginalTerrainPack $terrain $barnDestination
-    if ($MainGameVisibilityRows) {
+    if ($MainGameVisibilityRows -or $MainGameAllVisibilityRows) {
         $visibility = Get-Content -LiteralPath (Join-Path $MainGameDirectory 'envmain.vis.json') -Raw | ConvertFrom-Json
         $initialRow = [string]$start.initial_visibility_row
+        if ($MainGameAllVisibilityRows) {
+            $MainGameVisibilityRows = @($visibility.sections | Where-Object { $_.collision -and $_.name -cne $initialRow } | ForEach-Object name)
+        }
         $rows = @($initialRow) + $MainGameVisibilityRows
         if ($visibility.version -ne 2 -or $rows.Count -gt 32 -or
             @($rows | Select-Object -Unique).Count -ne $rows.Count) {
@@ -1455,7 +1464,7 @@ if ($MainGameScene) {
     }
     Write-Output 'Staged the original EnvMain scene and both gameplay player models'
 }
-if (-not $MainGameVisibilityRows) {
+if (-not ($MainGameVisibilityRows -or $MainGameAllVisibilityRows)) {
     $rowIndexPath = Join-Path $collisionDestination 'rows.psvs'
     if (Test-Path -LiteralPath $rowIndexPath -PathType Leaf) { Remove-Item -LiteralPath $rowIndexPath -Force }
 }

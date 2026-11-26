@@ -6,6 +6,7 @@ import json
 import shutil
 import struct
 import subprocess
+import sys
 from pathlib import Path
 
 from convert_dds import convert as convert_texture
@@ -17,7 +18,47 @@ from inventory_retail_sequence import retail_file
 from package_sequence_terrain import package as package_terrain
 
 
-def package(tool: Path, install: Path, workspace: Path, max_width: int, row: str = "Barn") -> dict:
+class InstanceSources:
+    def __init__(self, tool: Path, install: Path, workspace: Path, max_width: int):
+        self.tool = tool
+        self.install = install
+        self.max_width = max_width
+        self.cache = workspace / "InstanceSources"
+        self.cache.mkdir(parents=True, exist_ok=True)
+        self.properties = self.cache / "material-properties.json"
+        material_source = retail_file(install, "Data/MiscTextures/MaterialProperties.trb")
+        run_export(tool, "-psp-material-properties", material_source, self.properties)
+        self.textures = {}
+        # Prefer the EnvMain common library for textures also present in the startup pack.
+        for path, options in (("Data/Assets/lib_startup.trb", ("-texture-symbol", "instances_TTL")),
+                              ("Data/Terrain/EnvMain/envmain_Common.ttl", ())):
+            library = retail_file(install, path)
+            atlas = run_export(tool, "-psp-textures", library, self.cache / f"{library.stem}-textures.json", *options)
+            for texture in atlas["textures"]:
+                self.textures[texture_key(texture["name"])] = (library, options, texture["name"])
+        self.model_dumps = {}
+        self.converted_textures = {}
+
+    def model_dump(self, source: str) -> Path:
+        if source not in self.model_dumps:
+            dump = self.cache / f"model-{len(self.model_dumps):03}.json"
+            run_export(self.tool, "-psp-dump", retail_file(self.install, source), dump)
+            self.model_dumps[source] = dump
+        return self.model_dumps[source]
+
+    def texture(self, name: str) -> tuple[Path, str]:
+        key = texture_key(name)
+        if key not in self.converted_textures:
+            library, options, source = self.textures[key]
+            output = self.cache / f"texture-{len(self.converted_textures):03}.ptex"
+            dds = self.cache / "texture.dds"
+            run_tmdl(self.tool, "-psp-texture", library, dds, "-texture", source, *options)
+            details = convert_texture(dds, output, max_width=self.max_width, resample_to_power_of_two=True)
+            self.converted_textures[key] = (output, details["alpha_mode"])
+        return self.converted_textures[key]
+
+
+def package(workspace: Path, sources: InstanceSources, row: str) -> dict:
     if not row.isascii() or not row.replace("_", "").isalnum():
         raise ValueError(f"invalid EnvMain visibility row name: {row}")
     inventory = workspace / ("envmain-instances.json" if row == "Barn" else f"envmain-{row}-instances.json")
@@ -29,52 +70,27 @@ def package(tool: Path, install: Path, workspace: Path, max_width: int, row: str
         raise ValueError("expected the original EnvMain instance inventory")
 
     intermediate = workspace / ("Instances" if row == "Barn" else f"Instances_{row}")
-    material_source = retail_file(install, "Data/MiscTextures/MaterialProperties.trb")
-    properties = intermediate / "material-properties.json"
-    run_export(tool, "-psp-material-properties", material_source, properties)
-    textures = {}
-    # Prefer the EnvMain common library for textures also present in the startup pack.
-    for path, options in (("Data/Assets/lib_startup.trb", ("-texture-symbol", "instances_TTL")),
-                          ("Data/Terrain/EnvMain/envmain_Common.ttl", ())):
-        library = retail_file(install, path)
-        atlas = run_export(tool, "-psp-textures", library, intermediate / f"{library.stem}-textures.json", *options)
-        for texture in atlas["textures"]:
-            textures[texture_key(texture["name"])] = (library, options, texture["name"])
-
-    cache = intermediate / "Textures"
-    cache.mkdir(exist_ok=True)
-    converted_textures = {}
     terrain_source = workspace / f"Terrain_{row}/EnvMain_terrain.json"
     terrain = json.loads(terrain_source.read_text(encoding="utf-8-sig"))
     if terrain["terrain"] != "EnvMain" or terrain["visibility_row"] != row:
         raise ValueError(f"expected the original EnvMain {row} terrain plan")
     for entry in terrain["packs"]:
-        entry["manifest"] = (terrain_source.parent / entry["manifest"]).relative_to(workspace).as_posix()
+        entry["manifest"] = (terrain_source.parent / entry["manifest"]).resolve().relative_to(workspace).as_posix()
 
     original_packs = len(terrain["packs"])
     total_instances = 0
     for name, source in sorted(models.items()):
         output = intermediate / name
         prefix = f"envmain_instances_{name.casefold()}"
-        dump = output / "model.json"
-        run_export(tool, "-psp-dump", retail_file(install, source), dump)
-        manifest = convert_instance(inventory, dump, output, name, prefix)
+        manifest = convert_instance(inventory, sources.model_dump(source), output, name, prefix)
         modes = []
         for texture in manifest["textures"]:
-            key = texture_key(texture["source_texture"])
-            if key not in converted_textures:
-                library, options, source_name = textures[key]
-                output_texture = cache / f"{len(converted_textures):03}.ptex"
-                dds = cache / "texture.dds"
-                run_tmdl(tool, "-psp-texture", library, dds, "-texture", source_name, *options)
-                details = convert_texture(dds, output_texture, max_width=max_width)
-                converted_textures[key] = (output_texture, details["alpha_mode"])
-            source_texture, alpha = converted_textures[key]
+            source_texture, alpha = sources.texture(texture["source_texture"])
             shutil.copyfile(source_texture, output / texture["texture"])
             modes.append(alpha)
 
         filename = output / f"{prefix}.json"
-        finalize(filename, properties, filename.with_suffix(".pcfg"), modes)
+        finalize(filename, sources.properties, filename.with_suffix(".pcfg"), modes)
         terrain["packs"].append({"source": source, "section": row, "lod": "instance", "glow": False,
                                  "manifest": filename.relative_to(workspace).as_posix()})
         total_instances += manifest["source_instances"]
@@ -97,19 +113,29 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tmdl", required=True, type=Path)
     parser.add_argument("--max-width", type=int, default=64)
-    parser.add_argument("--visibility-row", default="Barn")
+    parser.add_argument("--visibility-row", action="append")
     parser.add_argument("install", type=Path)
     parser.add_argument("workspace", type=Path)
     args = parser.parse_args()
     try:
         tool = args.tmdl.resolve(strict=True)
         (tool.parent / "Logs").mkdir(exist_ok=True)
-        report = package(tool, args.install.resolve(strict=True), args.workspace.resolve(strict=True),
-                         args.max_width, args.visibility_row)
+        workspace = args.workspace.resolve(strict=True)
+        sources = InstanceSources(tool, args.install.resolve(strict=True), workspace, args.max_width)
     except (KeyError, OSError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"EnvMain instance packaging failed: {error}\n")
-    print(f"Packed {report['instance_count']} instances into {report['instance_draw_groups']} draw groups, "
-          f"{report['mesh_count']} total meshes and {report['texture_count']} shared textures.")
+    failed = False
+    for row in args.visibility_row or ["Barn"]:
+        try:
+            report = package(workspace, sources, row)
+        except (KeyError, OSError, ValueError, struct.error, subprocess.TimeoutExpired) as error:
+            print(f"EnvMain {row} instance packaging failed: {error}", file=sys.stderr)
+            failed = True
+            continue
+        print(f"{row}: Packed {report['instance_count']} instances into {report['instance_draw_groups']} draw groups, "
+              f"{report['mesh_count']} total meshes and {report['texture_count']} shared textures.")
+    if failed:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
