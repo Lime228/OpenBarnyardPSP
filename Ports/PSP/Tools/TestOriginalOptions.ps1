@@ -19,6 +19,7 @@ param(
     [switch] $CheckMainGameCamera,
     [switch] $CheckMainGameRegions,
     [switch] $CheckMainGameCrossroads,
+    [switch] $CheckMainGameCollisionStreaming,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -76,6 +77,10 @@ if ($CheckMainGameCamera -and -not $CheckMainGameCollision) {
 if (($CheckMainGameRegions -or $CheckMainGameCrossroads) -and (-not $CheckMainGameScene -or
     -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Terrain\EnvMain\rows.psvs') -PathType Leaf))) {
     throw 'The region checks require -CheckMainGameScene and the staged VIS rows.'
+}
+if ($CheckMainGameCollisionStreaming -and (-not $CheckMainGameCrossroads -or
+    -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Terrain\EnvMain\xroadeast\terrain.ptld') -PathType Leaf))) {
+    throw 'Use -CheckMainGameCollisionStreaming with -CheckMainGameCrossroads and a staged xroadeast row.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -297,6 +302,38 @@ function Test-MainGameCrossroads([hashtable] $Scene) {
     }
     if ($Capture) { Send-Key Screenshot }
     "Reached xroad at ($($road.sim_player_position)), camera ($($road.sim_camera_position)), $($road.sim_terrain_meshes) meshes."
+    if ($CheckMainGameCollisionStreaming) { Test-MainGameCollisionStreaming $road }
+}
+
+function Test-MainGameCollisionStreaming([hashtable] $Road) {
+    $roadBytes = [int]$Road.sim_collision_resident_bytes
+    if ([int]$Road.sim_collision_resident_packs -ne 5 -or $roadBytes -le 0) {
+        throw "Expected the five original xroad collision files to be resident. See $gameLog"
+    }
+    $junction = Move-SimTowards $Road 65.5 -47.0
+    $bend = Move-SimTowards $junction 67.5 -39.5
+    $east = Move-SimTowards $bend 72.0 -30.0 xroadeast
+    $eastBytes = [int]$east.sim_collision_resident_bytes
+    $eastMeshes = if ($CheckMainGameInstances) { 373 } else { 326 }
+    $roadMask = [Convert]::ToUInt32($Road.sim_terrain_collision_mask, 16)
+    $eastMask = [Convert]::ToUInt32($east.sim_terrain_collision_mask, 16)
+    if (($eastMask -band $roadMask) -ne $roadMask -or [int]$east.sim_collision_resident_packs -ne 6 -or
+        $eastBytes - $roadBytes -ne 24256 -or [int]$east.sim_terrain_meshes -ne $eastMeshes) {
+        throw "xroadeast did not stream the extra original Forest collider and its matching render pack. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "xroadeast streamed Forest at ($($east.sim_player_position)), $eastBytes resident collision bytes in six files."
+    $bend = Move-SimTowards $east 67.5 -39.5
+    $junction = Move-SimTowards $bend 65.5 -47.0
+    $returned = Move-SimTowards $junction 59.0 -48.0 xroad
+    if ($returned.sim_terrain_collision_mask -ne $Road.sim_terrain_collision_mask -or
+        [int]$returned.sim_collision_resident_packs -ne 5 -or [int]$returned.sim_collision_resident_bytes -ne $roadBytes -or
+        [int]$returned.sim_terrain_swaps -lt [int]$Road.sim_terrain_swaps + 2 -or
+        [int]$returned.render_main_peak -gt [int]$returned.render_main_budget) {
+        throw "Returning to xroad did not unload Forest and restore the original collision set. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "xroad unloaded Forest and returned to $roadBytes resident collision bytes. Peak was $($returned.sim_collision_peak_bytes) bytes."
 }
 
 function Wait-MenuCue([int] $Cue, [hashtable] $Before) {
