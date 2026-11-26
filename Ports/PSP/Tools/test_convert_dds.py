@@ -117,6 +117,20 @@ class DDSConversionTests(unittest.TestCase):
                 bytes((255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 0, 0, 255, 255)),
             )
 
+    def test_resamples_the_full_texture_for_normalized_material_uvs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            source = pathlib.Path(temporary_name) / "material.dds"
+            destination = source.with_suffix(".ptex")
+            header = bytearray(dds_header(3, 1, b"\0\0\0\0", 9))
+            struct.pack_into("<I", header, 80, 0x40)
+            struct.pack_into("<5I", header, 88, 24, 0xFF0000, 0x00FF00, 0x0000FF, 0)
+            source.write_bytes(header + bytes((0, 0, 0, 128, 128, 128, 255, 255, 255)))
+
+            result = convert(source, destination, linear=True, resample_to_power_of_two=True)
+
+            self.assertEqual((result["width"], result["height"]), (4, 1))
+            self.assertEqual(destination.read_bytes()[24::4], bytes((0, 80, 176, 255)))
+
 
 if __name__ == "__main__":
     unittest.main()

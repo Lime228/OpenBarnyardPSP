@@ -216,21 +216,45 @@ def pad_rgba(
     return b"".join(rows) + rows[-1] * (padded_height - height)
 
 
+def resample_rgba(pixels: bytes, width: int, height: int, out_width: int, out_height: int) -> bytes:
+    def samples(length: int, target: int):
+        for index in range(target):
+            coord = min(length - 1, max(0, (index + 0.5) * length / target - 0.5))
+            first = int(coord)
+            yield first, min(first + 1, length - 1), coord - first
+
+    columns = list(samples(width, out_width))
+    output = bytearray()
+    for top, bottom, vertical in samples(height, out_height):
+        for left, right, horizontal in columns:
+            offsets = tuple((row * width + column) * 4 for row in (top, bottom) for column in (left, right))
+            for channel in range(4):
+                a, b, c, d = (pixels[offset + channel] for offset in offsets)
+                upper = a + (b - a) * horizontal
+                lower = c + (d - c) * horizontal
+                output.append(round(upper + (lower - upper) * vertical))
+    return bytes(output)
+
+
 def convert(
     source: pathlib.Path,
     destination: pathlib.Path,
     linear: bool = False,
     max_width: int | None = None,
     pad_to_power_of_two: bool = False,
+    resample_to_power_of_two: bool = False,
 ) -> dict[str, object]:
     alpha_mode = retail_alpha_mode(source)
-    width, height, pixels = read_dds(source, allow_non_power_of_two=pad_to_power_of_two)
+    if pad_to_power_of_two and resample_to_power_of_two:
+        raise ValueError("choose either padding or resampling for PSP texture dimensions")
+    width, height, pixels = read_dds(source, allow_non_power_of_two=pad_to_power_of_two or resample_to_power_of_two)
     source_width, source_height = width, height
-    if pad_to_power_of_two:
+    if pad_to_power_of_two or resample_to_power_of_two:
         padded_width = max(1 if linear else 4, 1 << (width - 1).bit_length())
         padded_height = max(1 if linear else 8, 1 << (height - 1).bit_length())
         if (padded_width, padded_height) != (width, height):
-            pixels = pad_rgba(pixels, width, height, padded_width, padded_height)
+            resize = pad_rgba if pad_to_power_of_two else resample_rgba
+            pixels = resize(pixels, width, height, padded_width, padded_height)
             width, height = padded_width, padded_height
     if max_width is not None:
         if not is_power_of_two(max_width) or max_width > 512:
@@ -258,11 +282,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Convert a bounded DDS texture to OpenBarnyard PSP PTEX")
     parser.add_argument("--linear", action="store_true", help="store linear pixels instead of PSP-swizzled blocks")
     parser.add_argument("--max-width", type=int, help="reduce by 2x box filters until this PSP-safe width is reached")
-    parser.add_argument("--pad-to-power-of-two", action="store_true", help="extend edge pixels without changing source coordinates")
+    size = parser.add_mutually_exclusive_group()
+    size.add_argument("--pad-to-power-of-two", action="store_true", help="extend edge pixels without changing source coordinates")
+    size.add_argument("--resample-to-power-of-two", action="store_true", help="resize the full texture to preserve normalized UVs")
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("destination", type=pathlib.Path)
     args = parser.parse_args()
-    print(json.dumps(convert(args.source, args.destination, args.linear, args.max_width, args.pad_to_power_of_two), sort_keys=True))
+    print(json.dumps(convert(args.source, args.destination, args.linear, args.max_width,
+                             args.pad_to_power_of_two, args.resample_to_power_of_two), sort_keys=True))
 
 
 if __name__ == "__main__":

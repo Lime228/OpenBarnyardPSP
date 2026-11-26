@@ -151,7 +151,7 @@ for ($textureIndex = 0; $textureIndex -lt $manifest.textures.Count; $textureInde
     }
 
     $conversionOutput = @(& $PythonPath @pythonArguments (Join-Path $PSScriptRoot 'convert_dds.py') `
-        --max-width $TextureMaxWidth $ddsPath $ptexPath)
+        --resample-to-power-of-two --max-width $TextureMaxWidth $ddsPath $ptexPath)
     if ($LASTEXITCODE -ne 0 -or $conversionOutput.Count -eq 0) {
         throw "Original texture '$($texture.source_texture)' conversion failed"
     }
