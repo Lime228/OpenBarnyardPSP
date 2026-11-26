@@ -19,6 +19,15 @@ public:
 private:
 	static constexpr TFLOAT CAMERA_DISTANCE = 5.0f;
 
+	struct TerrainRow
+	{
+		TUINT32 uiSection;
+		TUINT32 uiCollisionMask;
+		TCHAR szName[ 24 ];
+	};
+
+	TBOOL LoadTerrainRows();
+	TBOOL UpdateTerrainRow( const Toshi::TVector4& a_rCameraPosition );
 	void UpdateCamera( const Toshi::TVector4& a_rPlayerPosition, TFLOAT a_fDeltaTime, TBOOL a_bPlayerMoved );
 
 	ASimPlayer_PSP m_Player;
@@ -28,4 +37,8 @@ private:
 	TFLOAT m_fCameraDistance = CAMERA_DISTANCE;
 	TFLOAT m_fCameraTargetDistance = CAMERA_DISTANCE;
 	Toshi::TVector2 m_vStick = Toshi::TVector2::VEC_ZERO;
+	TerrainRow m_aTerrainRows[ ATerrainCollision_PSP::MAX_PACKS ] = {};
+	TUINT m_uiTerrainRowCount = 0;
+	TUINT m_uiTerrainRow = 0;
+	TINT m_iRejectedTerrainSection = -1;
 };

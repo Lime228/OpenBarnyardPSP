@@ -7,6 +7,8 @@
 class ATerrainCollision_PSP
 {
 public:
+	static constexpr TUINT MAX_PACKS = 6;
+
 	enum GroundedMove
 	{
 		GROUNDED_UNSUPPORTED,
@@ -24,13 +26,15 @@ public:
 	                           TFLOAT a_fRadius, Toshi::TVector4& a_rTarget ) const;
 	TFLOAT GetCameraDistance( const Toshi::TVector4& a_rPivot, const Toshi::TVector4& a_rDirection, TFLOAT a_fDistance ) const;
 	TUINT GetPackCount() const { return m_uiPacks; }
+	TUINT GetLoadedPackMask() const { return ( 1U << m_uiPacks ) - 1; }
+	void SetActivePackMask( TUINT a_uiMask ) { m_uiActivePackMask = a_uiMask & GetLoadedPackMask(); }
+	TINT FindSection( const Toshi::TVector4& a_rCameraPosition, TUINT a_uiPrevious ) const;
 	TUINT GetTriangleCount() const { return m_uiTriangles; }
 	const TCHAR* GetFailedPath() const { return m_szPath; }
 
 	static TBOOL ContainsTRBData( const Toshi::TTRB& a_rTRB, const void* a_pData, TSIZE a_uiBytes );
 
 private:
-	static constexpr TUINT MAX_PACKS = 6;
 	static constexpr TUINT MAX_MESHES_PER_PACK = 32;
 	static constexpr TUINT MAX_TRIANGLES = 16 * 1024;
 	static constexpr TUINT TRIANGLES_PER_BLOCK = 32;
@@ -63,10 +67,13 @@ private:
 	TBOOL CollideSweptSphere( const Toshi::TVector4& a_rCenter, TFLOAT a_fRadius, const Toshi::TVector4& a_rDirection,
 	                         TFLOAT& a_rfDistance, Toshi::TVector4& a_rNormal, TBOOL a_bCamera ) const;
 	TBOOL ResolveGroundedHeight( Toshi::TVector4& a_rTarget, const Toshi::TVector4& a_rFacing, TFLOAT a_fRadius ) const;
+	TBOOL CollideVerticalInPacks( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance,
+	                             TUINT a_uiMask ) const;
 
 	Pack m_aPacks[ MAX_PACKS ];
 	Bounds m_aTriangleBounds[ MAX_TRIANGLE_BLOCKS ];
 	TUINT m_uiPacks = 0;
+	TUINT m_uiActivePackMask = 0;
 	TUINT m_uiTriangles = 0;
 	TUINT m_uiTriangleBlocks = 0;
 	TCHAR m_szPath[ 88 ] = {};

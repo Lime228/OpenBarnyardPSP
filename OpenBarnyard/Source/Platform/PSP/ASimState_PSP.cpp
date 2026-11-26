@@ -5,11 +5,113 @@
 #include "GameInterface/AFrontEndMainMenuState2.h"
 #include "GameInterface/AGameStateController.h"
 
+#include <File/TFile.h>
 #include <Math/TMathInline.h>
+#include <Toshi/TStringManager.h>
 
 TOSHI_NAMESPACE_USING
 
 TDEFINE_CLASS( ASimState_PSP );
+
+static constexpr TCHAR s_szSimTerrainRows_PSP[] = "local:Data/Terrain/EnvMain/rows.psvs";
+
+static TBOOL AIsSimTerrainRowName_PSP( const TCHAR* a_szName, TSIZE a_uiCapacity )
+{
+	for ( TSIZE i = 0; i < a_uiCapacity; i++ )
+	{
+		const TCHAR c = a_szName[ i ];
+		if ( c == '\0' )
+			return i != 0;
+		if ( !( ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || ( c >= '0' && c <= '9' ) || c == '_' ) )
+			return TFALSE;
+	}
+	return TFALSE;
+}
+
+TBOOL ASimState_PSP::LoadTerrainRows()
+{
+	TFile* pFile = TFile::Create( s_szSimTerrainRows_PSP, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	if ( pFile == TNULL )
+		return TTRUE;
+
+	static_assert( sizeof( TerrainRow ) == 32 );
+	TUINT32 aHeader[ 3 ];
+	TBOOL bRead = pFile->Read( aHeader, sizeof( aHeader ) ) == sizeof( aHeader ) &&
+	              aHeader[ 0 ] == 0x53565350 && aHeader[ 1 ] == 1 &&
+	              aHeader[ 2 ] > 0 && aHeader[ 2 ] <= TARRAYSIZE( m_aTerrainRows );
+	if ( bRead )
+	{
+		const TSIZE uiBytes = aHeader[ 2 ] * sizeof( TerrainRow );
+		bRead = pFile->GetSize() == sizeof( aHeader ) + uiBytes &&
+		        pFile->Read( m_aTerrainRows, uiBytes ) == uiBytes;
+	}
+	pFile->Destroy();
+	if ( !bRead )
+		return TFALSE;
+
+	const TUINT uiLoadedMask = m_TerrainCollision.GetLoadedPackMask();
+	TUINT uiSeen = 0;
+	for ( TUINT i = 0; i < aHeader[ 2 ]; i++ )
+	{
+		const TerrainRow& rRow = m_aTerrainRows[ i ];
+		if ( rRow.uiSection >= m_TerrainCollision.GetPackCount() || ( rRow.uiCollisionMask & ~uiLoadedMask ) != 0 ||
+		     !AIsSimTerrainRowName_PSP( rRow.szName, sizeof( rRow.szName ) ) )
+			return TFALSE;
+		const TUINT uiBit = 1U << rRow.uiSection;
+		if ( ( rRow.uiCollisionMask & uiBit ) == 0 || ( uiSeen & uiBit ) != 0 )
+			return TFALSE;
+		uiSeen |= uiBit;
+	}
+	if ( TStringManager::String8Compare( m_aTerrainRows[ 0 ].szName, "Barn" ) != 0 ||
+	     m_aTerrainRows[ 0 ].uiCollisionMask != uiLoadedMask )
+		return TFALSE;
+	m_uiTerrainRowCount = aHeader[ 2 ];
+	return TTRUE;
+}
+
+TBOOL ASimState_PSP::UpdateTerrainRow( const TVector4& a_rCameraPosition )
+{
+	if ( m_uiTerrainRowCount < 2 )
+		return TFALSE;
+	const TerrainRow& rCurrent = m_aTerrainRows[ m_uiTerrainRow ];
+	const TINT iSection = m_TerrainCollision.FindSection( a_rCameraPosition, rCurrent.uiSection );
+	if ( iSection < 0 || iSection == TINT( rCurrent.uiSection ) )
+	{
+		m_iRejectedTerrainSection = -1;
+		return TFALSE;
+	}
+	if ( iSection == m_iRejectedTerrainSection )
+		return TFALSE;
+	for ( TUINT i = 0; i < m_uiTerrainRowCount; i++ )
+	{
+		const TerrainRow& rNext = m_aTerrainRows[ i ];
+		if ( TINT( rNext.uiSection ) != iSection )
+			continue;
+		AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+		// Each row uses the same render heap. Release the previous row before loading the next.
+		if ( !ALoadSimTerrainRow_PSP( rNext.szName ) )
+		{
+			m_iRejectedTerrainSection = iSection;
+			rReport.uiSimTerrainSwapFailures++;
+			if ( ALoadSimTerrainRow_PSP( rCurrent.szName ) )
+				ASetGameRuntimeFailedPath_PSP( "" );
+			else
+			{
+				m_uiTerrainRowCount = 0;
+				ASetGameRuntimePhase_PSP( "sim-world-failed" );
+			}
+			return TFALSE;
+		}
+		m_uiTerrainRow = i;
+		m_iRejectedTerrainSection = -1;
+		m_TerrainCollision.SetActivePackMask( rNext.uiCollisionMask );
+		rReport.uiSimTerrainCollisionMask = rNext.uiCollisionMask;
+		rReport.uiSimTerrainSwaps++;
+		TStringManager::String8Copy( rReport.szSimTerrainRow, rNext.szName, sizeof( rReport.szSimTerrainRow ) );
+		return TTRUE;
+	}
+	return TFALSE;
+}
 
 void ASimState_PSP::UpdateCamera( const TVector4& a_rPlayerPosition, TFLOAT a_fDeltaTime, TBOOL a_bPlayerMoved )
 {
@@ -49,6 +151,11 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	rReport.uiNewGameSimCollisionTriangles = m_TerrainCollision.GetTriangleCount();
 	if ( !rReport.bNewGameSimStartReady )
 		return TFALSE;
+	if ( !LoadTerrainRows() )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_szSimTerrainRows_PSP );
+		return TFALSE;
+	}
 	const ASimStart_PSP& rStart = rReport.oNewGameSimStart;
 	const TFLOAT fAspect = TFLOAT( TRenderInterface_PSP::SCREEN_WIDTH ) / TRenderInterface_PSP::SCREEN_HEIGHT;
 	m_Camera.fFOV = TMath::ATan( TMath::Tan( TMath::DegToRad( 30.0f ) ) / fAspect ) * ( 360.0f / TMath::PI );
@@ -73,6 +180,9 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	rReport.uiSimPlayerMotionMask = 0;
 	rReport.uiSimTerrainContacts = 0;
 	rReport.uiSimTerrainSlides = 0;
+	rReport.uiSimTerrainCollisionMask = m_TerrainCollision.GetLoadedPackMask();
+	rReport.uiSimTerrainSwaps = rReport.uiSimTerrainSwapFailures = 0;
+	TStringManager::String8Copy( rReport.szSimTerrainRow, "Barn", sizeof( rReport.szSimTerrainRow ) );
 	rReport.fSimCameraDistance = m_fCameraDistance;
 	rReport.fSimCameraMinDistance = m_fCameraDistance;
 	return TTRUE;
@@ -105,7 +215,14 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	}
 	const TVector4& rPosition = m_Player.GetPosition();
 	const TBOOL bPlayerMoved = rPosition.x != vPrevious.x || rPosition.y != vPrevious.y || rPosition.z != vPrevious.z;
+	const TFLOAT fPreviousCameraDistance = m_fCameraDistance;
 	UpdateCamera( rPosition, a_fDeltaTime, bPlayerMoved );
+	if ( bPlayerMoved || m_fCameraDistance != fPreviousCameraDistance )
+	{
+		const TVector4 vCamera( m_Camera.aPosition[ 0 ], m_Camera.aPosition[ 1 ], m_Camera.aPosition[ 2 ], 1.0f );
+		if ( UpdateTerrainRow( vCamera ) )
+			UpdateCamera( rPosition, 0.0f, TTRUE );
+	}
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.vSimPlayerPosition = rPosition;
 	rReport.vSimCameraPosition.Set( m_Camera.aPosition[ 0 ], m_Camera.aPosition[ 1 ], m_Camera.aPosition[ 2 ], 1.0f );

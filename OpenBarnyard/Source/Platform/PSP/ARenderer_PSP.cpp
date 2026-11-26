@@ -48,7 +48,6 @@ static AFrontEndInstanceManager_PSP s_FrontEndInstanceManager_PSP;
 static ASSeqTerrain_PSP s_SSeqTerrain_PSP;
 static ASkyDome_PSP s_SSeqSkyDome_PSP;
 static ASSeqActors_PSP s_SSeqActors_PSP;
-static constexpr TCHAR s_szSimTerrainRoot_PSP[] = "local:Data/Terrain/EnvMain/Barn";
 static constexpr TCHAR s_szSimTerrainIndex_PSP[] = "local:Data/Terrain/EnvMain/Barn/terrain.ptld";
 static constexpr TCHAR s_szSimSkyRoot_PSP[] = "local:Data/Terrain/EnvMain/Sky";
 static constexpr TFLOAT s_fFrontEndStartHour_PSP = 6.0f;
@@ -777,15 +776,25 @@ TBOOL AHasSimWorld_PSP()
 
 TBOOL ALoadSimWorld_PSP()
 {
-	if ( !s_SSeqTerrain_PSP.Load( s_szSimTerrainRoot_PSP ) )
-	{
-		ASetGameRuntimeFailedPath_PSP( s_SSeqTerrain_PSP.GetFailedPath() );
+	if ( !ALoadSimTerrainRow_PSP( "Barn" ) )
 		return TFALSE;
-	}
 	if ( !s_SSeqSkyDome_PSP.Load( s_szSimSkyRoot_PSP ) )
 	{
 		ASetGameRuntimeFailedPath_PSP( s_SSeqSkyDome_PSP.GetFailedPath() );
 		AUnloadSimWorld_PSP();
+		return TFALSE;
+	}
+	AUpdateGameRuntimeMemory_PSP();
+	return TTRUE;
+}
+
+TBOOL ALoadSimTerrainRow_PSP( const TCHAR* a_szName )
+{
+	TCHAR szRoot[ 56 ];
+	TStringManager::String8Format( szRoot, sizeof( szRoot ), "local:Data/Terrain/EnvMain/%s", a_szName );
+	if ( !s_SSeqTerrain_PSP.Load( szRoot ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( s_SSeqTerrain_PSP.GetFailedPath() );
 		return TFALSE;
 	}
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();

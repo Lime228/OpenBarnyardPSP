@@ -128,6 +128,10 @@ struct AGameRuntimeReport_PSP
 	TUINT uiSimPlayerMotionMask;
 	TUINT uiSimTerrainContacts;
 	TUINT uiSimTerrainSlides;
+	TUINT uiSimTerrainCollisionMask;
+	TUINT uiSimTerrainSwaps;
+	TUINT uiSimTerrainSwapFailures;
+	TCHAR szSimTerrainRow[ 24 ];
 	TFLOAT fSimCameraDistance;
 	TFLOAT fSimCameraMinDistance;
 	TBOOL bSimPlayerSteering;

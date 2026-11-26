@@ -99,6 +99,7 @@ TBOOL ATerrainCollision_PSP::LoadInitial()
 			return TFALSE;
 		}
 	}
+	m_uiActivePackMask = GetLoadedPackMask();
 	m_szPath[ 0 ] = '\0';
 	return TTRUE;
 }
@@ -171,6 +172,7 @@ void ATerrainCollision_PSP::Unload()
 		rPack.pCollision = TNULL;
 	}
 	m_uiPacks = 0;
+	m_uiActivePackMask = 0;
 	m_uiTriangles = 0;
 	m_uiTriangleBlocks = 0;
 }
@@ -202,12 +204,36 @@ static TBOOL AGetTerrainTriangleHeight_PSP( const TVector3& a_rA, const TVector3
 
 TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance ) const
 {
+	return CollideVerticalInPacks( a_fX, a_fZ, a_fOriginY, a_bDown, a_rfDistance, m_uiActivePackMask );
+}
+
+TINT ATerrainCollision_PSP::FindSection( const TVector4& a_rCameraPosition, TUINT a_uiPrevious ) const
+{
+	// GetSectionPlayerIsIn first tests the current section, then the resident sections in VIS order.
+	TFLOAT fDistance = 100.0f;
+	const TUINT uiPreviousMask = a_uiPrevious < m_uiPacks ? ( 1U << a_uiPrevious ) & m_uiActivePackMask : 0;
+	if ( uiPreviousMask != 0 && CollideVerticalInPacks( a_rCameraPosition.x, a_rCameraPosition.z, a_rCameraPosition.y, TTRUE, fDistance, uiPreviousMask ) )
+		return TINT( a_uiPrevious );
+	for ( TUINT i = 0; i < m_uiPacks; i++ )
+	{
+		const TUINT uiMask = ( 1U << i ) & m_uiActivePackMask & ~uiPreviousMask;
+		if ( uiMask != 0 && CollideVerticalInPacks( a_rCameraPosition.x, a_rCameraPosition.z, a_rCameraPosition.y, TTRUE, fDistance, uiMask ) )
+			return TINT( i );
+	}
+	return -1;
+}
+
+TBOOL ATerrainCollision_PSP::CollideVerticalInPacks( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance,
+                                                    TUINT a_uiMask ) const
+{
 	const TFLOAT fStartZ = -a_fOriginY;
 	const TFLOAT fEndZ = fStartZ + ( a_bDown ? -a_rfDistance : a_rfDistance );
 	const Bounds oRay{ { a_fX, a_fZ, TMath::Min( fStartZ, fEndZ ) }, { a_fX, a_fZ, TMath::Max( fStartZ, fEndZ ) } };
 	TBOOL bHit = TFALSE;
 	for ( TUINT i = 0; i < m_uiPacks; i++ )
 	{
+		if ( ( a_uiMask & ( 1U << i ) ) == 0 )
+			continue;
 		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
 		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
 		{
@@ -311,6 +337,8 @@ TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLO
 	TVector4 vNormal;
 	for ( TUINT i = 0; i < m_uiPacks; i++ )
 	{
+		if ( ( m_uiActivePackMask & ( 1U << i ) ) == 0 )
+			continue;
 		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
 		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
 		{
