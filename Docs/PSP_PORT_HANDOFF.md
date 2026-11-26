@@ -72,7 +72,7 @@ Current estimates:
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
 | Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
-| Complete playable-game port | 38% | Original startup, frontend and SS01 run. EnvMain has grounded movement, terrain wall contacts, a camera that retracts at walls, and its first VIS row transitions. Streaming the rest of EnvMain, dynamic colliders, gameplay systems, saves and most in-game audio remain. |
+| Complete playable-game port | 39% | Original startup, frontend and SS01 run. EnvMain has grounded movement, terrain wall contacts, a camera that retracts at walls, and four staged terrain rows with on-demand collision loading. The remaining visual rows, dynamic colliders, gameplay systems, saves and most in-game audio remain. |
 
 ## Non-negotiable repository rules
 
@@ -717,19 +717,23 @@ visibility section while its collision still intersects a downward ray from
 the camera, then checks the resident sections in VIS order. The PSP uses
 the same 100 m query against the original collision TRBs. The optional
 `rows.psvs` describes which visual rows are staged and lists the exact
-high-LOD colliders for each row. The initial six collider files stay
-resident, and the selected mask limits the ground, wall and camera queries.
-The renderer releases the old pack before loading its replacement in the
-same heap. If loading fails, it reloads the previous row and keeps its
-collision mask. Old runtime directories without `rows.psvs` still use Barn.
+high-LOD colliders for each row. A version 2 `initial.pscl` adds a
+catalogue of the collider files with their original VIS ordering. Each
+transition keeps the shared files, unloads outgoing files and loads the
+remaining files required by the new row. Version 1 keeps the original set
+resident and changes its active mask. Runtime directories without
+`rows.psvs` still use Barn.
 
 The row exporter uses the original high- and low-LOD tables, material
 libraries and static instance locators for each row. Barn, barnnorth and
 xroad use 445, 358 and 387 draw groups respectively with the combined
-instance packs. This slice supports additional rows whose high collision
-cells fit within the original Barn set of six. Terrain beyond that set
-needs a collider residency change as well as new visual packs. Row swaps
-load synchronously during the gameplay update.
+instance packs. The renderer releases the old pack before loading its
+replacement in the same heap. A failed collider load restores the
+previous collision set before the renderer changes rows. A failed visual
+load restores both the previous collision and visual sets. Row swaps
+load synchronously during the gameplay update. The conversion currently
+stages Barn, barnnorth, xroad and xroadeast. The remaining rows need
+their own visual packs and traversal checks.
 
 ```powershell
 $ss01 = 'Game/BarnyardPC/Workspace/SS01'
@@ -750,6 +754,34 @@ textures. Both runs reported zero swap failures and a peak of 13,764,048
 out of 16,777,216 renderer bytes. Start returned to the original menu
 and released the active animation vertices. The EBOOT, screenshots and
 logs are in `Runtime/OriginalEnvMainVISValidation`.
+
+### Streamed collision cells
+
+`xroad` uses five original collider files. `xroadeast` keeps those five
+and adds `Forest_col.trb`, which occupies 24,256 bytes of decoded TRB
+sections. The original VIS and collision audit covered all 31 rows with
+collider files. The source maximum is seven active files, and the
+heaviest row is Beady with 273,504 bytes of TRB sections and 5,729
+triangles. These figures exclude allocator bookkeeping and the bounds
+index. The runtime caps the resident slots at seven and rebuilds its
+bounded index after a swap.
+
+```powershell
+$ss01 = 'Game/BarnyardPC/Workspace/SS01'
+.\Ports\PSP\Tools\ConvertRetailMainGameTerrain.ps1 -VisibilityRows xroad,barnnorth,xroadeast
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalEnvMainStreamingValidation -SS01OpeningDirectory "$ss01/Opening" -SS01CharacterSetupDirectory "$ss01/CharacterSetup" -SS01AfterCharacterSetupDirectory "$ss01/AfterCharacterSetup" -MainGameDirectory Game/BarnyardPC/Workspace/EnvMain -MainGameScene -MainGameInstances -MainGameVisibilityRows xroad,barnnorth,xroadeast
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainStreamingValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -CheckMainGameCrossroads -CheckMainGameCollisionStreaming -Capture
+```
+
+Build `4073d80a` passed Actions run `45801545163`. The hidden PPSSPP
+walkthrough went from Barn through xroad into xroadeast and back to
+xroad. The payload rose from 164,544 to 188,800 bytes on entry to
+xroadeast, then returned to 164,544 bytes. The peak was 267,360 bytes
+at Barn, and the render heap peaked at 13,764,048 out of 16,777,216
+bytes. The runtime reported three completed swaps and zero failures.
+The EBOOT and logs are under `Runtime/OriginalEnvMainStreamingValidation`.
+The xroadeast screenshot also shows that foliage from a static instance
+can obscure the follow camera.
 
 ## Known limitations
 
