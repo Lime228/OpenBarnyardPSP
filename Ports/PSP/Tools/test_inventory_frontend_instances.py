@@ -113,6 +113,27 @@ class FrontendInstanceInventoryTests(unittest.TestCase):
             self.assertEqual(result["skipped_regrowth_locator_count"], 1)
             self.assertEqual([entry["model_name"] for entry in result["instances"]], ["fncb01", "unused"])
 
+    def test_main_game_preserves_separate_locator_ranges_with_the_same_name(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_name:
+            root = pathlib.Path(temporary_name)
+            dump, definitions, loader, install = self.create_fixture(root)
+            loader.write_text("static TUINT s_aInstanceModels0[] = {0x0, 0x1};", encoding="utf-8")
+            (root / "AInstanceManager.cpp").write_text(
+                'static const TCHAR* s_apszRegrowthNames[] = {"regrowth"};', encoding="utf-8"
+            )
+            document = json.loads(dump.read_text(encoding="utf-8"))
+            document["vis_section_count"] = 3
+            document["vis_sections"][0]["locator_count"] = 1
+            document["vis_sections"][1]["index"] = 2
+            document["vis_sections"].insert(1, {"index": 1, "name": "Barn", "first_locator": 1, "locator_count": 1})
+            dump.write_text(json.dumps(document), encoding="utf-8")
+            vis = root / "vis.json"
+            vis.write_text(json.dumps({"sections": [{"name": "Barn", "visibility": ["high"]}]}), encoding="utf-8")
+            result = inventory(dump, definitions, loader, install, root / "inventory.json", main_game_vis=vis)
+            self.assertEqual(result["resident_section_names"], ["Barn", "undefined"])
+            self.assertEqual(result["resident_instance_count"], 2)
+            self.assertEqual([entry["vis_section_index"] for entry in result["instances"]], [0, 1])
+
     def test_rejects_missing_retail_model(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_name:
             root = pathlib.Path(temporary_name)

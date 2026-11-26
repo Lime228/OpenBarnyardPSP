@@ -66,7 +66,8 @@ def main_game_residency(vis: pathlib.Path, locator_sections: list, visibility_ro
                if lod != "none"}
     # AInstanceManager always includes the undefined locator cell.
     visible.add("undefined")
-    return [section["name"] for section in locator_sections if section["name"].casefold() in visible]
+    # Separate locator ranges can share a terrain name. The individual ranges are preserved in the inventory.
+    return list(dict.fromkeys(section["name"] for section in locator_sections if section["name"].casefold() in visible))
 
 
 def inventory(
