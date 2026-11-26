@@ -7,7 +7,7 @@
 class ATerrainCollision_PSP
 {
 public:
-	static constexpr TUINT MAX_PACKS = 6;
+	static constexpr TUINT MAX_CATALOG_CELLS = 32;
 
 	enum GroundedMove
 	{
@@ -26,15 +26,18 @@ public:
 	                           TFLOAT a_fRadius, Toshi::TVector4& a_rTarget ) const;
 	TFLOAT GetCameraDistance( const Toshi::TVector4& a_rPivot, const Toshi::TVector4& a_rDirection, TFLOAT a_fDistance ) const;
 	TUINT GetPackCount() const { return m_uiPacks; }
-	TUINT GetLoadedPackMask() const { return ( 1U << m_uiPacks ) - 1; }
-	void SetActivePackMask( TUINT a_uiMask ) { m_uiActivePackMask = a_uiMask & GetLoadedPackMask(); }
+	TUINT GetCatalogMask() const { return m_uiCatalogCount == MAX_CATALOG_CELLS ? ~0U : ( 1U << m_uiCatalogCount ) - 1; }
+	TUINT GetActivePackMask() const { return m_uiActivePackMask; }
+	TBOOL ActivatePacks( TUINT a_uiMask );
 	TINT FindSection( const Toshi::TVector4& a_rCameraPosition, TUINT a_uiPrevious ) const;
 	TUINT GetTriangleCount() const { return m_uiTriangles; }
+	TSIZE GetResidentBytes() const { return m_uiResidentBytes; }
 	const TCHAR* GetFailedPath() const { return m_szPath; }
 
 	static TBOOL ContainsTRBData( const Toshi::TTRB& a_rTRB, const void* a_pData, TSIZE a_uiBytes );
 
 private:
+	static constexpr TUINT MAX_PACKS = 7;
 	static constexpr TUINT MAX_MESHES_PER_PACK = 32;
 	static constexpr TUINT MAX_TRIANGLES = 16 * 1024;
 	static constexpr TUINT TRIANGLES_PER_BLOCK = 32;
@@ -60,10 +63,19 @@ private:
 	{
 		Toshi::TTRB oTRB;
 		const Toshi::TTMDBase::CollisionHeader* pCollision = TNULL;
+		TUINT uiCatalogIndex = MAX_CATALOG_CELLS;
 		MeshBounds aBounds[ MAX_MESHES_PER_PACK ];
 	};
 
-	TBOOL LoadPack( const TCHAR* a_szName );
+	struct CatalogCell
+	{
+		TUINT32 uiVISOrder;
+		TCHAR szName[ 48 ];
+	};
+
+	TBOOL ApplyPackMask( TUINT a_uiMask );
+	TBOOL LoadPack( Pack& a_rPack, TUINT a_uiIndex );
+	TBOOL BuildPackBounds( Pack& a_rPack );
 	TBOOL CollideSweptSphere( const Toshi::TVector4& a_rCenter, TFLOAT a_fRadius, const Toshi::TVector4& a_rDirection,
 	                         TFLOAT& a_rfDistance, Toshi::TVector4& a_rNormal, TBOOL a_bCamera ) const;
 	TBOOL ResolveGroundedHeight( Toshi::TVector4& a_rTarget, const Toshi::TVector4& a_rFacing, TFLOAT a_fRadius ) const;
@@ -71,10 +83,14 @@ private:
 	                             TUINT a_uiMask ) const;
 
 	Pack m_aPacks[ MAX_PACKS ];
+	CatalogCell m_aCatalog[ MAX_CATALOG_CELLS ];
 	Bounds m_aTriangleBounds[ MAX_TRIANGLE_BLOCKS ];
+	TUINT m_uiCatalogCount = 0;
+	TBOOL m_bStreamPacks = TFALSE;
 	TUINT m_uiPacks = 0;
 	TUINT m_uiActivePackMask = 0;
 	TUINT m_uiTriangles = 0;
 	TUINT m_uiTriangleBlocks = 0;
+	TSIZE m_uiResidentBytes = 0;
 	TCHAR m_szPath[ 88 ] = {};
 };

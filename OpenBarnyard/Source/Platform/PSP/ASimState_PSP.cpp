@@ -49,12 +49,12 @@ TBOOL ASimState_PSP::LoadTerrainRows()
 	if ( !bRead )
 		return TFALSE;
 
-	const TUINT uiLoadedMask = m_TerrainCollision.GetLoadedPackMask();
+	const TUINT uiCatalogMask = m_TerrainCollision.GetCatalogMask();
 	TUINT uiSeen = 0;
 	for ( TUINT i = 0; i < aHeader[ 2 ]; i++ )
 	{
 		const TerrainRow& rRow = m_aTerrainRows[ i ];
-		if ( rRow.uiSection >= m_TerrainCollision.GetPackCount() || ( rRow.uiCollisionMask & ~uiLoadedMask ) != 0 ||
+		if ( rRow.uiSection >= ATerrainCollision_PSP::MAX_CATALOG_CELLS || ( rRow.uiCollisionMask & ~uiCatalogMask ) != 0 ||
 		     !AIsSimTerrainRowName_PSP( rRow.szName, sizeof( rRow.szName ) ) )
 			return TFALSE;
 		const TUINT uiBit = 1U << rRow.uiSection;
@@ -63,7 +63,7 @@ TBOOL ASimState_PSP::LoadTerrainRows()
 		uiSeen |= uiBit;
 	}
 	if ( TStringManager::String8Compare( m_aTerrainRows[ 0 ].szName, "Barn" ) != 0 ||
-	     m_aTerrainRows[ 0 ].uiCollisionMask != uiLoadedMask )
+	     m_aTerrainRows[ 0 ].uiCollisionMask != m_TerrainCollision.GetActivePackMask() )
 		return TFALSE;
 	m_uiTerrainRowCount = aHeader[ 2 ];
 	return TTRUE;
@@ -88,23 +88,28 @@ TBOOL ASimState_PSP::UpdateTerrainRow( const TVector4& a_rCameraPosition )
 		if ( TINT( rNext.uiSection ) != iSection )
 			continue;
 		AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+		const TBOOL bCollisionReady = m_TerrainCollision.ActivatePacks( rNext.uiCollisionMask );
 		// Each row uses the same render heap. Release the previous row before loading the next.
-		if ( !ALoadSimTerrainRow_PSP( rNext.szName ) )
+		if ( !bCollisionReady || !ALoadSimTerrainRow_PSP( rNext.szName ) )
 		{
 			m_iRejectedTerrainSection = iSection;
 			rReport.uiSimTerrainSwapFailures++;
-			if ( ALoadSimTerrainRow_PSP( rCurrent.szName ) )
+			const TBOOL bRestored = bCollisionReady ?
+			    m_TerrainCollision.ActivatePacks( rCurrent.uiCollisionMask ) && ALoadSimTerrainRow_PSP( rCurrent.szName ) :
+			    m_TerrainCollision.GetActivePackMask() == rCurrent.uiCollisionMask;
+			if ( bRestored )
 				ASetGameRuntimeFailedPath_PSP( "" );
 			else
 			{
 				m_uiTerrainRowCount = 0;
+				if ( m_TerrainCollision.GetActivePackMask() != rCurrent.uiCollisionMask )
+					ASetGameRuntimeFailedPath_PSP( m_TerrainCollision.GetFailedPath() );
 				ASetGameRuntimePhase_PSP( "sim-world-failed" );
 			}
 			return TFALSE;
 		}
 		m_uiTerrainRow = i;
 		m_iRejectedTerrainSection = -1;
-		m_TerrainCollision.SetActivePackMask( rNext.uiCollisionMask );
 		rReport.uiSimTerrainCollisionMask = rNext.uiCollisionMask;
 		rReport.uiSimTerrainSwaps++;
 		TStringManager::String8Copy( rReport.szSimTerrainRow, rNext.szName, sizeof( rReport.szSimTerrainRow ) );
@@ -180,7 +185,10 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	rReport.uiSimPlayerMotionMask = 0;
 	rReport.uiSimTerrainContacts = 0;
 	rReport.uiSimTerrainSlides = 0;
-	rReport.uiSimTerrainCollisionMask = m_TerrainCollision.GetLoadedPackMask();
+	rReport.uiSimTerrainCollisionMask = m_TerrainCollision.GetActivePackMask();
+	rReport.uiSimCollisionResidentPacks = m_TerrainCollision.GetPackCount();
+	rReport.uiSimCollisionResidentBytes = TUINT( m_TerrainCollision.GetResidentBytes() );
+	rReport.uiSimCollisionPeakBytes = rReport.uiSimCollisionResidentBytes;
 	rReport.uiSimTerrainSwaps = rReport.uiSimTerrainSwapFailures = 0;
 	TStringManager::String8Copy( rReport.szSimTerrainRow, "Barn", sizeof( rReport.szSimTerrainRow ) );
 	rReport.fSimCameraDistance = m_fCameraDistance;
@@ -231,6 +239,9 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	rReport.uiSimPlayerMotionMask |= 1U << rReport.uiSimPlayerMotion;
 	rReport.uiSimTerrainContacts = m_Player.GetTerrainContactCount();
 	rReport.uiSimTerrainSlides = m_Player.GetTerrainSlideCount();
+	rReport.uiSimCollisionResidentPacks = m_TerrainCollision.GetPackCount();
+	rReport.uiSimCollisionResidentBytes = TUINT( m_TerrainCollision.GetResidentBytes() );
+	rReport.uiSimCollisionPeakBytes = TMath::Max( rReport.uiSimCollisionPeakBytes, rReport.uiSimCollisionResidentBytes );
 	rReport.fSimCameraDistance = m_fCameraDistance;
 	rReport.fSimCameraMinDistance = TMath::Min( rReport.fSimCameraMinDistance, m_fCameraDistance );
 	return BaseClass::OnUpdate( a_fDeltaTime );

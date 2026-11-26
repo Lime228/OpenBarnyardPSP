@@ -129,6 +129,9 @@ struct AGameRuntimeReport_PSP
 	TUINT uiSimTerrainContacts;
 	TUINT uiSimTerrainSlides;
 	TUINT uiSimTerrainCollisionMask;
+	TUINT uiSimCollisionResidentPacks;
+	TUINT uiSimCollisionResidentBytes;
+	TUINT uiSimCollisionPeakBytes;
 	TUINT uiSimTerrainSwaps;
 	TUINT uiSimTerrainSwapFailures;
 	TCHAR szSimTerrainRow[ 24 ];

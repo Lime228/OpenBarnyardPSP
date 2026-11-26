@@ -37,7 +37,7 @@ private:
 	TFLOAT m_fCameraDistance = CAMERA_DISTANCE;
 	TFLOAT m_fCameraTargetDistance = CAMERA_DISTANCE;
 	Toshi::TVector2 m_vStick = Toshi::TVector2::VEC_ZERO;
-	TerrainRow m_aTerrainRows[ ATerrainCollision_PSP::MAX_PACKS ] = {};
+	TerrainRow m_aTerrainRows[ ATerrainCollision_PSP::MAX_CATALOG_CELLS ] = {};
 	TUINT m_uiTerrainRowCount = 0;
 	TUINT m_uiTerrainRow = 0;
 	TINT m_iRejectedTerrainSection = -1;

@@ -91,7 +91,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiControllerNonZeroButtonSamples = rController.GetNonZeroButtonSamples_PSP();
 	}
 
-	static TCHAR s_aReportBuffer_PSP[ 4864 ];
+	static TCHAR s_aReportBuffer_PSP[ 5120 ];
 	TCHAR szActorDraws[ AGameRuntimeReport_PSP::MAX_OPENING_SHOTS * 11 + 1 ];
 	TCHAR szContinuationDraws[ sizeof( szActorDraws ) ];
 	TSIZE uiActorOffset = 0;
@@ -108,7 +108,7 @@ void AWriteGameRuntimeReport_PSP()
 	const TINT iLength = std::snprintf(
 		s_aReportBuffer_PSP,
 		TARRAYSIZE( s_aReportBuffer_PSP ),
-		"version=34\n"
+		"version=35\n"
 		"phase=%s\n"
 		"engine=%d\n"
 		"application=%d\n"
@@ -248,6 +248,9 @@ void AWriteGameRuntimeReport_PSP()
 		"sim_terrain_contacts=%u\n"
 		"sim_terrain_slides=%u\n"
 		"sim_terrain_collision_mask=%02x\n"
+		"sim_collision_resident_packs=%u\n"
+		"sim_collision_resident_bytes=%u\n"
+		"sim_collision_peak_bytes=%u\n"
 		"sim_terrain_swaps=%u\n"
 		"sim_terrain_swap_failures=%u\n"
 		"sim_terrain_row=%s\n"
@@ -432,6 +435,9 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.uiSimTerrainContacts,
 		s_GameRuntimeReport_PSP.uiSimTerrainSlides,
 		s_GameRuntimeReport_PSP.uiSimTerrainCollisionMask,
+		s_GameRuntimeReport_PSP.uiSimCollisionResidentPacks,
+		s_GameRuntimeReport_PSP.uiSimCollisionResidentBytes,
+		s_GameRuntimeReport_PSP.uiSimCollisionPeakBytes,
 		s_GameRuntimeReport_PSP.uiSimTerrainSwaps,
 		s_GameRuntimeReport_PSP.uiSimTerrainSwapFailures,
 		s_GameRuntimeReport_PSP.szSimTerrainRow,

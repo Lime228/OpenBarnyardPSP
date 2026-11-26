@@ -78,45 +78,151 @@ TBOOL ATerrainCollision_PSP::LoadInitial()
 	if ( pFile == TNULL )
 		return TFALSE;
 
+	static_assert( sizeof( CatalogCell ) == 52 );
 	TUINT32 aHeader[ 3 ];
-	TCHAR aszFiles[ MAX_PACKS ][ s_uiCollisionNameBytes_PSP ];
+	TUINT32 uiInitialMask = 0;
 	TBOOL bRead = pFile->Read( aHeader, sizeof( aHeader ) ) == sizeof( aHeader ) &&
-	              aHeader[ 0 ] == 0x4c435350 && aHeader[ 1 ] == 1 && aHeader[ 2 ] > 0 && aHeader[ 2 ] <= MAX_PACKS;
-	if ( bRead )
+	              aHeader[ 0 ] == 0x4c435350 && aHeader[ 2 ] > 0 && aHeader[ 2 ] <= MAX_CATALOG_CELLS;
+	if ( bRead && aHeader[ 1 ] == 2 )
 	{
-		const TSIZE uiBytes = aHeader[ 2 ] * s_uiCollisionNameBytes_PSP;
-		bRead = pFile->GetSize() == sizeof( aHeader ) + uiBytes && pFile->Read( aszFiles, uiBytes ) == uiBytes;
+		const TSIZE uiBytes = aHeader[ 2 ] * sizeof( CatalogCell );
+		bRead = pFile->GetSize() == sizeof( aHeader ) + sizeof( uiInitialMask ) + uiBytes &&
+		        pFile->Read( &uiInitialMask, sizeof( uiInitialMask ) ) == sizeof( uiInitialMask ) &&
+		        pFile->Read( m_aCatalog, uiBytes ) == uiBytes;
 	}
+	else if ( bRead && aHeader[ 1 ] == 1 && aHeader[ 2 ] <= MAX_PACKS )
+	{
+		bRead = pFile->GetSize() == sizeof( aHeader ) + aHeader[ 2 ] * s_uiCollisionNameBytes_PSP;
+		for ( TUINT i = 0; bRead && i < aHeader[ 2 ]; i++ )
+		{
+			m_aCatalog[ i ].uiVISOrder = i;
+			bRead = pFile->Read( m_aCatalog[ i ].szName, s_uiCollisionNameBytes_PSP ) == s_uiCollisionNameBytes_PSP;
+		}
+		uiInitialMask = ( 1U << aHeader[ 2 ] ) - 1;
+	}
+	else
+		bRead = TFALSE;
 	pFile->Destroy();
 	if ( !bRead )
 		return TFALSE;
 
 	for ( TUINT i = 0; i < aHeader[ 2 ]; i++ )
 	{
-		if ( !AIsTerrainCollisionName_PSP( aszFiles[ i ] ) || !LoadPack( aszFiles[ i ] ) )
-		{
-			Unload();
+		if ( !AIsTerrainCollisionName_PSP( m_aCatalog[ i ].szName ) )
 			return TFALSE;
-		}
+		for ( TUINT j = 0; j < i; j++ )
+			if ( m_aCatalog[ j ].uiVISOrder == m_aCatalog[ i ].uiVISOrder ||
+			     TStringManager::String8Compare( m_aCatalog[ j ].szName, m_aCatalog[ i ].szName ) == 0 )
+				return TFALSE;
 	}
-	m_uiActivePackMask = GetLoadedPackMask();
+	m_uiCatalogCount = aHeader[ 2 ];
+	m_bStreamPacks = aHeader[ 1 ] == 2;
+	if ( uiInitialMask == 0 || ( uiInitialMask & ~GetCatalogMask() ) != 0 || !ApplyPackMask( uiInitialMask ) )
+	{
+		Unload();
+		return TFALSE;
+	}
+	m_uiActivePackMask = uiInitialMask;
 	m_szPath[ 0 ] = '\0';
 	return TTRUE;
 }
 
-TBOOL ATerrainCollision_PSP::LoadPack( const TCHAR* a_szName )
+TBOOL ATerrainCollision_PSP::ActivatePacks( TUINT a_uiMask )
 {
-	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "local:Data/Terrain/EnvMain/%s", a_szName );
-	Pack& rPack = m_aPacks[ m_uiPacks ];
-	if ( rPack.oTRB.Load( m_szPath ) != TTRB::ERROR_OK || rPack.oTRB.GetSymbolTable() == TNULL )
+	if ( a_uiMask == 0 || ( a_uiMask & ~GetCatalogMask() ) != 0 )
 		return TFALSE;
+	if ( a_uiMask == m_uiActivePackMask )
+		return TTRUE;
+	if ( m_bStreamPacks && !ApplyPackMask( a_uiMask ) )
+	{
+		// The visible row stays on its old pack unless all new colliders are ready.
+		TCHAR szFailure[ sizeof( m_szPath ) ];
+		TStringManager::String8Copy( szFailure, m_szPath, sizeof( szFailure ) );
+		if ( m_uiActivePackMask == 0 || !ApplyPackMask( m_uiActivePackMask ) )
+			Unload();
+		TStringManager::String8Copy( m_szPath, szFailure, sizeof( m_szPath ) );
+		return TFALSE;
+	}
+	m_uiActivePackMask = a_uiMask;
+	m_szPath[ 0 ] = '\0';
+	return TTRUE;
+}
+
+TBOOL ATerrainCollision_PSP::ApplyPackMask( TUINT a_uiMask )
+{
+	TUINT uiKept = 0;
+	for ( Pack& rPack : m_aPacks )
+	{
+		if ( rPack.pCollision == TNULL )
+			continue;
+		const TUINT uiBit = 1U << rPack.uiCatalogIndex;
+		if ( ( a_uiMask & uiBit ) != 0 )
+			uiKept |= uiBit;
+		else
+		{
+			rPack.oTRB.Close();
+			rPack.pCollision = TNULL;
+		}
+	}
+	for ( TUINT i = 0; i < m_uiCatalogCount; i++ )
+	{
+		if ( ( a_uiMask & ~uiKept & ( 1U << i ) ) == 0 )
+			continue;
+		Pack* pFree = TNULL;
+		for ( Pack& rPack : m_aPacks )
+		{
+			if ( rPack.pCollision == TNULL )
+			{
+				pFree = &rPack;
+				break;
+			}
+		}
+		if ( pFree == TNULL || !LoadPack( *pFree, i ) )
+			return TFALSE;
+	}
+	m_uiPacks = 0;
+	m_uiTriangles = 0;
+	m_uiTriangleBlocks = 0;
+	m_uiResidentBytes = 0;
+	for ( Pack& rPack : m_aPacks )
+	{
+		if ( rPack.pCollision == TNULL )
+			continue;
+		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "local:Data/Terrain/EnvMain/%s", m_aCatalog[ rPack.uiCatalogIndex ].szName );
+		if ( !BuildPackBounds( rPack ) )
+			return TFALSE;
+		for ( TINT i = 0; i < rPack.oTRB.GetNumSections(); i++ )
+			m_uiResidentBytes += rPack.oTRB.GetSectionInfo( i )->m_Size;
+		m_uiPacks++;
+	}
+	return TTRUE;
+}
+
+TBOOL ATerrainCollision_PSP::LoadPack( Pack& rPack, TUINT a_uiIndex )
+{
+	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "local:Data/Terrain/EnvMain/%s", m_aCatalog[ a_uiIndex ].szName );
+	if ( rPack.oTRB.Load( m_szPath ) != TTRB::ERROR_OK || rPack.oTRB.GetSymbolTable() == TNULL )
+	{
+		rPack.oTRB.Close();
+		return TFALSE;
+	}
 
 	const auto* pCollision = rPack.oTRB.CastSymbol<TTMDBase::CollisionHeader>( "Collision" );
 	if ( !ContainsTRBData( rPack.oTRB, pCollision, sizeof( *pCollision ) ) ||
 	     pCollision->m_iNumMeshes <= 0 || TUINT( pCollision->m_iNumMeshes ) > MAX_MESHES_PER_PACK ||
 	     !ContainsTRBData( rPack.oTRB, pCollision->m_pMeshes, pCollision->m_iNumMeshes * sizeof( TTMDBase::CollisionMesh ) ) )
+	{
+		rPack.oTRB.Close();
 		return TFALSE;
+	}
+	rPack.pCollision = pCollision;
+	rPack.uiCatalogIndex = a_uiIndex;
+	return TTRUE;
+}
 
+TBOOL ATerrainCollision_PSP::BuildPackBounds( Pack& rPack )
+{
+	const auto* pCollision = rPack.pCollision;
 	for ( TINT i = 0; i < pCollision->m_iNumMeshes; i++ )
 	{
 		const TTMDBase::CollisionMesh& rMesh = pCollision->m_pMeshes[ i ];
@@ -159,8 +265,6 @@ TBOOL ATerrainCollision_PSP::LoadPack( const TCHAR* a_szName )
 		}
 		m_uiTriangles += rMesh.m_uiNumIndices / 3;
 	}
-	rPack.pCollision = pCollision;
-	m_uiPacks++;
 	return TTRUE;
 }
 
@@ -172,9 +276,12 @@ void ATerrainCollision_PSP::Unload()
 		rPack.pCollision = TNULL;
 	}
 	m_uiPacks = 0;
+	m_uiCatalogCount = 0;
+	m_bStreamPacks = TFALSE;
 	m_uiActivePackMask = 0;
 	m_uiTriangles = 0;
 	m_uiTriangleBlocks = 0;
+	m_uiResidentBytes = 0;
 }
 
 static TBOOL AGetTerrainTriangleHeight_PSP( const TVector3& a_rA, const TVector3& a_rB, const TVector3& a_rC,
@@ -211,16 +318,21 @@ TINT ATerrainCollision_PSP::FindSection( const TVector4& a_rCameraPosition, TUIN
 {
 	// GetSectionPlayerIsIn first tests the current section, then the resident sections in VIS order.
 	TFLOAT fDistance = 100.0f;
-	const TUINT uiPreviousMask = a_uiPrevious < m_uiPacks ? ( 1U << a_uiPrevious ) & m_uiActivePackMask : 0;
+	const TUINT uiPreviousMask = a_uiPrevious < m_uiCatalogCount ? ( 1U << a_uiPrevious ) & m_uiActivePackMask : 0;
 	if ( uiPreviousMask != 0 && CollideVerticalInPacks( a_rCameraPosition.x, a_rCameraPosition.z, a_rCameraPosition.y, TTRUE, fDistance, uiPreviousMask ) )
 		return TINT( a_uiPrevious );
-	for ( TUINT i = 0; i < m_uiPacks; i++ )
+	TINT iSection = -1;
+	for ( const Pack& rPack : m_aPacks )
 	{
-		const TUINT uiMask = ( 1U << i ) & m_uiActivePackMask & ~uiPreviousMask;
+		if ( rPack.pCollision == TNULL ||
+		     ( iSection >= 0 && m_aCatalog[ rPack.uiCatalogIndex ].uiVISOrder >= m_aCatalog[ iSection ].uiVISOrder ) )
+			continue;
+		const TUINT uiMask = ( 1U << rPack.uiCatalogIndex ) & m_uiActivePackMask & ~uiPreviousMask;
+		fDistance = 100.0f;
 		if ( uiMask != 0 && CollideVerticalInPacks( a_rCameraPosition.x, a_rCameraPosition.z, a_rCameraPosition.y, TTRUE, fDistance, uiMask ) )
-			return TINT( i );
+			iSection = TINT( rPack.uiCatalogIndex );
 	}
-	return -1;
+	return iSection;
 }
 
 TBOOL ATerrainCollision_PSP::CollideVerticalInPacks( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance,
@@ -230,14 +342,14 @@ TBOOL ATerrainCollision_PSP::CollideVerticalInPacks( TFLOAT a_fX, TFLOAT a_fZ, T
 	const TFLOAT fEndZ = fStartZ + ( a_bDown ? -a_rfDistance : a_rfDistance );
 	const Bounds oRay{ { a_fX, a_fZ, TMath::Min( fStartZ, fEndZ ) }, { a_fX, a_fZ, TMath::Max( fStartZ, fEndZ ) } };
 	TBOOL bHit = TFALSE;
-	for ( TUINT i = 0; i < m_uiPacks; i++ )
+	for ( const Pack& rPack : m_aPacks )
 	{
-		if ( ( a_uiMask & ( 1U << i ) ) == 0 )
+		if ( rPack.pCollision == TNULL || ( a_uiMask & ( 1U << rPack.uiCatalogIndex ) ) == 0 )
 			continue;
-		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
+		const TTMDBase::CollisionHeader& rCollision = *rPack.pCollision;
 		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
 		{
-			const MeshBounds& rMeshBounds = m_aPacks[ i ].aBounds[ mesh ];
+			const MeshBounds& rMeshBounds = rPack.aBounds[ mesh ];
 			if ( !rMeshBounds.oBounds.Overlaps( oRay ) )
 				continue;
 			const TTMDBase::CollisionMesh& rMesh = rCollision.m_pMeshes[ mesh ];
@@ -335,14 +447,14 @@ TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLO
 
 	TBOOL bHit = TFALSE;
 	TVector4 vNormal;
-	for ( TUINT i = 0; i < m_uiPacks; i++ )
+	for ( const Pack& rPack : m_aPacks )
 	{
-		if ( ( m_uiActivePackMask & ( 1U << i ) ) == 0 )
+		if ( rPack.pCollision == TNULL || ( m_uiActivePackMask & ( 1U << rPack.uiCatalogIndex ) ) == 0 )
 			continue;
-		const TTMDBase::CollisionHeader& rCollision = *m_aPacks[ i ].pCollision;
+		const TTMDBase::CollisionHeader& rCollision = *rPack.pCollision;
 		for ( TINT mesh = 0; mesh < rCollision.m_iNumMeshes; mesh++ )
 		{
-			const MeshBounds& rMeshBounds = m_aPacks[ i ].aBounds[ mesh ];
+			const MeshBounds& rMeshBounds = rPack.aBounds[ mesh ];
 			if ( !rMeshBounds.oBounds.Overlaps( oSweep ) )
 				continue;
 			const TTMDBase::CollisionMesh& rMesh = rCollision.m_pMeshes[ mesh ];
@@ -361,7 +473,7 @@ TBOOL ATerrainCollision_PSP::CollideSweptSphere( const TVector4& a_rCenter, TFLO
 					Bounds oFace{ rA, rA };
 					oFace.Include( rB );
 					oFace.Include( rC );
-					if ( !oFace.Overlaps( oSweep ) || ( a_bCamera && ACameraIgnoresTriangle_PSP( m_aPacks[ i ].oTRB, rMesh, k / 3 ) ) )
+					if ( !oFace.Overlaps( oSweep ) || ( a_bCamera && ACameraIgnoresTriangle_PSP( rPack.oTRB, rMesh, k / 3 ) ) )
 						continue;
 					if ( ASweepTerrainTriangle_PSP( rA, rB, rC, vCenter, a_fRadius, vDirection, a_rfDistance, vNormal, a_bCamera ) )
 						bHit = TTRUE;
