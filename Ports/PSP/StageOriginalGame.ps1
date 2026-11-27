@@ -29,6 +29,7 @@ param(
     [string] $MainGameDirectory = '',
     [switch] $MainGameScene,
     [switch] $MainGameInstances,
+    [switch] $MainGameAnimals,
     [string[]] $MainGameVisibilityRows = @(),
     [switch] $MainGameAllVisibilityRows,
     [switch] $SkipConversion
@@ -37,6 +38,7 @@ param(
 $ErrorActionPreference = 'Stop'
 if ($MainGameScene -and -not $MainGameDirectory) { throw 'Use -MainGameScene with the original EnvMain workspace.' }
 if ($MainGameInstances -and -not $MainGameScene) { throw 'Use -MainGameInstances with -MainGameScene.' }
+if ($MainGameAnimals -and -not $MainGameScene) { throw 'Use -MainGameAnimals with -MainGameScene.' }
 if (($MainGameVisibilityRows -or $MainGameAllVisibilityRows) -and -not $MainGameScene) {
     throw 'Staging additional visibility rows requires -MainGameScene.'
 }
@@ -1379,6 +1381,37 @@ if ($MainGameScene) {
             [BitConverter]::GetBytes([single]$steerTraits.($steerFields[$i])).CopyTo($config, 12 + 4 * $i)
         }
         [IO.File]::WriteAllBytes((Join-Path $destination 'player.pspl'), $config)
+    }
+    if ($MainGameAnimals) {
+        $animalRoot = Join-Path $MainGameDirectory 'Animals'
+        $population = Get-Content -LiteralPath (Join-Path $animalRoot 'sim_animals.json') -Raw | ConvertFrom-Json
+        $sourcePopulation = 'Data/Units/AnimalSpawn.trb'
+        if ($population.version -ne 1 -or $population.source -cne $sourcePopulation -or $population.animals.Count -ne 1) {
+            throw 'Expected the original first-tier story animal assets.'
+        }
+        $animal = $population.animals[0]
+        if ($animal.spawn.name -cne 'miles' -or $animal.spawn.quest -cne 'Miles Welcome' -or $animal.spawn.absolute_tier -ne 1 -or
+            $animal.spawn.network -cne 'park2' -or $animal.model -ine 'Data/Models/SIM_miles.trb' -or
+            $animal.meshes.Count -ne 2 -or $animal.idle -cnotmatch '^clip-[0-9]{3}\.panm$') {
+            throw 'Invalid original Miles gameplay asset manifest.'
+        }
+        $sourceRoot = Join-Path $animalRoot $animal.spawn.name
+        $destination = Join-Path $runtimePath "Data\Units\$($animal.spawn.name)"
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
+        foreach ($name in 'skeleton.pskl', 'mesh-000.pmes', 'mesh-001.pmes', 'mesh-000.ptex', 'mesh-001.ptex', $animal.idle) {
+            $source = Get-Item -LiteralPath (Join-Path $sourceRoot $name)
+            if ($source.PSIsContainer -or $source.Length -le 0 -or $source.Length -ne $animal.files.$name) {
+                throw "Invalid original Miles asset $name."
+            }
+        }
+        foreach ($name in 'skeleton.pskl', 'mesh-000.pmes', 'mesh-001.pmes', 'mesh-000.ptex', 'mesh-001.ptex', $animal.idle) {
+            $target = if ($name -ceq $animal.idle) { 'idle.panm' } else { $name }
+            Copy-Item -LiteralPath (Join-Path $sourceRoot $name) -Destination (Join-Path $destination $target) -Force
+        }
+        $source = Get-Item -LiteralPath (Join-Path $installPath $sourcePopulation)
+        if ($source.PSIsContainer -or $source.Length -le 0) { throw 'Invalid original animal population TRB.' }
+        Copy-Item -LiteralPath $source.FullName -Destination (Join-Path $runtimePath $sourcePopulation) -Force
+        Write-Output 'Staged the original animal population TRB and Miles gameplay model'
     }
     Copy-OriginalTerrainPack $terrain $barnDestination
     if ($MainGameVisibilityRows -or $MainGameAllVisibilityRows) {
