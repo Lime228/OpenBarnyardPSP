@@ -244,6 +244,7 @@ void AWriteGameRuntimeReport_PSP()
 		"sim_miles_loaded=%d\n"
 		"sim_miles_draws=%u\n"
 		"sim_miles_pose_updates=%u\n"
+		"sim_shadow_draws=%u\n"
 		"sim_miles_position=%.6f,%.6f,%.6f\n"
 		"sim_player_steering=%d\n"
 		"sim_player_position=%.6f,%.6f,%.6f\n"
@@ -434,6 +435,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.bSimMilesLoaded,
 		s_GameRuntimeReport_PSP.uiSimMilesDraws,
 		s_GameRuntimeReport_PSP.uiSimMilesPoseUpdates,
+		s_GameRuntimeReport_PSP.uiSimShadowDraws,
 		s_GameRuntimeReport_PSP.vSimMilesPosition.x,
 		s_GameRuntimeReport_PSP.vSimMilesPosition.y,
 		s_GameRuntimeReport_PSP.vSimMilesPosition.z,

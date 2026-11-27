@@ -389,6 +389,30 @@ static void TRenderSetCamera_PSP( const TRenderCamera_PSP* a_pCamera )
 	sceGumLoadIdentity();
 }
 
+void TRenderInterface_PSP::DrawWorldTextureQuad( const T2Texture& a_rTexture, const TVector3 ( &a_rCorners )[ 4 ],
+                                                const TRenderCamera_PSP& a_rCamera )
+{
+	TRenderSetTexture_PSP( a_rTexture, GU_TFX_MODULATE, TRENDERTEXTUREADDRESS_PSP_CLAMP,
+	                      TRENDERTEXTUREADDRESS_PSP_CLAMP, GU_LINEAR );
+	TRenderSetCullMode_PSP( TRENDERCULLMODE_PSP_NONE );
+	TRenderSetAlphaMode_PSP( TRENDERALPHAMODE_PSP_BLEND );
+	sceGuEnable( GU_DEPTH_TEST );
+	TRenderSetCamera_PSP( &a_rCamera );
+
+	auto* pVertices = TSTATICCAST( TRenderTextureColourVertex_PSP, sceGuGetMemory( 4 * sizeof( TRenderTextureColourVertex_PSP ) ) );
+	for ( TUINT i = 0; i < 4; i++ )
+	{
+		const TVector3& rCorner = a_rCorners[ i ];
+		pVertices[ i ] = { TFLOAT( i & 1 ), TFLOAT( i >> 1 ), 0xffffffff, rCorner.x, rCorner.y, rCorner.z };
+	}
+	sceGumDrawArray( GU_TRIANGLE_STRIP, GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_3D,
+	                 4, TNULL, pVertices );
+
+	sceGuDisable( GU_DEPTH_TEST );
+	sceGuDisable( GU_TEXTURE_2D );
+	TRenderResetAlphaMode_PSP();
+}
+
 void TRenderInterface_PSP::DrawModel( const TModel_PSP& a_rModel, TFLOAT a_fRotation, const T2Texture* a_pTexture )
 {
 	const TRenderMaterial_PSP oMaterial = {

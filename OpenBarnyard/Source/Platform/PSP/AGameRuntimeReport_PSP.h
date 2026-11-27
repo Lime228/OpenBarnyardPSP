@@ -125,6 +125,7 @@ struct AGameRuntimeReport_PSP
 	TBOOL bSimMilesLoaded;
 	TUINT uiSimMilesDraws;
 	TUINT uiSimMilesPoseUpdates;
+	TUINT uiSimShadowDraws;
 	Toshi::TVector4 vSimMilesPosition;
 	Toshi::TVector4 vSimPlayerPosition;
 	Toshi::TVector4 vSimCameraPosition;

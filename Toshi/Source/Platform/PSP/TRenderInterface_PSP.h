@@ -161,6 +161,8 @@ public:
 	    TUINT32 a_uiColour
 	);
 	void DrawTextureQuad( const T2Texture& a_rTexture, const TRenderQuad_PSP& a_rQuad, TUINT32 a_uiColour );
+	void DrawWorldTextureQuad( const T2Texture& a_rTexture, const TVector3 ( &a_rCorners )[ 4 ],
+	                           const TRenderCamera_PSP& a_rCamera );
 	void DrawMovieFrame( const TUINT32* a_pPixels );
 	void EndScene();
 

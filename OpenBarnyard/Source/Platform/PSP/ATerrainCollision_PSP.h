@@ -21,7 +21,8 @@ public:
 	TBOOL LoadInitial();
 	void Unload();
 
-	TBOOL CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance ) const;
+	TBOOL CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance,
+	                       Toshi::TVector3* a_pNormal = TNULL ) const;
 	GroundedMove MoveGrounded( const Toshi::TVector4& a_rPosition, const Toshi::TVector4& a_rFacing, TFLOAT a_fDistance,
 	                           TFLOAT a_fRadius, Toshi::TVector4& a_rTarget ) const;
 	TFLOAT GetCameraDistance( const Toshi::TVector4& a_rPivot, const Toshi::TVector4& a_rDirection, TFLOAT a_fDistance ) const;
@@ -80,7 +81,7 @@ private:
 	                         TFLOAT& a_rfDistance, Toshi::TVector4& a_rNormal, TBOOL a_bCamera ) const;
 	TBOOL ResolveGroundedHeight( Toshi::TVector4& a_rTarget, const Toshi::TVector4& a_rFacing, TFLOAT a_fRadius ) const;
 	TBOOL CollideVerticalInPacks( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance,
-	                             TUINT a_uiMask ) const;
+	                             TUINT a_uiMask, Toshi::TVector3* a_pNormal = TNULL ) const;
 
 	Pack m_aPacks[ MAX_PACKS ];
 	CatalogCell m_aCatalog[ MAX_CATALOG_CELLS ];

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GameInterface/AGameState.h"
+#include "AShadowManager_PSP.h"
 #include "ASimAnimal_PSP.h"
 #include "ASimPlayer_PSP.h"
 #include "ATerrainCollision_PSP.h"
@@ -34,6 +35,9 @@ private:
 
 	ASimPlayer_PSP m_Player;
 	ASimAnimal_PSP m_Miles;
+	AShadowManager_PSP m_Shadows;
+	AShadowManager_PSP::Shadow m_PlayerShadow;
+	AShadowManager_PSP::Shadow m_MilesShadow;
 	ATerrainCollision_PSP m_TerrainCollision;
 	Toshi::TRenderCamera_PSP m_Camera;
 	Toshi::TVector3 m_vCameraOrbitPosition;

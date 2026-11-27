@@ -178,8 +178,16 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 		m_Player.Unload();
 		return TFALSE;
 	}
+	if ( !m_Shadows.Load() )
+	{
+		ASetGameRuntimeFailedPath_PSP( m_Shadows.GetFailedPath() );
+		m_Miles.Unload();
+		m_Player.Unload();
+		return TFALSE;
+	}
 	if ( !ALoadSimWorld_PSP() )
 	{
+		m_Shadows.Unload();
 		m_Miles.Unload();
 		m_Player.Unload();
 		return TFALSE;
@@ -188,6 +196,7 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	rReport.bSimMilesLoaded = m_Miles.IsLoaded();
 	rReport.vSimMilesPosition = m_Miles.GetPosition();
 	rReport.uiSimMilesDraws = rReport.uiSimMilesPoseUpdates = 0;
+	rReport.uiSimShadowDraws = 0;
 	rReport.uiSimFrames = 0;
 	rReport.uiSimUpdates = 0;
 	rReport.vSimPlayerPosition = m_Player.GetPosition();
@@ -216,6 +225,7 @@ void ASimState_PSP::OnActivate()
 
 void ASimState_PSP::OnRemoval()
 {
+	m_Shadows.Unload();
 	m_Miles.Unload();
 	m_Player.Unload();
 	m_TerrainCollision.Unload();
@@ -248,6 +258,9 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 		if ( UpdateTerrainRow( vCamera ) )
 			UpdateCamera( rPosition, 0.0f, TTRUE );
 	}
+	m_Shadows.Update( m_PlayerShadow, rPosition, m_Player.GetFacing(), m_TerrainCollision );
+	if ( m_Miles.IsNearby() )
+		m_Shadows.Update( m_MilesShadow, m_Miles.GetPosition(), m_Miles.GetFacing(), m_TerrainCollision );
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiSimUpdates++;
 	rReport.uiSimMilesPoseUpdates = m_Miles.GetPoseUpdates();
@@ -271,6 +284,9 @@ void ASimState_PSP::OnRender( TFLOAT a_fDeltaTime )
 	TRenderInterface_PSP& rRenderer = AGetRenderInterface_PSP();
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	ARenderSimWorld_PSP( m_Camera, a_fDeltaTime );
+	rReport.uiSimShadowDraws = m_Shadows.Render( m_PlayerShadow, rRenderer, m_Camera );
+	if ( m_Miles.IsNearby() && m_Shadows.Render( m_MilesShadow, rRenderer, m_Camera ) )
+		rReport.uiSimShadowDraws++;
 	rReport.uiSimPlayerDraws = m_Player.Render( rRenderer, m_Camera );
 	rReport.uiSimMilesDraws = m_Miles.Render( rRenderer, m_Camera );
 	rReport.uiSimFrames++;

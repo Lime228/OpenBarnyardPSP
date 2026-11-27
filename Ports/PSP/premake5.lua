@@ -200,6 +200,7 @@ project "OpenBarnyardPSPGameSlice"
 		"../../OpenBarnyard/Source/Platform/PSP/ASimPlayer_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ASimModel_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ASimAnimal_PSP.cpp",
+		"../../OpenBarnyard/Source/Platform/PSP/AShadowManager_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ASimStart_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ASimState_PSP.cpp",
 		"../../OpenBarnyard/Source/Platform/PSP/ASkyDome_PSP.cpp",

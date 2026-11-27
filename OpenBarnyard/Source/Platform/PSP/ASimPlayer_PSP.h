@@ -17,6 +17,7 @@ public:
 	TUINT Render( Toshi::TRenderInterface_PSP& a_rRenderer, const Toshi::TRenderCamera_PSP& a_rCamera ) const;
 	const TCHAR* GetFailedPath() const { return m_szPath; }
 	const Toshi::TVector4& GetPosition() const { return m_vPosition; }
+	const Toshi::TVector4& GetFacing() const { return m_vFacing; }
 	TFLOAT GetMeasuredSpeed() const { return m_fMeasuredSpeed; }
 	TUINT GetMotion() const { return m_eMotion; }
 	TUINT GetTerrainContactCount() const { return m_uiTerrainContacts; }

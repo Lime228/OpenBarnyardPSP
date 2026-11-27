@@ -151,7 +151,8 @@ TBOOL ASimAnimal_PSP::Load()
 		return TFALSE;
 	}
 	m_vPosition = oStart.vPosition;
-	m_Model.SetTransform( m_vPosition, oStart.vFacing );
+	m_vFacing = oStart.vFacing;
+	m_Model.SetTransform( m_vPosition, m_vFacing );
 	m_bLoaded = TTRUE;
 	m_szPath[ 0 ] = '\0';
 	return TTRUE;

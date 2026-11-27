@@ -309,9 +309,10 @@ static TBOOL AGetTerrainTriangleHeight_PSP( const TVector3& a_rA, const TVector3
 	return TMath::IsFinite( a_rfY );
 }
 
-TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance ) const
+TBOOL ATerrainCollision_PSP::CollideVertical( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance,
+                                             TVector3* a_pNormal ) const
 {
-	return CollideVerticalInPacks( a_fX, a_fZ, a_fOriginY, a_bDown, a_rfDistance, m_uiActivePackMask );
+	return CollideVerticalInPacks( a_fX, a_fZ, a_fOriginY, a_bDown, a_rfDistance, m_uiActivePackMask, a_pNormal );
 }
 
 TINT ATerrainCollision_PSP::FindSection( const TVector4& a_rCameraPosition, TUINT a_uiPrevious ) const
@@ -336,7 +337,7 @@ TINT ATerrainCollision_PSP::FindSection( const TVector4& a_rCameraPosition, TUIN
 }
 
 TBOOL ATerrainCollision_PSP::CollideVerticalInPacks( TFLOAT a_fX, TFLOAT a_fZ, TFLOAT a_fOriginY, TBOOL a_bDown, TFLOAT& a_rfDistance,
-                                                    TUINT a_uiMask ) const
+                                                    TUINT a_uiMask, TVector3* a_pNormal ) const
 {
 	const TFLOAT fStartZ = -a_fOriginY;
 	const TFLOAT fEndZ = fStartZ + ( a_bDown ? -a_rfDistance : a_rfDistance );
@@ -371,6 +372,15 @@ TBOOL ATerrainCollision_PSP::CollideVerticalInPacks( TFLOAT a_fX, TFLOAT a_fZ, T
 					{
 						a_rfDistance = fDistance;
 						bHit = TTRUE;
+						if ( a_pNormal != TNULL )
+						{
+							TVector3 vNormal;
+							vNormal.CrossProduct( pVertices[ pFace[ 1 ] ] - pVertices[ pFace[ 0 ] ],
+							                      pVertices[ pFace[ 2 ] ] - pVertices[ pFace[ 0 ] ] );
+							vNormal.Normalize();
+							const TFLOAT fSign = vNormal.z < 0.0f ? -1.0f : 1.0f;
+							a_pNormal->Set( fSign * vNormal.x, -fSign * vNormal.z, fSign * vNormal.y );
+						}
 					}
 				}
 			}
