@@ -1,19 +1,25 @@
 #include "pch.h"
 #include "AStartMenuState.h"
+#include "AGameStateController.h"
+#include "AOptionsState.h"
+#include "GUI/AGUI2.h"
+#include "Locale/ALocaleManager.h"
+#ifdef TOSHI_SKU_PSP
+#  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#  include "Platform/PSP/ASimState_PSP.h"
+#else
 #include "Sound/APositionalSoundSet.h"
 #include "Sound/ASoundManager.h"
 #include "Sound/AMultiplexStream.h"
 #include "Sound/AMusicManager.h"
 #include "GUI/AGUI2ModelRendererScreen.h"
-#include "AGameStateController.h"
-#include "AOptionsState.h"
 #include "Helpers/AGameLoader.h"
-#include "GUI/AGUI2.h"
 #include "MiniGame/AMiniGameManager.h"
 #include "Tasks/ARootTask.h"
 #include "Quests/AQuestManager.h"
 #include "Quests/AQuestInstance.h"
 #include "Quests/AQuest.h"
+#endif
 
 #include <GUI/T2GUIFontManager.h>
 
@@ -28,8 +34,10 @@ TOSHI_NAMESPACE_USING
 // NOTE: GetClass 0042ef00, CreateObject 0042f270, CreateObjectInPlace 0042f2d0
 TDEFINE_CLASS_NORUNTIME( AStartMenuState );
 
+#ifndef TOSHI_SKU_PSP
 TPSTRING8_DECLARE( AGopherShopGame );
 TPSTRING8_DECLARE( ABarnExploreMinigameState );
+#endif
 
 // $Barnyard: FUNCTION 0042f0a0
 AStartMenuState::AStartMenuState()
@@ -65,6 +73,21 @@ TBOOL AStartMenuState::ProcessCommand( AInputCommand a_eInputCommand, const TInp
 // $Barnyard: FUNCTION 0042f010
 TBOOL AStartMenuState::OnUpdate( TFLOAT a_fDeltaTime )
 {
+#ifdef TOSHI_SKU_PSP
+	if ( m_bQuitConfirmed_PSP )
+	{
+		AGameStateController* pController = AGameStateController::GetSingleton();
+		Remove();
+		TSTATICCAST( ASimState_PSP, pController->GetCurrentState() )->ReturnToFrontend();
+		return TTRUE;
+	}
+
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuState = m_eMenuState;
+	AGUI2MenuItem* pFocus = m_oMenu.GetFocusedMenuItem();
+	rReport.iMenuFocusID = pFocus != TNULL ? TSTATICCAST( AGUI2Button, pFocus )->GetId() : -1;
+#endif
+
 	UpdateMenuButtons( a_fDeltaTime );
 
 	if ( m_eMenuState == MENUSTATE_MENU_VISIBLE && m_bIgnoreInputs == TTRUE )
@@ -76,10 +99,12 @@ TBOOL AStartMenuState::OnUpdate( TFLOAT a_fDeltaTime )
 // $Barnyard: FUNCTION 0042f4b0
 void AStartMenuState::OnInsertion()
 {
+#ifndef TOSHI_SKU_PSP
 	if ( AGameStateController::GetSingleton()->FindGameStateOnStack( TPS8( ABarnExploreMinigameState ) ) )
 	{
 		AMultiplexStream::GetSingleton()->Pause( TTRUE );
 	}
+#endif
 
 	m_bHasRectangle2 = TTRUE;
 
@@ -88,6 +113,7 @@ void AStartMenuState::OnInsertion()
 	// Help shows the summary of the last assigned quest
 	m_bHasHint = TFALSE;
 
+#ifndef TOSHI_SKU_PSP
 	if ( AQuestManager::IsSingletonCreated() && AQuestManager::GetSingleton()->GetNumAssignedQuests() > 0 )
 	{
 		AQuestManager* pQuestManager = AQuestManager::GetSingleton();
@@ -95,6 +121,7 @@ void AStartMenuState::OnInsertion()
 		if ( pQuestManager->GetAssignedQuest( pQuestManager->GetNumAssignedQuests() - 1 )->GetQuest()->GetSummaryId() > 0 )
 			m_bHasHint = TTRUE;
 	}
+#endif
 
 	// Title
 	const TWCHAR* wszTitle = g_pLocaleManager->GetString( 288 );
@@ -111,6 +138,12 @@ void AStartMenuState::OnInsertion()
 	// Buttons
 	for ( TINT i = 0; i < BUTTON_NUMOF; i++ )
 	{
+#ifdef TOSHI_SKU_PSP
+		if ( i == BUTTON_RESTART || i == BUTTON_HELP )
+			continue;
+
+		const TWCHAR* wszText = g_pLocaleManager->GetString( ms_aButtonTexts[ i ] );
+#else
 		// Restart and Help are only there in a minigame, Help also when there's a hint
 		if ( !AGameLoader::IsInMiniGame() && ( i == BUTTON_RESTART || i == BUTTON_HELP ) && !( m_bHasHint && i == BUTTON_HELP ) )
 			continue;
@@ -126,6 +159,7 @@ void AStartMenuState::OnInsertion()
 		{
 			wszText = g_pLocaleManager->GetString( ms_aButtonTexts[ i ] );
 		}
+#endif
 
 		AGUI2Button& rButton = m_aButtons[ i ];
 		rButton.Create( pFont, pFont->GetTextWidth( wszText ), wszText, 5.0f );
@@ -160,30 +194,39 @@ void AStartMenuState::OnInsertion()
 
 	m_oMenu.SetFocusAt( m_aButtons[ BUTTON_RESUME ] );
 
+#ifndef TOSHI_SKU_PSP
 	// Pause the game
 	ARootTask::GetSingleton()->SetPaused( TTRUE );
 
 	APositionalSoundSet::GetSingleton()->SetPaused( TTRUE );
+#endif
 
 	AGameStateController::ms_bPausedByMenu = TTRUE;
 	m_oDialog.Hide();
 	m_bFocusedElementBloated = TFALSE;
 
+#ifndef TOSHI_SKU_PSP
 	if ( !AGameLoader::IsMainGameLoaded() || AGameStateController::GetSingleton()->FindGameStateOnStack( TPS8( AGopherShopGame ) ) )
 	{
 		AMusicManager::GetSingleton()->SetEnabled( TFALSE, TTRUE );
 	}
+#endif
 
 	ABYardMenuState::OnInsertion();
+#ifdef TOSHI_SKU_PSP
+	m_oRootElement.AddChildTail( m_oTitle );
+#else
 	AGUI2::GetRootElement()->AddChildTail( m_oTitle );
 
 	if ( AGUI2ModelRendererScreen::GetSingleton() )
 		AGUI2ModelRendererScreen::GetSingleton()->SetEnabled( TFALSE );
+#endif
 }
 
 // $Barnyard: FUNCTION 0042f8c0
 void AStartMenuState::OnRemoval()
 {
+#ifndef TOSHI_SKU_PSP
 	ARootTask::GetSingleton()->SetPaused( TFALSE );
 
 	// Don't resume the sounds if the game is being left
@@ -194,15 +237,21 @@ void AStartMenuState::OnRemoval()
 	{
 		APositionalSoundSet::GetSingleton()->SetPaused( TFALSE );
 	}
+#endif
 
 	AGameStateController::ms_bPausedByMenu = TFALSE;
 
 	for ( TINT i = 0; i < BUTTON_NUMOF; i++ )
 	{
+#ifdef TOSHI_SKU_PSP
+		if ( i != BUTTON_RESTART && i != BUTTON_HELP )
+#else
 		if ( AGameLoader::IsInMiniGame() || i != BUTTON_RESTART )
+#endif
 			m_aButtons[ i ].RemoveSelf();
 	}
 
+#ifndef TOSHI_SKU_PSP
 	if ( !AGameLoader::IsMainGameLoaded() || AGameStateController::GetSingleton()->FindGameStateOnStack( TPS8( AGopherShopGame ) ) )
 	{
 		AMusicManager::GetSingleton()->SetEnabled( TTRUE, TTRUE );
@@ -212,11 +261,14 @@ void AStartMenuState::OnRemoval()
 	{
 		AMultiplexStream::GetSingleton()->Pause( TFALSE );
 	}
+#endif
 
 	m_oTitle.RemoveSelf();
 
+#ifndef TOSHI_SKU_PSP
 	if ( AGUI2ModelRendererScreen::GetSingleton() )
 		AGUI2ModelRendererScreen::GetSingleton()->SetEnabled( TTRUE );
+#endif
 
 	ABYardMenuState::OnRemoval();
 }
@@ -228,6 +280,9 @@ void AStartMenuState::OnActivate()
 	ABYardMenuState::OnActivate();
 	m_eMenuState = MENUSTATE_MENU_APPEAR;
 	m_oDialogTitleBackground.Hide();
+#ifdef TOSHI_SKU_PSP
+	ASetGameRuntimePhase_PSP( "sim-paused" );
+#endif
 }
 
 // $Barnyard: FUNCTION 0042f050
@@ -251,6 +306,10 @@ void AStartMenuState::OnMenuClose()
 		case BUTTON_RESUME:
 			Remove();
 			break;
+		case BUTTON_OPTIONS:
+			pController->PushState( new AOptionsState() );
+			break;
+#ifndef TOSHI_SKU_PSP
 		case BUTTON_RESTART:
 			// Fade out and restart the minigame (see AGameStateController::OnUpdate)
 			pController->AddFlags( AGameStateController::FLAGS_LEAVE_IMMEDIATELY | AGameStateController::FLAGS_KEEP_OVERLAY_ALPHA | AGameStateController::FLAGS_UNK10 | AGameStateController::FLAGS_RESTART_MINIGAME );
@@ -258,9 +317,6 @@ void AStartMenuState::OnMenuClose()
 			ASoundManager::GetSingleton()->SetAllCuesVolume( 0.0f );
 			Remove();
 			pController->ShowOverlay( TTRUE, TFALSE, 0.5f, TTRUE );
-			break;
-		case BUTTON_OPTIONS:
-			pController->PushState( new AOptionsState() );
 			break;
 		case BUTTON_HELP:
 			if ( m_bHasHint )
@@ -292,22 +348,29 @@ void AStartMenuState::OnMenuClose()
 			}
 
 			break;
+#endif
 		case BUTTON_QUIT:
 		{
 			// Ask for a confirmation
+#ifdef TOSHI_SKU_PSP
+			const TINT iMessage = 321;
+			const TBOOL bRemoveOnResponse = TTRUE;
+#else
 			TINT iMessage;
 
 			if ( AGameLoader::IsMainGameLoaded() || AGameLoader::IsBarnExploreMiniGame() )
 				iMessage = 321;
 			else
 				iMessage = ( ms_aButtonTexts[ BUTTON_QUIT ] != 333 ) ? 322 : 320;
+			const TBOOL bRemoveOnResponse = TFALSE;
+#endif
 
 			AMessagePopupState* pPopup = new AMessagePopupState(
 			    g_pLocaleManager->GetString( 1064 ),
 			    g_pLocaleManager->GetString( iMessage ),
 			    TPString8(),
 			    AInputCommand_No,
-			    TFALSE,
+			    bRemoveOnResponse,
 			    AInputCommand_Yes,
 			    AInputCommand_No,
 			    AInputCommand_Empty,
@@ -327,6 +390,7 @@ void AStartMenuState::OnMenuClose()
 	}
 }
 
+#ifndef TOSHI_SKU_PSP
 // $Barnyard: FUNCTION 0042f380
 void AStartMenuState::ShowHint()
 {
@@ -414,3 +478,11 @@ TBOOL __stdcall AStartMenuState::OnHelpPopupResponse( AStartMenuState* a_pStartM
 	AGameStateController::GetSingleton()->PopCurrentGameState();
 	return TTRUE;
 }
+#else
+TBOOL __stdcall AStartMenuState::OnQuitPopupResponse( AStartMenuState* a_pStartMenu, AMessagePopupState*, AMessagePopupState::ResponseEvent* a_pEvent )
+{
+	// Leave the story after the popup has finished dispatching its response.
+	a_pStartMenu->m_bQuitConfirmed_PSP = a_pEvent->eButton == AInputCommand_Yes;
+	return TTRUE;
+}
+#endif

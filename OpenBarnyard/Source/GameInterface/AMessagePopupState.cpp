@@ -2,6 +2,9 @@
 #include "AMessagePopupState.h"
 #include "Input/AInputMapManager.h"
 #include "SoundBank/ui.h"
+#ifdef TOSHI_SKU_PSP
+#  include "Platform/PSP/AGameRuntimeReport_PSP.h"
+#endif
 
 #include <GUI/T2GUIFontManager.h>
 #include <Input/TInputDeviceKeyboard.h>
@@ -161,7 +164,11 @@ TBOOL AMessagePopupState::ProcessInput( const TInputInterface::InputEvent* a_pIn
 // $Barnyard: FUNCTION 0042e410
 TBOOL AMessagePopupState::ProcessCommand( AInputCommand a_eInputCommand, const TInputInterface::InputEvent* a_pInputEvent, TBOOL& a_rStopEvents )
 {
+#ifdef TOSHI_SKU_PSP
+	if ( m_eMenuState == MENUSTATE_MENU_VISIBLE && a_eInputCommand == AInputCommand_Cancel && a_pInputEvent->GetEventType() == TInputInterface::EVENT_TYPE_GONE_DOWN )
+#else
 	if ( m_eMenuState == MENUSTATE_MENU_VISIBLE && a_pInputEvent->GetDoodad() == TInputDeviceKeyboard::KEY_ESCAPE )
+#endif
 	{
 		// Escape chooses the cancelling button if there's one
 		for ( TINT i = 0; i < MAX_NUM_BUTTONS; i++ )
@@ -188,6 +195,13 @@ TBOOL AMessagePopupState::ProcessCommand( AInputCommand a_eInputCommand, const T
 // $Barnyard: FUNCTION 0042e4d0
 TBOOL AMessagePopupState::OnUpdate( TFLOAT a_fDeltaTime )
 {
+#ifdef TOSHI_SKU_PSP
+	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.iMenuState = m_eMenuState;
+	AGUI2MenuItem* pFocus = m_oButtonMenu.GetFocusedMenuItem();
+	rReport.iMenuFocusID = pFocus != TNULL ? TSTATICCAST( AGUI2Button, pFocus )->GetId() : -1;
+#endif
+
 	switch ( m_eMenuState )
 	{
 		case MENUSTATE_MENU_APPEAR:
@@ -219,6 +233,14 @@ TBOOL AMessagePopupState::OnUpdate( TFLOAT a_fDeltaTime )
 			return ABYardMenuState::OnUpdate( a_fDeltaTime );
 		case MENUSTATE_NOTHING:
 			// The popup has closed
+#ifdef TOSHI_SKU_PSP
+			{
+				ResponseEvent oEvent = { m_aButtonCommands[ m_iSelectedButton ] };
+				m_oResponseEmitter.Throw( &oEvent );
+				if ( m_bRemoveOnResponse )
+					Remove();
+			}
+#else
 			if ( m_bRemoveOnResponse )
 			{
 				Remove();
@@ -229,6 +251,7 @@ TBOOL AMessagePopupState::OnUpdate( TFLOAT a_fDeltaTime )
 				oEvent.eButton = m_aButtonCommands[ m_iSelectedButton ];
 				m_oResponseEmitter.Throw( &oEvent );
 			}
+#endif
 
 			return TTRUE;
 	}
@@ -276,6 +299,9 @@ void AMessagePopupState::OnActivate()
 
 	if ( m_bResizeMessage == TTRUE )
 		m_oMessage.SetWidth( m_oDialog.GetWidth() * m_fMessageWidth );
+#ifdef TOSHI_SKU_PSP
+	ASetGameRuntimePhase_PSP( "sim-pause-confirm-quit" );
+#endif
 }
 
 // $Barnyard: FUNCTION 0042e390

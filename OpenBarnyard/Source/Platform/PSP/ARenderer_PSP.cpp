@@ -266,12 +266,16 @@ TBOOL ARenderer::OnUpdate( TFLOAT a_fDeltaTime )
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiRendererFrames++;
 	AGameStateController* pController = AGameStateController::GetSingletonSafe();
-	if ( pController != TNULL && pController->IsCurrentState( &TGetClass( ASimState_PSP ) ) )
+	AGameState* pSim = pController != TNULL ? pController->FindGameStateOnStack( &TGetClass( ASimState_PSP ) ) : TNULL;
+	if ( pSim != TNULL )
 	{
+		const TBOOL bSimIsCurrent = pController->GetCurrentState() == pSim;
 		s_RenderInterface_PSP.BeginScene( 0xff000000 );
-		pController->GetCurrentState()->OnRender( a_fDeltaTime );
+		pSim->OnRender( bSimIsCurrent ? a_fDeltaTime : 0.0f );
+		if ( m_bRenderGUI && AGUI2::GetContext() != TNULL && AGUI2::GetRenderer() != TNULL )
+			RenderGUI();
 		s_RenderInterface_PSP.EndScene();
-		if ( rReport.uiSimFrames == 1 && rReport.uiSimTerrainDraws != 0 && rReport.uiSimPlayerDraws != 0 )
+		if ( bSimIsCurrent && rReport.uiSimFrames == 1 && rReport.uiSimTerrainDraws != 0 && rReport.uiSimPlayerDraws != 0 )
 			ASetGameRuntimePhase_PSP( "sim-world-ready" );
 		else if ( rReport.uiRendererFrames % 60 == 0 )
 			AWriteGameRuntimeReport_PSP();

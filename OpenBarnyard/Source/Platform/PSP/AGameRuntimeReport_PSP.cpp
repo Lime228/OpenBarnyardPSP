@@ -235,6 +235,7 @@ void AWriteGameRuntimeReport_PSP()
 		"new_game_sim_facing=%.6f,%.6f,%.6f\n"
 		"new_game_sim_ground_y=%.6f\n"
 		"sim_frames=%u\n"
+		"sim_updates=%u\n"
 		"sim_terrain_meshes=%u\n"
 		"sim_terrain_textures=%u\n"
 		"sim_terrain_draws=%u\n"
@@ -420,6 +421,7 @@ void AWriteGameRuntimeReport_PSP()
 		s_GameRuntimeReport_PSP.oNewGameSimStart.vFacing.z,
 		s_GameRuntimeReport_PSP.oNewGameSimStart.fGroundY,
 		s_GameRuntimeReport_PSP.uiSimFrames,
+		s_GameRuntimeReport_PSP.uiSimUpdates,
 		s_GameRuntimeReport_PSP.uiSimTerrainMeshes,
 		s_GameRuntimeReport_PSP.uiSimTerrainTextures,
 		s_GameRuntimeReport_PSP.uiSimTerrainDraws,

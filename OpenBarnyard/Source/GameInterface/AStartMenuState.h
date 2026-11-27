@@ -91,6 +91,9 @@ private:
 	t_QuitCallback m_fnQuitCallback;           // 0x1290
 	void*          m_pQuitCallbackUserData;    // 0x1294
 	TBOOL          m_bHasHint;                 // 0x1298
+#ifdef TOSHI_SKU_PSP
+	TBOOL          m_bQuitConfirmed_PSP = TFALSE;
+#endif
 };
 
-TSTATICASSERT( sizeof( AStartMenuState ) == 0x129c );
+TSTATICASSERT_SIZE( sizeof( AStartMenuState ) == 0x129c );

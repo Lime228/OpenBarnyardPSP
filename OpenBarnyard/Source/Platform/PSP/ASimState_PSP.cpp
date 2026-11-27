@@ -179,6 +179,7 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	}
 	rReport.bSimPlayerSteering = m_Player.HasSteering();
 	rReport.uiSimFrames = 0;
+	rReport.uiSimUpdates = 0;
 	rReport.vSimPlayerPosition = m_Player.GetPosition();
 	rReport.fSimPlayerSpeed = 0.0f;
 	rReport.uiSimPlayerMotion = 0;
@@ -200,7 +201,7 @@ void ASimState_PSP::OnActivate()
 {
 	BaseClass::OnActivate();
 	SetInputMap( TPString8( "NormalBarnyard" ) );
-	ASetGameRuntimePhase_PSP( "sim-world-loading" );
+	ASetGameRuntimePhase_PSP( AGetGameRuntimeReport_PSP().uiSimFrames == 0 ? "sim-world-loading" : "sim-world-ready" );
 }
 
 void ASimState_PSP::OnRemoval()
@@ -232,6 +233,7 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 			UpdateCamera( rPosition, 0.0f, TTRUE );
 	}
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
+	rReport.uiSimUpdates++;
 	rReport.vSimPlayerPosition = rPosition;
 	rReport.vSimCameraPosition.Set( m_Camera.aPosition[ 0 ], m_Camera.aPosition[ 1 ], m_Camera.aPosition[ 2 ], 1.0f );
 	rReport.fSimPlayerSpeed = m_Player.GetMeasuredSpeed();
@@ -265,17 +267,23 @@ TBOOL ASimState_PSP::ProcessCommand( AInputCommand a_eCommand, const TInputInter
 		a_rStopEvents = TTRUE;
 		return TTRUE;
 	}
-	if ( a_eCommand != AInputCommand_Quit && a_eCommand != AInputCommand_Cancel )
+	if ( a_eCommand != AInputCommand_Start && a_eCommand != AInputCommand_Quit && a_eCommand != AInputCommand_Cancel )
 		return BaseClass::ProcessCommand( a_eCommand, a_pEvent, a_rStopEvents );
 	if ( a_pEvent->GetEventType() != TInputInterface::EVENT_TYPE_GONE_DOWN )
 		return TTRUE;
 
 	a_rStopEvents = TTRUE;
+	m_vStick = TVector2::VEC_ZERO;
+	AGameStateController::GetSingleton()->StartMenuIfPossible();
+	return TTRUE;
+}
+
+void ASimState_PSP::ReturnToFrontend()
+{
 	AGameState* pMenu = AGameStateController::GetSingleton()->FindGameStateOnStack( TPString8( "AFrontEndMainMenuState2" ) );
 	Remove();
 	ALoadFrontEndWorld_PSP();
 	if ( pMenu != TNULL )
 		TSTATICCAST( AFrontEndMainMenuState2, pMenu )->PauseBackgroundMusic_PSP( TFALSE );
 	ASetGameRuntimePhase_PSP( "frontend-new-game-return" );
-	return TTRUE;
 }

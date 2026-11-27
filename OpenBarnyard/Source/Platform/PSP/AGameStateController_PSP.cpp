@@ -1,7 +1,9 @@
 #include "pch.h"
 
 #include "GameInterface/AGameStateController.h"
+#include "GameInterface/AStartMenuState.h"
 #include "GUI/AGUI2.h"
+#include "ASimState_PSP.h"
 
 //-----------------------------------------------------------------------------
 // Enables memory debugging.
@@ -156,6 +158,16 @@ AGameState* AGameStateController::FindGameStateOnStack( const TPString8& a_rcCla
 	return TNULL;
 }
 
+AGameState* AGameStateController::FindGameStateOnStack( const TClass* a_pClass )
+{
+	for ( auto it = m_oStates.Begin(); it != m_oStates.End(); it++ )
+	{
+		if ( ( *it )->IsA( a_pClass ) )
+			return *it;
+	}
+	return TNULL;
+}
+
 void AGameStateController::AddChildStateByName( const TPString8& a_rcClassName )
 {
 	const TClass* pClass = TClass::Find( a_rcClassName.GetString(), &TGetClass( AGameState ) );
@@ -223,6 +235,8 @@ void AGameStateController::SetFlags( FLAGS a_eFlags )
 
 void AGameStateController::StartMenuIfPossible()
 {
+	if ( GetCurrentState() != TNULL && IsCurrentState( &TGetClass( ASimState_PSP ) ) )
+		PushState( new AStartMenuState() );
 }
 
 void AGameStateController::SaveCurrentGameState( TBOOL, TBOOL, TBOOL )

@@ -157,6 +157,8 @@ project "OpenBarnyardPSPGameSlice"
 	files
 	{
 		"../../OpenBarnyard/Source/GameInterface/ABYardMenuState.cpp",
+		"../../OpenBarnyard/Source/GameInterface/AMessagePopupState.cpp",
+		"../../OpenBarnyard/Source/GameInterface/AStartMenuState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AFrontEndNewGameSelectState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/AMovieState.cpp",
 		"../../OpenBarnyard/Source/GameInterface/ASlideshowState.cpp",

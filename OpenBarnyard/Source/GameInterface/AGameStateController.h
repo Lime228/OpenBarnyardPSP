@@ -88,6 +88,9 @@ public:
 
 	// Returns the first state on the stack whose class is called a_rcClassName, TNULL if there's none
 	AGameState* FindGameStateOnStack( const Toshi::TPString8& a_rcClassName );
+#ifdef TOSHI_SKU_PSP
+	AGameState* FindGameStateOnStack( const Toshi::TClass* a_pClass );
+#endif
 
 	// Creates the game state class called a_rcClassName and adds it as a child of the current state
 	void AddChildStateByName( const Toshi::TPString8& a_rcClassName );

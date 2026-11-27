@@ -10,6 +10,7 @@ class ASimState_PSP : public AGameState
 
 public:
 	TBOOL Create( TUINT a_uiGender, TUINT a_uiCostume );
+	void ReturnToFrontend();
 	void OnActivate() override;
 	void OnRemoval() override;
 	TBOOL OnUpdate( TFLOAT a_fDeltaTime ) override;
