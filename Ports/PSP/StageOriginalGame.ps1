@@ -1400,13 +1400,15 @@ if ($MainGameScene) {
         $sourceRoot = Join-Path $animalRoot $animal.spawn.name
         $destination = Join-Path $runtimePath "Data\Units\$($animal.spawn.name)"
         New-Item -ItemType Directory -Force -Path $destination | Out-Null
-        foreach ($name in 'skeleton.pskl', 'mesh-000.pmes', 'mesh-001.pmes', 'mesh-000.ptex', 'mesh-001.ptex', $animal.idle) {
+        $names = @('skeleton.pskl', 'mesh-000.pmes', 'mesh-001.pmes', 'mesh-000.ptex', 'mesh-001.ptex', $animal.idle)
+        if ($animal.marker_files) { $names += @('exclamation.psmk', 'exclamation.pmes', 'exclamation.ptex') }
+        foreach ($name in $names) {
             $source = Get-Item -LiteralPath (Join-Path $sourceRoot $name)
             if ($source.PSIsContainer -or $source.Length -le 0 -or $source.Length -ne $animal.files.$name) {
                 throw "Invalid original Miles asset $name."
             }
         }
-        foreach ($name in 'skeleton.pskl', 'mesh-000.pmes', 'mesh-001.pmes', 'mesh-000.ptex', 'mesh-001.ptex', $animal.idle) {
+        foreach ($name in $names) {
             $target = if ($name -ceq $animal.idle) { 'idle.panm' } else { $name }
             Copy-Item -LiteralPath (Join-Path $sourceRoot $name) -Destination (Join-Path $destination $target) -Force
         }

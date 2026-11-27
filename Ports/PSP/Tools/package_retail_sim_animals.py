@@ -9,11 +9,43 @@ import tempfile
 from pathlib import Path
 
 from convert_dds import convert as convert_texture
+from convert_frontend_instance_pack import load_source_meshes
+from convert_frontend_terrain_pack import write_model
 from convert_retail_model_animations import bake_clip, clip_sample_rate
 from convert_retail_model_geometry import bake_geometry
 from inventory_retail_models import run_export, run_tmdl
 from inventory_retail_sequence import main_properties, retail_file
 from inventory_retail_sim_population import POPULATION, read_population
+
+
+def bake_marker(tool: Path, install: Path, actor: str, output: Path, scratch: Path) -> list[str]:
+    model = retail_file(install, "Data/Models/Exclamation.trb")
+    dump = run_export(tool, "-psp-dump", model, scratch / "marker-model.json")
+    if len(dump["skeleton"]) != 1:
+        raise ValueError("expected the original rigid quest marker")
+    mesh, = load_source_meshes(dump)
+    vertices = []
+    indices = []
+    for submesh in mesh["submeshes"]:
+        if len(vertices) + len(submesh["vertices"]) > 65535:
+            raise ValueError("original quest marker exceeded the mesh index limit")
+        indices.extend(len(vertices) + index for index in submesh["indices"])
+        # AAnimalPopulationManager rotates the authored marker by +90 degrees about X.
+        vertices.extend((uv, (x, -z, y), colour) for uv, (x, y, z), colour in submesh["vertices"])
+    write_model({"vertices": vertices, "indices": indices}, output / "exclamation.pmes")
+    library = retail_file(install, "Data/Matlibs/MiscObj.ttl")
+    dds = scratch / "marker.dds"
+    run_tmdl(tool, "-psp-texture", library, dds, "-texture", mesh["texture"])
+    convert_texture(dds, output / "exclamation.ptex")
+
+    units = retail_file(install, "Data/Units/AllUnitTypes.trz")
+    types = dict(main_properties(run_export(tool, "-psp-properties", units, scratch / "unit-types.json")))
+    properties = dict(types[actor]["properties"])
+    height = dict(properties["aunitcollisioncomponentdata"]["properties"])["Height"]
+    if not 0 < height < 8.0:
+        raise ValueError("invalid original NPC collision height")
+    (output / "exclamation.psmk").write_bytes(struct.pack("<4sIf", b"PSMK", 1, height))
+    return ["exclamation.pmes", "exclamation.ptex", "exclamation.psmk"]
 
 
 def bake_animal(tool: Path, install: Path, spawn: dict, output: Path) -> dict:
@@ -54,9 +86,11 @@ def bake_animal(tool: Path, install: Path, spawn: dict, output: Path) -> dict:
         names_on_disk = [geometry["skeleton"], *[clip["path"] for clip in clips.values()]]
         for mesh in geometry["meshes"]:
             names_on_disk.extend((mesh["path"], mesh["texture_file"]))
+        marker_files = bake_marker(tool, install, actor, output, scratch)
+        names_on_disk.extend(marker_files)
         return {
             "spawn": spawn, "model": model.relative_to(install).as_posix(),
-            "idle": idle, "animations": names, "clips": clips, **geometry,
+            "idle": idle, "animations": names, "clips": clips, "marker_files": marker_files, **geometry,
             "files": {name: (output / name).stat().st_size for name in names_on_disk},
         }
 
