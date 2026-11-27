@@ -20,6 +20,7 @@ param(
     [switch] $CheckMainGameRegions,
     [switch] $CheckMainGameCrossroads,
     [switch] $CheckMainGameCollisionStreaming,
+    [switch] $CheckMainGameForest,
     [ValidateSet(0, 1)] [int] $PlayerGender = 1,
     [switch] $RequireOpeningSky,
     [switch] $RequireOpeningVoice,
@@ -81,6 +82,10 @@ if (($CheckMainGameRegions -or $CheckMainGameCrossroads) -and (-not $CheckMainGa
 if ($CheckMainGameCollisionStreaming -and (-not $CheckMainGameCrossroads -or
     -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Terrain\EnvMain\xroadeast\terrain.ptld') -PathType Leaf))) {
     throw 'Use -CheckMainGameCollisionStreaming with -CheckMainGameCrossroads and a staged xroadeast row.'
+}
+if ($CheckMainGameForest -and (-not $CheckMainGameCollisionStreaming -or
+    -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Terrain\EnvMain\Forest\terrain.ptld') -PathType Leaf))) {
+    throw 'Use -CheckMainGameForest with -CheckMainGameCollisionStreaming and a staged Forest row.'
 }
 if ($hasOpening -and -not $CheckNewGameOpening -and ($CheckNewGame -or $CheckNewGameTerrain)) {
     throw 'Use -CheckNewGameOpening for this staged runtime.'
@@ -323,6 +328,10 @@ function Test-MainGameCollisionStreaming([hashtable] $Road) {
     }
     if ($Capture) { Send-Key Screenshot }
     "xroadeast streamed Forest at ($($east.sim_player_position)), $eastBytes resident collision bytes in six files."
+    if ($CheckMainGameForest) {
+        Test-MainGameForest $east
+        return
+    }
     $bend = Move-SimTowards $east 67.5 -39.5
     $junction = Move-SimTowards $bend 65.5 -47.0
     $returned = Move-SimTowards $junction 59.0 -48.0 xroad
@@ -334,6 +343,35 @@ function Test-MainGameCollisionStreaming([hashtable] $Road) {
     }
     if ($Capture) { Send-Key Screenshot }
     "xroad unloaded Forest and returned to $roadBytes resident collision bytes. Peak was $($returned.sim_collision_peak_bytes) bytes."
+}
+
+function Test-MainGameForest([hashtable] $East) {
+    # Original xroadeast track curves around the hill before crossing into Forest.
+    $status = $East
+    $route = @(
+        @{ X = 78.0; Z = -35.0 }
+        @{ X = 88.0; Z = -35.0 }
+        @{ X = 91.5; Z = -33.0 }
+        @{ X = 94.5; Z = -30.5 }
+        @{ X = 96.0; Z = -27.0 }
+        @{ X = 96.0; Z = -14.0 }
+        @{ X = 93.0; Z = -8.0 }
+        @{ X = 88.0; Z = -1.0 }
+        @{ X = 86.5; Z = 4.0 }
+    )
+    foreach ($point in $route) {
+        if ($status.sim_terrain_row -ceq 'Forest') { break }
+        $status = Move-SimTowards $status $point.X $point.Z
+    }
+    $forest = Move-SimTowards $status 88.0 13.0 Forest
+    $expectedMeshes = if ($CheckMainGameInstances) { 304 } else { 249 }
+    if ([int]$forest.sim_collision_resident_packs -ne 4 -or [int]$forest.sim_collision_resident_bytes -ne 180704 -or
+        [int]$forest.sim_terrain_swaps -le [int]$East.sim_terrain_swaps -or [int]$forest.sim_terrain_meshes -ne $expectedMeshes -or
+        [int]$forest.sim_terrain_draws -le 0 -or [int]$forest.render_main_peak -gt [int]$forest.render_main_budget) {
+        throw "Forest did not load its visual pack and original four-cell collision set. See $gameLog"
+    }
+    if ($Capture) { Send-Key Screenshot }
+    "Reached Forest at ($($forest.sim_player_position)), $($forest.sim_terrain_meshes) meshes and $($forest.sim_collision_resident_bytes) resident collision bytes in four files."
 }
 
 function Wait-MenuCue([int] $Cue, [hashtable] $Before) {
