@@ -5,6 +5,7 @@
 #include "TRenderBuffer_PSP.h"
 #include "Math/TMathInline.h"
 #include "Math/TVector2.h"
+#include "Math/TVector3.h"
 #include "Toshi/TColor.h"
 
 TOSHI_NAMESPACE_START
