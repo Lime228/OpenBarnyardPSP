@@ -161,7 +161,15 @@ function Test-MainGamePause {
         sim_terrain_row = $paused.sim_terrain_row
     }
     & $runner @runnerArguments -Action Press -Key AnalogUp -AnalogHoldMilliseconds 500 | Write-Host
-    $null = Wait-Menu 'sim-paused' 0 $frozen 15 ([int]$paused.sim_frames)
+    $afterStick = Wait-Menu 'sim-paused' -1 $frozen 15 ([int]$paused.sim_frames)
+    # The original dialog map also lets the stick move the menu focus.
+    if ($afterStick.menu_focus -eq '2') {
+        Send-Key DpadUp
+        $null = Wait-Menu 'sim-paused' 0 $frozen
+    } elseif ($afterStick.menu_focus -eq '4') {
+        Send-Key DpadDown
+        $null = Wait-Menu 'sim-paused' 0 $frozen
+    }
     Send-Key Cross
     $resumed = Wait-Menu 'sim-world-ready' -1 @{ sim_player_position = $paused.sim_player_position }
     $deadline = (Get-Date).AddSeconds(15)
