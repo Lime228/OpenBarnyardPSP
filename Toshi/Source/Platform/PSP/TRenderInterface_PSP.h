@@ -5,6 +5,7 @@
 #include "TRenderBuffer_PSP.h"
 #include "Math/TMathInline.h"
 #include "Math/TVector2.h"
+#include "Toshi/TColor.h"
 
 TOSHI_NAMESPACE_START
 
@@ -94,6 +95,12 @@ public:
 	static constexpr TINT FRAME_BYTES   = BUFFER_WIDTH * SCREEN_HEIGHT * sizeof( TUINT32 );
 	static constexpr TINT DEPTH_BYTES   = BUFFER_WIDTH * SCREEN_HEIGHT * sizeof( TUINT16 );
 	static constexpr TINT EDRAM_BYTES   = FRAME_BYTES * 2 + DEPTH_BYTES;
+
+	static constexpr TUINT32 ConvertARGBToABGR( TUINT32 a_uiColour )
+	{
+		return TCOLOR4( TCOLOR_GET_BLUE( a_uiColour ), TCOLOR_GET_GREEN( a_uiColour ),
+		                TCOLOR_GET_RED( a_uiColour ), TCOLOR_GET_ALPHA( a_uiColour ) );
+	}
 
 public:
 	TRenderInterface_PSP();

@@ -106,6 +106,7 @@ void T2GUIFont_PSP::DrawTextSingleLine( const TWCHAR* a_wszText, TFLOAT a_fX, TF
 	if ( !IsReady() || a_wszText == TNULL || a_fScale <= 0.0f )
 		return;
 
+	const TUINT32 uiGUColour = TRenderInterface_PSP::ConvertARGBToABGR( a_uiColour );
 	for ( const TWCHAR* pCharacter = a_wszText; *pCharacter != L'\0'; pCharacter++ )
 	{
 		const auto* pGlyph = FindGlyph( *pCharacter );
@@ -121,7 +122,7 @@ void T2GUIFont_PSP::DrawTextSingleLine( const TWCHAR* a_wszText, TFLOAT a_fX, TF
 			    a_fY,
 			    m_Header.uiGlyphWidth * a_fScale,
 			    m_Header.uiGlyphHeight * a_fScale,
-			    a_uiColour
+			    uiGUColour
 			);
 		}
 

@@ -265,6 +265,7 @@ void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2
 	TransformPoint( oQuad.aPositions[ 2 ], { a_rPos1.x, a_rPos2.y } );
 	TransformPoint( oQuad.aPositions[ 3 ], a_rPos2 );
 
+	const TUINT32 uiGUColour = TRenderInterface_PSP::ConvertARGBToABGR( m_uiColour_PSP );
 	if ( m_pMaterial_PSP != TNULL )
 	{
 		Material_PSP* pMaterial = TSTATICCAST( Material_PSP, m_pMaterial_PSP );
@@ -279,12 +280,12 @@ void AGUI2Renderer_PSP::RenderRectangle( const TVector2& a_rPos1, const TVector2
 			oQuad.aUVs[ 1 ] = { fU2, fV1 };
 			oQuad.aUVs[ 2 ] = { fU1, fV2 };
 			oQuad.aUVs[ 3 ] = { fU2, fV2 };
-			AGetRenderInterface_PSP().DrawTextureQuad( rTexture, oQuad, m_uiColour_PSP );
+			AGetRenderInterface_PSP().DrawTextureQuad( rTexture, oQuad, uiGUColour );
 			return;
 		}
 	}
 
-	AGetRenderInterface_PSP().DrawColourQuad( oQuad, m_uiColour_PSP );
+	AGetRenderInterface_PSP().DrawColourQuad( oQuad, uiGUColour );
 }
 
 void AGUI2Renderer_PSP::RenderTriStrip( TVector2*, TVector2*, TUINT32 )
@@ -307,7 +308,7 @@ void AGUI2Renderer_PSP::RenderLine( const TVector2& a_rPos1, const TVector2& a_r
 		TMath::Min( oPos1.y, oPos2.y ),
 		TMath::Max( TMath::Abs( oPos2.x - oPos1.x ), 1.0f ),
 		TMath::Max( TMath::Abs( oPos2.y - oPos1.y ), 1.0f ),
-		m_uiColour_PSP
+		TRenderInterface_PSP::ConvertARGBToABGR( m_uiColour_PSP )
 	);
 }
 
