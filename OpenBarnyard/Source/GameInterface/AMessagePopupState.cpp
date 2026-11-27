@@ -115,7 +115,9 @@ void AMessagePopupState::Setup( const TWCHAR* a_wszTitle, const TWCHAR* a_wszMes
 
 		const TWCHAR* wszCommandName = TNULL;
 		AInputMapManager::GetSingleton()->GetCommandLocalisedName( eCommand, wszCommandName );
-		TStringManager::String16CopySafe( m_awszButtonTexts[ i ], wszCommandName, TARRAYSIZE( m_awszButtonTexts[ i ] ) );
+		const TSIZE uiMaxLength = TARRAYSIZE( m_awszButtonTexts[ i ] ) - 1;
+		TStringManager::String16Copy( m_awszButtonTexts[ i ], wszCommandName != TNULL ? wszCommandName : L"", uiMaxLength );
+		m_awszButtonTexts[ i ][ uiMaxLength ] = L'\0';
 
 		AGUI2Button& rButton = m_aButtons[ i ];
 		rButton.Create( pFont, pFont->GetTextWidth( m_awszButtonTexts[ i ] ), m_awszButtonTexts[ i ], 40.0f );
