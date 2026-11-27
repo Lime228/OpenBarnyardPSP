@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GameInterface/AGameState.h"
+#include "ASimAnimal_PSP.h"
 #include "ASimPlayer_PSP.h"
 #include "ATerrainCollision_PSP.h"
 
@@ -32,6 +33,7 @@ private:
 	void UpdateCamera( const Toshi::TVector4& a_rPlayerPosition, TFLOAT a_fDeltaTime, TBOOL a_bPlayerMoved );
 
 	ASimPlayer_PSP m_Player;
+	ASimAnimal_PSP m_Miles;
 	ATerrainCollision_PSP m_TerrainCollision;
 	Toshi::TRenderCamera_PSP m_Camera;
 	Toshi::TVector3 m_vCameraOrbitPosition;

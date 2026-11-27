@@ -6,9 +6,6 @@
 #include <File/TFile.h>
 #include <Math/TMathInline.h>
 #include <Platform/PSP/TAnimationClipFactory_PSP.h>
-#include <Platform/PSP/TModelFactory_PSP.h>
-#include <Platform/PSP/TSkeletonFactory_PSP.h>
-#include <Platform/PSP/TTextureFactory_PSP.h>
 #include <Toshi/TUtil.h>
 
 TOSHI_NAMESPACE_USING
@@ -26,7 +23,7 @@ TBOOL ASimPlayer_PSP::Load( const ASimStart_PSP& a_rStart, TUINT a_uiGender, TUI
 	m_vPosition = a_rStart.vPosition;
 	m_vFacing = a_rStart.vFacing;
 	m_vDesiredFacing = a_rStart.vFacing;
-	UpdateTransform();
+	m_Model.SetTransform( m_vPosition, m_vFacing );
 
 	if ( !LoadAssets( s_aszRoots[ a_uiGender ], a_uiCostume ) )
 	{
@@ -35,25 +32,6 @@ TBOOL ASimPlayer_PSP::Load( const ASimStart_PSP& a_rStart, TUINT a_uiGender, TUI
 	}
 	m_szPath[ 0 ] = '\0';
 	return TTRUE;
-}
-
-void ASimPlayer_PSP::UpdateTransform()
-{
-	// AModelInstance::CreateRotationFromDirection for an upright unit.
-	TVector4 vForward;
-	vForward.Negate3( m_vFacing );
-	vForward.NormaliseXZ();
-	TVector4 vRight;
-	vRight.CrossProduct( vForward, TVector4::VEC_NEGY );
-	vRight.Normalise();
-	TVector4 vUp;
-	vUp.CrossProduct( vRight, vForward );
-	vUp.Normalise();
-	m_World.Identity();
-	m_World.SetBasisVector4( BASISVECTOR_RIGHT, TVector4( vRight.x, vRight.y, vRight.z, 0.0f ) );
-	m_World.SetBasisVector4( BASISVECTOR_UP, TVector4( vForward.x, vForward.y, vForward.z, 0.0f ) );
-	m_World.SetBasisVector4( BASISVECTOR_FORWARD, TVector4( vUp.x, vUp.y, vUp.z, 0.0f ) );
-	m_World.SetTranslation( m_vPosition );
 }
 
 TBOOL ASimPlayer_PSP::LoadAssets( const TCHAR* a_szRoot, TUINT a_uiCostume )
@@ -66,7 +44,7 @@ TBOOL ASimPlayer_PSP::LoadAssets( const TCHAR* a_szRoot, TUINT a_uiCostume )
 	static_assert( sizeof( SteerTraits ) == 11 * sizeof( TFLOAT ) );
 	TFLOAT aTraits[ 11 ] = {};
 	TBOOL bRead = pFile->Read( aConfig, sizeof( aConfig ) ) == sizeof( aConfig ) &&
-	              aConfig[ 0 ] == 0x4c505350 && aConfig[ 2 ] < NUM_MESHES;
+	              aConfig[ 0 ] == 0x4c505350 && aConfig[ 2 ] < ASimModel_PSP::NUM_MESHES;
 	if ( bRead && aConfig[ 1 ] == 2 )
 	{
 		bRead = pFile->GetSize() == sizeof( aConfig ) + sizeof( aTraits ) &&
@@ -82,9 +60,7 @@ TBOOL ASimPlayer_PSP::LoadAssets( const TCHAR* a_szRoot, TUINT a_uiCostume )
 	m_bHasSteering = aConfig[ 1 ] == 2;
 	TUtil::MemCopy( &m_SteerTraits, aTraits, sizeof( aTraits ) );
 
-	const TSkeletonFactory_PSP oSkeletonFactory;
-	TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/skeleton.pskl", a_szRoot );
-	if ( !oSkeletonFactory.CreateSkeletonFromFile( m_Skeleton, m_szPath ) || !m_Pose.Create( &m_Skeleton ) )
+	if ( !m_Model.LoadRig( a_szRoot, m_szPath, TARRAYSIZE( m_szPath ) ) )
 		return TFALSE;
 	const TAnimationClipFactory_PSP oAnimationFactory;
 	static const TCHAR* const s_aszLoops[ NUM_MOTIONS ] = { "idle", "walk", "run" };
@@ -92,39 +68,19 @@ TBOOL ASimPlayer_PSP::LoadAssets( const TCHAR* a_szRoot, TUINT a_uiCostume )
 	for ( TUINT i = 0; i < uiLoopCount; i++ )
 	{
 		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/%s.panm", a_szRoot, s_aszLoops[ i ] );
-		if ( !oAnimationFactory.CreateAnimationFromFile( m_aClips[ i ], &m_Skeleton, m_szPath ) || !m_aClips[ i ].IsLooping() )
+		if ( !oAnimationFactory.CreateAnimationFromFile( m_aClips[ i ], m_Model.GetSkeleton(), m_szPath ) || !m_aClips[ i ].IsLooping() )
 			return TFALSE;
 	}
 
-	const TModelFactory_PSP oModelFactory;
-	const TTextureFactory_PSP oTextureFactory;
-	for ( TUINT i = 0; i < NUM_MESHES; i++ )
-	{
-		TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/mesh-%03u.pmes", a_szRoot, i );
-		if ( !oModelFactory.CreateModelFromFile( m_aModels[ i ], m_szPath ) || !m_aSkins[ i ].Create( &m_aModels[ i ], &m_Skeleton ) )
-			return TFALSE;
-		if ( i == aConfig[ 2 ] )
-			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/costume-%u.ptex", a_szRoot, a_uiCostume );
-		else
-			TStringManager::String8Format( m_szPath, TARRAYSIZE( m_szPath ), "%s/mesh-%03u.ptex", a_szRoot, i );
-		if ( !oTextureFactory.CreateTextureFromFile( m_aTextures[ i ], m_szPath ) )
-			return TFALSE;
-	}
-	return UpdatePose();
+	return m_Model.LoadMeshes( a_szRoot, m_szPath, TARRAYSIZE( m_szPath ), TINT( aConfig[ 2 ] ), a_uiCostume ) &&
+	       UpdatePose();
 }
 
 void ASimPlayer_PSP::Unload()
 {
-	for ( TUINT i = 0; i < NUM_MESHES; i++ )
-	{
-		m_aSkins[ i ].Destroy();
-		m_aModels[ i ].Unload();
-		m_aTextures[ i ].Unload();
-	}
 	for ( TAnimationClip_PSP& rClip : m_aClips )
 		rClip.Unload();
-	m_Pose.Destroy();
-	m_Skeleton.Unload();
+	m_Model.Unload();
 	m_fSpeed = m_fTurnSpeed = m_fMeasuredSpeed = 0.0f;
 	m_uiTerrainContacts = m_uiTerrainSlides = 0;
 	m_fAnimationTime = 0.0f;
@@ -215,7 +171,7 @@ void ASimPlayer_PSP::UpdateMovement( TFLOAT a_fDeltaTime, const TVector2& a_rSti
 	const TFLOAT fDZ = m_vPosition.z - vPrevious.z;
 	const TFLOAT fDistanceSq = fDX * fDX + fDZ * fDZ;
 	m_fMeasuredSpeed = fDistanceSq > 0.0f ? TMath::Sqrt( fDistanceSq ) / a_fDeltaTime : 0.0f;
-	UpdateTransform();
+	m_Model.SetTransform( m_vPosition, m_vFacing );
 }
 
 TBOOL ASimPlayer_PSP::Update( TFLOAT a_fDeltaTime, const TVector2& a_rStick, const TRenderCamera_PSP& a_rCamera,
@@ -255,28 +211,10 @@ TBOOL ASimPlayer_PSP::Update( TFLOAT a_fDeltaTime, const TVector2& a_rStick, con
 
 TBOOL ASimPlayer_PSP::UpdatePose()
 {
-	if ( !m_Pose.SetAnimationPose( m_aClips[ m_eMotion ], TUINT( m_fAnimationTime * 1000.0f ) ) )
-		return TFALSE;
-	for ( TSkinningBuffer_PSP& rSkin : m_aSkins )
-	{
-		if ( !rSkin.Skin( m_Pose ) )
-			return TFALSE;
-	}
-	return TTRUE;
+	return m_Model.UpdatePose( m_aClips[ m_eMotion ], TUINT( m_fAnimationTime * 1000.0f ) );
 }
 
 TUINT ASimPlayer_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderCamera_PSP& a_rCamera ) const
 {
-	static const TRenderMaterial_PSP s_Material = {
-		TTRUE, TRENDERTEXTUREFUNCTION_PSP_MODULATE, TRENDERCULLMODE_PSP_NONE, TRENDERALPHAMODE_PSP_OPAQUE,
-		TRENDERTEXTUREADDRESS_PSP_WRAP, TRENDERTEXTUREADDRESS_PSP_WRAP,
-	};
-	TUINT uiDraws = 0;
-	for ( TUINT i = 0; i < NUM_MESHES; i++ )
-	{
-		const auto* pVertices = m_aSkins[ i ].GetVertices();
-		if ( pVertices != TNULL && a_rRenderer.DrawSkinnedModel( m_aModels[ i ], *pVertices, m_World, s_Material, &m_aTextures[ i ], a_rCamera ) )
-			uiDraws++;
-	}
-	return uiDraws;
+	return m_Model.Render( a_rRenderer, a_rCamera );
 }

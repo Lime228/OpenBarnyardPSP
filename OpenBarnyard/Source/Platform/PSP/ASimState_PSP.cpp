@@ -172,12 +172,22 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 		ASetGameRuntimeFailedPath_PSP( m_Player.GetFailedPath() );
 		return TFALSE;
 	}
+	if ( !m_Miles.Load() )
+	{
+		ASetGameRuntimeFailedPath_PSP( m_Miles.GetFailedPath() );
+		m_Player.Unload();
+		return TFALSE;
+	}
 	if ( !ALoadSimWorld_PSP() )
 	{
+		m_Miles.Unload();
 		m_Player.Unload();
 		return TFALSE;
 	}
 	rReport.bSimPlayerSteering = m_Player.HasSteering();
+	rReport.bSimMilesLoaded = m_Miles.IsLoaded();
+	rReport.vSimMilesPosition = m_Miles.GetPosition();
+	rReport.uiSimMilesDraws = rReport.uiSimMilesPoseUpdates = 0;
 	rReport.uiSimFrames = 0;
 	rReport.uiSimUpdates = 0;
 	rReport.vSimPlayerPosition = m_Player.GetPosition();
@@ -206,6 +216,7 @@ void ASimState_PSP::OnActivate()
 
 void ASimState_PSP::OnRemoval()
 {
+	m_Miles.Unload();
 	m_Player.Unload();
 	m_TerrainCollision.Unload();
 	AUnloadSimWorld_PSP();
@@ -223,6 +234,11 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 		ASetGameRuntimePhase_PSP( "sim-world-failed" );
 	}
 	const TVector4& rPosition = m_Player.GetPosition();
+	if ( !m_Miles.Update( a_fDeltaTime, rPosition ) )
+	{
+		ASetGameRuntimeFailedPath_PSP( "envmain-miles-pose" );
+		ASetGameRuntimePhase_PSP( "sim-world-failed" );
+	}
 	const TBOOL bPlayerMoved = rPosition.x != vPrevious.x || rPosition.y != vPrevious.y || rPosition.z != vPrevious.z;
 	const TFLOAT fPreviousCameraDistance = m_fCameraDistance;
 	UpdateCamera( rPosition, a_fDeltaTime, bPlayerMoved );
@@ -234,6 +250,7 @@ TBOOL ASimState_PSP::OnUpdate( TFLOAT a_fDeltaTime )
 	}
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	rReport.uiSimUpdates++;
+	rReport.uiSimMilesPoseUpdates = m_Miles.GetPoseUpdates();
 	rReport.vSimPlayerPosition = rPosition;
 	rReport.vSimCameraPosition.Set( m_Camera.aPosition[ 0 ], m_Camera.aPosition[ 1 ], m_Camera.aPosition[ 2 ], 1.0f );
 	rReport.fSimPlayerSpeed = m_Player.GetMeasuredSpeed();
@@ -255,6 +272,7 @@ void ASimState_PSP::OnRender( TFLOAT a_fDeltaTime )
 	AGameRuntimeReport_PSP& rReport = AGetGameRuntimeReport_PSP();
 	ARenderSimWorld_PSP( m_Camera, a_fDeltaTime );
 	rReport.uiSimPlayerDraws = m_Player.Render( rRenderer, m_Camera );
+	rReport.uiSimMilesDraws = m_Miles.Render( rRenderer, m_Camera );
 	rReport.uiSimFrames++;
 }
 

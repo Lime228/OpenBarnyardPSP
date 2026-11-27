@@ -17,24 +17,26 @@ static_assert( sizeof( AInteriorNetwork::INetwork ) == 48 );
 static_assert( sizeof( AInteriorGoal ) == 64 );
 static_assert( sizeof( AInteriorArea ) == 64 );
 
-static const AInteriorGoal* AFindSimStartGoal_PSP( const TTRB& a_rTRB, const AInteriorNetwork::INetwork& a_rNetwork )
+static const AInteriorGoal* AFindSimGoal_PSP( const TTRB& a_rTRB, const AInteriorNetwork::INetwork& a_rNetwork, const TCHAR* a_szGoal )
 {
 	if ( a_rNetwork.m_iNumGoals <= 0 || a_rNetwork.m_iNumGoals > 1024 ||
 	     !ATerrainCollision_PSP::ContainsTRBData( a_rTRB, a_rNetwork.m_pGoals, a_rNetwork.m_iNumGoals * sizeof( AInteriorGoal ) ) )
 		return TNULL;
 
+	const TSIZE uiNameBytes = TStringManager::String8Length( a_szGoal ) + 1;
 	for ( TINT i = 0; i < a_rNetwork.m_iNumGoals; i++ )
 	{
 		const AInteriorGoal& rGoal = a_rNetwork.m_pGoals[ i ];
 		const TCHAR* szName = rGoal.m_szName_Internal;
-		if ( ATerrainCollision_PSP::ContainsTRBData( a_rTRB, szName, sizeof( s_szSimStartGoal_PSP ) ) &&
-		     TStringManager::String8Compare( szName, s_szSimStartGoal_PSP, sizeof( s_szSimStartGoal_PSP ) ) == 0 )
+		if ( ATerrainCollision_PSP::ContainsTRBData( a_rTRB, szName, uiNameBytes ) &&
+		     TStringManager::String8Compare( szName, a_szGoal, uiNameBytes ) == 0 )
 			return &rGoal;
 	}
 	return TNULL;
 }
 
-static TBOOL AReadSimStartGoal_PSP( ASimStart_PSP& a_rStart, TFLOAT& a_rfAreaHeight, AInteriorArea::FLAGS& a_reAreaFlags )
+static TBOOL AReadSimGoal_PSP( ASimStart_PSP& a_rStart, const TCHAR* a_szGoal,
+                              TFLOAT& a_rfAreaHeight, AInteriorArea::FLAGS& a_reAreaFlags )
 {
 	TTRB oNetwork;
 	if ( oNetwork.Load( s_szSimNetwork_PSP ) != TTRB::ERROR_OK || oNetwork.GetSymbolTable() == TNULL )
@@ -46,7 +48,7 @@ static TBOOL AReadSimStartGoal_PSP( ASimStart_PSP& a_rStart, TFLOAT& a_rfAreaHei
 	     !ATerrainCollision_PSP::ContainsTRBData( oNetwork, pNetwork->m_pAreas, pNetwork->m_iNumAreas * sizeof( AInteriorArea ) ) )
 		return TFALSE;
 
-	const AInteriorGoal* pGoal = AFindSimStartGoal_PSP( oNetwork, *pNetwork );
+	const AInteriorGoal* pGoal = AFindSimGoal_PSP( oNetwork, *pNetwork, a_szGoal );
 	if ( pGoal == TNULL || pGoal->m_iAreaIndex < 0 || pGoal->m_iAreaIndex >= pNetwork->m_iNumAreas )
 		return TFALSE;
 
@@ -61,11 +63,18 @@ static TBOOL AReadSimStartGoal_PSP( ASimStart_PSP& a_rStart, TFLOAT& a_rfAreaHei
 	       TMath::IsFinite( a_rStart.vFacing.MagnitudeSq() );
 }
 
+TBOOL AReadSimGoal_PSP( ASimStart_PSP& a_rStart, const TCHAR* a_szGoal )
+{
+	TFLOAT fAreaHeight;
+	AInteriorArea::FLAGS eAreaFlags;
+	return AReadSimGoal_PSP( a_rStart, a_szGoal, fAreaHeight, eAreaFlags );
+}
+
 TBOOL AReadSimStart_PSP( ASimStart_PSP& a_rStart, ATerrainCollision_PSP& a_rTerrain )
 {
 	TFLOAT fAreaHeight;
 	AInteriorArea::FLAGS eAreaFlags;
-	if ( !AReadSimStartGoal_PSP( a_rStart, fAreaHeight, eAreaFlags ) ||
+	if ( !AReadSimGoal_PSP( a_rStart, s_szSimStartGoal_PSP, fAreaHeight, eAreaFlags ) ||
 	     !HASANYFLAG( eAreaFlags, AInteriorArea::FLAGS_HEIGHT_RAYCAST_SHORT ) )
 	{
 		ASetGameRuntimeFailedPath_PSP( s_szSimNetwork_PSP );

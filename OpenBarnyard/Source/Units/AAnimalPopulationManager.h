@@ -343,4 +343,4 @@ private:
 TSTATICASSERT( sizeof( AAnimalPopulationManager::SpawnData ) == 0x16 );
 TSTATICASSERT( sizeof( AAnimalPopulationManager::AnimalSpawn ) == 0x1a );
 TSTATICASSERT( sizeof( AAnimalPopulationManager::QuestTierSpawn ) == 0x18 );
-TSTATICASSERT( sizeof( AAnimalPopulationManager ) == 0x480 );
+TSTATICASSERT_SIZE( sizeof( AAnimalPopulationManager ) == 0x480 );
