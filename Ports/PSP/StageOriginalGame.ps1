@@ -1411,7 +1411,11 @@ if ($MainGameScene) {
         $source = Get-Item -LiteralPath (Join-Path $installPath $sourcePopulation)
         if ($source.PSIsContainer -or $source.Length -le 0) { throw 'Invalid original animal population TRB.' }
         Copy-Item -LiteralPath $source.FullName -Destination (Join-Path $runtimePath $sourcePopulation) -Force
-        Write-Output 'Staged the original animal population TRB and Miles gameplay model'
+        $sourceLocators = 'Data/Terrain/EnvMain/envmain_skel.trb'
+        $source = Get-Item -LiteralPath (Join-Path $installPath $sourceLocators)
+        if ($source.PSIsContainer -or $source.Length -le 0) { throw 'Invalid original EnvMain locator TRB.' }
+        Copy-Item -LiteralPath $source.FullName -Destination (Join-Path $runtimePath $sourceLocators) -Force
+        Write-Output 'Staged the original animal population, EnvMain locators and Miles gameplay model'
     }
     Copy-OriginalTerrainPack $terrain $barnDestination
     if ($MainGameVisibilityRows -or $MainGameAllVisibilityRows) {

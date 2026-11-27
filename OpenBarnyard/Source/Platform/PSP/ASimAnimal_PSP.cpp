@@ -4,6 +4,7 @@
 #include "ATerrainCollision_PSP.h"
 
 #include "Units/AAnimalPopulationManager.h"
+#include "Terrain/ATerrainLocator.h"
 
 #include <File/TFile.h>
 #include <Platform/PSP/TAnimationClipFactory_PSP.h>
@@ -14,6 +15,7 @@ TOSHI_NAMESPACE_USING
 using AnimalPopulation = AAnimalPopulationManager;
 
 static constexpr TCHAR s_szPopulationPath_PSP[] = "local:Data/Units/AnimalSpawn.trb";
+static constexpr TCHAR s_szLocatorPath_PSP[] = "local:Data/Terrain/EnvMain/envmain_skel.trb";
 static constexpr TCHAR s_szMilesRoot_PSP[] = "local:Data/Units/miles";
 static constexpr TFLOAT s_fAnimalUpdateDistance_PSP = 24.0f;
 
@@ -30,6 +32,49 @@ static const TCHAR* AGetSpawnString_PSP( const TTRB& a_rTRB, const AnimalPopulat
 			return pString;
 	}
 	return TNULL;
+}
+
+static TBOOL AReadSimQuestLocator_PSP( ASimStart_PSP& a_rStart, const TCHAR* a_szName )
+{
+	TTRB oTRB;
+	if ( oTRB.Load( s_szLocatorPath_PSP ) != TTRB::ERROR_OK || oTRB.GetSymbolTable() == TNULL )
+		return TFALSE;
+
+	const auto* pHeader = oTRB.CastSymbol<ATerrainLocatorTRBHeader>( "Locators" );
+	if ( !ATerrainCollision_PSP::ContainsTRBData( oTRB, pHeader, sizeof( *pHeader ) ) ||
+	     pHeader->iNumLocators <= 0 || pHeader->iNumLocators > 16384 || pHeader->uiNameCount > 16384 ||
+	     !ATerrainCollision_PSP::ContainsTRBData( oTRB, pHeader->pLocators, pHeader->iNumLocators * sizeof( ATerrainLocator ) ) ||
+	     !ATerrainCollision_PSP::ContainsTRBData( oTRB, pHeader->ppNames, pHeader->uiNameCount * sizeof( const TCHAR* ) ) )
+		return TFALSE;
+
+	const TSIZE uiNameBytes = TStringManager::String8Length( a_szName ) + 1;
+	for ( TINT i = 0; i < pHeader->iNumLocators; i++ )
+	{
+		const ATerrainLocator& rLocator = pHeader->pLocators[ i ];
+		if ( rLocator.uiNameId >= pHeader->uiNameCount )
+			return TFALSE;
+		const TCHAR* szName = pHeader->ppNames[ rLocator.uiNameId ];
+		if ( !ATerrainCollision_PSP::ContainsTRBData( oTRB, szName, uiNameBytes ) ||
+		     TStringManager::String8CompareNoCase( szName, a_szName, uiNameBytes ) != 0 )
+			continue;
+
+		// ATerrainLocatorList maps the authored Z-up transform into the game world.
+		TMatrix44 oWorld = {
+			1.0f,  0.0f, 0.0f, 0.0f,
+			0.0f,  0.0f, 1.0f, 0.0f,
+			0.0f, -1.0f, 0.0f, 0.0f,
+			0.0f,  0.0f, 0.0f, 1.0f,
+		};
+		TMatrix44 oLocal;
+		oLocal.SetFromQuaternion( rLocator.quatRotation );
+		oLocal.AsBasisVector3( BASISVECTOR_TRANSLATION ) = rLocator.vecPosition;
+		oWorld.Multiply( oLocal );
+		a_rStart.vPosition = oWorld.GetTranslation();
+		a_rStart.vFacing.Set( -oWorld.m_f21, 0.0f, -oWorld.m_f23, 1.0f );
+		return TMath::IsFinite( a_rStart.vPosition.MagnitudeSq() ) &&
+		       TMath::IsFinite( a_rStart.vFacing.MagnitudeSqXZ() ) && a_rStart.vFacing.MagnitudeSqXZ() > 0.5f;
+	}
+	return TFALSE;
 }
 
 static TBOOL AReadMilesStart_PSP( TTRB& a_rTRB, ASimStart_PSP& a_rStart )
@@ -54,11 +99,20 @@ static TBOOL AReadMilesStart_PSP( TTRB& a_rTRB, ASimStart_PSP& a_rStart )
 
 		const AnimalPopulation::SpawnData& rSpawn = rEntry.oSpawn;
 		const TCHAR* szUnit = AGetSpawnString_PSP( a_rTRB, pTables[ AnimalPopulation::STRINGTABLE_UNITTYPE ], rSpawn.iType );
+		const TCHAR* szName = AGetSpawnString_PSP( a_rTRB, pTables[ AnimalPopulation::STRINGTABLE_UNITNAME ], rSpawn.iName );
 		const TCHAR* szNetwork = AGetSpawnString_PSP( a_rTRB, pTables[ AnimalPopulation::STRINGTABLE_NETWORK ], rSpawn.iNetwork );
 		const TCHAR* szGoal = AGetSpawnString_PSP( a_rTRB, pTables[ AnimalPopulation::STRINGTABLE_GOAL ], rSpawn.iGoal );
-		return szUnit != TNULL && TStringManager::String8Compare( szUnit, "miles" ) == 0 &&
-		       szNetwork != TNULL && TStringManager::String8Compare( szNetwork, "park2" ) == 0 &&
-		       szGoal != TNULL && AReadSimGoal_PSP( a_rStart, szGoal ) &&
+		if ( szUnit == TNULL || TStringManager::String8Compare( szUnit, "miles" ) != 0 ||
+		     szName == TNULL || TStringManager::String8Compare( szName, "miles" ) != 0 ||
+		     szNetwork == TNULL || TStringManager::String8Compare( szNetwork, "park2" ) != 0 )
+			return TFALSE;
+
+		TCHAR szLocator[ 32 ];
+		TStringManager::String8Format( szLocator, TARRAYSIZE( szLocator ), "ql_a1t01_%s", szName );
+		// Match PlaceUnit: the visible quest locator takes priority over the network goal.
+		if ( AReadSimQuestLocator_PSP( a_rStart, szLocator ) )
+			return TTRUE;
+		return szGoal != TNULL && AReadSimGoal_PSP( a_rStart, szGoal ) &&
 		       a_rStart.vPosition.y != TMath::MAXFLOAT && a_rStart.vFacing.MagnitudeSqXZ() > 0.5f;
 	}
 	return TFALSE;
