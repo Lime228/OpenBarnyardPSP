@@ -150,6 +150,59 @@ function Convert-SimPosition([string] $Value) {
     }
 }
 
+function Test-MainGamePause {
+    Send-Key Start
+    $paused = Wait-Menu 'sim-paused' 0
+    if ($Capture) { Send-Key Screenshot }
+    $frozen = @{
+        sim_updates = $paused.sim_updates
+        sim_player_position = $paused.sim_player_position
+        sim_camera_position = $paused.sim_camera_position
+        sim_terrain_row = $paused.sim_terrain_row
+    }
+    & $runner @runnerArguments -Action Press -Key AnalogUp -AnalogHoldMilliseconds 500 | Write-Host
+    $null = Wait-Menu 'sim-paused' 0 $frozen 15 ([int]$paused.sim_frames)
+    Send-Key Cross
+    $resumed = Wait-Menu 'sim-world-ready' -1 @{ sim_player_position = $paused.sim_player_position }
+    $deadline = (Get-Date).AddSeconds(15)
+    while ([int]$resumed.sim_updates -le [int]$paused.sim_updates -and (Get-Date) -lt $deadline) {
+        Start-Sleep -Milliseconds 150
+        $resumed = Read-GameLog
+    }
+    if ([int]$resumed.sim_updates -le [int]$paused.sim_updates) {
+        throw "The world did not start updating after Resume. See $gameLog"
+    }
+
+    Send-Key Start
+    $paused = Wait-Menu 'sim-paused' 0
+    Send-Key DpadDown
+    $null = Wait-Menu 'sim-paused' 2
+    Send-Key Cross
+    $null = Wait-Menu 'frontend-options-ready' 0 @{ sim_updates = $paused.sim_updates }
+    Send-Key Triangle
+    $null = Wait-Menu 'sim-paused' 2 @{ sim_updates = $paused.sim_updates }
+    Send-Key Start
+    $null = Wait-Menu 'sim-world-ready' -1
+
+    Send-Key Start
+    $paused = Wait-Menu 'sim-paused' 0
+    Send-Key DpadDown
+    $null = Wait-Menu 'sim-paused' 2
+    Send-Key DpadDown
+    $null = Wait-Menu 'sim-paused' 4
+    Send-Key Cross
+    $null = Wait-Menu 'sim-pause-confirm-quit' 1 @{ sim_updates = $paused.sim_updates }
+    if ($Capture) { Send-Key Screenshot }
+    Send-Key Cross
+    $null = Wait-Menu 'sim-paused' 4 @{ sim_updates = $paused.sim_updates }
+    Send-Key Cross
+    $null = Wait-Menu 'sim-pause-confirm-quit' 1
+    Send-Key DpadLeft
+    $null = Wait-Menu 'sim-pause-confirm-quit' 0
+    Send-Key Cross
+    'Original pause froze EnvMain and preserved its position through Resume, Options and the default No response. Confirmed Quit with Yes.'
+}
+
 function Convert-SimNumber([string] $Value) {
     [double]::Parse($Value, [Globalization.CultureInfo]::InvariantCulture)
 }
@@ -665,13 +718,21 @@ try {
                 }
             }
         }
-        if ($CheckMainGameScene) { Send-Key Start } else { Send-Key Triangle }
+        if ($CheckMainGameScene -and (Read-GameLog).ContainsKey('sim_updates')) {
+            Test-MainGamePause
+            $exitButton = 'confirmed Quit'
+        } elseif ($CheckMainGameScene) {
+            Send-Key Start
+            $exitButton = 'Start'
+        } else {
+            Send-Key Triangle
+            $exitButton = 'Cancel'
+        }
         $main = Wait-Menu 'frontend-new-game-return' 0 @{} 90
         if ($RequireOpeningActors -and $main.ContainsKey('animation_live_vertices') -and
             ($main.animation_live_vertices -ne '0' -or $main.animation_sample_bytes -ne '0')) {
             throw "Animation resources remained resident after returning to the menu. See $gameLog"
         }
-        $exitButton = if ($CheckMainGameScene) { 'Start' } else { 'Cancel' }
         "New Game opened the four original slots, read all 21 SS01 tracks from slot 4 and returned on $exitButton."
         if ($OpeningOnly) { return }
     }
