@@ -30,6 +30,7 @@ param(
     [switch] $MainGameScene,
     [switch] $MainGameInstances,
     [switch] $MainGameAnimals,
+    [switch] $MainGameShadows,
     [string[]] $MainGameVisibilityRows = @(),
     [switch] $MainGameAllVisibilityRows,
     [switch] $SkipConversion
@@ -39,6 +40,7 @@ $ErrorActionPreference = 'Stop'
 if ($MainGameScene -and -not $MainGameDirectory) { throw 'Use -MainGameScene with the original EnvMain workspace.' }
 if ($MainGameInstances -and -not $MainGameScene) { throw 'Use -MainGameInstances with -MainGameScene.' }
 if ($MainGameAnimals -and -not $MainGameScene) { throw 'Use -MainGameAnimals with -MainGameScene.' }
+if ($MainGameShadows -and -not $MainGameScene) { throw 'Use -MainGameShadows with -MainGameScene.' }
 if (($MainGameVisibilityRows -or $MainGameAllVisibilityRows) -and -not $MainGameScene) {
     throw 'Staging additional visibility rows requires -MainGameScene.'
 }
@@ -1416,6 +1418,21 @@ if ($MainGameScene) {
         if ($source.PSIsContainer -or $source.Length -le 0) { throw 'Invalid original EnvMain locator TRB.' }
         Copy-Item -LiteralPath $source.FullName -Destination (Join-Path $runtimePath $sourceLocators) -Force
         Write-Output 'Staged the original animal population, EnvMain locators and Miles gameplay model'
+    }
+    if ($MainGameShadows) {
+        $shadowRoot = Join-Path $MainGameDirectory 'Shadows'
+        $shadowConfig = Join-Path $shadowRoot 'shadow.pshs'
+        $shadowTexture = Join-Path $shadowRoot 'shadow.ptex'
+        $config = [IO.File]::ReadAllBytes($shadowConfig)
+        if ($config.Length -ne 12 -or [Text.Encoding]::ASCII.GetString($config, 0, 4) -cne 'PSHS' -or
+            [BitConverter]::ToUInt32($config, 4) -ne 1 -or (Get-Item -LiteralPath $shadowTexture).Length -le 24) {
+            throw 'Invalid original EnvMain shadow pack.'
+        }
+        $destination = Join-Path $runtimePath 'Data\Particles'
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
+        Copy-Item -LiteralPath $shadowTexture -Destination $destination -Force
+        Copy-Item -LiteralPath $shadowConfig -Destination $destination -Force
+        Write-Output 'Staged the original EnvMain character shadow'
     }
     Copy-OriginalTerrainPack $terrain $barnDestination
     if ($MainGameVisibilityRows -or $MainGameAllVisibilityRows) {
