@@ -72,7 +72,7 @@ Current estimates:
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
 | Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
-| Complete playable-game port | 42% | Original startup, frontend and SS01 run. All 31 original gameplay terrain rows and their colliders are staged. The port supports grounded movement, camera wall checks and row changes, verified on routes from Barn through xroad to Forest and to barnnorth. Traversal across the other rows, dynamic colliders, quests, saves and most in-game audio still need work. |
+| Complete playable-game port | 42% | Original startup, frontend, SS01 and the story pause menu run. All 31 original gameplay terrain rows and their colliders are staged. The port supports grounded movement, camera wall checks and row changes, verified on routes from Barn through xroad to Forest and to barnnorth. Traversal across the other rows, dynamic colliders, quests, saves and most in-game audio still need work. |
 
 ## Non-negotiable repository rules
 
@@ -813,9 +813,63 @@ VIS. The PPSSPP walkthrough reached Forest through Barn, xroad and
 xroadeast. It loaded 304 draw groups, 105 textures and 180,704 decoded
 bytes across the four resident colliders. It reported three swaps and no
 load failures, with peak renderer use of 13,764,048 bytes out of 16,777,216.
-Start returned to the original menu and released the animation vertices.
+On the pre-pause build, Start returned to the original menu and released the
+animation vertices.
 The capture `envmain-forest.png` and both logs sit beside the EBOOT in
 `Runtime/OriginalEnvMainAllRows`.
+
+### Original story pause
+
+Start pushes the original `AStartMenuState` while EnvMain is active. The world
+draws behind the original menu without advancing the player, camera or sky.
+Resume and Start return control to the player. Options pushes the same
+original Audio and Controls states that the frontend uses. Quit opens the
+original `AMessagePopupState` with No selected. A Yes response returns to the
+frontend and releases the gameplay animation buffers.
+
+```powershell
+.PortsPSPToolsTestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalGameplayPauseValidation -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -CheckMainGameMovement -Capture
+```
+
+The pause check uses the single background PPSSPP runner. It checks that
+`sim_updates`, the player and camera positions, and the terrain row stay
+fixed across the stick input while rendered frames advance. It exercises
+both resume paths, Options, the default No response and the confirmed exit.
+Build `7df718b5` passed the original startup, SS01, character creation,
+walking and the pause flow in PPSSPP. The frontend returned with zero live
+animation vertices and zero animation sample bytes. The renderer peaked at
+13,764,048 of 16,777,216 bytes. The all-row runtime and its captures
+`envmain-pause.png` and `envmain-quit.png` are in
+`Runtime/OriginalGameplayPauseValidation`. The build is from
+[PSP run 45963666268](https://github.com/Lime228/OpenBarnyardPSP/actions/runs/45963666268).
+
+### Original story population inventory
+
+`inventory_retail_sim_population.py` reads all 109 base animal spawns and 150
+quest-tier overrides from the original `AnimalSpawn.trb`. It follows the
+TRB pointers and resolves names through the original string tables. The output
+records network goals, time-of-day flags, behaviour, animation and quest markers.
+
+```powershell
+python Ports/PSP/Tools/inventory_retail_sim_population.py --tmdl <TMDL.exe> Game/BarnyardPC/Install Runtime/TestTemp/OriginalSimPopulation
+```
+
+`AGameLoader` populates the initial daytime world and selects Act 1, Tier 1.
+The PC tier data names `Miles Welcome` as its only quest and the first
+population override places `miles` on the `park2` goal `miles_intro` with
+`milesidlesnap_a1t01` and the exclamation marker. `ModelTypes/miles.trb`
+selects the `sim_miles` model. The network goal stores
+position `(12.052642, -8.634027, -37.287712)` and facing
+`(0.892218, 0, 0.451605)`. This identifies the original first interaction
+for the PSP actor and conversation port.
+
+With the current CI TMDL, the original DX8 vertex pool exports as two
+material meshes and a 46-bone skeleton. The existing mesh and DDS converters
+produce the two matching textures from `barnsim_common.ttl`.
+`Runtime/TestTemp/MilesGameplayAssets` contains the verified host conversion.
+The model batch already contains seven base clips under
+`Game/BarnyardPC/Workspace/Models/Animations/Data/Models/SIM_miles`, including
+the original `listen` and `talk`. Five overlays still need runtime playback.
 
 ## Known limitations
 
@@ -977,21 +1031,17 @@ Runtime evidence:
 
 ## Next implementation order
 
-1. Add bounded per-instance visibility/LOD behaviour to the complete 640-object
-   exact-transform row without changing model IDs, transforms or materials.
-2. Restore the remaining original environment ownership and time-driven
-   frontend re-entry without changing the complete initial terrain VIS row.
-3. Port the original `SS01_start` transition from the new-game chooser. Reuse the
-   prepared terrain, models and animation batches. Release the menu world
-   before loading the intro to leave room in the PSP heap.
-4. Restore the in-game Audio dialog's `MUSIC_MISSION` preview when the
-   gameplay path can open that dialog without a main-menu state on the stack.
-   Its encoded stream is `Data/Sound/FSB/Music.fsb/000018-00-0.padp`.
-5. Measure the complete movie playback path on physical PSP hardware.
-6. Implement a bounded collision representation before any gameplay claim.
-7. Advance to one reduced playable room, then add its gameplay-owned windmills,
-   weather vane, water wheel, actor/player control, saves and zone streaming
-   with memory telemetry.
+1. Stage the converted original Miles model, textures and animations. Load the
+   initial quest-tier spawn through `AnimalSpawn.trb` and the original network
+   goal. Check rendering and interaction range against the PSP budgets.
+2. Route the original interaction, conversation, voice and completion events
+   for `Miles Welcome`. Continue with the original Tier 2 quests.
+3. Restore gameplay-owned scenery, dynamic object collision and per-instance
+   visibility and LOD. Check the remaining EnvMain routes as systems are added.
+4. Connect gameplay audio, including the original `MUSIC_MISSION` preview
+   (`Data/Sound/FSB/Music.fsb/000018-00-0.padp`) in the in-game Audio dialog.
+5. Port saves and measure movie playback, gameplay frame time and memory on
+   physical PSP hardware.
 
 ## Recent logical commit boundary
 
