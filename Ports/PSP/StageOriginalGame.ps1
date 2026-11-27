@@ -1473,4 +1473,5 @@ Copy-Item -LiteralPath $gamePbpPath -Destination (Join-Path $runtimePath 'EBOOT.
 Copy-Item -LiteralPath $gameSfoPath -Destination (Join-Path $runtimePath 'PARAM.SFO') -Force
 
 Write-Output "Staged original Barnyard PSP runtime at $runtimePath"
-Write-Output "Run it with: .\Ports\PSP\RunPPSSPP.ps1 -Action Restart -OriginalGame"
+$launchPath = (Join-Path $runtimePath 'EBOOT.PBP').Replace("'", "''")
+Write-Output "Run it with .\Ports\PSP\RunPPSSPP.ps1 -Action Start -ShowWindow -EbootPath '$launchPath'"
