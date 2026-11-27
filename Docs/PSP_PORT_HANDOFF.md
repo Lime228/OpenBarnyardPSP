@@ -72,7 +72,7 @@ Current estimates:
 | --- | ---: | --- |
 | PSP toolchain, CI and packaging | 90% | Premake, branded PBP, host tools, PSPDEV build and artifacts work; hardware release packaging remains |
 | Original startup plus main-menu milestone | 99% | Legal screens, original startup movies, main menu, Audio and Controls options, original UI cues and menu music, camera, complete initial terrain VIS row, barn sign and all 640 instances run. Remaining environment ownership and hardware validation remain. |
-| Complete playable-game port | 39% | Original startup, frontend and SS01 run. EnvMain has grounded movement, terrain wall contacts, a camera that retracts at walls, and four staged terrain rows with on-demand collision loading. The remaining visual rows, dynamic colliders, gameplay systems, saves and most in-game audio remain. |
+| Complete playable-game port | 42% | Original startup, frontend and SS01 run. All 31 original gameplay terrain rows and their colliders are staged. The port supports grounded movement, camera wall checks and row changes, verified on routes from Barn through xroad to Forest and to barnnorth. Traversal across the other rows, dynamic colliders, quests, saves and most in-game audio still need work. |
 
 ## Non-negotiable repository rules
 
@@ -731,9 +731,8 @@ instance packs. The renderer releases the old pack before loading its
 replacement in the same heap. A failed collider load restores the
 previous collision set before the renderer changes rows. A failed visual
 load restores both the previous collision and visual sets. Row swaps
-load synchronously during the gameplay update. The conversion currently
-stages Barn, barnnorth, xroad and xroadeast. The remaining rows need
-their own visual packs and traversal checks.
+load synchronously during the gameplay update. The same renderer and
+collider catalogue support the full batch of gameplay rows below.
 
 ```powershell
 $ss01 = 'Game/BarnyardPC/Workspace/SS01'
@@ -782,6 +781,41 @@ bytes. The runtime reported three completed swaps and zero failures.
 The EBOOT and logs are under `Runtime/OriginalEnvMainStreamingValidation`.
 The xroadeast screenshot also shows that foliage from a static instance
 can obscure the follow camera.
+
+### Complete EnvMain asset batch
+
+`ConvertRetailMainGameTerrain.ps1 -AllVisibilityRows` builds all 31
+original terrain rows with colliders. It shares a terrain model conversion
+only when its source and material library agree, and bakes the selected
+original instance placements separately for each row. The instance
+batch exports each source model and texture once per invocation.
+`-ReuseConvertedModels` can seed the batch from existing same-width
+EnvMain conversions from this install. Run without it to rebuild source
+models after changing the install or the terrain conversion.
+
+All 31 rows passed host packaging and fit the runtime tables. Barn has
+the largest mesh and texture counts at 445 and 152. Pondjunk contains
+the largest combined PMES/PTEX payload at 11,663,964 bytes on disk.
+`-MainGameAllVisibilityRows` stages the full catalogue and its original
+colliders. It activates only the six initial files on entry to Barn.
+
+```powershell
+$ss01 = 'Game/BarnyardPC/Workspace/SS01'
+.\Ports\PSP\Tools\ConvertRetailMainGameTerrain.ps1 -AllVisibilityRows
+.\Ports\PSP\StageOriginalGame.ps1 -SkipConversion -BuildDirectory <CI-artifact> -RuntimeDirectory Runtime/OriginalEnvMainAllRows -SS01OpeningDirectory "$ss01/Opening" -SS01CharacterSetupDirectory "$ss01/CharacterSetup" -SS01AfterCharacterSetupDirectory "$ss01/AfterCharacterSetup" -MainGameDirectory Game/BarnyardPC/Workspace/EnvMain -MainGameScene -MainGameInstances -MainGameAllVisibilityRows
+.\Ports\PSP\Tools\TestOriginalOptions.ps1 -RuntimeDirectory Runtime/OriginalEnvMainAllRows -CheckNewGameOpening -OpeningOnly -RequireOpeningSky -RequireOpeningVoice -RequireOpeningActors -CheckCharacterSetup -CheckContinuation -CheckMainGameStart -CheckMainGameScene -CheckMainGameInstances -CheckMainGameCrossroads -CheckMainGameCollisionStreaming -CheckMainGameForest -Capture
+```
+
+The full staged runtime occupies 409,081,253 bytes before test logs and
+captures. Verification matched all 31 staged collider files byte for byte
+against the install and every active collision mask against the original
+VIS. The PPSSPP walkthrough reached Forest through Barn, xroad and
+xroadeast. It loaded 304 draw groups, 105 textures and 180,704 decoded
+bytes across the four resident colliders. It reported three swaps and no
+load failures, with peak renderer use of 13,764,048 bytes out of 16,777,216.
+Start returned to the original menu and released the animation vertices.
+The capture `envmain-forest.png` and both logs sit beside the EBOOT in
+`Runtime/OriginalEnvMainAllRows`.
 
 ## Known limitations
 
