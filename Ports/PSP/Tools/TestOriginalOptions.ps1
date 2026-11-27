@@ -371,6 +371,9 @@ function Test-MainGameRegions([hashtable] $Scene) {
 function Test-MainGameMiles([hashtable] $Scene) {
     $actor = @{ sim_miles_loaded = 1; sim_miles_draws = 2 }
     if ($CheckMainGameShadows) { $actor.sim_shadow_draws = 2 }
+    if (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Units\miles\exclamation.psmk') -PathType Leaf) {
+        $actor.sim_marker_draws = 1
+    }
     $before = Wait-Menu 'sim-world-ready' -1 $actor
     $position = Convert-SimPosition $before.sim_miles_position
     if ([Math]::Abs($position[0] - 24.454769) -gt 0.0001 -or

@@ -196,7 +196,7 @@ TBOOL ASimState_PSP::Create( TUINT a_uiGender, TUINT a_uiCostume )
 	rReport.bSimMilesLoaded = m_Miles.IsLoaded();
 	rReport.vSimMilesPosition = m_Miles.GetPosition();
 	rReport.uiSimMilesDraws = rReport.uiSimMilesPoseUpdates = 0;
-	rReport.uiSimShadowDraws = 0;
+	rReport.uiSimShadowDraws = rReport.uiSimMarkerDraws = 0;
 	rReport.uiSimFrames = 0;
 	rReport.uiSimUpdates = 0;
 	rReport.vSimPlayerPosition = m_Player.GetPosition();
@@ -289,6 +289,7 @@ void ASimState_PSP::OnRender( TFLOAT a_fDeltaTime )
 		rReport.uiSimShadowDraws++;
 	rReport.uiSimPlayerDraws = m_Player.Render( rRenderer, m_Camera );
 	rReport.uiSimMilesDraws = m_Miles.Render( rRenderer, m_Camera );
+	rReport.uiSimMarkerDraws = m_Miles.RenderMarker( rRenderer, m_Camera );
 	rReport.uiSimFrames++;
 }
 

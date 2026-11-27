@@ -8,6 +8,8 @@
 
 #include <File/TFile.h>
 #include <Platform/PSP/TAnimationClipFactory_PSP.h>
+#include <Platform/PSP/TModelFactory_PSP.h>
+#include <Platform/PSP/TTextureFactory_PSP.h>
 #include <Toshi/TStringManager.h>
 
 TOSHI_NAMESPACE_USING
@@ -77,7 +79,7 @@ static TBOOL AReadSimQuestLocator_PSP( ASimStart_PSP& a_rStart, const TCHAR* a_s
 	return TFALSE;
 }
 
-static TBOOL AReadMilesStart_PSP( TTRB& a_rTRB, ASimStart_PSP& a_rStart )
+static TBOOL AReadMilesStart_PSP( TTRB& a_rTRB, ASimStart_PSP& a_rStart, TBOOL& a_rbHasMarker )
 {
 	const auto* pSpawns = a_rTRB.CastSymbol<AnimalPopulation::Set<AnimalPopulation::QuestTierSpawn>>( "QuestTierSpawnSet" );
 	const auto* pTables = a_rTRB.CastSymbol<AnimalPopulation::StringTable>( "StringMappingTables" );
@@ -109,6 +111,7 @@ static TBOOL AReadMilesStart_PSP( TTRB& a_rTRB, ASimStart_PSP& a_rStart )
 
 		TCHAR szLocator[ 32 ];
 		TStringManager::String8Format( szLocator, TARRAYSIZE( szLocator ), "ql_a1t01_%s", szName );
+		a_rbHasMarker = HASANYFLAG( rSpawn.uiMarkerFlags, AnimalPopulation::MARKERTYPE_EXCLAMATION );
 		// Match PlaceUnit: the visible quest locator takes priority over the network goal.
 		if ( AReadSimQuestLocator_PSP( a_rStart, szLocator ) )
 			return TTRUE;
@@ -128,11 +131,12 @@ TBOOL ASimAnimal_PSP::Load()
 	pFile->Destroy();
 
 	ASimStart_PSP oStart;
+	TBOOL bHasMarker = TFALSE;
 	TStringManager::String8Copy( m_szPath, s_szPopulationPath_PSP, TARRAYSIZE( m_szPath ) );
 	{
 		TTRB oPopulation;
 		if ( oPopulation.Load( s_szPopulationPath_PSP ) != TTRB::ERROR_OK || oPopulation.GetSymbolTable() == TNULL ||
-		     !AReadMilesStart_PSP( oPopulation, oStart ) )
+		     !AReadMilesStart_PSP( oPopulation, oStart, bHasMarker ) )
 			return TFALSE;
 	}
 
@@ -145,7 +149,8 @@ TBOOL ASimAnimal_PSP::Load()
 	const TAnimationClipFactory_PSP oFactory;
 	TStringManager::String8Format( m_szPath, uiPathCapacity, "%s/idle.panm", s_szMilesRoot_PSP );
 	if ( !oFactory.CreateAnimationFromFile( m_Idle, m_Model.GetSkeleton(), m_szPath ) || !m_Idle.IsLooping() ||
-	     !m_Model.LoadMeshes( s_szMilesRoot_PSP, m_szPath, uiPathCapacity ) || !m_Model.UpdatePose( m_Idle, 0 ) )
+	     !m_Model.LoadMeshes( s_szMilesRoot_PSP, m_szPath, uiPathCapacity ) || !m_Model.UpdatePose( m_Idle, 0 ) ||
+	     ( bHasMarker && !LoadMarker() ) )
 	{
 		Unload();
 		return TFALSE;
@@ -158,12 +163,47 @@ TBOOL ASimAnimal_PSP::Load()
 	return TTRUE;
 }
 
+TBOOL ASimAnimal_PSP::LoadMarker()
+{
+	const TSIZE uiPathCapacity = TARRAYSIZE( m_szPath );
+	TStringManager::String8Format( m_szPath, uiPathCapacity, "%s/exclamation.psmk", s_szMilesRoot_PSP );
+	TFile* pFile = TFile::Create( m_szPath, TFILEMODE_READ | TFILEMODE_NOBUFFER );
+	if ( pFile == TNULL )
+		return TTRUE;
+
+	TUINT32 aHeader[ 2 ];
+	TFLOAT fHeight;
+	const TBOOL bRead = pFile->GetSize() == sizeof( aHeader ) + sizeof( fHeight ) &&
+	                    pFile->Read( aHeader, sizeof( aHeader ) ) == sizeof( aHeader ) &&
+	                    aHeader[ 0 ] == 0x4b4d5350 && aHeader[ 1 ] == 1 &&
+	                    pFile->Read( &fHeight, sizeof( fHeight ) ) == sizeof( fHeight ) && fHeight > 0.0f && fHeight < 8.0f;
+	pFile->Destroy();
+	if ( !bRead )
+		return TFALSE;
+
+	const TModelFactory_PSP oModelFactory;
+	TStringManager::String8Format( m_szPath, uiPathCapacity, "%s/exclamation.pmes", s_szMilesRoot_PSP );
+	if ( !oModelFactory.CreateModelFromFile( m_MarkerModel, m_szPath ) )
+		return TFALSE;
+
+	const TTextureFactory_PSP oTextureFactory;
+	TStringManager::String8Format( m_szPath, uiPathCapacity, "%s/exclamation.ptex", s_szMilesRoot_PSP );
+	if ( !oTextureFactory.CreateTextureFromFile( m_MarkerTexture, m_szPath ) )
+		return TFALSE;
+
+	m_fMarkerHeight = fHeight;
+	return TTRUE;
+}
+
 void ASimAnimal_PSP::Unload()
 {
+	m_MarkerModel.Unload();
+	m_MarkerTexture.Unload();
 	m_Idle.Unload();
 	m_Model.Unload();
 	m_vPosition = TVector4::VEC_ZERO;
 	m_fIdleTime = 0.0f;
+	m_fMarkerTime = m_fMarkerHeight = 0.0f;
 	m_uiIdleFrame = m_uiPoseUpdates = 0;
 	m_bLoaded = m_bNearby = TFALSE;
 }
@@ -174,6 +214,9 @@ TBOOL ASimAnimal_PSP::Update( TFLOAT a_fDeltaTime, const TVector4& a_rPlayerPosi
 	           s_fAnimalUpdateDistance_PSP * s_fAnimalUpdateDistance_PSP;
 	if ( !m_bNearby )
 		return TTRUE;
+
+	m_fMarkerTime += a_fDeltaTime;
+	m_fMarkerTime -= 2.0f * TMath::FloorToInt( m_fMarkerTime * 0.5f );
 
 	const TUINT uiRate = m_Idle.GetSampleRate();
 	const TFLOAT fDuration = TFLOAT( m_Idle.GetFrameCount() ) / uiRate;
@@ -193,4 +236,29 @@ TBOOL ASimAnimal_PSP::Update( TFLOAT a_fDeltaTime, const TVector4& a_rPlayerPosi
 TUINT ASimAnimal_PSP::Render( TRenderInterface_PSP& a_rRenderer, const TRenderCamera_PSP& a_rCamera ) const
 {
 	return m_bNearby ? m_Model.Render( a_rRenderer, a_rCamera ) : 0;
+}
+
+TBOOL ASimAnimal_PSP::RenderMarker( TRenderInterface_PSP& a_rRenderer, const TRenderCamera_PSP& a_rCamera ) const
+{
+	if ( !m_bNearby || m_fMarkerHeight == 0.0f )
+		return TFALSE;
+
+	// AAnimalPopulationManager::RenderMarkers uses one turn every two seconds and a 0.1 m bob.
+	const TFLOAT fBob = TMath::Sin( m_fMarkerTime * TMath::TWO_PI ) * 0.1f;
+	const TVector4 vPosition( m_vPosition.x, m_vPosition.y - m_fMarkerHeight - 1.0f + fBob, m_vPosition.z, 1.0f );
+	const TVector4 vCamera( a_rCamera.aPosition[ 0 ], a_rCamera.aPosition[ 1 ], a_rCamera.aPosition[ 2 ], 1.0f );
+	TFLOAT fDistance = TMath::Sqrt( TVector4::DistanceSq( vPosition, vCamera ) ) - 5.0f;
+	TMath::Clip( fDistance, 0.0f, 40.0f );
+	const TRenderSceneTransform_PSP oTransform = {
+		{ vPosition.x, vPosition.y, vPosition.z },
+		{ 0.0f, m_fMarkerTime * TMath::PI, 0.0f },
+		0.5f + fDistance / 35.0f
+	};
+	const TRenderModelTransform_PSP oModelTransform = { 1.0f, { 0.0f, 0.0f, 0.0f } };
+	static const TRenderMaterial_PSP s_Material = {
+		TTRUE, TRENDERTEXTUREFUNCTION_PSP_MODULATE, TRENDERCULLMODE_PSP_NONE, TRENDERALPHAMODE_PSP_OPAQUE,
+		TRENDERTEXTUREADDRESS_PSP_WRAP, TRENDERTEXTUREADDRESS_PSP_WRAP,
+	};
+	a_rRenderer.DrawModel( m_MarkerModel, oTransform, s_Material, &m_MarkerTexture, oModelTransform, &a_rCamera );
+	return TTRUE;
 }
