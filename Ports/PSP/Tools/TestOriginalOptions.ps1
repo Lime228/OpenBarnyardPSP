@@ -15,6 +15,8 @@ param(
     [switch] $CheckMainGameScene,
     [switch] $CheckMainGameInstances,
     [switch] $CheckMainGameMovement,
+    [switch] $CheckMainGameMiles,
+    [switch] $CheckMainGameShadows,
     [switch] $CheckMainGameCollision,
     [switch] $CheckMainGameCamera,
     [switch] $CheckMainGameRegions,
@@ -68,6 +70,14 @@ if ($CheckMainGameInstances -and -not $CheckMainGameScene) {
 }
 if ($CheckMainGameMovement -and -not $CheckMainGameScene) {
     throw 'Use -CheckMainGameMovement with -CheckMainGameScene.'
+}
+if ($CheckMainGameMiles -and (-not $CheckMainGameScene -or
+    -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Units\AnimalSpawn.trb') -PathType Leaf))) {
+    throw 'Use -CheckMainGameMiles with -CheckMainGameScene and the staged original animals.'
+}
+if ($CheckMainGameShadows -and (-not $CheckMainGameMiles -or
+    -not (Test-Path -LiteralPath (Join-Path $runtimePath 'Data\Particles\shadow.pshs') -PathType Leaf))) {
+    throw 'Use -CheckMainGameShadows with -CheckMainGameMiles and the staged original shadow.'
 }
 if ($CheckMainGameCollision -and -not $CheckMainGameScene) {
     throw 'Use -CheckMainGameCollision with -CheckMainGameScene.'
@@ -159,6 +169,9 @@ function Test-MainGamePause {
         sim_player_position = $paused.sim_player_position
         sim_camera_position = $paused.sim_camera_position
         sim_terrain_row = $paused.sim_terrain_row
+    }
+    if ($paused.sim_miles_loaded -eq '1') {
+        $frozen.sim_miles_pose_updates = $paused.sim_miles_pose_updates
     }
     & $runner @runnerArguments -Action Press -Key AnalogUp -AnalogHoldMilliseconds 500 | Write-Host
     $afterStick = Wait-Menu 'sim-paused' -1 $frozen 15 ([int]$paused.sim_frames)
@@ -353,6 +366,28 @@ function Test-MainGameRegions([hashtable] $Scene) {
     }
     if ($Capture) { Send-Key Screenshot }
     "Returned to Barn at ($($returned.sim_player_position)), restored $($returned.sim_terrain_meshes) meshes and completed $($returned.sim_terrain_swaps) row swaps."
+}
+
+function Test-MainGameMiles([hashtable] $Scene) {
+    $actor = @{ sim_miles_loaded = 1; sim_miles_draws = 2 }
+    if ($CheckMainGameShadows) { $actor.sim_shadow_draws = 2 }
+    $before = Wait-Menu 'sim-world-ready' -1 $actor
+    $position = Convert-SimPosition $before.sim_miles_position
+    if ([Math]::Abs($position[0] - 24.454769) -gt 0.0001 -or
+        [Math]::Abs($position[1] + 8.426369) -gt 0.0001 -or
+        [Math]::Abs($position[2] + 39.312126) -gt 0.0001) {
+        throw "Miles is not at the original ql_a1t01_miles locator. See $gameLog"
+    }
+    $approach = Move-SimTowards $Scene 22.8 -38.0
+    if ($Capture) { $approach = Move-SimTowards $approach 23.8 -38.6 }
+    $actor.sim_miles_position = $before.sim_miles_position
+    $after = Wait-Menu 'sim-world-ready' -1 $actor 15 ([int]$approach.sim_frames)
+    if ([int]$after.sim_miles_pose_updates -le [int]$before.sim_miles_pose_updates) {
+        throw "Miles did not advance the original idle animation. See $gameLog"
+    }
+    "Miles drew both original meshes at ($($after.sim_miles_position)), with $($after.sim_miles_pose_updates) idle pose updates."
+    if ($CheckMainGameShadows) { "Rendered $($after.sim_shadow_draws) original character shadows in EnvMain." }
+    if ($Capture) { Send-Key Screenshot }
 }
 
 function Test-MainGameCrossroads([hashtable] $Scene) {
@@ -723,6 +758,7 @@ try {
                     if ($CheckMainGameCollision) { Test-MainGameCollision (Read-GameLog) }
                     if ($CheckMainGameRegions) { Test-MainGameRegions (Read-GameLog) }
                     if ($CheckMainGameCrossroads) { Test-MainGameCrossroads (Read-GameLog) }
+                    if ($CheckMainGameMiles) { Test-MainGameMiles (Read-GameLog) }
                 }
             }
         }
